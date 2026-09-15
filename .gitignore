@@ -7,3 +7,4 @@ src/generated/
 src/.content-*/
 .DS_Store
 *.log
+.vscode/
