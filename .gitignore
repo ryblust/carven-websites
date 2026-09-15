@@ -1,0 +1,9 @@
+node_modules/
+.pnpm-store/
+dist/
+.tanstack/
+.site/
+src/generated/
+src/.content-*/
+.DS_Store
+*.log

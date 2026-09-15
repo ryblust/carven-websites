@@ -1,0 +1,48 @@
+{
+  "name": "carven-website",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev-server.mjs start",
+    "dev:foreground": "node scripts/generate-content.ts && vite dev",
+    "stop": "node scripts/dev-server.mjs stop",
+    "status": "node scripts/dev-server.mjs status",
+    "build": "node scripts/build.mjs",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "test": "vitest run",
+    "content": "node scripts/generate-content.ts",
+    "check:links": "node scripts/check-links.mjs"
+  },
+  "dependencies": {
+    "@tanstack/react-router": "1.170.33",
+    "@tanstack/react-start": "1.168.50",
+    "effect": "4.0.0-rc.112",
+    "motion": "13.2.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@effect/platform-node": "4.0.0-rc.112",
+    "@effect/vitest": "4.0.0-rc.112",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "6.1.1",
+    "github-slugger": "2.0.0",
+    "marked": "18.0.12",
+    "prettier": "3.9.6",
+    "shiki": "4.4.3",
+    "typescript": "7.0.2",
+    "vite": "8.2.2",
+    "vitest": "^4.1.11",
+    "yaml": "2.9.0"
+  }
+}

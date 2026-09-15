@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Keep commands and generated files inside this website checkout.
+SITE_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SITE_DIRECTORY"
+
+SITE_NODE="$(command -v node || true)"
+if [[ -z "$SITE_NODE" ]]; then
+  SITE_NODE="$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
+fi
+if [[ ! -x "$SITE_NODE" ]]; then
+  echo "请先安装 Node.js 24 或更新版本。"
+  exit 1
+fi
+export PATH="$(dirname "$SITE_NODE"):$PATH"
+if ! "$SITE_NODE" -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)'; then
+  echo "此项目需要 Node.js 24 或更新版本。"
+  exit 1
+fi
+
+SITE_TASK="${1:-dev}"
+if [[ $# -gt 0 ]]; then shift; fi
+
+case "$SITE_TASK" in
+  dev|dev:foreground|build|preview|check:links|typecheck|format|format:check|test|content|stop|status)
+    if [[ ! -d node_modules/vite ]]; then
+      echo "请先在此目录运行 pnpm install。"
+      exit 1
+    fi
+    exec "$SITE_NODE" --run "$SITE_TASK" -- "$@"
+    ;;
+  *)
+    echo "用法：./sitew [dev|dev:foreground|build|preview|typecheck|format|format:check|test|content|check:links|stop|status]"
+    exit 1
+    ;;
+esac

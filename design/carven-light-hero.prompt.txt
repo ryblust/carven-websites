@@ -1,0 +1,7 @@
+Use case: ads-marketing.
+Asset type: original abstract light background for the Carven homepage, wide 16:9 landscape.
+Primary request: pure light and atmosphere on near-black. No tangible object of any kind.
+Composition: one broad, soft, diagonal sweep of light crossing from lower center toward upper right, with a fine brighter edge gradually dissolving into darkness. The main luminous area lives in the right 55% and the upper-right, while the left 45% remains nearly black for live white webpage text. Let the light extend beyond the frame so it feels like an environment rather than an object.
+Appearance: photographic long-exposure light, a soft volumetric haze, extremely fine film grain, a restrained warm white and muted copper core fading into cool graphite shadows. Depth from overlapping light gradients only. Mostly black, with a confident single luminous gesture. Luminous without looking like neon. Dark outer edges blend into #030304.
+Mood: premium, precise, quietly energetic, contemporary software brand. Think an abstract sensation of motion and clarity, not a depiction of technology.
+Strictly NO sculpture, metal, architecture, surfaces, panels, slabs, glass, prisms, cubes, spheres, particles, mascot, logo, letters, code, UI, text, watermark. No bounded ribbon or solid strip. No purple neon. This is light itself, not light illuminating an object.

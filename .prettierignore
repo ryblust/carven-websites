@@ -1,0 +1,10 @@
+node_modules/
+.pnpm-store/
+.site/
+.tanstack/
+dist/
+src/generated/
+src/routeTree.gen.ts
+src/.content-*/
+pnpm-lock.yaml
+public/fonts/
