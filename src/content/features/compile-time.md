@@ -10,23 +10,21 @@ source: docs/semantics.md
 Lookup tables, fixed records, and text often need loops, local mutation, and helper functions. Within its supported execution subset, Carven's const fn lets you prepare data in these familiar ways.
 
 ```carven
-const fn make_catalog(count: i32) -> String {
-    var result = String::new();
-
-    for index in 0..count {
-        if index != 0 {
-            result.push(',');
+const fn join(items: [str; 3]) -> String {
+    var text = String::new();
+    for item in items {
+        if !text.is_empty() {
+            text.append(" / ");
         }
-        result.append_format(f"{index:02}");
+        text.append(item);
     }
-
-    return result;
+    return text;
 }
 
-const catalog = make_catalog(4);
+const menu = join(["Home", "Docs", "About"]);
 ```
 
-catalog becomes `00,01,02,03` during compilation. While the function executes, String can grow, be copied, and be transferred. At the end of constant initialization, the result freezes into str backed by static storage. The running program does not need to repeat this construction loop.
+menu becomes `Home / Docs / About` during compilation. While the function executes, String can grow, be copied, and be transferred. At the end of constant initialization, the result freezes into str backed by static storage. The running program does not need to repeat this construction loop.
 
 **Construction can be mutable while the delivered data is static.** Fixed arrays and supported structures can also be built incrementally. Array results can become read-only slices with static backing at the constant-initialization boundary.
 
@@ -36,20 +34,22 @@ C++ constexpr, consteval, and templates also express compile-time work. In handw
 
 Carven evaluates supported source operations itself and freezes results when initialization completes. Here, temporary String construction delivers a static str. This happens before C++ generation, without requiring the corresponding runtime text functions to perform the same computation in C++ constant evaluation.
 
+The [tutorial](/learn/constants/) provides complete runnable Carven and C++ versions, with edits to try and behavior to compare.
+
 ## One algorithm, an explicit execution stage
 
 A const fn call in a required constant context is evaluated by Carven. An ordinary runtime call remains a runtime function call, even when its arguments happen to be literals.
 
-make_catalog can therefore prepare a fixed catalog or construct text from runtime input. The source contract determines the stage. A required constant computation that cannot complete produces a diagnostic rather than falling back to runtime.
+join can therefore prepare a fixed menu or construct text from runtime input. The source contract determines the stage. A required constant computation that cannot complete produces a diagnostic rather than falling back to runtime.
 
 ## Verify before the program runs
 
-Compile-time data can immediately be checked by a compile-time test. Place this test in the same file as catalog above:
+Compile-time data can immediately be checked by a compile-time test. Place this test in the same file as menu above:
 
 ```carven
-const test "catalog contents" {
-    check(catalog == "00,01,02,03");
-    check(catalog.len() == 11);
+const test "menu contents" {
+    check(menu == "Home / Docs / About");
+    check(menu.len() == 19);
 }
 ```
 

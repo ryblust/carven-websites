@@ -2,7 +2,7 @@
 title: "Characters, str, and String"
 description: "UTF-8, owning text, view conversions, mutation restrictions, and borrow lifetimes."
 section: reference
-lesson: 6
+lesson: 10
 source: docs/semantics.md
 ---
 

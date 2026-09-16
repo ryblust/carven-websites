@@ -10,7 +10,7 @@ source: docs/semantics.md
 
 Builtin types are `bool`, `char`, `str`, `String`, `void`, signed integers `i8/i16/i32/i64/isize`, unsigned integers `u8/u16/u32/u64/usize`, and `f32/f64`.
 
-Structs and enums have declaration identity; identical fields do not imply compatibility. Array types include element type and length; slice types include element type. Callable view types include parameter access, parameter types, success result, and failure set. Each pointer layer includes its target type and Read/Write target access.
+Structs and enums have declaration identity; identical fields do not imply compatibility. Array types include element type and length; slice types include element type. `range<T>` accepts a builtin integer element type. Half-open and closed intervals share that type; upper-bound inclusion is part of the value, not its type. Callable view types include parameter access, parameter types, success result, and failure set. Each pointer layer includes its target type and Read/Write target access.
 
 Ordinary Carven values require the same canonical type. Literal, text, slice, callable, and pointer conversions occur only in explicitly supported positions. There is no general numeric promotion, structural conversion, or truthiness.
 

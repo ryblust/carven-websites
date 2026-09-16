@@ -1,5 +1,5 @@
 ---
-title: "Calling C++ and exporting interfaces"
+title: "Call C++ and export an interface"
 description: "Move from printf to scalar façades, with explicit native types, exceptions, and build responsibilities."
 section: learn
 lesson: 13
@@ -35,6 +35,34 @@ fn main() {
 
 The output is 4. Native template arguments may be types. C++ decides construction, methods, and conversion validity; the usize annotation requests destination construction. Native indexing follows provider rules and does not automatically gain Carven array bounds checks.
 
+## Use a third-party library
+
+The same import mechanism works with [nlohmann/json](https://json.nlohmann.me/integration/). Save this as config.cv:
+
+```carven
+import <nlohmann/json.hpp> using nlohmann::json::parse;
+
+fn main() {
+    let config = parse(c"{\"port\":9000}");
+    let port: i32 = config.value(c"port", 8080);
+    println(f"Port: {port}");
+}
+```
+
+parse creates the library's native JSON object. Its value method reads port, using 8080 if the key is missing. The i32 annotation gives the native result a Carven destination type; println then uses that value normally. No binding code is needed for these calls.
+
+For a self-contained local trial, put the single header beside config.cv under nlohmann/. These commands pin the version used to verify the example:
+
+```sh
+mkdir -p nlohmann
+curl --fail --location https://raw.githubusercontent.com/nlohmann/json/v3.12.0/single_include/nlohmann/json.hpp -o nlohmann/json.hpp
+carven config.cv
+```
+
+Expect `Port: 9000`. Change the JSON text to `{}` and run again: the output becomes `Port: 8080`. In an existing project, keep managing the dependency through its native build and include paths. Header import does not download the library.
+
+[value's default](https://json.nlohmann.me/api/basic_json/value/) handles a missing key, not malformed JSON or the wrong value type. This example assumes a valid object and an in-range integer port. Parsing or type errors can throw native exceptions; see the exception boundary below before using untrusted input.
+
 ## An explicit scalar interface
 
 ```carven
@@ -67,4 +95,4 @@ Carven tracks known storage and text backing. It does not prove the lifetime of 
 
 ## Exercise
 
-Change native_double to return value + 2 and confirm the output changes. Then remove the cpp provider while keeping import(cpp), and inspect the native declaration/link failure. A Carven import is not proof that the provider exists.
+Change native_double to return value + 2 and confirm the output changes. Then remove the cpp provider while keeping import(cpp), and inspect the native declaration/link failure. Native compilation and linking check whether the provider exists.

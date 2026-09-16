@@ -1,8 +1,8 @@
 ---
-title: 闭包、捕获与 callable view
-description: 闭包身份、值捕获、Write 捕获、view 适配与调用快照。
+title: 闭包、捕获与可调用视图
+description: 闭包身份、值捕获、Write 捕获、可调用视图适配与调用快照。
 section: reference
-lesson: 10
+lesson: 9
 source: docs/semantics.md
 ---
 
@@ -22,9 +22,9 @@ lambda 的捕获列表必须存在，无捕获写 `[]`。创建闭包不执行�
 
 每个 lambda 源表达式具有唯一具体类型，不能手写其类型名。重复执行同一表达式产生同类型值；两个看起来相同的 lambda 是不同类型。
 
-同类型闭包赋值复制值捕获，并把 Write 捕获重新绑定到源闭包的 referent，不向 referent 本身赋值。`let copy = closure` 拥有独立捕获值；Write 捕获仍别名原存储。值捕获一个含 Write 捕获的闭包，仍允许它修改原 referent。
+同类型闭包赋值会复制值捕获，并让 Write 捕获指向源闭包捕获的对象，不向该对象本身赋值。`let copy = closure` 拥有独立捕获值；Write 捕获仍别名原存储。按值捕获一个含 Write 捕获的闭包后，仍允许它修改原先指向的对象。
 
-不可变闭包 owner 可以调用其已存储的 Write 权限。Take 整个闭包使源 owner 不可用，目标保留 Write 捕获关联。所有复制、聚合和返回都不延长 referent 生命周期。返回引用调用者 Write 参数的闭包可以满足关系；返回引用被调用者局部 owner 的闭包不行。
+不可变闭包 owner 可以调用其已存储的 Write 权限。Take 整个闭包使源 owner 不可用，目标保留 Write 捕获关联。复制闭包、把它放入聚合或从函数返回，都不会延长捕获所指对象的生命周期。返回引用调用者 Write 参数的闭包可以满足关系；返回引用被调用者局部 owner 的闭包不行。
 
 ## 签名上下文
 

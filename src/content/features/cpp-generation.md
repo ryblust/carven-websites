@@ -9,7 +9,7 @@ source: docs/backend.md
 
 Carven is a programming language and compiler targeting C++. Source describes modules, types, access, ownership, and failure. The compiler checks those relationships and organizes the resulting semantics into a C++20 program.
 
-**Focus on what the program does; the compiler organizes how those intentions are realized in C++.** The native compiler continues to handle C++ type requirements, object layout, optimization, and machine-code generation.
+**Source declares modules, access, and failure contracts; the compiler uses them to generate C++ interfaces and implementations.** The native compiler continues to handle C++ type requirements, object layout, optimization, and machine-code generation.
 
 ## One source for interface and implementation
 
@@ -62,19 +62,21 @@ Handwritten C++ requires temporaries, branches, and scopes to be arranged around
 
 For example, an earlier aggregate component may already be constructed when a later component fails. The compiler must preserve the earlier value and end its lifetime on the failure path. When a successful result has a known destination, generation arranges direct construction without introducing an unnecessary default-construction requirement.
 
-There are concrete boundaries: C++ can still reject an immovable native component that must first be saved and then transferred into an aggregate. Direct construction in the final destination has different requirements from intermediate storage across a failure boundary.
+Generated local storage follows the accesses retained in the native program. Field and array projections carry their consumer's access back to the owner: reading a projection can keep const access, while writes and ownership transfers can require mutable storage. Source access rules remain enforced independently of the chosen C++ storage.
+
+C++ can still reject an immovable native component that must first be saved and then transferred into an aggregate. Direct construction in the final destination has different requirements from intermediate storage across a failure boundary.
 
 ## Keep using known information at runtime
 
 Generation continues to use checked facts:
 
-| Known semantics                                  | Native work they can determine                                          |
-| ------------------------------------------------ | ----------------------------------------------------------------------- |
-| Access and borrowing relationships               | Parameter passing, retained storage, and cleanup scopes                 |
-| Failure sets                                     | Concrete result carriers, propagation branches, and callable adaptation |
-| The destination of a successful result           | Direct construction and necessary intermediate storage                  |
-| Fixed format segments and integer specifications | Prepared text, integer writes, and capacity bounds                      |
-| Proven text encoding                             | A formatting path that needs no repeated UTF-8 scan                     |
+| Known semantics                                    | Native work they can determine                                          |
+| -------------------------------------------------- | ----------------------------------------------------------------------- |
+| Access and borrowing relationships                 | Parameter passing, retained storage, and cleanup scopes                 |
+| Failure sets                                       | Concrete result carriers, propagation branches, and callable adaptation |
+| The destination of a successful result             | Direct construction and necessary intermediate storage                  |
+| Fixed format segments and supported builtin fields | Prepared text, direct field writes, and capacity bounds                 |
+| Proven text encoding                               | A formatting path that needs no repeated UTF-8 scan                     |
 
 **Static information also helps select the implementation.** Every path preserves required evaluation, side effects, ownership, and failure behavior. The C++ toolchain handles the remaining native optimizations.
 
@@ -84,4 +86,4 @@ The artifacts are inspectable headers and implementation files that can be compi
 
 Carven does not require a separate object-layout or machine-code backend for project providers. It completes semantic checking and source generation before the native build, with runtime support headers supplied by the toolchain.
 
-C++ modules, templates, code generators, and library abstractions can also organize this work. Carven's value is in making these decisions consume the same source-language semantic facts, reducing the rules and supporting implementations a project must synchronize itself.
+C++ modules, templates, code generators, and library abstractions can also organize this work. Carven generates interfaces and implementations from the same checked module, type, access, and failure rules, reducing the work a project must do to keep those rules and implementations in sync.

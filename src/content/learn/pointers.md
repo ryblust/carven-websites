@@ -1,5 +1,5 @@
 ---
-title: "Working with external addresses"
+title: "Use native addresses and non-null checks"
 description: "Store native addresses, establish local non-null facts, and keep resource owners alive."
 section: learn
 lesson: 14

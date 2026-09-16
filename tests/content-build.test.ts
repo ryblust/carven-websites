@@ -31,8 +31,9 @@ describe('content build', () => {
       assert.notInclude(manifest, 'shiki');
       const home = yield* fs.readFileString(`${root}/src/generated/home-examples.ts`);
       assert.include(home, 'carven-vesper-black');
-      assert.include(home, 'pickup_quote');
-      assert.include(home, 'distance');
+      assert.include(home, 'BadPort');
+      assert.include(home, 'freeze');
+      assert.include(home, 'nlohmann');
       assert.include(html, 'carven-vesper-black');
       assert.isFalse(yield* fs.exists(`${root}/src/generated/content.json`));
       assert.isFalse(

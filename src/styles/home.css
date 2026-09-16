@@ -34,20 +34,22 @@
 }
 .home-hero-copy {
   width: min(540px, 49%);
+  position: relative;
+  left: 8px;
 }
 .home-intro h1 {
   font-family: var(--brand);
   color: #eef0f2;
-  font-size: clamp(4rem, 8.5vw, 7.4rem);
-  font-weight: 550;
+  font-size: clamp(4.25rem, 9vw, 7.75rem);
+  font-weight: 500;
   line-height: 1;
   letter-spacing: normal;
-  margin: 0;
+  margin: 0 0 0 -0.1em;
 }
 .home-tagline {
-  font-family: var(--brand);
-  font-weight: 450;
-  font-size: clamp(1.25rem, 2.2vw, 1.8rem);
+  font-family: var(--script);
+  font-weight: 400;
+  font-size: clamp(1.875rem, 2.8vw, 2.3125rem);
   color: #c6c9ce;
   line-height: 1.5;
   letter-spacing: normal;
@@ -276,10 +278,10 @@
     background: linear-gradient(180deg, #030304 35%, #03030477 55%, transparent 75%, #030304 100%);
   }
   .home-intro h1 {
-    font-size: clamp(4.2rem, 14vw, 6rem);
+    font-size: clamp(4.5rem, 15vw, 6.25rem);
   }
   .home-tagline {
-    font-size: 1.375rem;
+    font-size: 1.875rem;
     margin-top: 21px;
   }
   .why-demo {

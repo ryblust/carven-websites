@@ -12,7 +12,7 @@ This appendix contains every EBNF block in the current grammar document. Quotes 
 
 ## Precedence
 
-From lowest to highest: access expressions, logical or, logical and, bitwise or, xor, bitwise and, comparisons, shifts, addition/subtraction, multiplication/division/remainder, as, prefix, and postfix. Repeated binary forms and as associate left. All comparisons share one non-associative level: unparenthesized comparison chains are invalid. There is no comma expression.
+From lowest to highest: access expressions, ranges, logical or, logical and, bitwise or, xor, bitwise and, comparisons, shifts, addition/subtraction, multiplication/division/remainder, as, prefix, and postfix. Repeated binary forms and as associate left. All comparisons share one non-associative level: unparenthesized comparison chains are invalid. There is no comma expression.
 
 An access marker can start only at the beginning of an expression production and covers the complete expression to its right. Infix & and && retain their bitwise-and/logical-and meanings. Argument markers use this same expression mechanism. Captures and range bindings have separate forms admitting only &.
 
@@ -24,7 +24,7 @@ Explicit comma lists accept one trailing comma only where their productions perm
 
 T { ... } parses as construction; T(...) always parses as a call. At the outer depth of a control header, the required opening brace starts the body. Group a construction expression in parentheses to use it at that position. This applies to if, match, loop containers, and integer-range bounds. Pattern is, binding identifiers, cases, and vertical bars are disambiguated without name lookup.
 
-Module imports form a contiguous prefix. Top-level const declares module constants; top-level executable statements form an implicit entry. There is no namespace block, generic declaration, default parameter, or variadic parameter syntax. Integer ranges are recognized only after in in a for loop and require both endpoints. There are no inclusive ranges, omitted endpoints, step syntax, or general range values.
+Module imports form a contiguous prefix. Top-level const declares module constants; top-level executable statements form an implicit entry. There is no namespace block, generic declaration, default parameter, or variadic parameter syntax. Range expressions `a..b` and `a..=b` are non-associative and require both integer bounds. Omitted bounds are permitted only in range patterns; step and implicit-reverse forms are unsupported. Unqualified `range<T>` denotes an integer range type. Pattern bounds use shift expressions; parentheses allow the full expression grammar. An unparenthesized `|` separates alternatives. A bare identifier binds a value; it does not test membership in a stored range.
 
 ## 01 · Notation
 
@@ -397,7 +397,7 @@ for-header = range-for-header | c-style-for-header;
 
 range-for-header = for-binding, "in", range-for-source;
 
-range-for-source = expression, [ "..", expression ];
+range-for-source = expression;
 
 for-binding = [ "&" ], binding-target, [ ":", type ];
 
@@ -425,7 +425,10 @@ branch-result = expression;
 ## 24 · Expression precedence
 
 ```text
-expression = access-expression | logical-or-expression;
+expression = access-expression | range-expression;
+
+range-expression = logical-or-expression,
+                   [ ( ".." | "..=" ), logical-or-expression ];
 
 access-expression = access-marker, expression;
 
@@ -591,7 +594,12 @@ atomic-pattern = wildcard-pattern
                | negative-number-pattern
                | binding-pattern
                | constraint-pattern
-               | case-pattern;
+               | case-pattern
+               | range-pattern;
+
+range-pattern = shift-expression, "..", [ shift-expression ]
+              | "..", shift-expression
+              | [ shift-expression ], "..=", shift-expression;
 
 wildcard-pattern = "_";
 

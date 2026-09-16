@@ -1,8 +1,8 @@
 ---
-title: 切片与静态 backing
+title: 切片与静态存储
 description: 只读切片的构造、借用、子范围、返回以及常量冻结。
 section: reference
-lesson: 5
+lesson: 11
 source: docs/semantics.md
 ---
 

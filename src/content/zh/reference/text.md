@@ -2,7 +2,7 @@
 title: 字符、str 与 String
 description: UTF-8、拥有文本、视图转换、修改限制与借用生命周期。
 section: reference
-lesson: 6
+lesson: 10
 source: docs/semantics.md
 ---
 

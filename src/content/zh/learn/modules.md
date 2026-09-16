@@ -1,8 +1,8 @@
 ---
-title: 模块、craft 与项目组织
+title: "把程序拆成模块"
 description: 拆分源文件，理解显式批次、三种导入路径和可见性。
 section: learn
-lesson: 10
+lesson: 8
 source: docs/semantics.md
 ---
 
@@ -38,7 +38,7 @@ src/model.cv 对应 src.model，src/main.cv 中 `.model` 从所在逻辑目录�
 
 crafts/json/parser.cv 属于 json craft，其他域可用 `json::parser` 选择。`std::utf.text` 指向官方 crafts.carven.std.utf.text，普通 `std.utf` 仍是当前域路径。
 
-## 声明读者
+## 控制声明的可见范围
 
 private 只给本模块，裸声明给同一 craft 域，export 给当前批次所有域。普通应用文件都在无前缀域，所以例子中裸 add 可以被 main 导入。
 

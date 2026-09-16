@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useRouter } from '@tanstack/react-router';
 import { enhanceCodeBlocks } from '../effects/code-blocks';
 import { articleDestination } from '../lib/article-links';
+import { articleHtmlWithBase } from '../lib/article-html';
 
 export function ArticleBody({ html, locale = 'zh' }: { html: string; locale?: Locale }) {
   const content = useRef<HTMLDivElement>(null);
@@ -44,7 +45,7 @@ export function ArticleBody({ html, locale = 'zh' }: { html: string; locale?: Lo
         ref={content}
         className="prose"
         onClick={navigate}
-        dangerouslySetInnerHTML={{ __html: html }}
+        dangerouslySetInnerHTML={{ __html: articleHtmlWithBase(html, import.meta.env.BASE_URL) }}
       />
       <div className="sr-only" role="status" aria-live="polite">
         {status}

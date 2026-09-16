@@ -1,5 +1,5 @@
 ---
-title: "Structs, arrays, and enums"
+title: "Model data with structs, arrays, and enums"
 description: "Group related data and express states with exhaustive patterns."
 section: learn
 lesson: 4
@@ -28,17 +28,18 @@ The output is `36`. Field names match the declaration, and each field is initial
 
 ```carven
 fn main() {
-    var counts = [1, 2, 3];
+    let counts = [1, 2, 3];
+    var total = 0;
 
-    for &count in counts {
-        count += 1;
+    for count in counts {
+        total += count;
     }
 
-    println(counts[0], counts[1], counts[2]);
+    println(total);
 }
 ```
 
-The output is `2 3 4`. Length is part of the type. An empty array needs an annotation such as `[i32; 0]`. Dynamic out-of-bounds indexing terminates; constant out-of-bounds indexing is diagnosed at compile time. The loop's & grants Write access to each element without transferring the array.
+The output is `6`. Length is part of the type. An empty array needs an annotation such as `[i32; 0]`. Dynamic out-of-bounds indexing terminates; constant out-of-bounds indexing is diagnosed at compile time. The loop reads each element in order. The next chapter introduces Write access for modifying existing storage.
 
 ## Enums represent alternative states
 

@@ -1,5 +1,5 @@
 ---
-title: 完整练习：订单报价与恢复
+title: "实践：成功后才扣减库存"
 description: 组合结构体、失败类型、Write 更新和文本输出，完成一个可运行程序。
 section: learn
 lesson: 15
@@ -96,7 +96,7 @@ quote 先检查再返回价格。purchase 只有在 `?` 得到成功值之后才
 
 ## 参数访问与载荷
 
-quote 使用 Read，只读取 Item。purchase 用 Write 改原对象，调用处写 &item。失败保存请求数量和实际库存，使 handler 可以输出上下文。返回的成功金额与失败类型分别受签名约束。
+quote 使用 Read，只读取 Item。purchase 用 Write 改原对象，调用处写 &item。失败保存请求数量和实际库存，让处理分支能够输出失败时的具体情况。返回的成功金额与失败类型分别受签名约束。
 
 ## 扩展测试
 

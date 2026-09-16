@@ -1,5 +1,5 @@
 ---
-title: "Values, variables, and types"
+title: "Name and update values"
 description: "Express data with let, var, const, and type annotations; understand literals and explicit conversions."
 section: learn
 lesson: 1

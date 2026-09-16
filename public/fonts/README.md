@@ -1,9 +1,9 @@
 # Brand typography
 
-Cormorant Garamond is used for the Carven wordmark and homepage name/tagline. It is served locally with weights 300–700 under the SIL Open Font License 1.1; see `OFL-Cormorant-Garamond.txt`. Other interface text and prose use platform system fonts.
+The Carven wordmark and homepage name use platform system fonts through `system-ui`, `-apple-system`, and `BlinkMacSystemFont`. The homepage name uses a larger size with normal letter spacing and a small optical left offset. No Apple font files are bundled.
 
-Source: https://github.com/google/fonts/tree/main/ofl/cormorantgaramond
+Allura Regular (400) is used for the homepage tagline, served locally under the SIL Open Font License 1.1; see `OFL-Allura.txt`. The CSS family name `Carven Script` is an internal alias for Allura.
 
-Latin variable font: https://cdn.jsdelivr.net/fontsource/fonts/cormorant-garamond:vf@5.3.0/latin-wght-normal.woff2
+Source: https://github.com/google/fonts/tree/main/ofl/allura
 
-The CSS family name `Carven Brand` is an internal alias for Cormorant Garamond.
+The Allura file is the full TrueType resource supplied by the Google Fonts CSS API, without a text subset.

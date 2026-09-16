@@ -2,7 +2,7 @@
 title: "Interpolation, formatting, and output"
 description: "Hole evaluation and observation, append restrictions, compile-time formatting, and stdout/stderr."
 section: reference
-lesson: 7
+lesson: 12
 source: docs/semantics.md
 ---
 
@@ -38,13 +38,15 @@ A receiver or hole failure skips append and subsequent evaluation. Termination a
 
 ## Using known format information
 
-Ordinary runtime interpolation can use compile-time knowledge too. The compiler may precompute supported builtin format fragments or generate direct conversion operations for known integer formats. Not every hole value needs to be constant.
+Ordinary runtime interpolation can use compile-time knowledge too. The compiler may precompute supported builtin format fragments or write mixed builtin fields directly into String storage. Static integer specifications and default str, String, bool, and char fields can share this path, for both interpolation and append_format. Not every hole value needs to be constant.
 
 These transformations preserve each hole's required evaluation and side effects. Even if `update() && false` has a known final value, update still runs. A runtime result remains an independent owning String; this does not allow returning a str borrowed from static text.
 
 When operand types and supported static formats prove the output is valid UTF-8, the compiler may omit final validation. Other output remains runtime-validated. These choices do not change format rules, evaluation order, or error boundaries.
 
-The current implementation gives optional format-byte precomputation a 64 KiB budget, counting escaped braces and retained field spellings. Excess or unsupported parts continue through runtime formatting rather than rejecting the program. This differs from required constant execution, where a const initializer cannot fall back to runtime. The budget limits precomputation work, not final runtime string length.
+Dynamic text lengths are read after all holes finish, preserving String alias observations. Capacity bounds combine prepared field sizes with those lengths using checked arithmetic. A direct writer path needs no native format parser or final UTF-8 scan; unsupported remaining fields use the general formatter. These are implementation choices, not a promise that every interpolation avoids allocations.
+
+The current implementation gives optional text precomputation a 64 KiB budget. Delegated residual formats additionally budget escaped braces and retained field spellings; direct writer selection does not serialize a native format string. Excess or unsupported parts continue through runtime formatting rather than rejecting the program. This differs from required constant execution, where a const initializer cannot fall back to runtime. The budget limits precomputation work, not final runtime string length.
 
 A native custom formatter may inspect the entire argument set, so original arguments are retained. A known result does not remove required owner construction, temporary lifetimes, or cleanup.
 

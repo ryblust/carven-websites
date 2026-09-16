@@ -2,7 +2,7 @@
 title: 结构体、数组与枚举
 description: 构造次序、类型身份、边界检查、枚举载荷和递归存储。
 section: reference
-lesson: 4
+lesson: 5
 source: docs/semantics.md
 ---
 

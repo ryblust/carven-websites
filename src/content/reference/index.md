@@ -31,9 +31,21 @@ A type describes what a value is. Access describes how an operation uses storage
 | Typed failure       | Recoverable control effect carrying a nominally typed payload  |
 | Published interface | Declaration surface visible to readers outside its module      |
 
-## Organization
+## Find a rule in source order
 
-The sidebar covers lexical syntax, modules, types and numbers, data and text, access and calls, control flow and failures, compile-time execution, interoperability, and tooling. The grammar appendix retains the full EBNF productions; the diagnostics appendix lists current compiler codes.
+The Reference follows a source file from imports and declarations into function bodies, then covers execution and native integration. Unlike the tutorial, each chapter collects the full rules for one topic.
+
+| In your program                         | Start here                                                                                                                                                 |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source spelling and file imports        | [Lexical syntax](/reference/lexical/), [modules and visibility](/reference/modules/)                                                                       |
+| Values, bindings, and declarations      | [Types](/reference/types/), [access and ownership](/reference/ownership/), [structs and enums](/reference/aggregates/), [functions](/reference/functions/) |
+| Function bodies and calls               | [Control flow](/reference/control/), [failure contracts](/reference/failures/), [closures](/reference/closures/)                                           |
+| Text and borrowed sequences             | [Text](/reference/text/), [slices](/reference/slices/), [formatting](/reference/formatting/)                                                               |
+| Compile-time work and program execution | [Constants](/reference/constants/), [entries and tests](/reference/entry-testing/)                                                                         |
+| External code and libraries             | [C++ interoperation](/reference/interop/), [pointers](/reference/pointers/), [UTF library](/reference/utf/)                                                |
+| Invoking and integrating the compiler   | [CLI and Graver](/reference/cli/), [builds and artifacts](/reference/toolchain/)                                                                           |
+
+The [grammar appendix](/reference/grammar/) retains the complete EBNF productions; the [diagnostic catalog](/reference/diagnostics/) lists current compiler codes. Declaration order is a reading aid here: functions may refer to declarations written later.
 
 ## Boundaries of the rules
 

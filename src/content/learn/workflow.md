@@ -1,5 +1,5 @@
 ---
-title: "Daily workflow and troubleshooting"
+title: "Run, format, and diagnose"
 description: "Select execution stages, organize validation, and locate problems at their boundaries."
 section: learn
 lesson: 16
@@ -19,6 +19,23 @@ source: docs/cli.md
 | Inspect tokens or syntax       | `carven dump tokens main.cv` / `carven dump ast main.cv` |
 
 The interpreter first performs the same semantic analysis, then checks execution eligibility of called code. Unsupported operations produce an error without switching to native execution. Use the native path for typed failures, closures, slices, and native operations.
+
+At revision `69e13f4a`, running the [integer classification example](/learn/control/) through `interpret` can trigger an internal missing-builtin-type error. Run that example with `carven main.cv`; its native execution has been verified.
+
+## Format source with Graver
+
+Graver is a separate formatter for `.cv` source. Build it from the Carven repository root, then preview one file, check a directory, or update files:
+
+```sh
+./xmakew build graver
+./xmakew run graver main.cv
+./xmakew run graver check examples
+./xmakew run graver write examples
+```
+
+The first run prints formatted source to stdout without changing the file. `check` lists paths needing changes and returns 1 when differences exist, making it suitable for CI. `write` updates changed files in place. On Windows, use `.\xmakew.ps1`. When calling the built executable directly, replace `./xmakew run graver` with `graver`.
+
+Graver uses a fixed style with four-space indentation and a target width of 100 bytes. It checks lexical and syntactic validity without resolving imports, checking types, or executing const fn or const test. Continue to build and test after formatting. See the [command-line Reference](/reference/cli/#graver) for commands and file selection.
 
 ## Put tests at the appropriate layer
 

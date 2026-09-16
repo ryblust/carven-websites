@@ -46,13 +46,13 @@ const fn label(count: i32) -> String {
 const name = label(3); // str: 000102
 ```
 
-Parameters use Read or Take and support integers, bool, char, str, String, and eligible fixed arrays/structs. Results support those types or void; void cannot initialize a constant. Result inference follows ordinary function rules.
+Parameters use Read or Take and support integers, bool, char, str, String, integer ranges, and eligible fixed arrays/structs. Results support those types or void; void cannot initialize a constant. Result inference follows ordinary function rules.
 
-Supported operations include local initialization, assignment, Take, scalar operations, if/match/while, C-style for, integer and array ranges, return/break/continue, direct const fn calls, and recursion with resolvable dependencies. match supports builtin subjects, literal/binding/wildcard/or patterns, and guards.
+Supported operations include local initialization, assignment, Take, scalar operations, if/match/while, C-style for, integer and array ranges, return/break/continue, direct const fn calls, and recursion with resolvable dependencies. match supports builtin subjects, literal/integer-range/binding/wildcard/or patterns, and guards.
 
 String supports construction, copying, as_str, len/is_empty, append/append_format, push/clear, supported interpolation, and printing. Interpolation supports defaults for integers, bool, char, and text; integer `b/B/o/d/x/X`; decimal width; and optional zero padding. Supported dynamic-width expressions evaluate first. Other formats cannot be used in required constant execution even when valid at runtime. Arrays support construction, indexing, element assignment, equality, copying, Read/Write iteration, whole-binding Take, parameters, and results. Structs support construction, field access/assignment, equality, copying, whole-binding Take, parameters, and results.
 
-Aggregate contents support only integers, bool, char, str, and recursive arrays/structs. String fields or elements are not frozen into str. Empty arrays require element context. Nominal identity, lengths, and every member type are preserved.
+Aggregate contents support only integers, integer ranges, bool, char, str, and recursive arrays/structs. String fields or elements are not frozen into str. Empty arrays require element context. Nominal identity, lengths, and every member type are preserved.
 
 Read arrays and structs containing arrays observe contents after all arguments have evaluated. Scalars and eligible structs without arrays save values at their argument positions. Read String also reads contents after all arguments or holes complete. Field and index projections follow the selected value's type rules.
 
@@ -67,6 +67,19 @@ String retains owning and Take semantics during computation. Only when the entir
 Required constant execution checks integer overflow, division by zero, and invalid shifts. An ordinary runtime call to the same const fn follows runtime integer rules, including modulo wrapping for addition, subtraction, and multiplication. The const modifier does not make every call use checked arithmetic.
 
 Short-circuiting and control flow determine which operations actually execute; definition admission still checks every branch. An unexecuted division by zero does not trigger an evaluation error, but an inactive branch cannot hide an unsupported native call.
+
+## Relationship to C++ constant facilities
+
+These forms are not keyword substitutions:
+
+| Carven rule                                                                       | C++20 comparison                                                                                                                                       |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| const fn permits required constant execution; ordinary calls retain runtime rules | constexpr functions can also run during compilation or at runtime, with different admission rules                                                      |
+| A completed constant initializer freezes a String result into str                 | constexpr string can construct text; retaining the result must meet constant-expression and storage rules, with no automatic conversion to string_view |
+| const test executes a supported test body during semantic analysis                | static_assert checks a constant condition, rather than replacing an entire test body                                                                   |
+| Native C++ calls cannot enter Carven's required constant execution                | Declaring the C++ function constexpr does not change this boundary                                                                                     |
+
+The [compile-time tutorial](/learn/constants/) includes a complete C++20 comparison for the same text construction. Freezing is a result-representation rule, not a promise to remove allocation from every runtime const fn call.
 
 ## Execution budgets
 

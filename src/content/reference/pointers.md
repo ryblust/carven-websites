@@ -2,7 +2,7 @@
 title: "Pointers and external addresses"
 description: "Nullable addresses, target access, non-null proofs, and native resource responsibilities."
 section: reference
-lesson: 14
+lesson: 16
 source: docs/semantics.md
 ---
 

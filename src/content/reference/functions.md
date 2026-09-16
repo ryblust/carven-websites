@@ -2,7 +2,7 @@
 title: "Functions, result inference, and calls"
 description: "Signatures, expression bodies, recursive result dependencies, void, and call order."
 section: reference
-lesson: 9
+lesson: 6
 source: docs/semantics.md
 ---
 
@@ -16,7 +16,7 @@ fn add(left: i32, right: i32) -> i32 {
 fn twice(value: i32) => value * 2;
 ```
 
-Every ordinary named-function parameter needs a type and unique name. Argument count, access markers, and types must match. Functions do not overload. There are no default parameters, variadic parameters, nested functions, or user generic parameter lists. Definitions use a block body or `=> expression;`.
+Every ordinary named-function parameter needs a type. Named parameters must have unique names; `_` discards a parameter name, can repeat, and creates no binding. Argument count, access markers, and types must match. Functions do not overload. There are no default parameters, variadic parameters, nested functions, or user generic parameter lists. Definitions use a block body or `=> expression;`.
 
 Evaluate the callee first, then arguments once each from left to right. A concrete closure selects object identity; a view saves its target description. After arguments complete, invoke the target and read current captures. Side effects in arguments may change aliased storage read later.
 

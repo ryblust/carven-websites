@@ -1,8 +1,8 @@
 ---
-title: "Compile-time computation and tests"
+title: "Build data at compile time"
 description: "Organize loops and text construction with const fn, and understand freezing and execution stages."
 section: learn
-lesson: 11
+lesson: 12
 source: docs/semantics.md
 ---
 
@@ -32,6 +32,112 @@ With `carven main.cv`, the compilation stage prints Preparing title, then the la
 In an ordinary runtime expression, `title(42)` remains an ordinary function call. A const fn declaration makes it eligible for required constant execution; const initializers, array lengths, const test, and similar contexts require that execution.
 
 A const fn can use mutable locals, loops, supported arrays and structs, and String operations. An ordinary const initializer cannot directly contain arbitrary control-flow expressions. Put complex logic in a const fn.
+
+## From building text to keeping the result
+
+The heading example produces one value. Now turn the homepage text-joining example into a complete program: join three names with an ordinary loop, then retain the resulting text after compilation. Save this separately as menu.cv:
+
+```carven
+const fn join(items: [str; 3]) -> String {
+    var text = String::new();
+    for item in items {
+        if !text.is_empty() {
+            text.append(" / ");
+        }
+        text.append(item);
+    }
+    return text;
+}
+
+const menu = join(["Home", "Docs", "About"]);
+
+const test "menu" {
+    check(menu == "Home / Docs / About");
+}
+
+fn main() {
+    println(menu);
+}
+```
+
+Run `carven menu.cv` to print `Home / Docs / About`. items supplies the input, join defines the algorithm, and const selects the execution stage. There is no separate result length or storage array to declare.
+
+### The same task in C++20
+
+This standalone handwritten comparison is not Carven's generated output. It keeps the same join algorithm, then uses freeze to give the computed result static storage:
+
+```cpp
+#include <array>
+#include <iostream>
+#include <string>
+#include <string_view>
+
+constexpr std::string join(std::array<std::string_view, 3> items) {
+    std::string text;
+    for (auto item : items) {
+        if (!text.empty()) {
+            text.append(" / ");
+        }
+        text.append(item);
+    }
+    return text;
+}
+
+template <auto build>
+consteval auto freeze() {
+    std::array<char, build().size()> data{};
+    auto text = build();
+    for (std::size_t i = 0; i < data.size(); ++i) {
+        data[i] = text[i];
+    }
+    return data;
+}
+
+constexpr auto data = freeze<[] {
+    return join({"Home", "Docs", "About"});
+}>();
+constexpr std::string_view menu{data.data(), data.size()};
+static_assert(menu == "Home / Docs / About");
+
+int main() {
+    std::cout << menu << '\n';
+}
+```
+
+Save as menu.cpp, compile with `c++ -std=c++20 menu.cpp -o menu` using a toolchain with C++20 constexpr string support, and run `./menu`. The output matches; static_assert and const test both check the result during compilation.
+
+Read the code in order: join computes the text; freeze obtains its length, uses it in the array type, then fills the array; data retains the characters, and menu views them. C++20 permits temporary allocation during constant evaluation, but an allocation still outstanding from that evaluation cannot simply become its retained result. The array crosses that storage boundary here. See the [C++20 constant-expression rules](https://timsong-cpp.github.io/cppwp/n4868/expr.const).
+
+Carven includes this step in constant initialization: the working String freezes into str. A C++ project can encapsulate freeze in a static-string library; this comparison opens up that work rather than claiming a unique implementation.
+
+Change About to Getting started in both versions and update the assertions. The result length changes: Carven source still only specifies the text, while the C++ freeze template determines a new array length. This compares construction and storage responsibilities, not execution speed.
+
+## Pass a range at compile time
+
+The ranges introduced in the control-flow lesson are also compile-time values. sum accepts a range, and the const initializer requires this call to execute at compile time.
+
+```carven
+const fn sum(values: range<i32>) -> i32 {
+    var total = 0;
+    for value in values {
+        total += value;
+    }
+    return total;
+}
+
+const values = 1..=4;
+const total = sum(values);
+
+const test "range total" {
+    check(total == 10);
+}
+
+fn main() {
+    println(total);
+}
+```
+
+The program prints `10`. The endpoint rules for `..` and `..=` are the same at compile time and runtime. Range patterns can also classify integers inside a const fn.
 
 ## Static tables
 

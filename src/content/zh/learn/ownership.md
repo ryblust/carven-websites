@@ -1,5 +1,5 @@
 ---
-title: 读取、修改与转移
+title: "读取、修改与转移值"
 description: 用一个库存例子理解 Read、非独占 Write、显式 Take 和恢复。
 section: learn
 lesson: 5
@@ -41,6 +41,21 @@ stock 在 dispatch 后不可用，普通完整赋值恢复 var。即使 i32 可�
 Carven 不提供字段或数组元素的局部 Take。Read/Write 参数、范围绑定、捕获和常量也不是 Take 源。需要转移聚合时传整个 owner。
 
 ## Write 可以别名
+
+```carven
+fn replenish(&first: i32, &second: i32) {
+    first += 2;
+    second += 3;
+}
+
+fn main() {
+    var stock = 4;
+    replenish(&stock, &stock);
+    println(stock);
+}
+```
+
+输出 `9`：两个参数都指向 stock，第二次修改能看到第一次的结果。调用处的两个 `&` 明确标出可写访问。
 
 多个 Write 参数可以指向同一可变存储，修改按函数体顺序发生。Write 不是独占引用。与此同时，存在只读文本/切片借用时，实际写入仍会被禁止。
 

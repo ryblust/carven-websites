@@ -12,64 +12,64 @@ export default function HomeContent({ locale }: { locale: Locale }) {
   const [language, setLanguage] = useState<'carven' | 'cpp'>('carven');
   const examples = [
     {
-      label: t('类型失败契约', 'Typed failure contracts'),
+      label: t('读取端口', 'Read a port'),
       title: t('恢复一种失败，上层就少一种责任。', 'Handle a failure. Narrow the contract.'),
       detail: t(
-        '配送不可用时退回商品金额。商品校验的失败保留原有类型与载荷，继续向调用者传播。',
-        'Fall back to the item total when delivery is unavailable. Item failures keep their types and payloads as they propagate.',
+        '配置缺失时使用 8080；没有读取权限或端口格式不对，仍交给调用者处理。恢复 Missing 后，函数契约只剩 Denied 和 BadPort。',
+        'Use 8080 when the config is missing. Leave denied access and invalid ports to the caller. Handling Missing leaves only Denied and BadPort in the contract.',
       ),
       html: homeExamples.failures,
       cpp: homeExamples.failuresCpp,
       result: t(
-        '三种失败进入 · 恢复 DeliveryError · 两种失败向外',
-        'Three failures in · DeliveryError handled · Two failures out',
+        'Missing → 8080 · Denied + BadPort → 调用者',
+        'Missing → 8080 · Denied + BadPort → caller',
       ),
       comparison: t(
-        'Carven 检查失败集合与传播出口；手写 C++23 用 expected、variant 和分支组织同一恢复流程。双方省略错误定义和提供者：line_total 返回商品结果，delivery_fee 只可能产生 DeliveryError；金额假定不溢出。',
-        'Carven checks failure sets and propagation; handwritten C++23 uses expected, variant, and branches for the same recovery flow. Both omit error definitions and providers: line_total returns an item result; delivery_fee can only fail with DeliveryError. Amounts are assumed not to overflow.',
+        '两边都省略错误类型及 read、parse 的实现。read 读取端口文本，可能产生 Missing 或 Denied；parse 将文本解析为端口，可能产生 BadPort。Carven 注释列出提供者契约。C++23 用 expected、variant 和分支实现同样的返回值与失败类型；异常或其他库可以提供不同写法。这里展示的是手写等价代码，不是编译器输出。',
+        'Both omit error types and the implementations of read and parse. read supplies port text or Missing / Denied; parse returns a port or BadPort. Carven comments summarize those contracts. C++23 uses expected, variant, and branches to preserve the same results and failure types; exceptions or other libraries offer different approaches. This is a handwritten equivalent, not compiler output.',
       ),
       standard: 'C++23',
       path: '/features/failure-contracts/',
     },
     {
-      label: t('构造静态数据', 'Build static data'),
+      label: t('编译期拼接文本', 'Compile-time text'),
       title: t('构造时可以修改，运行时只剩结果。', 'Mutable while building. Static when shipped.'),
       detail: t(
-        '循环、格式化和文本增长在 Carven 编译期完成。String 冻结为静态 str，测试也在编译期验证。',
-        'Carven runs the loop, formatting, and text growth at compile time. The String freezes into a static str, verified by a compile-time test.',
+        '用循环拼接菜单，不必先算字符数或为结果另备数组。Carven 在编译期构造 String，再把结果冻结为静态 str。',
+        'Join menu items in a loop, without first calculating a character count or supplying a storage array. Carven builds a String at compile time, then freezes the result into a static str.',
       ),
       html: homeExamples.constants,
       cpp: homeExamples.constantsCpp,
       result: t(
-        '可变 String → 静态 str · "[00][01][02]"',
-        'Mutable String → Static str · "[00][01][02]"',
+        '可变 String → 静态 str · Home / Docs / About',
+        'Mutable String → Static str · Home / Docs / About',
       ),
       comparison: t(
-        '同样生成 [00][01][02]。Carven 用文本操作构造并冻结结果；这份 C++20 写法显式确定数组容量、写入字符，再建立静态视图。C++ 示例支持 0–100 个两位标签。',
-        'Both produce [00][01][02]. Carven builds text and freezes the result; this C++20 implementation sizes an array, writes characters, and creates a static view. The C++ example supports 0–100 two-digit labels.',
+        '两边用相同的循环拼接三个菜单项。C++20 的 constexpr string 可以参与计算；这里用 freeze 模板按计算出的长度建立数组，保存字符，再让 string_view 引用它。Carven 在常量初始化时完成这一步。C++ 示例是手写等价代码，也可以采用其他静态字符串封装。',
+        'Both join three items with the same loop. C++20 constexpr string handles the computation; the freeze template sizes an array from the result, stores its characters, and gives string_view lasting storage. Carven does this at constant initialization. The C++ is handwritten; a static-string library could encapsulate this work.',
       ),
       standard: 'C++20',
       path: '/features/compile-time/',
     },
     {
-      label: t('连接原生工程', 'Connect native code'),
-      title: t('复用 C++ 的库，也把接口交回 C++。', 'Use C++ libraries. Export a C++ interface.'),
+      label: t('读取 JSON', 'Read JSON'),
+      title: t('现成的 C++ 库，直接用。', 'Use the C++ library you already have.'),
       detail: t(
-        '直接调用原生数学库，导出供 C++ 使用的标量接口。公开声明与实现由编译器分别生成。',
-        'Call the native math library and export a scalar interface for C++ callers. The compiler generates its public declaration and implementation.',
+        '用 nlohmann/json 解析配置，调用 JSON 对象的方法读取端口。导入原生头文件即可使用这些接口，无需为这个调用另写绑定。',
+        'Parse config with nlohmann/json, then read the port through its JSON object. Import the native header and use these APIs without writing a binding for this call.',
       ),
       html: homeExamples.native,
       cpp: homeExamples.nativeCpp,
       result: t(
-        '原生数学库 → Carven 函数 → 生成的 C++ 公共 API',
-        'Native math library → Carven function → Generated C++ API',
+        'nlohmann/json → 配置对象 → Port: 9000',
+        'nlohmann/json → config object → Port: 9000',
       ),
       comparison: t(
-        '同样公开一个调用 hypot 的函数。Carven 从一份声明生成接口与实现；手写 C++ 分别维护头文件和实现文件。这里用 app 命名空间示意，Carven 导出的实际命名空间由模块决定。',
-        'Both expose a function calling hypot. Carven generates an interface and implementation from one declaration; handwritten C++ maintains a header and source file. app is illustrative; Carven export namespaces follow the module.',
+        '使用 nlohmann/json 3.12.0，两边读取相同的 JSON；port 缺失时返回 8080。示例输入是合法对象，port 存在时为范围内的整数。头文件需在 C++ 包含路径中，库的重载与模板仍由 C++ 编译器检查。原生异常不会变成 Carven failure；需要恢复时在 C++ 适配层处理。详情页提供运行步骤。',
+        'Uses nlohmann/json 3.12.0. Both read the same JSON and use 8080 when port is absent. Input is a valid object; an existing port is an in-range integer. Put the header on the C++ include path. The C++ compiler checks library overloads and templates. Native exceptions do not become Carven failures; handle them in a C++ adapter when recovery is needed. The linked tutorial includes run instructions.',
       ),
       standard: 'C++20',
-      path: '/features/cpp-generation/',
+      path: '/learn/interop/',
     },
   ] as const;
   const example = examples[selected]!;
@@ -173,14 +173,14 @@ export default function HomeContent({ locale }: { locale: Locale }) {
           <h3>{example.title}</h3>
           <p>{example.detail}</p>
           <Link to={localizedPath(example.path, locale)}>
-            {t('展开这个例子', 'Explore this example')} <span aria-hidden="true">↗</span>
+            {t('了解这项能力', 'Explore this feature')} <span aria-hidden="true">↗</span>
           </Link>
         </div>
       </section>
       <section className="why-native" aria-labelledby="native-heading">
-        <p className="why-eyebrow">{t('继续使用你的 C++ 工具链', 'Keep your C++ toolchain')}</p>
+        <p className="why-eyebrow">{t('继续使用你的 C++ 工具链', 'Native integration')}</p>
         <h2 id="native-heading">
-          {t('原生库、构建与调试，继续使用。', 'Your libraries. Your build. Your debugger.')}
+          {t('原生库、构建与调试，继续使用。', 'Build on the C++ tools you already use.')}
         </h2>
         <p>
           {t(

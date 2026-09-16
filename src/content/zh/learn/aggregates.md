@@ -1,5 +1,5 @@
 ---
-title: 结构体、数组与枚举
+title: "用结构体、数组和枚举表示数据"
 description: 把相关数据放在一起，用穷尽模式表达状态。
 section: learn
 lesson: 4
@@ -28,17 +28,18 @@ fn main() {
 
 ```carven
 fn main() {
-    var counts = [1, 2, 3];
+    let counts = [1, 2, 3];
+    var total = 0;
 
-    for &count in counts {
-        count += 1;
+    for count in counts {
+        total += count;
     }
 
-    println(counts[0], counts[1], counts[2]);
+    println(total);
 }
 ```
 
-输出 `2 3 4`。长度是类型的一部分。空数组需要注解，如 `[i32; 0]`。动态索引越界终止，常量越界在编译期报错。循环中的 & 提供元素 Write 访问，不转移整个数组。
+输出 `6`。长度是类型的一部分。空数组需要注解，如 `[i32; 0]`。动态索引越界终止，常量越界在编译期报错。循环依次读取每个元素；下一章会介绍如何用 Write 访问修改原有存储。
 
 ## 枚举表达互斥状态
 
@@ -66,7 +67,7 @@ fn main() {
 
 ## guard 与覆盖
 
-可以写 `.Number(value) if value > 0 => value,`，但 guard 可能拒绝，仍需后面的 `.Number(_)` 覆盖其余值。模式匹配先复制绑定，再执行 guard。guard 不能修改正在匹配的重叠存储；选中 arm 的 body 可以修改。
+可以写 `.Number(value) if value > 0 => value,`，其中的 if 是守卫条件。条件可能不成立，因此仍需后面的 `.Number(_)` 覆盖其余值。模式匹配先复制绑定，再判断守卫条件。守卫条件不能修改与匹配对象重叠的存储；选中分支后的执行体可以修改。
 
 ## 练习
 

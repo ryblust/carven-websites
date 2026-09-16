@@ -1,5 +1,5 @@
 ---
-title: 文本、切片与借用
+title: "拥有文本与借用序列"
 description: 选择 String 或 str，处理 UTF-8，并理解视图何时阻止修改。
 section: learn
 lesson: 6
@@ -37,7 +37,7 @@ fn main() {
 }
 ```
 
-view 指向 text 的 backing，活着时阻止 text 修改。即使把 println 提前，命名 view 仍持续到作用域结束；最后一次使用不会自动结束它的借用。可以把视图使用放进更小的分支作用域，或直接复制成拥有 String。
+view 借用 text 的底层存储；借用存在期间，text 不能修改。即使把 println 提前，命名视图的借用仍持续到作用域结束；最后一次使用不会自动结束它的借用。可以把视图使用放进更小的分支作用域，或复制文本，得到独立拥有内容的 String。
 
 自追加 `text.append(text.as_str())` 同样会冲突。先写 `let copy = text;`，再 `text.append(copy);`，追加输入便是独立存储。
 
@@ -78,8 +78,8 @@ fn main() {
 }
 ```
 
-输出 `12 10`。数组在切片实参上下文自动借用，不复制元素。slice 的半开边界为 usize，视图只读，保护整个 backing。返回局部数组的视图会逃逸，不能这样返回。
+输出 `12 10`。数组在切片实参上下文自动借用，不复制元素。slice 的半开边界为 usize，视图只读，借用整个底层数组。不能返回指向局部数组的视图，因为函数返回后该数组不再存活。
 
 ## 练习
 
-把第二个有效文本例子改成三个字符，分别记录字节数与 chars 迭代次数。把数组的 slice 改成 `slice(3usize, 3usize)`，sum 应为 0。
+把第二个有效文本例子改成三个字符，分别记录字节数与 chars 迭代次数。把数组的 slice 改成 `slice(3usize, 3usize)`，`sum(middle)` 应为 0，整行输出为 `12 0`。

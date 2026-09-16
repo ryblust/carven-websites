@@ -20,7 +20,7 @@ For dependency or framework changes, use `package.json`, the lockfile and the re
 
 - Marketing demonstrates current capabilities, tutorials teach a sequence, and Reference states rules and boundaries. Write concise, neutral explanations. Verify language claims against the current compiler source and documentation; website tests do not validate Carven semantics.
 - Chinese and English share layouts and interactions. Locale comes from the URL; preserve corresponding articles, metadata and accessible labels.
-- Use Cormorant Garamond for the Carven wordmark and homepage name/tagline, platform system fonts for other text, and system monospace for code. Keep the dark palette and restrained surface depth. Keep prose, comments and controls readable, with visible keyboard focus and reduced-motion support.
+- Use platform system fonts for the Carven wordmark, homepage name and other text, Allura for the homepage tagline, and system monospace for code. Keep the dark palette and restrained surface depth. Keep prose, comments and controls readable, with visible keyboard focus and reduced-motion support.
 - Examples use deliberate line breaks and four-space indentation. Switching homepage examples preserves their content width and left/top origin; narrow screens allow horizontal code scrolling.
 
 ## Completion

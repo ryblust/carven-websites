@@ -7,7 +7,7 @@ source: docs/semantics.md
 
 ## 业务组合起来，失败仍然清楚
 
-库存不足需要知道还剩多少，配送失败需要知道目的地，数量错误需要知道哪个输入被拒绝。Carven 让这些失败以各自的结构体或枚举流过函数，组合后的接口仍能说明每一种可能性。
+配置缺失可以使用默认值；没有读取权限需要另行处理；端口格式错误需要保留被拒绝的文本。Carven 为这些失败保留各自的类型，调用者可以分别处理，也不会丢失失败携带的数据。
 
 **组合一组操作，无需为每一层额外定义一个汇总错误类型。** 失败集合由语言组合，原有的类型身份与载荷保留到真正需要处理它们的位置。
 
@@ -15,57 +15,49 @@ source: docs/semantics.md
 
 在 C++ 中，结果类型可以用一个错误类型参数表达失败，例如 C++23 的 std::expected；多种载荷可由 std::variant 汇总，传播与恢复可用分支或库组合器组织。跨层组合时，项目需要安排错误集合、载体转换以及相应的接口约定。
 
-Carven 把这些工作纳入语义分析：组合保留名义类型，处理计算剩余集合，发布接口检查上界。生成的 C++ 负责保存活动载荷并执行传播，源码保持成功计算与业务恢复的形状。
+Carven 在语义分析中保留各失败类型的身份，计算处理后剩余的失败集合，并检查实现是否超出接口声明的集合。生成的 C++ 保存当前失败的载荷并执行传播；源码用普通表达式计算成功值，用 catch 分支描述恢复方式。
 
 ## 成功路径自然表达，传播位置清楚可见
 
-订单报价由商品金额与配送费用组成。下面节选中的 line_total 声明 QuantityError 与 OutOfStock，delivery_fee 声明 DeliveryError；它们均返回 i32。
+读取端口分成两步：先读取配置文本，再解析为端口号。下面的节选假设 read 返回 str，声明 Missing + Denied；parse 接收 str，返回 i32，声明 BadPort。
 
 ```carven
-private fn primary_quote(
-    quantity: i32,
-    available: i32,
-    zone: i32,
-) -> i32 {
-    return (line_total(quantity, available) + delivery_fee(zone))?;
+private fn load() -> i32 {
+    return parse(read()?)?;
 }
 ```
 
-加法保留业务计算的形状，`?` 标出整个表达式的失败出口。编译器为这个私有函数推断三个失败类型。第一个操作失败时，第二个操作和加法都不会执行。
+每个 `?` 都标出一个失败出口。read 失败时，parse 不会执行。编译器为 load 推断 Missing + Denied + BadPort，无需额外定义汇总错误类型。私有函数的推断也覆盖前向调用、直接递归和相互递归。
 
-**传播标记可以放在组合表达式上。** 阅读者能看见失败出口，也能继续按从左到右的顺序理解成功路径。私有函数的推断覆盖前向调用、直接递归和相互递归。
+## 配置缺失用默认值，其余失败保留
 
-## 处理一类问题，就减少一份上层责任
-
-一个支持自提的报价接口，可以在配送失败时退回商品金额：
+公开的 port 函数在配置缺失时使用 8080：
 
 ```carven
-fn pickup_quote(
-    quantity: i32,
-    available: i32,
-    zone: i32,
-) -> i32 throw QuantityError + OutOfStock {
+fn port() -> i32 throw Denied + BadPort {
     return try {
-        primary_quote(quantity, available, zone)?
+        load()?
     } catch {
-        DeliveryError(_) => line_total(quantity, available)?,
+        Missing(_) => 8080,
     };
 }
 ```
 
-这段节选沿用前面的提供者与失败类型。catch 完整覆盖保护体中的 DeliveryError，接口向外只保留 QuantityError 和 OutOfStock。备用计算产生的失败也接受同一接口约束。
+处理 Missing 后，它不再出现在向外的契约中。Denied 和 BadPort 仍携带原有数据传给调用者。首页将 load 的表达式直接写入 port，行为相同。
 
-**恢复会改变调用者需要面对的契约。** 只处理某个枚举 case 或通过 guard 筛选一部分情况时，其余可能性仍被保留。编译器依据实际覆盖范围计算剩余集合。
+如果 catch 只处理某些载荷，或带有守卫条件，该失败类型可能仍在集合中。编译器检查实际覆盖范围，再决定能否从契约中移除这个类型。
+
+在[深入教程](/zh/learn/failures/)中，可以运行完整的 Carven 与 C++ 对照，并修改输入或契约，观察两边的行为。
 
 ## 内部可以推断，接口明确承诺
 
-私有辅助函数与 lambda 随操作组合推断失败集合。面向模块读者的函数有向外失败时，显式声明允许的类型；实现接受这一上界的检查。调用者根据声明理解接口，无需阅读函数体。
+编译器根据私有辅助函数与 lambda 中的操作推断失败集合。模块外可见的函数若有向外传播的失败，须显式声明允许的类型；编译器检查实现是否超出这一上界。调用者根据声明理解接口，无需阅读函数体。
 
 声明允许的某种失败，即使当前实现没有产生它，也仍属于调用契约。实现可以在已声明范围内调整；扩大范围则是调用者需要重新处理的接口变化。
 
 ## 回调带着同一份契约进入程序
 
-失败检查同样覆盖函数、闭包与非拥有 callable view。一个只可能产生 InvalidAmount 的校验函数，可以传给允许 InvalidAmount 与 LimitExceeded 的策略接口。
+失败检查同样覆盖函数、闭包与非拥有的可调用视图。一个只可能产生 InvalidAmount 的校验函数，可以传给允许 InvalidAmount 与 LimitExceeded 的策略接口。
 
 ```carven
 fn process(

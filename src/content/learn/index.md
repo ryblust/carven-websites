@@ -1,5 +1,5 @@
 ---
-title: "Your first program"
+title: "Run your first program"
 description: "Set up the toolchain, run a .cv file, and distinguish native execution, interpretation, and C++ generation."
 section: learn
 lesson: 0
@@ -8,7 +8,18 @@ source: docs/cli.md
 
 ## What you will learn
 
-This tutorial starts with one file, then introduces values, functions, control flow, data structures, ownership, text, closures, failures, modules, compile-time execution, and C++ integration. It ends with a small program that validates input and recovers from failures. Each chapter includes complete examples, expected results, and exercises.
+Start with one runnable file and grow toward an order program whose failures leave stock unchanged. Each stage adds a reason to use the next language feature.
+
+| Stage                                                                                                                     | What you will build or verify                                           |
+| ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [Values](/learn/values/), [control flow](/learn/control/), [functions](/learn/functions/), and [data](/learn/aggregates/) | Calculate prices and represent stock                                    |
+| [Access and ownership](/learn/ownership/), [text](/learn/text/), and [formatting](/learn/formatting/)                     | Distinguish reading, updating, transferring, and borrowing              |
+| [Modules](/learn/modules/), [failures](/learn/failures/), and [callbacks](/learn/closures/)                               | Separate interfaces, combine failure contracts, and recover selectively |
+| [Tests](/learn/testing/) and [compile-time computation](/learn/constants/)                                                | Verify behavior and construct static data before runtime                |
+| [C++ integration](/learn/interop/) and [pointers](/learn/pointers/)                                                       | Connect native providers with explicit lifetime responsibilities        |
+| [Order project](/learn/project/)                                                                                          | Combine validation, stock updates, recovery, and tests                  |
+
+The C++ integration chapters are an extension: you can move from compile-time computation directly to the order project if you are concentrating on Carven code.
 
 You should be comfortable using a terminal and editing text files. The first chapters do not require prior C++ knowledge. Native build responsibilities are introduced when we start using native libraries.
 
@@ -29,17 +40,11 @@ On Windows, the repository wrapper is `.\xmakew.ps1`. The direct native executio
 Save this as `main.cv` in the compiler repository root:
 
 ```carven
-fn add(left: i32, right: i32) -> i32 {
-    return left + right;
-}
-
-fn main() {
-    let answer = add(20, 22);
-    println("Answer:", answer);
-}
+let answer = 20 + 22;
+println("Answer:", answer);
 ```
 
-`fn` declares a function. The parameter type i32 is a signed 32-bit integer. `-> i32` specifies the success result type; return supplies its value. let creates a local owner that cannot be reassigned. println is available without an import, separates arguments with a space, and ends with a newline.
+`let` names a value that cannot be reassigned. `println` is available without an import, separates arguments with a space, and ends with a newline. These top-level statements execute in order as an implicit program entry. No function declaration is needed for this first program.
 
 Run:
 
@@ -83,17 +88,19 @@ Local syntax fragments need the surrounding example context. Multi-file examples
 
 Later command tables use `carven` as shorthand for the executable. If it is not installed, use `./xmakew run carven` in the source repository. Native compilation commands still use clang++.
 
-## A top-level entry
+## Give the entry a name
 
-Small scripts can consist of top-level statements:
+As examples grow, we use an explicit main to keep the entry separate from reusable functions. Replace the whole file with:
 
 ```carven
-let answer = 20 + 22;
-println("Answer:", answer);
+fn main() {
+    let answer = 20 + 22;
+    println("Answer:", answer);
+}
 ```
 
-These statements form an implicit entry. A batch can have only one entry, so do not put this fragment and the earlier main in the same batch.
+It prints the same output. `fn main()` declares the program entry; its braces contain the statements to execute. A batch may have only one entry: use either top-level executable statements or main. The next chapters use this explicit form while introducing variables, control flow, and then additional functions.
 
 ## Exercise
 
-Change the second argument to add to 2. Expect Answer: 22. Then remove the string from println; expect only 22. Run both the execution and compile commands, and confirm that only execution performs the print inside main.
+Change `20 + 22` to `20 + 2`; expect `Answer: 22`. Then remove the string from println; expect only `22`. Run both the execution and compile commands, and confirm that only execution performs this print. Try the top-level and explicit-main versions as separate files, one at a time.

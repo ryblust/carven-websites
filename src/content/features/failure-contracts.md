@@ -7,7 +7,7 @@ source: docs/semantics.md
 
 ## Keep failures clear as business logic grows
 
-A stock failure needs the remaining quantity; a delivery failure needs the destination; an invalid quantity needs the rejected input. Carven lets these failures travel through functions as their own structures or enums. A composed interface still identifies each possibility.
+A missing config can use a default. Denied access needs attention, and an invalid port should retain the rejected text. Carven gives these failures separate types, so callers can handle each one without losing its data.
 
 **Compose operations without defining another aggregate error type at every layer.** The language combines failure sets, preserving the original type identities and payloads until the program reaches a place that can handle them.
 
@@ -15,47 +15,39 @@ A stock failure needs the remaining quantity; a delivery failure needs the desti
 
 In C++, a result type can express failure with an error type parameter, as C++23's std::expected does. std::variant can collect different payloads, while branches or library combinators organize propagation and recovery. Across layers, the project arranges error sets, carrier conversions, and interface conventions.
 
-Carven brings that work into semantic analysis: composition preserves nominal types, handling computes the remaining set, and published interfaces check upper bounds. Generated C++ stores the active payload and performs propagation. Source keeps the shape of successful computation and business recovery.
+During semantic analysis, Carven preserves each failure type, computes the set remaining after handling, and checks implementations against their declared contracts. Generated C++ stores the active failure payload and performs propagation. Source uses ordinary expressions to compute success values and catch arms to describe recovery.
 
 ## A natural success path with a visible propagation point
 
-An order quote combines an item total and a delivery fee. In this excerpt, line_total declares QuantityError and OutOfStock; delivery_fee declares DeliveryError. Both return i32.
+Reading a port takes two steps: read the config text, then parse it as a port number. These excerpts assume read returns str and declares Missing + Denied, while parse takes str, returns i32, and declares BadPort.
 
 ```carven
-private fn primary_quote(
-    quantity: i32,
-    available: i32,
-    zone: i32,
-) -> i32 {
-    return (line_total(quantity, available) + delivery_fee(zone))?;
+private fn load() -> i32 {
+    return parse(read()?)?;
 }
 ```
 
-The addition keeps the shape of the business calculation, and `?` marks the failure exit for the whole expression. The compiler infers three failure types for this private function. If the first operation fails, neither the second operation nor the addition executes.
+Each `?` marks a failure exit. If read fails, parse never runs. The compiler infers Missing + Denied + BadPort for load; no additional error wrapper is needed. Private-function inference also covers forward calls, direct recursion, and mutual recursion.
 
-**A propagation marker can cover a composed expression.** Readers can see the failure exit and follow the success path from left to right. Private-function inference covers forward calls, direct recursion, and mutual recursion.
+## Handle the missing file, keep the other failures
 
-## Handling a problem reduces the caller's responsibility
-
-A quote interface that supports pickup can fall back to the item total when delivery fails:
+The public port function uses 8080 when the config is missing:
 
 ```carven
-fn pickup_quote(
-    quantity: i32,
-    available: i32,
-    zone: i32,
-) -> i32 throw QuantityError + OutOfStock {
+fn port() -> i32 throw Denied + BadPort {
     return try {
-        primary_quote(quantity, available, zone)?
+        load()?
     } catch {
-        DeliveryError(_) => line_total(quantity, available)?,
+        Missing(_) => 8080,
     };
 }
 ```
 
-This excerpt uses the same providers and failure types. The catch completely covers DeliveryError from the protected body, leaving only QuantityError and OutOfStock in the outward interface. Failures from the fallback calculation are checked against that same interface contract.
+Handling Missing removes it from the outward contract. Denied and BadPort still reach the caller with their original payloads. The homepage inlines load's expression; the behavior is the same.
 
-**Recovery changes the contract callers must face.** Handling only one enum case, or using a guard to select some cases, leaves the other possibilities in the set. The compiler computes the remainder from actual coverage.
+A catch that handles only some payloads, or uses a guard, may leave that failure type in the set. The compiler checks actual coverage before removing a type from the contract.
+
+The [tutorial](/learn/failures/) provides complete runnable Carven and C++ versions, with edits to try and behavior to compare.
 
 ## Infer internally, commit at the interface
 

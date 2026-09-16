@@ -2,7 +2,7 @@
 title: "Bindings, access, ownership, and cleanup"
 description: "Read, Write, Take, copying, restoration, aliasing, temporaries, and scoped cleanup."
 section: reference
-lesson: 8
+lesson: 4
 source: docs/semantics.md
 ---
 
@@ -53,6 +53,12 @@ Even for copyable i32, Take makes the original binding unavailable. An && expres
 Only an ordinary assignment to a whole var restores availability, after its right side completes normally. Partial assignments, compound assignments, and increment/decrement need the old value. `x = relay(&&x)` restores x on normal return; if the right side fails, x remains unavailable. `x = &&x`, including parenthesized forms, is invalid.
 
 At a control-flow merge, a binding is available only if it is available on all normally continuing paths. Loops include zero-iteration paths and back edges.
+
+## Take and C++ move are different contracts
+
+`&&owner` is not an alias for std::move. C++ [std::move](https://timsong-cpp.github.io/cppwp/n4868/forward) changes an expression's value category so later operations can select move or other valid construction; it does not make the variable name unavailable in the language. Carven Take also changes the source binding's static availability, even for i32.
+
+Replacing Take with std::move in a C++ snippet may preserve successful output without providing the same later-use checks. Equivalent implementations must account separately for value delivery and which subsequent operations are allowed. C++ type design, library contracts, or additional analysis can provide their own constraints.
 
 ## Unfinished accesses and conflicts
 

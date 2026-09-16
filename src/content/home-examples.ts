@@ -1,84 +1,90 @@
 // Authored homepage snippets. Highlighted during content generation.
 export const homeExamples = {
-  failures: `fn pickup_quote(qty: i32, stock: i32, zone: i32)
-    -> i32 throw QuantityError + OutOfStock
-{
+  failures: `// read: str throw Missing + Denied
+// parse: i32 throw BadPort
+fn port() -> i32 throw Denied + BadPort {
     return try {
-        (line_total(qty, stock) + delivery_fee(zone))?
+        parse(read()?)?
     } catch {
-        DeliveryError(_) => line_total(qty, stock)?,
+        Missing(_) => 8080,
     };
 }`,
-  constants: `const fn labels(count: i32) -> String {
+  constants: `const fn join(items: [str; 3]) -> String {
     var text = String::new();
-    for index in 0..count {
-        text.append_format(f"[{index:02}]");
+    for item in items {
+        if !text.is_empty() {
+            text.append(" / ");
+        }
+        text.append(item);
     }
     return text;
 }
 
-const names = labels(3);
+const menu = join(["Home", "Docs", "About"]);`,
+  native: `import <nlohmann/json.hpp> using nlohmann::json::parse;
 
-const test "generated labels" {
-    check(names == "[00][01][02]");
+fn main() {
+    let config = parse(c"{\\"port\\":9000}");
+    let port: i32 = config.value(c"port", 8080);
+    println(f"Port: {port}");
 }`,
-  native: `import <cmath> using std::hypot;
-
-export(cpp) fn distance(x: f64, y: f64) -> f64 {
-    return hypot(x, y);
-}`,
-  failuresCpp: `#include <cstdint>
-#include <expected>
+  failuresCpp: `#include <expected>
+#include <string_view>
 #include <variant>
 
-using ItemError = std::variant<QuantityError, OutOfStock>;
-using Quote = std::expected<std::int32_t, ItemError>;
+std::expected<std::string_view,
+    std::variant<Missing, Denied>> read();
+std::expected<int, BadPort> parse(std::string_view text);
 
-Quote pickup_quote(int qty, int stock, int zone) {
-    auto item = line_total(qty, stock);
-    if (!item) {
-        return std::unexpected(item.error());
+std::expected<int, std::variant<Denied, BadPort>> port() {
+    auto text = read();
+    if (!text) {
+        if (std::holds_alternative<Missing>(text.error())) {
+            return 8080;
+        }
+        return std::unexpected(std::get<Denied>(text.error()));
     }
-
-    auto delivery = delivery_fee(zone);
-    if (!delivery) {
-        return line_total(qty, stock);
+    auto value = parse(*text);
+    if (!value) {
+        return std::unexpected(value.error());
     }
-    return *item + *delivery;
+    return *value;
 }`,
   constantsCpp: `#include <array>
+#include <string>
 #include <string_view>
 
-template <std::size_t Count>
-constexpr auto labels() {
-    static_assert(Count <= 100);
-    std::array<char, Count * 4> text{};
-    for (std::size_t i = 0; i < Count; ++i) {
-        text[i * 4] = '[';
-        text[i * 4 + 1] = char('0' + i / 10);
-        text[i * 4 + 2] = char('0' + i % 10);
-        text[i * 4 + 3] = ']';
+constexpr std::string join(std::array<std::string_view, 3> items) {
+    std::string text;
+    for (auto item : items) {
+        if (!text.empty()) {
+            text.append(" / ");
+        }
+        text.append(item);
     }
     return text;
 }
 
-constexpr auto storage = labels<3>();
-constexpr std::string_view names{storage.data(), storage.size()};
-static_assert(names == "[00][01][02]");`,
-  nativeCpp: `// distance.hpp
-#pragma once
-
-namespace app {
-    double distance(double x, double y);
+template <auto build>
+consteval auto freeze() {
+    std::array<char, build().size()> data{};
+    auto text = build();
+    for (std::size_t i = 0; i < data.size(); ++i) {
+        data[i] = text[i];
+    }
+    return data;
 }
 
-// distance.cpp
-#include "distance.hpp"
-#include <cmath>
+constexpr auto data = freeze<[] {
+    return join({"Home", "Docs", "About"});
+}>();
+constexpr std::string_view menu{data.data(), data.size()};`,
+  nativeCpp: `#include <iostream>
+#include <nlohmann/json.hpp>
 
-namespace app {
-    double distance(double x, double y) {
-        return std::hypot(x, y);
-    }
+int main() {
+    const auto config = nlohmann::json::parse("{\\"port\\":9000}");
+    const int port = config.value("port", 8080);
+    std::cout << "Port: " << port << '\\n';
 }`,
 } as const;

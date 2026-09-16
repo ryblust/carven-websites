@@ -86,12 +86,6 @@ export default function Site({ children }: Props) {
               {t('源代码 ↗', 'Source code ↗')}
             </a>
           </div>
-          <p className="development-note">
-            {t(
-              '积极开发中。语言与工具链仍在演进。',
-              'In active development. The language and toolchain are evolving.',
-            )}
-          </p>
         </div>
       </footer>
     </>

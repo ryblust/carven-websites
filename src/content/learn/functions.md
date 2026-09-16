@@ -1,8 +1,8 @@
 ---
-title: "Functions and return values"
-description: "Name computations, use contextual parameter types, and make return paths explicit."
+title: "Organize calculations with functions"
+description: "Name calculations, declare parameter types, and make return paths explicit."
 section: learn
-lesson: 2
+lesson: 3
 source: docs/semantics.md
 ---
 
@@ -42,15 +42,27 @@ fn main() {
 
 The output is `8`. An explicit result type supplies context to literals in each return. Without a result annotation, each return is inferred independently and the results must agree. The first return does not choose a numeric type for later ones.
 
-## void and side effects
+## Functions that perform an action
 
-A function without a return operand infers void. It may print or update Write parameters, but its nonexistent result cannot be bound to a local value. `return action();` can forward void. If the call can fail, it still needs `?`.
+A function that returns no value infers void:
 
-## Declaration order and recursion
+```carven
+fn show_total(total: i32) {
+    println("Total:", total);
+}
 
-A function may call another defined later. Mutual recursion involving inferred results can form a dependency cycle; an explicit `-> T` can break it. Failure-set inference and result-type inference are separate facts.
+fn main() {
+    show_total(36);
+}
+```
 
-Calls select the function first, then evaluate arguments from left to right. Ordinary Read does not mean every type is copied: reads of String and arrays retain storage relationships, explored in the ownership chapter.
+The output is `Total: 36`. Call show_total as a statement; there is no value to save in a local binding. A bare `return;` can finish such a function early.
+
+## Declaration order and calls
+
+A function may call another defined later in the same module. Carven collects declarations before checking bodies. Calls select the function first, then evaluate arguments once each from left to right.
+
+For mutually recursive functions, write explicit result types so checking one result does not depend on inferring the other. See the [function Reference](/reference/functions/) for the full inference rules. The [access chapter](/learn/ownership/) will show when a parameter reads a saved value and when it retains the caller's storage.
 
 ## Exercise
 

@@ -1,5 +1,5 @@
 ---
-title: "Project: order quotes and recovery"
+title: "Project: update stock only after success"
 description: "Combine structs, failures, Write updates, and text output in a runnable program."
 section: learn
 lesson: 15

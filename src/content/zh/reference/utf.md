@@ -2,7 +2,7 @@
 title: UTF 标准库
 description: 标量转换、UTF-8 编解码、拥有与借用文本、增量验证。
 section: reference
-lesson: 19
+lesson: 17
 source: crafts/carven/std/utf/README.md
 ---
 

@@ -1,8 +1,8 @@
 ---
-title: "Modules, crafts, and project structure"
+title: "Split a program into modules"
 description: "Split source files and understand explicit batches, import paths, and visibility."
 section: learn
-lesson: 10
+lesson: 8
 source: docs/semantics.md
 ---
 

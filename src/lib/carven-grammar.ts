@@ -31,6 +31,8 @@ export default {
       match: '\\b(i8|i16|i32|i64|u8|u16|u32|u64|isize|usize|f32|f64|bool|char|str|void)\\b',
     },
     { name: 'entity.name.function.carven', match: '\\b[a-z_][A-Za-z0-9_]*(?=\\s*\\()' },
+    { name: 'storage.type.carven', match: '\\brange(?=\\s*<)' },
+    { name: 'keyword.operator.carven', match: '\\.\\.=?' },
     { name: 'constant.language.carven', match: '\\b(true|false)\\b' },
     { name: 'constant.numeric.carven', match: '\\b[0-9]+(?:\\.[0-9]+)?\\b' },
     { name: 'entity.name.type.carven', match: '\\b[A-Z][A-Za-z0-9_]*\\b' },

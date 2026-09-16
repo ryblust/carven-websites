@@ -72,3 +72,5 @@ int native_answer() {
 Module imports form a contiguous prefix at the start of a file. A function block body has no trailing semicolon; `=> expression;` does. Bindings, assignments, transfers, and ordinary expression statements end in semicolons. Value branches of if, match, and try yield a final expression; this is not an implicit return from an ordinary function block.
 
 Assignment and increment/decrement are statement actions, not expressions. Increment/decrement use prefix form. There are no standalone `{ ... }` block statements, tuples, or type-alias declarations. `&` and `&&` mark access in parameter and argument positions. In ordinary expressions, `&&` may mean Take or binary logical and according to position. Lexing uses maximal munch; type parsing handles consecutive `>` in template types.
+
+`..` and `..=` are each recognized as one maximal-munch token, denoting half-open and closed ranges. Range expressions require both bounds; omitted bounds are allowed only in range patterns.

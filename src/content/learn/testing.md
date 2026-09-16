@@ -1,8 +1,8 @@
 ---
-title: "Tests and diagnostics"
+title: "Test success and failure paths"
 description: "Make successful paths, boundaries, and failure recovery repeatable."
 section: learn
-lesson: 12
+lesson: 11
 source: docs/semantics.md
 ---
 
@@ -78,7 +78,7 @@ test permits no residual escaping failure. This example checks both that a failu
 
 Start with the original .cv location, then read the diagnostic code and explanation. Types, ownership, failure sets, C++ compilation, and linking are distinct boundaries. Native construction or provider errors may still occur after Carven analysis succeeds.
 
-Use `_` for an intentionally unused value. Warnings do not fail an otherwise valid program. For native errors, inspect includes, provider signatures, and construction requirements; removing semantic checks is not a remedy.
+Use `_` for an intentionally unused value. Warnings do not fail an otherwise valid program. For native errors, inspect includes, provider signatures, and construction requirements.
 
 ## Exercise
 

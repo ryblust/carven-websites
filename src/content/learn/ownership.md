@@ -1,5 +1,5 @@
 ---
-title: "Reading, writing, and taking"
+title: "Read, update, and transfer values"
 description: "Use an inventory example to understand Read, nonexclusive Write, explicit Take, and restoration."
 section: learn
 lesson: 5
@@ -41,6 +41,21 @@ stock becomes unavailable after dispatch. A complete ordinary assignment restore
 Carven does not allow a partial Take of a field or array element. Read/Write parameters, range bindings, captures, and constants are not Take sources either. To transfer an aggregate, pass its whole owner.
 
 ## Write may alias
+
+```carven
+fn replenish(&first: i32, &second: i32) {
+    first += 2;
+    second += 3;
+}
+
+fn main() {
+    var stock = 4;
+    replenish(&stock, &stock);
+    println(stock);
+}
+```
+
+The output is `9`: both parameters refer to stock, so the second update sees the first. The two `&` markers make both writable accesses visible at the call.
 
 Multiple Write parameters can refer to the same mutable storage. Updates occur in body order. Write is not an exclusive reference. At the same time, an active read-only text or slice borrow still prevents an actual write.
 

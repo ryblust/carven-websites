@@ -1,5 +1,5 @@
 ---
-title: "Text, slices, and borrows"
+title: "Own text and borrow sequences"
 description: "Choose String or str, work with UTF-8, and understand when views prevent mutation."
 section: learn
 lesson: 6
@@ -82,4 +82,4 @@ The output is `12 10`. Arrays borrow automatically in slice argument context wit
 
 ## Exercise
 
-Change the second valid text example to three characters. Record its byte length and the number of chars iterations. Change the array slice to `slice(3usize, 3usize)`; sum should be 0.
+Change the second valid text example to three characters. Record its byte length and the number of chars iterations. Change the array slice to `slice(3usize, 3usize)`; `sum(middle)` should be 0, so the complete output is `12 0`.

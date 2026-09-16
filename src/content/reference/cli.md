@@ -1,8 +1,8 @@
 ---
-title: "Command line and execution modes"
-description: "Native execution, compile, interpret, input mapping, test artifacts, and process status."
+title: "Compiler commands and Graver"
+description: "Native execution, interpretation, generated artifacts, and Graver source formatting."
 section: reference
-lesson: 17
+lesson: 18
 source: docs/cli.md
 ---
 
@@ -40,6 +40,8 @@ Admission failures use `CV-INTERPRET-ADMISSION`, without falling back to native 
 
 `--max-steps N` is a nonnegative decimal step count, defaulting to 100,000. Nested calls share the entry budget. It limits steps, not elapsed time or blocked output. Value size, call depth, aggregate work, and text work limits still apply. Each preceding constant root has an independent budget unaffected by this option. Options cannot repeat.
 
+Ordinary interpreted calls do not require const fn. Runtime integer operations use the language's wrapping rules, including runtime calls to const fn; required constant arithmetic remains checked. Admission examines all branches of the entry and its transitive direct callees, even branches not selected during execution. Interpretation writes no C++ artifacts or native executable.
+
 ## Input paths
 
 Paths use UTF-8, `/` separators, and the `.cv` extension. Relative paths must not escape the working directory after lexical normalization. Removing the extension and joining components with dots produces the canonical module name. Absolute inputs are accepted only when their path contains a crafts hierarchy; the module name starts at the first crafts component. The operating system resolves symbolic links when opening a file.
@@ -69,3 +71,25 @@ Reuse a domain for the same logical target; use different domains for distinct t
 Invocation, reading, source, or writing failures report to stderr and return nonzero. Warnings do not change successful compilation to a nonzero result. dump parses one file without semantic analysis, constant tests, or artifact generation. tokens prints tokens after successful lexing; ast prints the tree after successful parsing.
 
 Required constant execution sends print/println to stdout and eprint/eprintln to stderr. With `compile --stdout`, all compile-time program output goes to stderr, leaving stdout for artifacts. Later compilation failures do not undo output. An incremental build reusing artifacts does not rerun or replay compile-time output.
+
+## Graver
+
+Graver is a separate source formatter, not a `carven` subcommand. Build it with `./xmakew build graver` from the Carven repository root; the commands below can also be invoked through `./xmakew run graver`.
+
+| Command                     | Behavior                                                |
+| --------------------------- | ------------------------------------------------------- |
+| `graver [FILE or -]`        | Format one input to stdout; omitted input reads stdin   |
+| `graver check FILE/DIR ...` | List paths needing formatting on stdout without writing |
+| `graver check -`            | Check stdin; report a difference as `stdin`             |
+| `graver write FILE/DIR ...` | Replace changed files silently                          |
+| `graver help [COMMAND]`     | Show general or command-specific help                   |
+
+`check` and `write` require inputs; use `.` for the current directory. Stdin must be used alone and cannot be written. Only the first argument recognizes command names. Use `./help`, `./check`, or `./write` for command-named files in default mode. There are no flags: dash-prefixed arguments, including `--help` and `--`, are literal paths.
+
+Directory inputs recursively select `.cv` files, skipping nested hidden/build directories and symlink entries. Explicit files may have any extension. Paths are sorted and deduplicated; check reports use cwd-relative paths where possible. Explicit file symlinks can be read but are rejected by write.
+
+Exit status is 0 for success, 1 for check differences, and 2 for an error. Diagnostics use stderr. All selected sources pass lexical and syntax validation before changes are reported or written. Each changed file is staged beside its destination, retains permission bits, and is compared against its original bytes before replacement. A later I/O failure can leave earlier files updated; the byte comparison does not lock files. Unchanged files are not rewritten.
+
+The fixed style uses four-space indentation and a target width of 100 bytes. UTF-8 text may wrap early; indivisible tokens, comments, C++ fragments, and type-argument lists may exceed the target. Token and literal spelling, punctuation, comment text and token-gap position, interpolation text and specifications, and fenced C++ content are preserved; expressions inside interpolation holes are formatted. Authored blank-line counts remain, spaces on blank lines are removed, ordinary line endings become LF, and nonempty output ends in a newline. Output is re-lexed, compared with the input, and parsed before being returned.
+
+Formatting does not resolve imports, type-check programs, or execute compile-time functions and tests. Successful formatting establishes only the formatter's syntax and preservation checks.

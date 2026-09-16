@@ -2,7 +2,7 @@
 title: 指针与外部地址
 description: 可空地址、目标权限、非空证明和原生资源责任。
 section: reference
-lesson: 14
+lesson: 16
 source: docs/semantics.md
 ---
 

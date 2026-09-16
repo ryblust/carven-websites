@@ -44,7 +44,6 @@ The following preserves registered codes, default severities, and English defaul
 | `CV-ACCESS-NOT-ASSIGNABLE`                | Error            | Non-assignable Update target.                                                |
 | `CV-ACCESS-RANGE-BINDING`                 | Error            | Invalid Write range binding.                                                 |
 | `CV-ACCESS-RANGE-ITERABLE`                | Error            | Invalid Write range iterable.                                                |
-| `CV-ACCESS-VIEW-RANGE-BINDING`            | Error            | View range bindings only support Read access.                                |
 | `CV-CATALOG`                              | Error            | Semantic catalog failure.                                                    |
 | `CV-COMPILATION-INPUT`                    | Error            | Invalid closed-compilation input.                                            |
 | `CV-CPP-BOUNDARY`                         | Error            | Invalid C++ boundary declaration.                                            |

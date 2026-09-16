@@ -10,23 +10,21 @@ source: docs/semantics.md
 查找表、固定记录与文本经常需要循环、局部修改和辅助函数。Carven 的 const fn 允许在支持的执行范围内，用这些熟悉的方式准备数据。
 
 ```carven
-const fn make_catalog(count: i32) -> String {
-    var result = String::new();
-
-    for index in 0..count {
-        if index != 0 {
-            result.push(',');
+const fn join(items: [str; 3]) -> String {
+    var text = String::new();
+    for item in items {
+        if !text.is_empty() {
+            text.append(" / ");
         }
-        result.append_format(f"{index:02}");
+        text.append(item);
     }
-
-    return result;
+    return text;
 }
 
-const catalog = make_catalog(4);
+const menu = join(["Home", "Docs", "About"]);
 ```
 
-catalog 在编译时得到 `00,01,02,03`。函数执行期间，String 可以增长、复制和转移；完成常量初始化后，结果冻结为具有静态存储的 str。运行程序不必重新执行这段构造循环。
+menu 在编译时得到 `Home / Docs / About`。函数执行期间，String 可以增长、复制和转移；完成常量初始化后，结果冻结为具有静态存储的 str。运行程序不必重新执行这段构造循环。
 
 **构造过程可以可变，交付的数据保持静态。** 固定数组和支持的结构体也可以逐步构造；数组结果还可在常量初始化边界形成具有静态 backing 的只读切片。
 
@@ -36,20 +34,22 @@ C++ 的 constexpr、consteval 与模板同样能够表达编译期工作。手�
 
 Carven 为支持的源语言操作执行自己的常量计算，并在初始化完成处处理结果冻结。例如这里的临时 String 构造最终交付静态 str；这一步由 Carven 在生成 C++ 之前完成，不要求对应运行时文本函数也能完成同一次 C++ 常量求值。
 
+在[深入教程](/zh/learn/constants/)中，可以运行完整的 Carven 与 C++ 对照，并修改输入或契约，观察两边的行为。
+
 ## 一份算法，明确选择执行阶段
 
 在必需常量上下文调用 const fn，计算由 Carven 完成。普通运行时调用仍是运行时函数调用，即使实参恰好是字面量。
 
-因此 make_catalog 既能准备固定目录，也能根据运行时输入构造文本。阶段选择有明确的源码契约；常量计算无法完成时会给出诊断，不会悄悄退回运行时。
+因此 join 既能准备固定菜单，也能根据运行时输入构造文本。阶段选择有明确的源码契约；常量计算无法完成时会给出诊断，不会悄悄退回运行时。
 
 ## 验证发生在程序运行之前
 
-编译期生成的数据可以立即接受编译期测试。下面的测试与前面的 catalog 放在同一文件：
+编译期生成的数据可以立即接受编译期测试。下面的测试与前面的 menu 放在同一文件：
 
 ```carven
-const test "catalog contents" {
-    check(catalog == "00,01,02,03");
-    check(catalog.len() == 11);
+const test "menu contents" {
+    check(menu == "Home / Docs / About");
+    check(menu.len() == 19);
 }
 ```
 

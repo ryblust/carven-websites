@@ -2,7 +2,7 @@
 title: "Slices and static backing"
 description: "Construction, borrowing, subranges, returns, and freezing read-only slices."
 section: reference
-lesson: 5
+lesson: 11
 source: docs/semantics.md
 ---
 

@@ -2,7 +2,7 @@
 title: "Structs, arrays, and enums"
 description: "Construction order, type identity, bounds checks, enum payloads, and recursive storage."
 section: reference
-lesson: 4
+lesson: 5
 source: docs/semantics.md
 ---
 

@@ -2,7 +2,7 @@
 title: 入口、运行时测试与编译期测试
 description: 入口选择、进程状态、check/require/fail 和测试停止传播。
 section: reference
-lesson: 16
+lesson: 14
 source: docs/semantics.md
 ---
 

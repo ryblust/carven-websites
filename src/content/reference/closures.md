@@ -2,7 +2,7 @@
 title: "Closures, captures, and callable views"
 description: "Closure identity, value and Write captures, view adaptation, and call snapshots."
 section: reference
-lesson: 10
+lesson: 9
 source: docs/semantics.md
 ---
 

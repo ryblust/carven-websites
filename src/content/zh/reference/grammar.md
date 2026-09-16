@@ -12,7 +12,7 @@ source: docs/grammar.md
 
 ## 优先级
 
-从低到高：访问表达式、逻辑或、逻辑与、按位或、异或、按位与、比较、移位、加减、乘除余、as、前缀、后缀。重复形式二元运算与 as 左结合；所有比较共用一个不可结合级别，不允许未加括号的链式比较。没有逗号表达式。
+从低到高：访问表达式、区间表达式、逻辑或、逻辑与、按位或、异或、按位与、比较、移位、加减、乘除余、as、前缀、后缀。重复形式二元运算与 as 左结合；所有比较共用一个不可结合级别，不允许未加括号的链式比较。没有逗号表达式。
 
 访问标记只能从 expression 的起点开始，覆盖其右侧完整表达式。普通二元 & 和 && 保持按位与/逻辑与含义。实参标记使用同一表达式机制，捕获与范围绑定另有只允许 & 的形式。
 
@@ -24,7 +24,7 @@ source: docs/grammar.md
 
 T { ... } 解析为构造，T(...) 总解析为调用。控制头部外层深度遇到所需大括号时开始 body；想在该位置使用构造表达式，需要括号包裹。if、match、循环容器与整数范围边界都遵守这个规则。模式的 is、绑定标识符、case 与竖线不依赖名字查找消歧。
 
-模块 import 是连续前缀。顶层 const 是模块常量；顶层可执行语句形成隐式入口。没有 namespace block、泛型声明、默认参数或可变参数语法。整数范围仅在 for 的 in 之后识别，必须有两端，没有闭区间、省略端点、步长或一般范围值。
+模块 import 是连续前缀。顶层 const 是模块常量；顶层可执行语句形成隐式入口。没有 namespace block、泛型声明、默认参数或可变参数语法。区间表达式 `a..b` 和 `a..=b` 不可连续结合，且必须提供两个整数端点。只有区间模式可以省略端点；不支持步长和隐式反向遍历。类型位置的非限定名 `range<T>` 表示整数区间。模式端点使用移位表达式，括号内可使用完整表达式；未加括号的 `|` 分隔模式分支。裸标识符绑定值，不表示检查一个已保存区间的成员关系。
 
 ## 01 · 记法
 
@@ -397,7 +397,7 @@ for-header = range-for-header | c-style-for-header;
 
 range-for-header = for-binding, "in", range-for-source;
 
-range-for-source = expression, [ "..", expression ];
+range-for-source = expression;
 
 for-binding = [ "&" ], binding-target, [ ":", type ];
 
@@ -425,7 +425,10 @@ branch-result = expression;
 ## 24 · 表达式优先级
 
 ```text
-expression = access-expression | logical-or-expression;
+expression = access-expression | range-expression;
+
+range-expression = logical-or-expression,
+                   [ ( ".." | "..=" ), logical-or-expression ];
 
 access-expression = access-marker, expression;
 
@@ -591,7 +594,12 @@ atomic-pattern = wildcard-pattern
                | negative-number-pattern
                | binding-pattern
                | constraint-pattern
-               | case-pattern;
+               | case-pattern
+               | range-pattern;
+
+range-pattern = shift-expression, "..", [ shift-expression ]
+              | "..", shift-expression
+              | [ shift-expression ], "..=", shift-expression;
 
 wildcard-pattern = "_";
 
