@@ -20,7 +20,7 @@ source: docs/cli.md
 
 The interpreter first performs the same semantic analysis, then checks execution eligibility of called code. Unsupported operations produce an error without switching to native execution. Use the native path for typed failures, closures, slices, and native operations.
 
-At revision `69e13f4a`, running the [integer classification example](/learn/control/) through `interpret` can trigger an internal missing-builtin-type error. Run that example with `carven main.cv`; its native execution has been verified.
+Interpretation is an experimental subset for demonstrations and teaching. Run the [integer classification example](/learn/control/) with `carven interpret main.cv`, then add `--trace` to observe execution. Use native execution when exploring the full language or integrating C++ libraries.
 
 ## Format source with Graver
 

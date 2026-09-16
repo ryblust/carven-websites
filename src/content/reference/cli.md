@@ -30,6 +30,8 @@ Only source paths are accepted before `--`. Everything after it is passed unchan
 
 ## Interpretation
 
+Interpretation is an experimental subset for demonstrations and teaching. Supported operations follow ordinary Carven semantics; native compilation provides the full language and C++ integration. The interpreter subset does not restrict language-required compile-time evaluation, which has its own admission rules.
+
 interpret uses the same input batch and semantic checks, executes required constants and const test, then checks the entry and its transitive direct callees against its execution subset. It supports integers, bool, char, str, String, supported structs/fixed arrays, direct calls, local mutation, branches, loops, matching, and printing.
 
 Executed code does not support C++ headers/fragments/operations, floating-point operations, callables, typed failures, Write parameters, slices, or entry argument values. Unused functions still receive ordinary language checks but need not fit the interpreter subset. The entry must currently be parameterless; arguments after `--` are ignored, as for a parameterless native entry.
