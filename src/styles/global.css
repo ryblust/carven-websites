@@ -22,11 +22,18 @@
   --control-edge: inset 0 1px 0 #ffffff12;
   --radius: 16px;
   font-family: var(--sans);
-  font-size: 16px;
+  --body-size: 1.0625rem;
+  --body-leading: 1.75;
+  --code-size: 0.9375rem;
+  --code-leading: 1.7;
+  font-size: 100%;
   background: var(--bg);
   color: var(--text);
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
+}
+html[lang^='zh'] {
+  --body-leading: 1.85;
 }
 * {
   box-sizing: border-box;
@@ -233,8 +240,8 @@ pre {
   margin: 0;
   padding: 28px 24px;
   font-family: var(--mono);
-  font-size: 0.875rem;
-  line-height: 1.85;
+  font-size: var(--code-size);
+  line-height: var(--code-leading);
   overflow-x: auto;
   max-width: 100%;
 }
@@ -249,9 +256,10 @@ pre code {
   min-width: 0;
 }
 .code-wrap pre {
-  padding-top: 38px;
+  padding-top: 60px;
 }
 .copy-button {
+  min-height: 44px;
   position: absolute;
   right: 13px;
   top: 8px;
@@ -368,8 +376,8 @@ pre code {
   color: var(--muted);
 }
 .prose {
-  font-size: 1rem;
-  line-height: 1.95;
+  font-size: var(--body-size);
+  line-height: var(--body-leading);
   color: #c4c4cc;
   overflow-wrap: break-word;
 }
@@ -424,7 +432,7 @@ pre code {
   border-radius: 4px;
   padding: 2px 5px;
   font-family: var(--mono);
-  font-size: 0.875em;
+  font-size: 0.94em;
   overflow-wrap: anywhere;
 }
 .prose pre {
@@ -548,7 +556,10 @@ pre code {
   }
   .header-inner {
     min-height: 72px;
-    gap: 18px;
+    flex-wrap: wrap;
+    column-gap: 12px;
+    row-gap: 0;
+    padding-block: 6px;
   }
   .wordmark {
     font-size: 1.125rem;
@@ -563,6 +574,7 @@ pre code {
   }
   .mobile-nav {
     display: block;
+    margin-left: auto;
   }
   .mobile-nav summary {
     list-style: none;
@@ -581,7 +593,7 @@ pre code {
     position: absolute;
     left: -20px;
     right: -20px;
-    top: 71px;
+    top: 100%;
     z-index: 20;
     background: #101012;
     padding: 16px 20px 22px;
@@ -605,7 +617,6 @@ pre code {
   }
   pre {
     padding-inline: 16px;
-    font-size: 0.8125rem;
   }
   .footer-inner {
     padding-block: 32px;
@@ -700,7 +711,7 @@ pre code {
   padding: 10px 12px;
   color: var(--text);
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .chapter-search input:focus-visible {
   outline: 2px solid #c6c6d3;
@@ -710,7 +721,7 @@ pre code {
   display: flex;
   gap: 10px;
   padding: 9px 10px;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.7;
   border-left: 0;
   border-radius: 10px;
@@ -752,7 +763,7 @@ pre code {
 .page-outline a {
   display: block;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.65;
   padding: 6px 0;
 }
@@ -807,7 +818,7 @@ pre code {
   }
   .mobile-toc summary {
     cursor: pointer;
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     color: var(--text);
   }
   .mobile-toc summary span {
@@ -819,7 +830,7 @@ pre code {
   }
   .mobile-toc a {
     display: block;
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     color: var(--muted);
     padding: 6px 0;
   }
@@ -834,8 +845,7 @@ pre code {
   .reading-nav {
     padding: 0;
     border: 0;
-    position: sticky;
-    top: 76px;
+    position: static;
     align-self: start;
     z-index: 20;
     background: var(--bg);
@@ -860,7 +870,7 @@ pre code {
   }
   .mobile-chapters summary {
     cursor: pointer;
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     color: var(--text);
   }
   .mobile-chapters .chapter-search {
@@ -879,9 +889,8 @@ pre code {
   .article-header h1 {
     font-size: 1.85rem;
   }
-  .prose {
-    font-size: 0.9375rem;
-    line-height: 1.95;
+  :root {
+    --code-size: 0.875rem;
   }
   .prose h2 {
     font-size: 1.35rem;
@@ -907,7 +916,7 @@ pre code {
     border-radius: inherit;
     background: transparent;
     color: var(--text);
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     text-align: left;
   }
   .chapter-toggle-label {
@@ -1062,4 +1071,45 @@ html[lang='en'] .prose {
   border: 1px solid var(--line);
   border-radius: 50%;
   font-size: 1.5rem;
+}
+
+/* Authored comparisons remain readable before JavaScript loads. */
+.code-comparison {
+  margin-block: 32px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  min-width: 0;
+}
+.comparison-switch {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.comparison-switch button {
+  min-height: 44px;
+  padding: 8px 18px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+}
+.comparison-switch button[aria-pressed='true'] {
+  color: var(--text);
+  border-color: var(--line);
+  background: var(--control);
+}
+.code-comparison pre {
+  height: 22.5rem;
+  overflow: auto;
+}
+.code-comparison [data-code-choice] > p {
+  color: var(--muted);
+  font-size: 1rem;
+}
+@media (max-width: 800px) {
+  .code-comparison {
+    padding: 12px;
+  }
 }

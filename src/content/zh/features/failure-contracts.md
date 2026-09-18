@@ -17,6 +17,72 @@ source: docs/semantics.md
 
 Carven 在语义分析中保留各失败类型的身份，计算处理后剩余的失败集合，并检查实现是否超出接口声明的集合。生成的 C++ 保存当前失败的载荷并执行传播；源码用普通表达式计算成功值，用 catch 分支描述恢复方式。
 
+## 同一任务，两种表达
+
+这就是首页的端口示例。两边都在配置缺失时返回 8080，并把 Denied 与 BadPort 留给调用者。下面省略失败类型与 read、parse 的实现；C++ 是手写对照，不是编译产物。
+
+<div class="code-comparison" role="region" aria-label="切换代码语言">
+<div data-code-choice="Carven">
+
+Carven
+
+```carven
+// read: str throw Missing + Denied
+// parse: i32 throw BadPort
+fn port() -> i32 throw Denied + BadPort {
+    return try {
+        parse(read()?)?
+    } catch {
+        Missing(_) => 8080,
+    };
+}
+```
+
+</div>
+<div data-code-choice="C++">
+
+C++23 · 手写等价示例
+
+```cpp
+#include <expected>
+#include <string_view>
+#include <variant>
+
+std::expected<std::string_view,
+    std::variant<Missing, Denied>> read();
+std::expected<int, BadPort> parse(std::string_view text);
+
+std::expected<int, std::variant<Denied, BadPort>> port() {
+    auto text = read();
+    if (!text) {
+        if (std::holds_alternative<Missing>(text.error())) {
+            return 8080;
+        }
+        return std::unexpected(std::get<Denied>(text.error()));
+    }
+    auto value = parse(*text);
+    if (!value) {
+        return std::unexpected(value.error());
+    }
+    return *value;
+}
+```
+
+</div>
+</div>
+
+| 工作               | Carven 的表达              | C++ 对照的组织方式               |
+| ------------------ | -------------------------- | -------------------------------- |
+| 传播读取和解析失败 | 调用处的 `?`               | 检查 expected，再转交错误载荷    |
+| 只恢复 Missing     | `catch` 中的恢复分支       | 检查 variant 的当前备选类型      |
+| 保留剩余失败       | 检查 Denied + BadPort 契约 | 用新的 expected 错误类型承载结果 |
+
+C++ 的结果类型、variant 和控制流提供了表达这些行为的能力；组合器或其他结果库也可以封装它们。Carven 将组合与覆盖检查放进语言语义，使编译器能检查恢复后还有哪些责任。
+
+下一步进入[失败教程的完整对照](/zh/learn/failures/#用-c23-保留相同的失败信息)：用价格与服务费的可运行例子，验证相同输入与短路顺序，再尝试移除一个恢复分支。
+
+另一类责任与数据存活有关，可以继续看[所有权教程中的借用对照](/zh/learn/ownership/#借用期间谁来保证存储有效)。
+
 ## 成功路径自然表达，传播位置清楚可见
 
 读取端口分成两步：先读取配置文本，再解析为端口号。下面的节选假设 read 返回 str，声明 Missing + Denied；parse 接收 str，返回 i32，声明 BadPort。
@@ -77,3 +143,7 @@ fn process(
 Carven 将失败契约实现为带有具体备选类型的 C++ 结果与显式控制流，无失败契约使用直接结果。失败传播使用这条生成路径，不依赖 C++ 异常展开来承载 Carven 失败。
 
 成功路径、失败载荷、局部清理与求值顺序共同决定生成代码。失败保留已完成的副作用；业务恢复和回滚由程序定义。原生 C++ 异常继续由原生适配边界处理。
+
+## 也用于编译期校验
+
+const fn 可以在编译期执行抛出、传播、恢复和重抛，并保留普通静态契约检查。这让同一套校验函数同时用于常量配置和运行时输入；[编译期教程](/zh/learn/constants/#用相同的失败契约选择编译期配置)给出了可运行示例。

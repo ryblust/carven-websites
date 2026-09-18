@@ -18,9 +18,11 @@ source: docs/cli.md
 | Limit interpreter steps        | `carven interpret --max-steps 10000 main.cv`             |
 | Inspect tokens or syntax       | `carven dump tokens main.cv` / `carven dump ast main.cv` |
 
-The interpreter first performs the same semantic analysis, then checks execution eligibility of called code. Unsupported operations produce an error without switching to native execution. Use the native path for typed failures, closures, slices, and native operations.
+The interpreter first performs the same semantic analysis, then checks execution eligibility of called code. Unsupported operations produce an error without switching to native execution. Typed failures also use this shared executor. Use the native path for closures, slices, and native operations.
 
-Interpretation is an experimental subset for demonstrations and teaching. Run the [integer classification example](/learn/control/) with `carven interpret main.cv`, then add `--trace` to observe execution. Use native execution when exploring the full language or integrating C++ libraries.
+To observe execution step by step, run the [integer classification example](/learn/control/) with `carven interpret main.cv`, then add `--trace` to inspect the steps. Use native execution when exploring the full language or integrating C++ libraries.
+
+Direct execution needs a native C++ toolchain and matching Crafts, but does not require Xmake. It automatically collects the toolchain's `crafts/carven/` and the project's optional `crafts/`; other application files remain explicit. `compile` and `interpret` use only their explicit source batches. See [CLI Reference](/reference/cli/) for installation layout, temporary files, and toolchain selection.
 
 ## Format source with Graver
 
@@ -37,9 +39,24 @@ The first run prints formatted source to stdout without changing the file. `chec
 
 Graver uses a fixed style with four-space indentation and a target width of 100 bytes. It checks lexical and syntactic validity without resolving imports, checking types, or executing const fn or const test. Continue to build and test after formatting. See the [command-line Reference](/reference/cli/#graver) for commands and file selection.
 
+## Read the formatted source
+
+Short import selections stay on one line, with spaces inside the braces and no trailing comma:
+
+```carven
+import std::utf.text using { from_utf8, to_string };
+import <vector> using std::{ vector, allocator };
+```
+
+Longer selections expand to one name per line, including a comma after the last name. An existing trailing comma does not force a short list to expand; let Graver choose the layout for the target width.
+
+Function and closure block bodies expand by default; expression-bodied functions keep `=>`. Simple blocks in an if-chain or match/catch arm list may stay on one line. A complex or multiline branch, a comment, or an authored blank line expands all nonempty block bodies in that group. Loops, tests, and match/catch lists stay multiline.
+
+Adjacent top-level single-line declarations of the same category can stay together. Different categories or multiline declarations get a separating blank line. Existing authored blank-line counts remain. Formatting makes structure easier to read without rewriting function body forms or replacing semantic checks.
+
 ## Put tests at the appropriate layer
 
-Pure compile-time algorithms can use const test, ordinary source behavior uses test, and native interoperability also needs validation in a real C++ build. Successful generation does not prove a provider exists; a passing static assertion does not prove native destructor or exception behavior.
+Use const test for compile-time algorithms and test for runtime behavior. Exercise native interop in a C++ build so the tests also cover linking, destruction, and exception boundaries.
 
 The Carven repository uses ./xmakew with groups including internal, language, crafts, interop, cli, and examples. Consumer projects use their own Xmake targets, not compiler-internal test targets as application APIs.
 

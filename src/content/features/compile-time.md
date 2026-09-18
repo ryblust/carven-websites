@@ -7,7 +7,7 @@ source: docs/semantics.md
 
 ## Build incrementally during compilation
 
-Lookup tables, fixed records, and text often need loops, local mutation, and helper functions. Within its supported execution subset, Carven's const fn lets you prepare data in these familiar ways.
+Lookup tables, fixed records, and text often need loops, local mutation, and helper functions. Carven's const fn lets you prepare data with these ordinary language constructs.
 
 ```carven
 const fn join(items: [str; 3]) -> String {
@@ -67,12 +67,12 @@ fn print_order(id: i32) {
 }
 ```
 
-For the currently supported integer formatting path, Carven analyzes fixed segments and conversion requirements ahead of time, then generates writes that use that information directly. Runtime code converts the number and manages destination storage without parsing this format again. Known size bounds also help prepare capacity.
+For this integer format, Carven analyzes fixed segments and conversion requirements ahead of time, then generates writes that use that information directly. Runtime code converts the number and manages destination storage without parsing this format again. Known size bounds also help prepare capacity.
 
 **Compute known results early; prepare known structure early.** Forms requiring general native formatting keep that path. Argument evaluation, side effects, borrowing observations, and failure behavior retain their source semantics.
 
-## Current capabilities have a defined scope
+## Combine values, control flow, and failure contracts
 
-Required constant execution supports integers, booleans, characters, text, supported fixed arrays and structures, and the corresponding control flow and direct const fn calls. Execution steps, recursion depth, text work, and aggregate work are bounded.
+Required constant execution supports integers, f32/f64, booleans, characters, text, supported fixed arrays, structures, and enums, and the corresponding control flow and direct const fn calls. Execution steps, recursion depth, text work, and aggregate work are bounded.
 
-const fn currently does not execute typed failures, floating-point operations, native C++ operations, or indirect callable calls. Compile-time tests verify supported compile-time behavior; runtime tests verify the generated program's native behavior.
+const fn also executes typed failure creation, propagation, matching, recovery, and rethrow. The same validation logic can serve compile-time configuration and runtime input; see the [failure contract example](/learn/constants/#select-compile-time-configuration-with-the-same-failure-contracts). Floating arithmetic follows the compiler host's native environment; floating printing and formatting reuse native standard-library rules. See [constant execution rules](/reference/constants/) for accepted operations, result types, and resource limits.

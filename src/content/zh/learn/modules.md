@@ -38,6 +38,18 @@ src/model.cv 对应 src.model，src/main.cv 中 `.model` 从所在逻辑目录�
 
 crafts/json/parser.cv 属于 json craft，其他域可用 `json::parser` 选择。`std::utf.text` 指向官方 crafts.carven.std.utf.text，普通 `std.utf` 仍是当前域路径。
 
+直接运行会把显式应用文件与工具链、项目的固定 Crafts 目录组成批次；`compile` 和 `interpret` 不自动收集这些目录。这发生在导入解析之前，并不让 import 搜索文件系统。
+
+## 显式选择多个名字
+
+从一个模块导入多个名字时使用列表。例如，模块提供 Point 和 length 时：
+
+```carven
+import geometry.vector using { Point, length };
+```
+
+单行列表在花括号内留空格，不加尾逗号；较长列表由 Graver 展开为每行一个名字并添加尾逗号。这里的排版不改变导入含义，模块仍须包含在编译批次中。
+
 ## 控制声明的可见范围
 
 private 只给本模块，裸声明给同一 craft 域，export 给当前批次所有域。普通应用文件都在无前缀域，所以例子中裸 add 可以被 main 导入。

@@ -106,6 +106,15 @@ Try `(true, true)` in main to get `17`, then `(true, false)` to get `0`. `(false
 
 Adding `_ => rethrow,` after the MissingPrice arm preserves the same residual set. Omitting it is valid here because total declares a contract accepting Offline. A main without an escaping contract must handle all its own failures.
 
+Save the complete program above as quote.cv and run `./xmakew run carven quote.cv` from the Carven repository root. Change the two arguments to total in main and check the results below. Use the same inputs in the C++ comparison that follows.
+
+| has_price | online | Output | Path                                 |
+| --------- | ------ | ------ | ------------------------------------ |
+| true      | true   | 17     | Both steps succeed                   |
+| false     | true   | 12     | Recover missing price; skip fee      |
+| true      | false  | 0      | Forward Offline for main to recover  |
+| false     | false  | 12     | price fails first; fee is not called |
+
 ## Preserve the same failures in C++23
 
 This complete program preserves the preceding example's results, failure types, and operation order. price and fee each have one failure; quote combines them; total handles only MissingPrice:

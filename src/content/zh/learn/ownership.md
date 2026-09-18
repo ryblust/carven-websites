@@ -67,6 +67,64 @@ Read i32 保存实参值；Read 数组和 String 保持所选存储，后续别�
 
 局部 owner 在作用域退出时清理。return、失败、break 等转移也结束所离开作用域的局部生命周期。把视图保存到更外层不会延长它的源寿命。
 
+## 借用期间谁来保证存储有效
+
+这里两边都先读取文本视图，等视图离开作用域后再追加文本。保存 Carven 版本为 borrow.cv；C++ 版本为 borrow.cpp。
+
+<div class="code-comparison" role="region" aria-label="切换代码语言">
+<div data-code-choice="Carven">
+
+Carven
+
+```carven
+fn main() {
+    var text = String::from_str("Carven");
+    if !text.is_empty() {
+        let view = text.as_str();
+        println(view);
+    }
+    text.append(" + C++");
+    println(text);
+}
+```
+
+</div>
+<div data-code-choice="C++">
+
+C++20 · 手写等价示例
+
+```cpp
+#include <iostream>
+#include <string>
+#include <string_view>
+
+int main() {
+    std::string text = "Carven";
+    if (!text.empty()) {
+        std::string_view view = text;
+        std::cout << view << '\n';
+    }
+    text.append(" + C++");
+    std::cout << text << '\n';
+}
+```
+
+</div>
+</div>
+
+在 Carven 仓库根目录运行 `./xmakew run carven borrow.cv`。C++ 版本用 `c++ -std=c++20 borrow.cpp -o borrow` 构建，再运行 `./borrow`。两边依次输出：
+
+```text
+Carven
+Carven + C++
+```
+
+现在把 append 移到内层作用域中，放在 println(view) 之前。Carven 会报告 `CV-ACCESS-BORROW-CONFLICT`：view 的只读借用仍然存活，不能修改其 owner。恢复原来的作用域顺序即可；复制一份 view 不会解除原有借用。
+
+C++ 的 string_view 同样提供轻量的非拥有视图，但这个类型本身不强制执行上述借用规则。追加可能使其指向的存储失效；这里不要运行修改后的 C++ 版本来判断它是否安全。项目也可以通过 API 设计、静态分析或其他封装约束这类使用。
+
+**这里的收益是编译器能检查调用者的责任。** Carven 的分析跟踪已知的 owner 与借用关系，C++ 继续提供原生存储与执行机制。这不意味着 Carven 能证明任意外部 C++ 指针都有效；原生边界仍有提供者与调用者的责任。具体规则见[所有权 Reference](/zh/reference/ownership/)。
+
 ## 练习
 
 删除 `stock = 1;`，再尝试 println stock，应得到不可用诊断。将送货改为普通 Read，则源不再被转移；比较这两种接口表达的调用者义务。

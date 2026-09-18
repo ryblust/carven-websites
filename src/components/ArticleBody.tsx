@@ -1,6 +1,7 @@
 import type { Locale } from '../lib/i18n';
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useRouter } from '@tanstack/react-router';
+import { enhanceCodeComparisons } from '../effects/code-comparisons';
 import { enhanceCodeBlocks } from '../effects/code-blocks';
 import { articleDestination } from '../lib/article-links';
 import { articleHtmlWithBase } from '../lib/article-html';
@@ -10,7 +11,13 @@ export function ArticleBody({ html, locale = 'zh' }: { html: string; locale?: Lo
   const [status, announce] = useState('');
   const router = useRouter();
   useEffect(() => {
-    if (content.current) return enhanceCodeBlocks(content.current, announce, locale);
+    if (!content.current) return;
+    const removeComparisons = enhanceCodeComparisons(content.current);
+    const removeCodeBlocks = enhanceCodeBlocks(content.current, announce, locale);
+    return () => {
+      removeCodeBlocks();
+      removeComparisons();
+    };
   }, [html, locale]);
 
   // Preserve native link semantics while enhancing known authored article links.

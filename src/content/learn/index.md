@@ -33,7 +33,7 @@ cd carven
 ./xmakew build
 ```
 
-On Windows, the repository wrapper is `.\xmakew.ps1`. The direct native execution mode used below currently targets POSIX. With an installed compiler, replace `./xmakew run carven` with `carven`.
+On Windows, the repository wrapper is `.\xmakew.ps1`. Direct native execution uses a C++ toolchain without requiring Xmake. With an installed compiler, replace `./xmakew run carven` with `carven`.
 
 ## Write your first file
 
@@ -78,7 +78,7 @@ This program also fits the interpreter's supported subset:
 ./xmakew run carven interpret main.cv
 ```
 
-The output is still Answer: 42. The interpreter does not implement every language feature. Later chapters on typed failures, closures, and C++ use native execution.
+The output is still Answer: 42. The interpreter does not implement every language feature. Later chapters use native execution throughout; typed failures can also be interpreted, while closures and C++ operations require native execution.
 
 ## Saving and running later examples
 

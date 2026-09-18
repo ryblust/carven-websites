@@ -38,6 +38,18 @@ src/model.cv corresponds to src.model. In src/main.cv, `.model` selects src.mode
 
 crafts/json/parser.cv belongs to the json craft; another domain may select it as `json::parser`. `std::utf.text` selects the official crafts.carven.std.utf.text. Plain `std.utf` remains a path in the current domain.
 
+Direct execution assembles its batch from explicit application files plus the fixed toolchain and project Crafts roots. `compile` and `interpret` do not collect those roots automatically. This happens before import resolution and does not make imports search the filesystem.
+
+## Select multiple names explicitly
+
+Use a list to import several names from one module. For example, if the module provides Point and length:
+
+```carven
+import geometry.vector using { Point, length };
+```
+
+Single-line lists use spaces inside the braces and no trailing comma. Graver expands longer lists to one name per line with a trailing comma. This layout does not change import meaning; the module must still be part of the compilation batch.
+
 ## Declare the audience
 
 private is visible only within its module. A bare declaration is visible within its craft domain. export is visible to all domains in the current batch. Ordinary application files share the unprefixed domain, so the example's bare add can be imported by main.

@@ -29,7 +29,7 @@ fn main() {
 }
 ```
 
-The output is `Order 0042: 12.50`. Interpolation produces an independent String, and numeric holes can contain ordinary calculations. `:04` specifies width and zero padding; `:.2f` is runtime floating-point formatting. Write literal braces as `{{` and `}}`.
+The output is `Order 0042: 12.50`. Interpolation produces an independent String, and numeric holes can contain ordinary calculations. `:04` specifies width and zero padding; `:.2f` formats a floating value with two decimal places. Write literal braces as `{{` and `}}`.
 
 ## Append to an existing String
 

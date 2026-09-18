@@ -70,3 +70,5 @@ export fn expose() -> Hidden {
     return Hidden {};
 }
 ```
+
+直接运行会把显式应用文件与工具链、项目的固定 Crafts 目录组成批次；`compile` 和 `interpret` 不自动收集这些目录。这发生在导入解析之前，并不让 import 搜索文件系统。

@@ -18,6 +18,14 @@ export default function HomeContent({ locale }: { locale: Locale }) {
         '配置缺失时使用 8080；没有读取权限或端口格式不对，仍交给调用者处理。恢复 Missing 后，函数契约只剩 Denied 和 BadPort。',
         'Use 8080 when the config is missing. Leave denied access and invalid ports to the caller. Handling Missing leaves only Denied and BadPort in the contract.',
       ),
+      work: t(
+        '组合失败集合，检查恢复后剩余的类型。你写成功路径和恢复规则，编译器安排传播。',
+        'Compose failure sets and check what remains after recovery. You write the success path and recovery rules; the compiler arranges propagation.',
+      ),
+      foundation: t(
+        'C++ 的类型与控制流承载结果和失败。对照用 expected、variant 与分支显式组织这份契约。',
+        'C++ types and control flow carry results and failures. The comparison organizes this contract explicitly with expected, variant, and branches.',
+      ),
       html: homeExamples.failures,
       cpp: homeExamples.failuresCpp,
       result: t(
@@ -38,6 +46,14 @@ export default function HomeContent({ locale }: { locale: Locale }) {
         '用循环拼接菜单，不必先算字符数或为结果另备数组。Carven 在编译期构造 String，再把结果冻结为静态 str。',
         'Join menu items in a loop, without first calculating a character count or supplying a storage array. Carven builds a String at compile time, then freezes the result into a static str.',
       ),
+      work: t(
+        '在常量初始化时完成计算，把临时 String 冻结为静态 str，无需另写保存结果的数组。',
+        'Evaluate the constant initializer and freeze the temporary String into a static str, without a separate array to retain the result.',
+      ),
+      foundation: t(
+        'C++ 的静态存储承载最终文本。对照用 constexpr、consteval 和模板完成计算与存储安排。',
+        'C++ static storage holds the final text. The comparison uses constexpr, consteval, and templates to calculate and retain it.',
+      ),
       html: homeExamples.constants,
       cpp: homeExamples.constantsCpp,
       result: t(
@@ -57,6 +73,14 @@ export default function HomeContent({ locale }: { locale: Locale }) {
       detail: t(
         '用 nlohmann/json 解析配置，调用 JSON 对象的方法读取端口。导入原生头文件即可使用这些接口，无需为这个调用另写绑定。',
         'Parse config with nlohmann/json, then read the port through its JSON object. Import the native header and use these APIs without writing a binding for this call.',
+      ),
+      work: t(
+        '在 Carven 中表达调用，直接连接原生接口；这个调用无需另写绑定。',
+        'Express the call in Carven and connect directly to the native API, without writing a binding for this call.',
+      ),
+      foundation: t(
+        '解析能力来自 nlohmann/json。库的重载与模板由 C++ 编译器检查，原生库继续完成它擅长的工作。',
+        'Parsing comes from nlohmann/json. The C++ compiler checks library overloads and templates; the native library keeps doing its work.',
       ),
       html: homeExamples.native,
       cpp: homeExamples.nativeCpp,
@@ -114,73 +138,96 @@ export default function HomeContent({ locale }: { locale: Locale }) {
         aria-label={t('Carven 代码示例', 'Carven code examples')}
       >
         <header className="home-demo-intro">
-          <p className="why-eyebrow">{t('从表达，到实现', 'From expression to implementation')}</p>
+          <p className="why-eyebrow">{t('建立在 C++ 之上', 'Built on C++')}</p>
           <h2>
-            <span>{t('把程序意图', 'Express your intent')}</span>
-            <span>{t('编译成 C++', 'Compile it to C++')}</span>
+            <span>{t('意图，交给 Carven。', 'Express intent with Carven.')}</span>
+            <span>{t('力量，来自 C++。', 'Build on the power of C++.')}</span>
           </h2>
+          <p className="home-demo-lead">
+            {t(
+              '切换同一任务的两种写法，看哪些工作可以交给语言，哪些能力继续由 C++ 提供。',
+              'Switch between two ways to express the same task. See what the language takes care of, and where C++ provides the power.',
+            )}
+          </p>
         </header>
-        <div className="why-demo-surface">
-          <div
-            className="why-selectors"
-            role="group"
-            aria-label={t('选择示例', 'Choose an example')}
-          >
-            {examples.map((item, index) => (
-              <button
-                key={item.path}
-                type="button"
-                aria-pressed={selected === index}
-                onClick={() => setSelected(index)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <div className="why-demo-body" aria-live="polite" aria-atomic="true">
-            <div className="why-code-label">
-              <div
-                className="code-language-switch"
-                role="group"
-                aria-label={t('代码语言', 'Code language')}
-              >
+        <div className="why-comparison">
+          <div className="why-demo-surface">
+            <div
+              className="why-selectors"
+              role="group"
+              aria-label={t('选择示例', 'Choose an example')}
+            >
+              {examples.map((item, index) => (
                 <button
+                  key={item.path}
                   type="button"
-                  aria-pressed={language === 'carven'}
-                  onClick={() => setLanguage('carven')}
+                  aria-pressed={selected === index}
+                  onClick={() => setSelected(index)}
                 >
-                  Carven
+                  {item.label}
                 </button>
-                <button
-                  type="button"
-                  aria-pressed={language === 'cpp'}
-                  onClick={() => setLanguage('cpp')}
-                >
-                  C++
-                </button>
-              </div>
-              <span>{language === 'carven' ? '.cv' : example.standard}</span>
+              ))}
             </div>
-            <MorphingCode html={language === 'carven' ? example.html : example.cpp} />
-            <p className="why-result">{example.result}</p>
-            <details className="why-example-details" key={selected}>
-              <summary>{t('示例说明', 'Example notes')}</summary>
-              <p>{example.comparison}</p>
-            </details>
+            <div className="why-demo-body">
+              <div className="why-code-label">
+                <div
+                  className="code-language-switch"
+                  role="group"
+                  aria-label={t('代码语言', 'Code language')}
+                >
+                  <button
+                    type="button"
+                    aria-pressed={language === 'carven'}
+                    onClick={() => setLanguage('carven')}
+                  >
+                    Carven
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={language === 'cpp'}
+                    onClick={() => setLanguage('cpp')}
+                  >
+                    C++
+                  </button>
+                </div>
+                <span>
+                  {language === 'carven'
+                    ? t('Carven 源码', 'Carven source')
+                    : `${example.standard} · ${t('手写等价示例', 'Handwritten equivalent')}`}
+                </span>
+              </div>
+              <MorphingCode html={language === 'carven' ? example.html : example.cpp} />
+              <p className="why-result">{example.result}</p>
+              <details className="why-example-details" key={selected}>
+                <summary>{t('对照条件与边界', 'Comparison scope and limits')}</summary>
+                <p>{example.comparison}</p>
+              </details>
+            </div>
           </div>
-        </div>
-        <div className="why-demo-caption">
-          <h3>{example.title}</h3>
-          <p>{example.detail}</p>
-          <Link to={localizedPath(example.path, locale)}>
-            {t('了解这项能力', 'Explore this feature')} <span aria-hidden="true">↗</span>
-          </Link>
+          <div className="why-demo-caption" aria-live="polite" aria-atomic="true">
+            <p className="why-eyebrow">{t('同一个任务', 'The same task')}</p>
+            <h3>{example.title}</h3>
+            <p>{example.detail}</p>
+            <dl className="why-responsibilities">
+              <div>
+                <dt>{t('Carven 承担的工作', 'What Carven takes care of')}</dt>
+                <dd>{example.work}</dd>
+              </div>
+              <div>
+                <dt>{t('C++ 提供的能力', 'What C++ brings')}</dt>
+                <dd>{example.foundation}</dd>
+              </div>
+            </dl>
+            <Link to={localizedPath(example.path, locale)}>
+              {t('深入这项能力', 'Explore this feature')} <span aria-hidden="true">↗</span>
+            </Link>
+          </div>
         </div>
       </section>
       <section className="why-native" aria-labelledby="native-heading">
         <p className="why-eyebrow">{t('继续使用你的 C++ 工具链', 'Native integration')}</p>
         <h2 id="native-heading">
-          {t('原生库、构建与调试，继续使用。', 'Build on the C++ tools you already use.')}
+          {t('更高阶的表达，扎根原生能力。', 'Higher-level expression. Native foundations.')}
         </h2>
         <p>
           {t(

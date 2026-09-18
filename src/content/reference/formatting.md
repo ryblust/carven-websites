@@ -38,7 +38,7 @@ A receiver or hole failure skips append and subsequent evaluation. Termination a
 
 ## Using known format information
 
-Ordinary runtime interpolation can use compile-time knowledge too. The compiler may precompute supported builtin format fragments or write mixed builtin fields directly into String storage. Static integer specifications and default str, String, bool, and char fields can share this path, for both interpolation and append_format. Not every hole value needs to be constant.
+Ordinary runtime interpolation can use compile-time knowledge too. The compiler may precompute supported builtin format fragments or write mixed builtin fields directly into String storage. Static integer specifications, common floating specifications, and default str, String, bool, and char fields can share this path, for both interpolation and append_format. Not every hole value needs to be constant.
 
 These transformations preserve each hole's required evaluation and side effects. Even if `update() && false` has a known final value, update still runs. A runtime result remains an independent owning String; this does not allow returning a str borrowed from static text.
 
@@ -52,9 +52,10 @@ A native custom formatter may inspect the entire argument set, so original argum
 
 ## Required constant formatting
 
-Constant initialization and const fn execution support default formatting for integers, bool, char, and text, plus integer `b/B/o/d/x/X`, decimal width, and optional zero padding. Supported dynamic widths are evaluated first. Other formats cannot fall back to runtime to finish a constant initializer, even if they are valid at runtime.
+Constant initialization and const fn execution support default integer, bool, char, and text formatting, plus integer `b/B/o/d/x/X`, decimal width, and zero padding. f32/f64 support default formatting and `a/A/e/E/f/F/g/G`, including fill, alignment, sign, alternate form, zero padding, width, and precision; locale-dependent `L` is excluded. Dynamic width and precision evaluate first and must be nonnegative integers. Conversion uses the native standard library within compile-time resource budgets.
 
 ```carven
+const amount = f"{12.5:.2f}"; // 12.50
 const title = f"build-{42:04}"; // str containing build-0042
 const bytes = f"{'我'}".len();  // usize with value 3
 ```

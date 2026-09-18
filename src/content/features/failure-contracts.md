@@ -17,6 +17,72 @@ In C++, a result type can express failure with an error type parameter, as C++23
 
 During semantic analysis, Carven preserves each failure type, computes the set remaining after handling, and checks implementations against their declared contracts. Generated C++ stores the active failure payload and performs propagation. Source uses ordinary expressions to compute success values and catch arms to describe recovery.
 
+## One task, two expressions
+
+This is the port example from the homepage. Both return 8080 when configuration is missing and leave Denied and BadPort to the caller. Failure types and the implementations of read and parse are omitted. The C++ is a handwritten comparison, not compiler output.
+
+<div class="code-comparison" role="region" aria-label="Choose code language">
+<div data-code-choice="Carven">
+
+Carven
+
+```carven
+// read: str throw Missing + Denied
+// parse: i32 throw BadPort
+fn port() -> i32 throw Denied + BadPort {
+    return try {
+        parse(read()?)?
+    } catch {
+        Missing(_) => 8080,
+    };
+}
+```
+
+</div>
+<div data-code-choice="C++">
+
+C++23 · Handwritten equivalent
+
+```cpp
+#include <expected>
+#include <string_view>
+#include <variant>
+
+std::expected<std::string_view,
+    std::variant<Missing, Denied>> read();
+std::expected<int, BadPort> parse(std::string_view text);
+
+std::expected<int, std::variant<Denied, BadPort>> port() {
+    auto text = read();
+    if (!text) {
+        if (std::holds_alternative<Missing>(text.error())) {
+            return 8080;
+        }
+        return std::unexpected(std::get<Denied>(text.error()));
+    }
+    auto value = parse(*text);
+    if (!value) {
+        return std::unexpected(value.error());
+    }
+    return *value;
+}
+```
+
+</div>
+</div>
+
+| Work                              | Carven expression                   | Organization in this C++ comparison           |
+| --------------------------------- | ----------------------------------- | --------------------------------------------- |
+| Propagate read and parse failures | `?` at each call                    | Check expected and forward the error payload  |
+| Recover only Missing              | A recovery arm in `catch`           | Inspect the active variant alternative        |
+| Retain remaining failures         | Check the Denied + BadPort contract | Carry the result in a new expected error type |
+
+C++ result types, variant, and control flow provide the means to express these behaviors; combinators and other result libraries can encapsulate them. Carven makes composition and coverage checking part of language semantics, so the compiler can check which obligations remain after recovery.
+
+Continue with the [complete failure tutorial comparison](/learn/failures/#preserve-the-same-failures-in-c23): run the price-and-fee example to verify identical inputs and short-circuit order, then remove a recovery branch.
+
+For obligations involving storage lifetime, see the [borrowing comparison in the ownership tutorial](/learn/ownership/#who-keeps-borrowed-storage-valid).
+
 ## A natural success path with a visible propagation point
 
 Reading a port takes two steps: read the config text, then parse it as a port number. These excerpts assume read returns str and declares Missing + Denied, while parse takes str, returns i32, and declares BadPort.
@@ -77,3 +143,7 @@ These failure types are supplied by the policy module. A policy closure that cap
 Carven implements failure contracts with C++ results containing concrete alternatives and explicit control flow. An infallible contract uses a direct result. Carven failures travel along this generated path without relying on C++ exception unwinding.
 
 Success paths, failure payloads, local cleanup, and evaluation order jointly determine the generated code. Failures preserve completed side effects; the application defines recovery and rollback. Native C++ exceptions remain the responsibility of native adapters.
+
+## Use the same contracts during compilation
+
+const fn can execute throw, propagation, recovery, and rethrow during compilation while retaining ordinary static contract checks. A validator can serve constant configuration and runtime input; the [compile-time tutorial](/learn/constants/#select-compile-time-configuration-with-the-same-failure-contracts) includes a runnable example.

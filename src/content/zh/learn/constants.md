@@ -33,6 +33,30 @@ fn main() {
 
 const fn 内可以写局部变量、循环、支持的数组和结构体以及 String 操作；普通 const 初始化器不能直接用任意控制流表达式，复杂逻辑放进 const fn。
 
+## 浮点计算
+
+```carven
+const fn average(values: [f64; 3]) -> f64 {
+    var total = 0.0;
+    for value in values {
+        total += value;
+    }
+    return total / 3.0;
+}
+
+const result = average([1.5, 3.0, 4.5]);
+
+const test "average at compile time" {
+    check(result == 3.0);
+}
+
+fn main() {
+    println(result);
+}
+```
+
+这个程序在编译期计算出 `3.0`，在运行时打印。f32/f64 可以与调用、循环、数组和结构体组合。计算使用编译器宿主的原生浮点环境，不另建一套浮点算术规则。浮点数也可以在编译期格式化，例如 `const label = f"{result:.2f}";` 得到保留两位小数的文本。
+
 ## 从构造文本到保留结果
 
 标题例子只生成一个值。再把首页的文本拼接示例补成完整程序：用普通循环拼接三个名称，编译完成后只需保留结果文本。单独保存为 menu.cv：
@@ -156,7 +180,40 @@ fn main() {
 
 const test 始终在语义分析时执行，不需要测试产物选项。check 失败使编译失败，但继续当前测试；require/fail 停止当前测试，后续静态测试继续。普通 test 则交给运行时 runner。
 
-常量执行只支持明确的子集，没有原生调用、typed failure、浮点计算、callable 或 Write 参数。所有分支都先检查准入，不能用 `if false` 隐藏不支持操作。整数溢出和预算耗尽是诊断，不回退到运行时。
+Carven 在执行前检查 const fn 的所有分支。整数溢出或求值预算耗尽会产生编译错误。可用操作与结果类型见[常量执行规则](/zh/reference/constants/)。
+
+## 用相同的失败契约选择编译期配置
+
+校验、传播和恢复也可以在 Carven 的前置编译阶段执行。这里的端口校验函数既可用于运行时，也可用于常量初始化，无须另写一套错误处理逻辑。
+
+```carven
+struct InvalidPort { value: i32 }
+
+const fn port(value: i32) -> i32 throw InvalidPort {
+    if value < 1 || value > 65535 {
+        throw InvalidPort { value };
+    }
+    return value;
+}
+
+const fn configured_port(value: i32) -> i32 {
+    return try {
+        port(value)?
+    } catch {
+        InvalidPort(_) => 8080,
+    };
+}
+
+const selected = configured_port(0);
+const explicit_port = port(443)?;
+
+const test "port selection" {
+    check(selected == 8080);
+    check(explicit_port == 443);
+}
+```
+
+`configured_port` 在函数内恢复无效配置。`port(443)?` 则明确将失败交给常量求值入口；把 443 改成 0，会得到编译诊断。省略 `?` 即使输入有效也不合法：一次成功求值不会取消函数的失败契约。
 
 ## 练习
 

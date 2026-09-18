@@ -67,6 +67,64 @@ Read i32 saves the argument value. Read arrays and String retain the selected st
 
 Local owners are cleaned up when their scopes end. return, failure, break, and other transfers also end the lifetimes of locals in the scopes they leave. Storing a view in an outer scope does not extend the source's lifetime.
 
+## Who keeps borrowed storage valid
+
+Both versions read a text view, then append after the view leaves its scope. Save the Carven version as borrow.cv and the C++ version as borrow.cpp.
+
+<div class="code-comparison" role="region" aria-label="Choose code language">
+<div data-code-choice="Carven">
+
+Carven
+
+```carven
+fn main() {
+    var text = String::from_str("Carven");
+    if !text.is_empty() {
+        let view = text.as_str();
+        println(view);
+    }
+    text.append(" + C++");
+    println(text);
+}
+```
+
+</div>
+<div data-code-choice="C++">
+
+C++20 · Handwritten equivalent
+
+```cpp
+#include <iostream>
+#include <string>
+#include <string_view>
+
+int main() {
+    std::string text = "Carven";
+    if (!text.empty()) {
+        std::string_view view = text;
+        std::cout << view << '\n';
+    }
+    text.append(" + C++");
+    std::cout << text << '\n';
+}
+```
+
+</div>
+</div>
+
+From the Carven repository root, run `./xmakew run carven borrow.cv`. Build the C++ version with `c++ -std=c++20 borrow.cpp -o borrow`, then run `./borrow`. Both print:
+
+```text
+Carven
+Carven + C++
+```
+
+Now move append into the inner scope, before println(view). Carven reports `CV-ACCESS-BORROW-CONFLICT`: view still holds a read-only borrow, so its owner cannot be modified. Restore the original scope order to fix it; copying view does not release the original borrow.
+
+C++ string_view also provides a lightweight non-owning view, but the type itself does not enforce these borrowing rules. Appending can invalidate its backing storage; do not run the modified C++ version to decide whether it is safe. Projects can also constrain such use through API design, static analysis, or other abstractions.
+
+**The benefit here is checking the caller's obligations.** Carven tracks known owners and borrowing relationships; C++ continues to provide native storage and execution. This does not prove arbitrary external C++ pointers valid: providers and callers still have obligations at the native boundary. See the [ownership Reference](/reference/ownership/) for the rules.
+
 ## Exercise
 
 Remove `stock = 1;` and try printing stock. Expect an unavailable-owner diagnostic. Change the delivery operation to ordinary Read so it no longer transfers the source, and compare the caller obligations expressed by the two interfaces.

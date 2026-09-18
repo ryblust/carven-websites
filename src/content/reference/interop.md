@@ -10,7 +10,7 @@ source: docs/semantics.md
 
 ```carven
 import <vector> using std::vector;
-import "provider.hpp" using vendor::{Widget, create};
+import "provider.hpp" using vendor::{ Widget, create };
 import <cstdio> using std::printf;
 ```
 

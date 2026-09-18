@@ -33,7 +33,7 @@ cd carven
 ./xmakew build
 ```
 
-Windows 的仓库包装器写作 `.\xmakew.ps1`。后续教程的直接原生运行模式当前面向 POSIX。使用已安装 Carven 时，下面命令中的 `./xmakew run carven` 可以换成 `carven`。
+Windows 的仓库包装器写作 `.\xmakew.ps1`。直接原生运行依赖 C++ 工具链，不依赖 Xmake。使用已安装 Carven 时，下面命令中的 `./xmakew run carven` 可以换成 `carven`。
 
 ## 写出第一个文件
 
@@ -78,7 +78,7 @@ compile 只生成产物，`--stdout` 用文件名标题分隔各文件，适合�
 ./xmakew run carven interpret main.cv
 ```
 
-输出仍是 Answer: 42。解释器并不支持全部语言；后面的 typed failure、闭包和 C++ 章节使用原生运行。
+输出仍是 Answer: 42。解释器并不支持全部语言；后续章节统一使用原生运行；typed failure 也可以解释执行，闭包和 C++ 操作则需要原生执行。
 
 ## 后续示例怎样保存与运行
 

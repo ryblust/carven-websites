@@ -70,3 +70,5 @@ export fn expose() -> Hidden {
     return Hidden {};
 }
 ```
+
+Direct execution assembles its batch from explicit application files plus the fixed toolchain and project Crafts roots. `compile` and `interpret` do not collect those roots automatically. This happens before import resolution and does not make imports search the filesystem.

@@ -33,6 +33,30 @@ In an ordinary runtime expression, `title(42)` remains an ordinary function call
 
 A const fn can use mutable locals, loops, supported arrays and structs, and String operations. An ordinary const initializer cannot directly contain arbitrary control-flow expressions. Put complex logic in a const fn.
 
+## Floating computation
+
+```carven
+const fn average(values: [f64; 3]) -> f64 {
+    var total = 0.0;
+    for value in values {
+        total += value;
+    }
+    return total / 3.0;
+}
+
+const result = average([1.5, 3.0, 4.5]);
+
+const test "average at compile time" {
+    check(result == 3.0);
+}
+
+fn main() {
+    println(result);
+}
+```
+
+This program computes `3.0` during compilation and prints it at runtime. f32/f64 values compose with calls, loops, arrays, and structs. Computation uses the compiler host's native floating environment; it does not define a separate floating arithmetic model. Floating values can also be formatted during compilation: `const label = f"{result:.2f}";` produces text with two decimal places.
+
 ## From building text to keeping the result
 
 The heading example produces one value. Now turn the homepage text-joining example into a complete program: join three names with an ordinary loop, then retain the resulting text after compilation. Save this separately as menu.cv:
@@ -156,7 +180,40 @@ The output is `2 4`. This is a frozen slice with static backing, so it can be re
 
 const test always runs during semantic analysis without a test-artifact option. A failed check fails compilation but continues the current test. require/fail stop that test; later static tests still run. Ordinary test uses a runtime runner.
 
-Constant execution supports a defined subset: no native calls, typed failures, floating-point computations, callables, or Write parameters. All branches undergo admission checks; `if false` cannot hide an unsupported operation. Integer overflow and exhausted budgets are diagnostics, without a runtime fallback.
+Carven checks every branch of a const fn before execution. Integer overflow or an exhausted evaluation budget produces a compile error. See [constant execution rules](/reference/constants/) for accepted operations and result types.
+
+## Select compile-time configuration with the same failure contracts
+
+Validation, propagation, and recovery can execute in Carven's compilation stage. The port validator works at runtime and in constant initialization, using the same error-handling logic.
+
+```carven
+struct InvalidPort { value: i32 }
+
+const fn port(value: i32) -> i32 throw InvalidPort {
+    if value < 1 || value > 65535 {
+        throw InvalidPort { value };
+    }
+    return value;
+}
+
+const fn configured_port(value: i32) -> i32 {
+    return try {
+        port(value)?
+    } catch {
+        InvalidPort(_) => 8080,
+    };
+}
+
+const selected = configured_port(0);
+const explicit_port = port(443)?;
+
+const test "port selection" {
+    check(selected == 8080);
+    check(explicit_port == 443);
+}
+```
+
+`configured_port` recovers invalid input inside the function. `port(443)?` explicitly propagates to the constant evaluation entry; changing 443 to 0 produces a compilation diagnostic. Omitting `?` remains invalid even for successful input: one successful evaluation does not erase the function's failure contract.
 
 ## Exercise
 

@@ -106,6 +106,15 @@ total 用默认总价恢复 MissingPrice，公开契约只剩 Offline，main 也
 
 在 MissingPrice arm 后增加 `_ => rethrow,` 也会保留同一剩余集合。这里省略该 arm 是合法的，因为 total 声明的契约可以接收 Offline。没有向外契约的 main 必须处理自己的全部失败。
 
+把上面的完整程序保存为 quote.cv，在 Carven 仓库根目录运行 `./xmakew run carven quote.cv`。依次修改 main 中 total 的两个实参，用下面的表检查结果；后面的 C++ 对照使用相同输入。
+
+| has_price | online | 输出 | 路径                     |
+| --------- | ------ | ---- | ------------------------ |
+| true      | true   | 17   | 两步都成功               |
+| false     | true   | 12   | 恢复缺失价格，跳过 fee   |
+| true      | false  | 0    | Offline 传给 main 恢复   |
+| false     | false  | 12   | price 先失败，不调用 fee |
+
 ## 用 C++23 保留相同的失败信息
 
 下面的完整程序保留前例的返回值、失败类型和先后顺序。price 与 fee 各有一种失败；quote 将它们组合；total 只恢复 MissingPrice：

@@ -51,7 +51,7 @@ fn main() {
 
 parse 创建库提供的原生 JSON 对象；它的 value 方法读取 port，键不存在时使用 8080。i32 标注为原生结果指定 Carven 目标类型，随后就能用 println 输出。这些调用无需另写绑定代码。
 
-本地试运行时，将单头文件放在 config.cv 旁边的 nlohmann/ 目录中。下面固定使用验证过的版本：
+本地试运行时，将单头文件放在 config.cv 旁边的 nlohmann/ 目录中。本例使用以下版本：
 
 ```sh
 mkdir -p nlohmann
