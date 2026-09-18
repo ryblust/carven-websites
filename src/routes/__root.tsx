@@ -5,10 +5,16 @@ import PageError from '../views/PageError';
 import Site from '../layouts/Site';
 import { pathWithoutBase, localeOf } from '../lib/i18n';
 import { pageHead } from '../lib/head';
+import { href } from '../lib/site';
 import '../styles/global.css';
 
 export const Route = createRootRoute({
   head: () => ({
+    links: [
+      { rel: 'icon', href: href('/favicon.ico'), sizes: '16x16 32x32 48x48 64x64 256x256' },
+      { rel: 'icon', href: href('/favicon-32.png'), type: 'image/png', sizes: '32x32' },
+      { rel: 'icon', href: href('/favicon.svg'), type: 'image/svg+xml', sizes: 'any' },
+    ],
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
