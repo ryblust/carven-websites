@@ -33,7 +33,7 @@ String 拥有连续合法 UTF-8 字节，可含 NUL，不做归一化、大小�
 
 | 操作                      | 访问和结果                     |
 | ------------------------- | ------------------------------ |
-| `String::new()`           | 空 String                      |
+| `String {}`               | 空 String                      |
 | `String::from_str(text)`  | Read str，返回独立副本         |
 | `s.len()`、`s.is_empty()` | Read，O(1)                     |
 | `s.as_str()`              | Read，O(1) 借用，无分配或转码  |

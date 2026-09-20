@@ -1,6 +1,6 @@
 ---
 title: "调用 C++ 与导出接口"
-description: 从 printf 到标量接口，了解原生类型、异常与构建要求。
+description: 从 printf 到声明式函数契约，了解原生类型、异常与构建要求。
 section: learn
 lesson: 13
 source: docs/semantics.md
@@ -63,7 +63,7 @@ carven config.cv
 
 [value 的默认值](https://json.nlohmann.me/api/basic_json/value/)只处理键缺失，不处理 JSON 格式错误或值类型不符。这个例子假定输入是合法对象，port 存在时为范围内的整数。解析和类型错误可能抛出原生异常；处理外部输入前，请先阅读下面的异常边界说明。
 
-## 显式 scalar 接口
+## 声明原生函数契约
 
 ```carven
 import <cstdint>;
@@ -85,7 +85,57 @@ fn main() {
 
 输出 42。cpp 片段原样进入实现，import(cpp) 让 Carven 调用同名全局提供者，export(cpp) 把包装函数放进模块的生成 API。C++ 调用方包含生成的 `carven/api/<模块名>.hpp` 头文件，使用 `carven::api` 下对应的模块命名空间。
 
-这种显式接口只接受按值 Read 的内建标量参数，返回标量或 void；不支持 String、数组、结构体、指针、Write/Take 或类型化失败。通过头文件直接使用其他原生操作时，须遵守对应的 C++ 契约。
+这个例子先使用整数契约。同一边界也支持普通 Carven 类型、Write/Take 和声明失败，原生提供者须满足生成的 C++ 契约。可以先尝试一个小的导出函数，再为复杂类型接入原生提供者。
+
+## 导出修改和失败契约
+
+将下面的独立例子保存为 labels.cv：
+
+```carven
+export struct EmptyLabel {}
+
+export(cpp) fn rename(&label: String, next: str) throw EmptyLabel {
+    if next.is_empty() {
+        throw EmptyLabel {};
+    }
+    label = String::from_str(next);
+}
+```
+
+先把下面两条测试追加到同一文件，检查修改成功和拒绝空文本的行为：
+
+```carven
+test "rename a label" {
+    var label: String = "before";
+    try {
+        rename(&label, "after")?;
+    } catch {
+        EmptyLabel(_) => fail("nonempty label was rejected"),
+    }
+    check(label == "after");
+}
+
+test "reject an empty label" {
+    var label: String = "before";
+    let rejected = try {
+        rename(&label, "")?;
+        false
+    } catch {
+        EmptyLabel(_) => true,
+    };
+    check(rejected);
+    check(label == "before");
+}
+```
+
+```sh
+carven --tests labels.cv
+carven compile -o generated labels.cv
+```
+
+两条测试都应通过：成功时文本变为 after，失败时仍是 before。这里使用 Write 参数，须运行原生测试模式。打开 `generated/carven/api/labels.hpp` 查看生成的接口声明。Write 参数成为可变引用，声明失败成为 `carven::runtime::Outcome`，头文件包含所需类型定义。C++ 调用者包含此 API 和匹配的运行时头文件，并编译链接生成实现。
+
+调用者需要处理成功或 EmptyLabel 结果。这里的失败是显式返回契约，C++ 异常不会自动转换成它。完整类型映射和生命周期责任见[互操作 Reference](/zh/reference/interop/)。
 
 ## 异常和借用
 

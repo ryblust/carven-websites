@@ -10,7 +10,7 @@ source: docs/semantics.md
 
 A compilation batch has at most one program entry: either a function named main or a file containing top-level executable statements. Multiple entries are diagnosed at their source locations. C++ generation may have no entry, but program execution requires one.
 
-Top-level statements form an implicit entry in order, with declarations allowed among them. Top-level const remains a module constant; let/var are entry locals that module functions cannot capture. An implicit entry has no source callable name, parameters, or declared failure set. It follows ordinary function-body inference, access, cleanup, and failure-handling rules. Consequently, top-level statements must handle every failure. Use an explicit main to declare escaping failures.
+Top-level statements form an implicit entry in order, with declarations allowed among them. Top-level const bindings remain module constants; constant blocks execute during analysis and do not form an entry; let/var are entry locals that module functions cannot capture. An implicit entry has no source callable name, parameters, or declared failure set. It follows ordinary function-body inference, access, cleanup, and failure-handling rules. Consequently, top-level statements must handle every failure. Use an explicit main to declare escaping failures.
 
 ```carven
 const heading = "Carven";
@@ -33,7 +33,7 @@ test "addition" {
 }
 ```
 
-By default, ordinary tests are only analyzed. `compile --tests=default` emits module test functions, a runner, and a default entry. `--tests=external` emits test functions and a runner, with the C++ consumer supplying the entry.
+`carven --tests` runs native runtime tests; `carven interpret --tests` runs admitted runtime tests. Both require at least one runtime test and skip the program entry. check and ordinary compile only analyze runtime tests. `compile --tests` / `--tests=default` emits module tests, a runner, and a default test entry while suppressing the program entry wrapper. `--tests=external` retains that wrapper and emits tests and a runner; the consumer owns entry selection. Generation allows an empty suite.
 
 ## Test operations
 
@@ -56,6 +56,12 @@ The runner supplies test context to the synchronous Carven call chain without a 
 
 Failure reports include the original .cv display location, the operation name's one-based line number, operation kind, and optional runtime message. When used as a callable value, location refers to the builtin binding expression. Direct check/require also report the complete condition's UTF-8 source bytes, including parentheses, whitespace, newlines, and comments. fail has no condition fragment. The reporter decides final presentation.
 
+## Assertion explanations
+
+A direct check/require whose outer condition is a Carven binary comparison reports both operand spellings and structural values on failure. An outer `&&` / `||` reports its two Boolean subexpressions, marking a skipped operand `<not evaluated>`. Parentheses preserve this behavior; indirect calls and other conditions retain condition/message reporting. Explanations do not recursively trace operations or find the first differing field.
+
+Collection reuses the original evaluation without repeating operands or invoking formatters, preserving order, snapshots, short circuiting, propagation, and cleanup. Failed values render before the optional message expression, so its mutations cannot change the explanation; successful assertions do not render values. A runtime reporter receives a borrowed explanation string valid only during the synchronous callback. Static-test diagnostics include the same explanation.
+
 ## const test
 
 ```carven
@@ -71,4 +77,4 @@ const test executes once after its body is built during semantic analysis, indep
 
 A failed check is a compile error but continues the current test. A failed require/fail, execution error, or exhausted budget stops that test; subsequent const tests still run. Failure message text counts toward cumulative text work. An ordinary required constant initializer has no active test, so executing test operations there is rejected.
 
-Constant tests validate compile-time semantic operations. Runtime tests validate generated C++ and native behavior.
+Constant tests validate compile-time execution. Runtime tests execute either as generated native code or within the interpreter subset. Use native execution to cover C++ integration; interpretation does not validate generated C++ or native linking.

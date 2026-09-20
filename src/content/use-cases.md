@@ -22,7 +22,7 @@ export(cpp) fn price_cents(quantity: i32) -> i32 {
 
 The program entry remains in C++. The build generates a public header and an implementation; C++ includes the header and links the implementation. This example assumes small, nonnegative quantities. The calculation itself does not validate arbitrary input or handle integer overflow.
 
-The current explicit `import(cpp)` and `export(cpp)` boundaries support scalar signatures without Carven failures. Scope and naming follow the native interoperation rules.
+Explicit `import(cpp)` and `export(cpp)` boundaries use ordinary Carven types, Read/Write/Take access, and declared failure contracts. Scope and naming follow the native interoperation rules.
 
 **A useful starting point:** calculation rules, small modules with clear boundaries, and experiments checked alongside existing C++ tests.
 

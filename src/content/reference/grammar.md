@@ -24,7 +24,7 @@ Explicit comma lists accept one trailing comma only where their productions perm
 
 T { ... } parses as construction; T(...) always parses as a call. At the outer depth of a control header, the required opening brace starts the body. Group a construction expression in parentheses to use it at that position. This applies to if, match, loop containers, and integer-range bounds. Pattern is, binding identifiers, cases, and vertical bars are disambiguated without name lookup.
 
-Module imports form a contiguous prefix. Top-level const declares module constants; top-level executable statements form an implicit entry. There is no namespace block, generic declaration, default parameter, or variadic parameter syntax. Range expressions `a..b` and `a..=b` are non-associative and require both integer bounds. Omitted bounds are permitted only in range patterns; step and implicit-reverse forms are unsupported. Unqualified `range<T>` denotes an integer range type. Pattern bounds use shift expressions; parentheses allow the full expression grammar. An unparenthesized `|` separates alternatives. A bare identifier binds a value; it does not test membership in a stored range.
+Module imports form a contiguous prefix. Top-level const bindings declare module constants, while `const { ... }` introduces a constant block; top-level executable statements form an implicit entry. There is no namespace block, generic declaration, default parameter, or variadic parameter syntax. Range expressions `a..b` and `a..=b` are non-associative and require both integer bounds. Omitted bounds are permitted only in range patterns; step and implicit-reverse forms are unsupported. Unqualified `range<T>` denotes an integer range type. Pattern bounds use shift expressions; parentheses allow the full expression grammar. An unparenthesized `|` separates alternatives. A bare identifier binds a value; it does not test membership in a stored range.
 
 ## 01 · Notation
 
@@ -163,7 +163,8 @@ top-level-item = module-item
                | CPP_SOURCE_FRAGMENT
                | statement;
 
-(* A top-level const is always a module constant declaration. *)
+(* A top-level const binding is a module constant declaration;
+   const test introduces a test and const { introduces a constant block. *)
 module-item = [ visibility-modifier ], module-declaration;
 
 visibility-modifier = "private" | "export";
@@ -320,6 +321,7 @@ ordinary-block = "{", { statement }, "}";
 
 ```text
 statement = variable-declaration
+          | constant-block
           | return-statement
           | throw-statement
           | rethrow-statement
@@ -339,6 +341,8 @@ update-statement = update-form, ";";
 expression-statement = expression, ";";
 
 control-flow-statement = if-form | match-form | try-form;
+
+constant-block = "const", ordinary-block;
 ```
 
 ## 18 · Assignment and updates

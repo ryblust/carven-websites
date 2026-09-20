@@ -18,10 +18,15 @@ For dependency or framework changes, use `package.json`, the lockfile and the re
 
 ## Content and design
 
-- Marketing demonstrates current capabilities, tutorials teach a sequence, and Reference states rules and boundaries. Write concise, neutral explanations. Verify language claims against the current compiler source and documentation; website tests do not validate Carven semantics.
+- Marketing demonstrates current capabilities. Tutorials teach a task through complete examples, commands, expected results, and a focused exercise; introduce one new idea at a time and mark fragments that depend on earlier code. Reference defines accepted forms, requirements, evaluation order, and failure boundaries with small illustrative examples. Link to the canonical rule instead of duplicating a contract table in a lesson. Keep language semantics, CLI policy, and native-provider obligations distinct.
+- Write concise, neutral explanations. Verify language claims against the current compiler source and documentation; website tests do not validate Carven semantics.
 - Chinese and English share layouts and interactions. Locale comes from the URL; preserve corresponding articles, metadata and accessible labels.
 - Use platform system fonts for the Carven wordmark, homepage name and other text, Allura for the homepage tagline, and system monospace for code. Keep the dark palette and restrained surface depth. Keep prose, comments and controls readable, with visible keyboard focus and reduced-motion support.
 - Examples use deliberate line breaks and four-space indentation. Switching homepage examples preserves their content width and left/top origin; narrow screens allow horizontal code scrolling.
+
+## Content alignment
+
+For compiler-driven content updates, follow [docs/content-sync.md](docs/content-sync.md). Record the exact reviewed compiler revision, user-visible changes and source evidence, bilingual coverage, and validation actually performed. Keep tutorial steps and Reference rules distinct. Historical checks are not evidence for the current revision; record skipped checks and unresolved gaps explicitly.
 
 ## Completion
 

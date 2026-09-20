@@ -1,6 +1,6 @@
 ---
 title: "Call C++ and export an interface"
-description: "Move from printf to scalar façades, with explicit native types, exceptions, and build responsibilities."
+description: "Move from printf to declared function contracts, with explicit native types, exceptions, and build responsibilities."
 section: learn
 lesson: 13
 source: docs/semantics.md
@@ -63,7 +63,7 @@ Expect `Port: 9000`. Change the JSON text to `{}` and run again: the output beco
 
 [value's default](https://json.nlohmann.me/api/basic_json/value/) handles a missing key, not malformed JSON or the wrong value type. This example assumes a valid object and an in-range integer port. Parsing or type errors can throw native exceptions; see the exception boundary below before using untrusted input.
 
-## An explicit scalar interface
+## Declare a native function contract
 
 ```carven
 import <cstdint>;
@@ -85,7 +85,57 @@ fn main() {
 
 The output is 42. The cpp fragment enters the implementation unchanged. import(cpp) calls a global provider of the same name, and export(cpp) puts the wrapper in the module's generated API. C++ consumers include `carven/api/<module-name>.hpp` and use the module namespace under `carven::api`.
 
-This explicit boundary accepts only by-value Read builtin scalar parameters and scalar/void results. It does not support String, arrays, structs, pointers, Write/Take, or typed failures. Broader direct header operations follow their native contracts.
+This first example uses an integer contract. The same boundary supports ordinary Carven types, Write/Take access, and declared failures; the provider must satisfy the generated C++ contract. Start with a small exported function before adding native providers for more complex types.
+
+## Export mutation and a failure contract
+
+Save this separate example as labels.cv:
+
+```carven
+export struct EmptyLabel {}
+
+export(cpp) fn rename(&label: String, next: str) throw EmptyLabel {
+    if next.is_empty() {
+        throw EmptyLabel {};
+    }
+    label = String::from_str(next);
+}
+```
+
+First append these two tests to the same file to check a successful update and rejection of empty text:
+
+```carven
+test "rename a label" {
+    var label: String = "before";
+    try {
+        rename(&label, "after")?;
+    } catch {
+        EmptyLabel(_) => fail("nonempty label was rejected"),
+    }
+    check(label == "after");
+}
+
+test "reject an empty label" {
+    var label: String = "before";
+    let rejected = try {
+        rename(&label, "")?;
+        false
+    } catch {
+        EmptyLabel(_) => true,
+    };
+    check(rejected);
+    check(label == "before");
+}
+```
+
+```sh
+carven --tests labels.cv
+carven compile -o generated labels.cv
+```
+
+Both tests should pass: success changes the text to after, while failure leaves it as before. The Write parameter requires native test mode. Open `generated/carven/api/labels.hpp` to inspect the generated interface. The Write parameter becomes a mutable reference, the declared failure becomes a `carven::runtime::Outcome`, and the header includes the necessary type definitions. A C++ consumer includes this API and matching runtime headers, then compiles and links generated implementations.
+
+The caller handles success or EmptyLabel. This is an explicit result contract; C++ exceptions do not become it automatically. See [interop Reference](/reference/interop/) for representations and lifetime obligations.
 
 ## Exceptions and borrows
 

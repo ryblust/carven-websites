@@ -20,7 +20,7 @@ source: src/diagnostics/code.cpp
 | CONST             | 常量上下文、执行子集、溢出、依赖环和预算      |
 | EFFECT            | ? 的非空要求、声明上界、剩余捕获集合          |
 | TYPE / MATCH      | 规范类型、上下文、case 载荷、模式覆盖         |
-| CPP               | 提供者边界形状、scalar 类型、API 名字         |
+| CPP               | 原生提供者标识符与 API 名字冲突               |
 | PTR               | 解引用前局部非空证明                          |
 | ENTRY / INTERPRET | 入口个数与参数、解释执行子集                  |
 | TEST              | 条件、消息类型、参数数目与活动测试            |
@@ -46,8 +46,6 @@ source: src/diagnostics/code.cpp
 | `CV-ACCESS-RANGE-ITERABLE`                | Error    | Invalid Write range iterable.                                                |
 | `CV-CATALOG`                              | Error    | Semantic catalog failure.                                                    |
 | `CV-COMPILATION-INPUT`                    | Error    | Invalid closed-compilation input.                                            |
-| `CV-CPP-BOUNDARY`                         | Error    | Invalid C++ boundary declaration.                                            |
-| `CV-CPP-CARRIER`                          | Error    | Unsupported C++ boundary type.                                               |
 | `CV-CPP-IDENTIFIER`                       | Error    | Invalid C++ boundary identifier.                                             |
 | `CV-CPP-API-PATH-COLLISION`               | Error    | C++ API function conflicts with a namespace path.                            |
 | `CV-CONST-ARRAY-EXTENT`                   | Error    | Invalid constant array extent.                                               |
@@ -118,6 +116,7 @@ source: src/diagnostics/code.cpp
 | `CV-TEST-DUPLICATE-NAME`                  | Error    | Duplicate test name.                                                         |
 | `CV-TEST-MAIN-NAME`                       | Error    | Reserved test-main name.                                                     |
 | `CV-TEST-MESSAGE-TYPE`                    | Error    | Inline-test message must have type str.                                      |
+| `CV-TYPE-DEFAULT-INITIALIZATION`          | Error    | Type has no default value.                                                   |
 | `CV-TYPE-ARRAY-ELEMENT`                   | Error    | Incompatible array element type.                                             |
 | `CV-TYPE-ASSIGNMENT-INTEGER`              | Error    | Integer assignment required.                                                 |
 | `CV-TYPE-ASSIGNMENT-NUMERIC`              | Error    | Numeric assignment required.                                                 |

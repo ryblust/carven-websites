@@ -38,7 +38,7 @@ src/model.cv corresponds to src.model. In src/main.cv, `.model` selects src.mode
 
 crafts/json/parser.cv belongs to the json craft; another domain may select it as `json::parser`. `std::utf.text` selects the official crafts.carven.std.utf.text. Plain `std.utf` remains a path in the current domain.
 
-Direct execution assembles its batch from explicit application files plus the fixed toolchain and project Crafts roots. `compile` and `interpret` do not collect those roots automatically. This happens before import resolution and does not make imports search the filesystem.
+`check`, `compile`, native execution, and `interpret` assemble their batches from explicit application files plus the fixed toolchain and project Crafts roots. This happens before import resolution and does not make imports search the filesystem.
 
 ## Select multiple names explicitly
 

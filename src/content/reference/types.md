@@ -47,6 +47,10 @@ let wide = 12i64;
 let narrow: i32 = wide;
 ```
 
+Integer range bounds use the same numeric sibling selection when there is no expected `range<T>`: `0..text.len()` is `range<usize>`, checking the literal directly as usize rather than converting an i32 value. An expected `range<T>` supplies T to both bounds. Two unsuffixed bounds default to i32; suffixed literals and existing bindings retain their types. Incompatible bounds or out-of-range literals are rejected. This applies to stored ranges, arguments, returns, and loops.
+
+Floating literals convert directly to the selected precision using the host's native parsing, without an intermediate floating type. Literals outside that type's conversion range are rejected.
+
 ## `as` conversions
 
 When both sides are Carven types, these conversions are allowed:

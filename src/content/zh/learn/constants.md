@@ -33,6 +33,26 @@ fn main() {
 
 const fn 内可以写局部变量、循环、支持的数组和结构体以及 String 操作；普通 const 初始化器不能直接用任意控制流表达式，复杂逻辑放进 const fn。
 
+## 在编译时执行一个块
+
+只需要执行准备工作、不需要保留结果时，使用常量块。将下面的程序单独保存为 prepare.cv：
+
+```carven
+const {
+    var label = String {};
+    label.append("Preparing data");
+    println(label);
+}
+
+fn main() {
+    println("Running");
+}
+```
+
+`carven check prepare.cv` 在检查阶段打印 `Preparing data`，不执行 main。`carven prepare.cv` 先打印同一行，再由程序打印 `Running`。常量块没有尾分号，局部值在块结束时销毁。
+
+块也可以写在函数内，但仍在语义分析时执行一次，不随函数调用重复。它能读取可见常量，不能读取外围函数参数或运行时局部值。需要顺序的编译期操作放在同一块中；不同块的执行顺序未定义。要验证结果则使用 const test，常量块本身不创建测试上下文。
+
 ## 浮点计算
 
 ```carven
@@ -63,7 +83,7 @@ fn main() {
 
 ```carven
 const fn join(items: [str; 3]) -> String {
-    var text = String::new();
+    var text = String {};
     for item in items {
         if !text.is_empty() {
             text.append(" / ");

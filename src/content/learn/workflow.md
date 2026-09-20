@@ -10,6 +10,10 @@ source: docs/cli.md
 
 | Task                           | Command                                                  |
 | ------------------------------ | -------------------------------------------------------- |
+| Semantic checking              | `carven check main.cv`                                   |
+| Native tests                   | `carven --tests main.cv`                                 |
+| Interpreted tests              | `carven interpret --tests main.cv`                       |
+| Stage timings                  | `carven check --timings main.cv`                         |
 | Native execution               | `carven main.cv`                                         |
 | Generate files only            | `carven compile -o generated main.cv`                    |
 | Inspect generated output       | `carven compile --stdout main.cv`                        |
@@ -22,7 +26,9 @@ The interpreter first performs the same semantic analysis, then checks execution
 
 To observe execution step by step, run the [integer classification example](/learn/control/) with `carven interpret main.cv`, then add `--trace` to inspect the steps. Use native execution when exploring the full language or integrating C++ libraries.
 
-Direct execution needs a native C++ toolchain and matching Crafts, but does not require Xmake. It automatically collects the toolchain's `crafts/carven/` and the project's optional `crafts/`; other application files remain explicit. `compile` and `interpret` use only their explicit source batches. See [CLI Reference](/reference/cli/) for installation layout, temporary files, and toolchain selection.
+Direct execution needs a native C++ toolchain and matching Crafts, but does not require Xmake. It automatically collects the toolchain's `crafts/carven/` and the project's optional `crafts/`; other application files remain explicit. `check`, `compile`, and `interpret` use the same source collection. See [CLI Reference](/reference/cli/) for installation layout, temporary files, and toolchain selection.
+
+Start with `carven check main.cv` when you want type, borrowing, and required-constant checks. It needs no program entry and does not invoke the native compiler. Add `--timings` to inspect compilation stages. Use `carven dump main.cv` to view tokens followed by the syntax tree for one file.
 
 ## Format source with Graver
 

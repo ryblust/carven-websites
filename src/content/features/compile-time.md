@@ -11,7 +11,7 @@ Lookup tables, fixed records, and text often need loops, local mutation, and hel
 
 ```carven
 const fn join(items: [str; 3]) -> String {
-    var text = String::new();
+    var text = String {};
     for item in items {
         if !text.is_empty() {
             text.append(" / ");
@@ -76,3 +76,7 @@ For this integer format, Carven analyzes fixed segments and conversion requireme
 Required constant execution supports integers, f32/f64, booleans, characters, text, supported fixed arrays, structures, and enums, and the corresponding control flow and direct const fn calls. Execution steps, recursion depth, text work, and aggregate work are bounded.
 
 const fn also executes typed failure creation, propagation, matching, recovery, and rethrow. The same validation logic can serve compile-time configuration and runtime input; see the [failure contract example](/learn/constants/#select-compile-time-configuration-with-the-same-failure-contracts). Floating arithmetic follows the compiler host's native environment; floating printing and formatting reuse native standard-library rules. See [constant execution rules](/reference/constants/) for accepted operations, result types, and resource limits.
+
+## Compile-time work without a retained result
+
+`const { ... }` executes supported statements during semantic analysis, for example preparing text and printing information, without emitting runtime code. Use a const binding to retain a value and const test to assert a result. All three participate in `carven check` before any C++ generation. Control flow and local values in a constant block still follow the same type, access, and execution-budget rules.

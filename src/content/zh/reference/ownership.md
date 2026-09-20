@@ -29,7 +29,7 @@ source: docs/semantics.md
 
 ## Read 值与别名
 
-Carven 数组、String、闭包，以及包含这些存储的聚合通过 const 引用保持存储。其他类型与原生类型：当 C++ 复制构造和析构均 trivial 时使用 const 值，否则 const 引用。显式 scalar import(cpp)/export(cpp) 参数总按值跨边界。
+Carven 数组、String、闭包，以及包含这些存储的聚合通过 const 引用保持存储。其他类型与原生类型：当 C++ 复制构造和析构均 trivial 时使用 const 值，否则 const 引用。声明式 import(cpp)/export(cpp) 函数沿用相同的普通 Read 策略。
 
 按值 Read 在实参求值时保存值；按引用 Read 保持所选存储，后续别名写入会影响读取。显式 owner 副本可建立独立立即值，但副本内的视图仍指向原 backing。Take 冲突检查不因原生 Read 表示不同而省略。
 

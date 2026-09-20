@@ -48,4 +48,4 @@ Read/Write targets map to const T* and T*, composed at each pointer layer. Read 
 
 Storing or passing a pointer usually requires only a target declaration and can use incomplete native types. Forming the target's C++ type expression must still meet its completeness requirements; callable parameter representation, for example, may require complete T.
 
-Pointer copying, argument passing, and Take perform no allocation, reference counting, or release. Non-null does not prove liveness. Resource owners and C++ adapters manage allocation, release, T** output protocols, buffer traversal, and validity periods. Pointers are outside scalar import(cpp)/export(cpp).
+Pointer copying, argument passing, and Take perform no allocation, reference counting, or release. Non-null does not prove liveness. Resource owners and C++ adapters manage allocation, release, T** output protocols, buffer traversal, and validity periods. Pointers may cross declared import(cpp)/export(cpp) contracts; native providers and callers remain responsible for target lifetime.

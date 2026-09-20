@@ -11,7 +11,7 @@ source: docs/semantics.md
 
 ```carven
 const fn join(items: [str; 3]) -> String {
-    var text = String::new();
+    var text = String {};
     for item in items {
         if !text.is_empty() {
             text.append(" / ");
@@ -76,3 +76,7 @@ fn print_order(id: i32) {
 必需常量执行支持整数、f32/f64、布尔、字符、文本、受支持的固定数组、结构体与枚举，以及相应的控制流和直接 const fn 调用。它具有执行步骤、递归深度、文本与聚合工作量限制。
 
 const fn 也能执行 typed failure 的抛出、传播、匹配恢复和重抛；同一套校验逻辑可服务编译期配置与运行时输入。参见[失败契约示例](/zh/learn/constants/#用相同的失败契约选择编译期配置)。浮点算术遵循编译器宿主的原生环境，浮点打印与格式化复用原生标准库规则。可用操作、结果类型与资源限制见[常量执行规则](/zh/reference/constants/)。
+
+## 不保留结果的编译期工作
+
+`const { ... }` 在语义分析时执行支持的语句，例如准备文本并输出检查信息；它不产生运行时代码。需要保存值时使用 const 绑定，需要断言时使用 const test。三种形式都参与 `carven check`，不必先生成 C++。常量块中的控制流和局部值仍遵循相同的类型、访问与执行预算规则。

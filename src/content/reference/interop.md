@@ -1,6 +1,6 @@
 ---
 title: "C++ names, operations, and boundaries"
-description: "Headers, native types, source fragments, scalar interfaces, exceptions, and returned borrows."
+description: "Headers, native types, source fragments, function contracts, exceptions, and returned borrows."
 section: reference
 lesson: 15
 source: docs/semantics.md
@@ -50,7 +50,9 @@ Results of native calls, construction, and representation conversions establish 
 
 Each top-level fragment enters the implementation unchanged and independently. It does not parse or interpolate Carven values or bind same-named Carven declarations. C++ contracts govern macros, overloads, templates, linking, exceptions, object lifetimes, ODR, and native undefined behavior.
 
-## Explicit scalar boundaries
+Fragments are implementation-only and publish no declarations to generated headers. Public native declarations belong in headers; public Carven entries use export(cpp). Fences do not isolate macros or pragmas and cannot configure headers already included. Use separate C++ files managed by the build for distinct native compilation environments.
+
+## Declared function boundaries
 
 ```carven
 private import(cpp) fn native_value(value: i32) -> i32;
@@ -58,21 +60,29 @@ private import(cpp) fn native_value(value: i32) -> i32;
 export(cpp) fn answer() -> i32 => 42;
 ```
 
-import(cpp) is a private or bare declaration without a body, calling an unprefixed global C++ function of the same name. Carven neither generates the provider declaration nor parses and compares its signature. Authors and the toolchain supply definitions, matching, and linking. Same-named imports in different modules remain distinct Carven capabilities.
+import(cpp) is a private or bare declaration without a body. It calls the same-named global C++ provider with the declared access; C++ resolves overloads and deduces templates from that call. Carven neither generates the provider declaration nor parses or compares its C++ signature. Declaration visibility, definitions, conformance, and linking belong to authors and the toolchain. Same-named imports in different modules remain distinct Carven capabilities.
 
-export(cpp) is a Carven function with a body, visible throughout the batch and included in the generated API. An import(cpp) cannot be exported directly; use an ordinary wrapper. Both directions require top-level functions with fixed argument counts, no failures, and by-value Read parameters. Write/Take and nonempty failure sets are unsupported.
+export(cpp) is a Carven function with a body, visible throughout the batch and included in the generated API. An import(cpp) cannot be exported directly; use an ordinary wrapper. Both directions follow ordinary function type, access, visibility, ownership, and declared failure rules. void remains result-only; callable-view escape and public-surface visibility restrictions still apply.
 
-| Carven         | C++                                      |
-| -------------- | ---------------------------------------- |
-| bool           | bool                                     |
-| i8/i16/i32/i64 | std::int8_t/int16_t/int32_t/int64_t      |
-| u8/u16/u32/u64 | std::uint8_t/uint16_t/uint32_t/uint64_t  |
-| isize/usize    | std::ptrdiff_t/std::size_t               |
-| f32/f64        | float/double                             |
-| char           | char32_t, with inbound scalar validation |
-| void           | Result only                              |
+| Carven contract                   | C++ representation                                                                |
+| --------------------------------- | --------------------------------------------------------------------------------- |
+| Scalars                           | Ordinary scalar representations; char uses char32_t                               |
+| String / str                      | carven::runtime::String / std::string_view                                        |
+| Arrays, slices, ranges, pointers  | Ordinary generated container, view, and pointer types                             |
+| Structs, enums, concrete closures | Generated nominal types                                                           |
+| Native types                      | Declared C++ type and its header environment                                      |
+| Callable views                    | Runtime callable representation for the declared signature                        |
+| Read                              | Ordinary Read policy: value snapshots or const references                         |
+| Write                             | Mutable references                                                                |
+| Take                              | Owned values; ordinary transfer for exports, native rvalue forwarding for imports |
+| Infallible result                 | Ordinary result type, including void                                              |
+| Declared failures                 | carven::runtime::Outcome<Result, Failures...>                                     |
 
-str, String, arrays, structs, enums, pointers, callables, entry arguments, and range views are outside this scalar boundary. Native capabilities obtained through direct header calls are a separate form from this closed interface.
+Generated API headers include required generated type definitions, native header environments, and runtime support. Consumers use these headers and matching runtime headers as a C++ source interface. Internal test-stop transport is not added to exported failure sets: an escaping test stop terminates at the native entry, while declared failures remain observable Outcomes.
+
+Native providers and callers own lifetime, retention, reentry, and value-validity obligations, including UTF-8 and Unicode scalar validity. Imported results establish no unknown backing relationship; native Write operations do not prove release of previous borrows. Declared callbacks may run during the call but cannot retain borrowed callable storage beyond its lifetime.
+
+Direct infallible imported char results and exported Read/Take char parameters check Unicode scalar validity and terminate on invalid values. This is not recursive validation of aggregates, pointers, mutable references, or Outcomes.
 
 Provider names cannot be main/std/carven. Authors are responsible for C++ leading-underscore reservation rules. Safe names retain their spelling in export APIs. Unsafe names and names beginning cv_escaped_ use that prefix followed by lowercase hexadecimal encoding of the original UTF-8 bytes. C++ keywords, double underscores, and underscore followed by uppercase are excluded. Function/namespace prefix conflicts are invalid.
 
@@ -81,3 +91,5 @@ Provider names cannot be main/std/carven. Authors are responsible for C++ leadin
 Generated functions, closure calls, import bridges, and export façades are noexcept boundaries. Native operations need not themselves declare noexcept, but an exception escaping the boundary invokes std::terminate. Construction, members, operators, and lifetime operations follow the same rule. Carven try does not catch native exceptions.
 
 To continue execution, catch exceptions first in an adapter in a header, native source, or cpp fragment, then return an application result through the chosen interface. A cpp fragment does not wrap the generated Carven function body.
+
+A native adapter may explicitly return an Outcome matching a declared failure contract; C++ exceptions are never translated into Carven failures automatically.

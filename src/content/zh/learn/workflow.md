@@ -10,6 +10,10 @@ source: docs/cli.md
 
 | 任务          | 命令                                                     |
 | ------------- | -------------------------------------------------------- |
+| 语义检查      | `carven check main.cv`                                   |
+| 原生测试      | `carven --tests main.cv`                                 |
+| 解释测试      | `carven interpret --tests main.cv`                       |
+| 阶段耗时      | `carven check --timings main.cv`                         |
 | 原生运行      | `carven main.cv`                                         |
 | 仅生成文件    | `carven compile -o generated main.cv`                    |
 | 查看生成内容  | `carven compile --stdout main.cv`                        |
@@ -22,7 +26,9 @@ source: docs/cli.md
 
 要逐步观察执行过程，可以用 `carven interpret main.cv` 运行[整数分类示例](/zh/learn/control/)，再加上 `--trace` 观察执行过程。学习完整语言和接入 C++ 库时，使用原生运行模式。
 
-直接运行需要原生 C++ 工具链与匹配的 Crafts，不依赖 Xmake。它自动收集工具链的 `crafts/carven/` 和项目可选的 `crafts/`；其他应用文件仍须显式列出。`compile` 和 `interpret` 只使用显式输入批次。安装布局、临时文件和工具链选择见[命令行 Reference](/zh/reference/cli/)。
+直接运行需要原生 C++ 工具链与匹配的 Crafts，不依赖 Xmake。它自动收集工具链的 `crafts/carven/` 和项目可选的 `crafts/`；其他应用文件仍须显式列出。`check`、`compile` 和 `interpret` 也使用相同收集规则。安装布局、临时文件和工具链选择见[命令行 Reference](/zh/reference/cli/)。
+
+只想检查类型、借用和必需常量时，先用 `carven check main.cv`；它不要求程序入口，也不调用原生编译器。需要定位编译耗时，再加 `--timings`。查看一个文件的词法和语法可直接用 `carven dump main.cv`，两种结果会依次输出。
 
 ## 用 Graver 格式化源码
 

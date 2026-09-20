@@ -38,7 +38,7 @@ src/model.cv 对应 src.model，src/main.cv 中 `.model` 从所在逻辑目录�
 
 crafts/json/parser.cv 属于 json craft，其他域可用 `json::parser` 选择。`std::utf.text` 指向官方 crafts.carven.std.utf.text，普通 `std.utf` 仍是当前域路径。
 
-直接运行会把显式应用文件与工具链、项目的固定 Crafts 目录组成批次；`compile` 和 `interpret` 不自动收集这些目录。这发生在导入解析之前，并不让 import 搜索文件系统。
+`check`、`compile`、原生运行和 `interpret` 都把显式应用文件与工具链、项目的固定 Crafts 目录组成批次。这发生在导入解析之前，并不让 import 搜索文件系统。
 
 ## 显式选择多个名字
 

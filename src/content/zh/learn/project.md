@@ -100,7 +100,7 @@ quote 使用 Read，只读取 Item。purchase 用 Write 改原对象，调用处
 
 ## 扩展测试
 
-测试文件保留 Item、两个失败类型、quote 和 purchase 定义，再加入下面的 test。使用默认测试入口时，不把前面的 main 放入该测试文件；以 orders_tests.cv 保存后生成、编译并运行测试：
+把以下测试追加到原来的 orders.cv，保留前面的类型、函数和 main：
 
 ```carven
 test "failed purchase preserves stock" {
@@ -119,15 +119,10 @@ test "failed purchase preserves stock" {
 ```
 
 ```sh
-carven compile --tests=default -o generated orders_tests.cv
-clang++ -std=c++20 -Igenerated -Icrafts \
-  generated/orders_tests.cpp \
-  generated/carven/generated/carven-test-main.cpp \
-  -o generated/orders-tests
-./generated/orders-tests
+carven --tests orders.cv
 ```
 
-这里的 crafts 指匹配编译器版本的运行时头文件目录；命令在 Carven 仓库根目录可直接使用该相对路径。测试文件不导入带 main 的原文件，避免把两个入口链接在一起。
+测试模式执行测试并跳过 main，因此不会运行前面的购买演示。purchase 使用 Write 参数，使用原生测试模式。
 
 ## 独立完成的扩展
 

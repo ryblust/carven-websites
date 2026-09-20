@@ -24,6 +24,32 @@ fn main() {
 
 输出 `36`。字段名对应声明，每个字段恰好初始化一次。命名形式按写出顺序求值；位置形式按声明顺序对应字段。结构体按声明身份定型，不因字段相同就与另一个结构体兼容。
 
+## 从默认值开始
+
+用下面的 main 替换第一个例子的 main，保留 Item 和 total：
+
+```carven
+fn main() {
+    let item = Item {};
+    println(total(item));
+    println(item);
+}
+```
+
+输出为：
+
+```text
+0
+Item {
+    price: 0,
+    quantity: 0,
+}
+```
+
+空花括号将整个 Item 默认初始化，两个整数都是零。`println(item)` 直接显示字段，不需要自己拼接文本。如果开始指定字段，就必须写全：`Item { price: 12 }` 不会自动补 quantity。
+
+默认值适合表示空状态；有业务含义的数据仍应显式赋值。枚举没有默认 case，需要选择明确状态。
+
 ## 数组与迭代
 
 ```carven

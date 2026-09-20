@@ -10,7 +10,7 @@ fn port() -> i32 throw Denied + BadPort {
     };
 }`,
   constants: `const fn join(items: [str; 3]) -> String {
-    var text = String::new();
+    var text = String {};
     for item in items {
         if !text.is_empty() {
             text.append(" / ");

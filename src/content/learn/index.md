@@ -84,7 +84,7 @@ The output is still Answer: 42. The interpreter does not implement every languag
 
 Unless stated otherwise, save each complete example containing main as main.cv, replacing the preceding example, and run `./xmakew run carven main.cv`. If a chapter contains several main functions, run them separately rather than joining them in one file or batch.
 
-Local syntax fragments need the surrounding example context. Multi-file examples name their files and full input batch. Ordinary test requires generating and compiling a test entry; simply running the source file does not run it. const test executes during semantic analysis.
+Local syntax fragments need the surrounding example context. Multi-file examples name their files and full input batch. Run ordinary tests with `carven --tests main.cv`, or `carven interpret --tests main.cv` for the supported subset; a plain program run does not execute them. const test executes during semantic analysis.
 
 Later command tables use `carven` as shorthand for the executable. If it is not installed, use `./xmakew run carven` in the source repository. Native compilation commands still use clang++.
 

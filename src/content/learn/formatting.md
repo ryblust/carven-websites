@@ -35,7 +35,7 @@ The output is `Order 0042: 12.50`. Interpolation produces an independent String,
 
 ```carven
 fn main() {
-    var report = String::new();
+    var report = String {};
 
     for index in 0..3 {
         report.append_format(f"[{index}]");

@@ -35,7 +35,7 @@ fn main() {
 
 ```carven
 fn main() {
-    var report = String::new();
+    var report = String {};
 
     for index in 0..3 {
         report.append_format(f"[{index}]");

@@ -24,6 +24,32 @@ fn main() {
 
 The output is `36`. Field names match the declaration, and each field is initialized exactly once. Named construction evaluates in written order; positional construction maps to declaration order. Struct types have declaration identity: matching fields do not make two structs compatible.
 
+## Start from defaults
+
+Replace main in the first example with this body, keeping Item and total:
+
+```carven
+fn main() {
+    let item = Item {};
+    println(total(item));
+    println(item);
+}
+```
+
+The output is:
+
+```text
+0
+Item {
+    price: 0,
+    quantity: 0,
+}
+```
+
+Empty braces default-initialize the whole Item, so both integers are zero. `println(item)` shows its fields directly. Once you specify fields, provide all of them: `Item { price: 12 }` does not fill in quantity automatically.
+
+Defaults can represent an empty state; assign meaningful business values explicitly. Enums have no default case, so choose a state explicitly.
+
 ## Arrays and iteration
 
 ```carven

@@ -33,6 +33,26 @@ In an ordinary runtime expression, `title(42)` remains an ordinary function call
 
 A const fn can use mutable locals, loops, supported arrays and structs, and String operations. An ordinary const initializer cannot directly contain arbitrary control-flow expressions. Put complex logic in a const fn.
 
+## Run a block during compilation
+
+Use a constant block when preparation needs execution but no retained result. Save this separate program as prepare.cv:
+
+```carven
+const {
+    var label = String {};
+    label.append("Preparing data");
+    println(label);
+}
+
+fn main() {
+    println("Running");
+}
+```
+
+`carven check prepare.cv` prints `Preparing data` during checking and does not execute main. `carven prepare.cv` prints that line first, then the program prints `Running`. A constant block has no trailing semicolon; its local values end with the block.
+
+A block may appear inside a function but still executes once during semantic analysis, independently of calls. It can read visible constants, not enclosing function parameters or runtime locals. Put compile-time operations that need a sequence in one block; order across blocks is unspecified. Use const test for assertions: a constant block does not create a test context.
+
 ## Floating computation
 
 ```carven
@@ -63,7 +83,7 @@ The heading example produces one value. Now turn the homepage text-joining examp
 
 ```carven
 const fn join(items: [str; 3]) -> String {
-    var text = String::new();
+    var text = String {};
     for item in items {
         if !text.is_empty() {
             text.append(" / ");

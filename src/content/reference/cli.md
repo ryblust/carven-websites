@@ -10,19 +10,41 @@ source: docs/cli.md
 
 ```sh
 carven main.cv
+carven --tests main.cv
+carven check --timings main.cv
 carven main.cv -- argument
 carven compile --stdout main.cv
 carven compile -o generated main.cv
 carven interpret --trace --max-steps 100000 main.cv
+carven interpret --tests main.cv
+carven dump main.cv
 carven dump tokens main.cv
 carven dump ast main.cv
 ```
 
-`--help/-h`, `--version/-V`, and help for compile/interpret are available. No arguments prints top-level help and succeeds. Application sources are explicit; direct execution also collects fixed Crafts roots.
+`--help/-h`, `--version/-V`, and command help for compile/check/interpret/dump are available. No arguments prints top-level help and succeeds.
+
+## Source collection
+
+`check`, `compile`, direct native execution, and `interpret` combine explicit application `.cv` inputs with `.cv` and `.cpp` files recursively collected from the matching toolchain's `crafts/carven/` and the working directory's optional `crafts/`. At least one explicit `.cv` input is required. Imports resolve within this batch; they do not discover or download files. Directory symlinks are not recursively followed. Files are deduplicated by canonical filesystem path and sorted by path spelling; distinct files with conflicting module identities are errors.
+
+All collected `.cv` modules receive semantic checks, required constant evaluation, and static tests, even when unimported. Test mode selects all ordinary tests. Collected `examples/` and `tests/` subdirectories are included too. Installed library sources must build together and leave entry selection to the application. Keep independent examples, intentionally invalid tests, and alternative targets outside these roots.
+
+For custom integration, keep external repositories in a directory such as `thirdparty/`, explicitly supply selected `.cv` inputs, and configure native sources, headers, defines, flags, and libraries in the external build. Official and third-party Crafts follow the same collection rules.
+
+## Checking
+
+`carven check main.cv` completes semantic analysis, including required constants, constant blocks, and `const test`, without generating artifacts or requiring an entry. Ordinary functions and runtime tests are checked but not executed. Native overloads, templates, and native type properties still require C++ compilation.
+
+Success returns 0 and prints `carven: check passed` on stderr; invocation, input, or analysis errors return 1. Warnings do not change success status. `--timings` adds the duration to the success report without duplicating it.
+
+## Timing reports
+
+`--timings` is available for check, compile, interpret, dump, and native execution. It reports outcome, total wall time, and attempted stages on stderr, including failed commands. Analysis includes required constant execution and static tests; native runs also report C++ compilation and linking. Execution and artifact streams stay separate. Total time includes setup, diagnostics, and cleanup, so it can exceed the stage sum. Invalid options produce no timing report. `--` ends option parsing for native and interpreted runs.
 
 ## Direct native execution
 
-A source invocation analyzes and generates C++, invokes a native C++ toolchain to compile and link, then runs the program. It does not depend on Xmake or another build tool. Application sources remain explicit; the driver additionally collects `.cv` and `.cpp` files recursively from the matching toolchain's `crafts/carven/` and the working directory's optional `crafts/`. It does not search parent directories or follow imports to discover files, and does not recurse through directory symlinks. Identical physical files are deduplicated. All collected modules are analyzed, even when unused.
+A source invocation analyzes the collected batch, generates C++, compiles and links generated implementations together with collected `.cpp` files, then runs the program. It does not depend on Xmake or another build tool.
 
 `CXX` selects one compiler executable name or path, defaulting to `clang++`; it is not split into shell arguments. The driver requests C++20, using MSVC-style arguments for `cl` and `clang-cl`, and GCC-style arguments for other drivers. The user supplies the required SDK, linker, and toolchain environment. The driver uses platform process interfaces to launch the toolchain and generated program.
 
@@ -30,19 +52,21 @@ For a standalone installation, place `bin/carven` (`bin/carven.exe` on Windows) 
 
 Every run creates a separate `carven-run-*` directory under the system temporary directory for generated files and the native executable, without caching previous builds. It is removed after execution or a handled failure. Forced termination may leave it behind; cleanup failures produce a warning. Child processes inherit the working directory and standard streams, so relative file paths still resolve from the user's working directory.
 
-Only source paths are accepted before `--`. Subsequent arguments are passed without a shell, including empty arguments, spaces, quotes, and backslashes. An entry is required; Carven diagnoses multiple entries first. Native compilation failures and program status are passed through; POSIX signal termination maps to `128 + signal`. External build systems handle complex native dependencies and incremental builds.
+Source paths, `--tests`, and `--timings` are accepted before `--`. Subsequent arguments are passed without a shell, including empty arguments, spaces, quotes, and backslashes. Program mode requires an entry; Carven diagnoses multiple entries first. Native compilation failures and program status are passed through; POSIX signal termination maps to `128 + signal`. External build systems handle complex native dependencies and incremental builds.
+
+`carven --tests main.cv` runs ordinary runtime tests instead of the program entry and requires at least one runtime test. Static tests still run during analysis. Assertion failures produce a nonzero status; later tests continue. Top-level statements and `main` are not executed in test mode.
 
 ## Interpretation
 
 Interpretation executes supported source operations directly with ordinary Carven semantics. Use native compilation for the full language and C++ integration. The interpreter subset does not restrict language-required compile-time evaluation, which has its own admission rules.
 
-interpret analyzes only its explicit input batch, without automatically collecting Crafts. It performs semantic checks, executes required constants and const test, then checks the entry and its transitive direct callees against its execution subset. It supports integers, f32/f64, bool, char, str, String, supported structs/enums/fixed arrays, direct calls, local mutation, branches, loops, matching, and printing.
+interpret uses the same source collection as check, compile, and native execution. It performs semantic checks, executes required constants and const test, then checks the entry and its transitive direct callees against its execution subset. It supports integers, f32/f64, bool, char, str, String, supported structs/enums/fixed arrays, direct calls, local mutation, branches, loops, matching, and printing.
 
-Without an entry, interpret completes semantic analysis, required constant evaluation, and const test, then exits successfully. It does not require a synthetic main for a declarations-only or static-test input batch.
+Program execution requires an entry supplied by top-level executable statements or `main`. Use `check` for declaration-only, empty, or static-test-only files.
 
 Typed failures use the shared executor: throw, propagation, typed catches, guards, and rethrow work across ordinary calls. An escaping entry failure reports an execution error.
 
-Executed code does not support C++ headers/fragments/operations, callables, Write parameters, slices, or entry argument values. Unused functions still receive ordinary language checks but need not fit the interpreter subset. The entry must be parameterless; arguments after `--` are ignored, as for a parameterless native entry.
+The driver rejects collected `.cpp` files, and admission rejects C++ header imports and fragments in every collected module, including unimported modules. Executed bodies cannot use native operations, callables, Write parameters, slices, or entry argument values. Unused functions still receive ordinary language checks but need not fit the interpreter subset. The entry must be parameterless; arguments after `--` are ignored, as for a parameterless native entry.
 
 Admission failures use `CV-INTERPRET-ADMISSION`, without falling back to native execution. Execution failures use `CV-INTERPRET-EXECUTION`; budget failures use `CV-INTERPRET-LIMIT`. Errors return 1 and normal completion returns 0. Completed output remains visible.
 
@@ -52,9 +76,11 @@ Admission failures use `CV-INTERPRET-ADMISSION`, without falling back to native 
 
 Ordinary interpreted calls do not require const fn. Runtime integer operations use the language's wrapping rules, including runtime calls to const fn; required constant arithmetic remains checked. Admission examines all branches of the entry and its transitive direct callees, even branches not selected during execution. Interpretation writes no C++ artifacts or native executable. Floating arithmetic uses the host native environment; floating printing and formatting follow native standard-library format rules.
 
+`interpret --tests` requires at least one runtime test and skips the program entry. All selected tests and their transitive direct callees pass admission before any runtime test runs. Tests execute in canonical module order, then source order, each with fresh storage and an independent `--max-steps` budget. Ordinary helpers need not be const fn. Failed check operations accumulate; require/fail stop the current test through helper calls and cannot be caught as typed failures. Later tests continue after assertion failures, execution errors, or exhausted budgets. Failures and a pass/fail summary go to stderr; any failed test returns 1.
+
 ## Input paths
 
-Paths use UTF-8, `/` separators, and the `.cv` extension. Relative paths must not escape the working directory after lexical normalization. Removing the extension and joining components with dots produces the canonical module name. Absolute inputs are accepted only when their path contains a crafts hierarchy; the module name starts at the first crafts component. The operating system resolves symbolic links when opening a file.
+Paths use UTF-8, `/` separators, and the `.cv` extension. Relative paths must not escape the working directory after lexical normalization. Removing the extension and joining components with dots produces the canonical module name. Collected files derive module identity from their known Crafts root, independently of the installation prefix; explicit aliases retain that identity. Other absolute inputs require a crafts hierarchy and derive identity from its first crafts component. The operating system resolves symbolic links when opening a file.
 
 Each component must have identifier shape; module components may be keywords. A batch cannot contain duplicate canonical module names. Imports resolve only these inputs.
 
@@ -70,7 +96,7 @@ Select at most one destination option, without repetition. After successful anal
 
 Generated `.cpp` files retain source module paths. Internal headers use `carven/generated/<module-path>.hpp`; exported C++ interfaces use `carven/api/<module-path>.hpp`. These prefixes identify Carven headers to C++ consumers. With `-o generated`, `generated/carven/generated/…` therefore combines the selected output root with the header include path.
 
-compile uses explicit inputs without automatically collecting Crafts, and does not invoke native compilation or linking. `--tests=default` and `--tests=external` are mutually exclusive and cannot repeat. They do not remove source main. Consumers choose which generated translation units form an application or test executable.
+compile uses the shared source collector and does not invoke native compilation or linking. Test emission is omitted by default. `--tests` aliases `--tests=default`; this mode emits module tests, the runner, and a default test entry while suppressing the program entry wrapper, so all generated sources can link into one test executable. `--tests=external` emits tests and `carven/generated/carven-test-runner.hpp`, retains the program entry wrapper, and leaves entry selection and an optional reporter to the consumer. Modes and aliases cannot repeat or combine. Generation permits an empty test suite; commands that execute tests require at least one runtime test.
 
 ## Linkage domains
 
@@ -80,7 +106,7 @@ Reuse a domain for the same logical target; use different domains for distinct t
 
 ## Diagnostics and compile-time output
 
-Invocation, reading, source, or writing failures report to stderr and return nonzero. Warnings do not change successful compilation to a nonzero result. dump parses one file without semantic analysis, constant tests, or artifact generation. tokens prints tokens after successful lexing; ast prints the tree after successful parsing.
+Invocation, reading, source, or writing failures report to stderr and return nonzero. Warnings do not change successful compilation to a nonzero result. dump parses one file without semantic analysis, constant tests, or artifact generation. With no kind, dump prints tokens followed by the AST under `Tokens` and `AST` headings. tokens prints tokens after successful lexing; ast prints the tree after successful parsing. In combined mode, lexical errors stop parsing, while parsing errors leave printed tokens intact without an AST. `--timings` reports attempted loading, lexing, and parsing stages.
 
 Required constant execution sends print/println to stdout and eprint/eprintln to stderr. With `compile --stdout`, all compile-time program output goes to stderr, leaving stdout for artifacts. Later compilation failures do not undo output. An incremental build reusing artifacts does not rerun or replay compile-time output.
 

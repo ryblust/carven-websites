@@ -19,25 +19,23 @@ test "line total" {
 }
 ```
 
-测试与函数写在同一模块，也可以放在专用测试文件中。普通 test 在 compile 时被分析，但默认不生成 runner；请求测试产物：
+测试可以与函数放在同一模块。先直接运行它：
 
 ```sh
-./xmakew run carven compile --tests=default -o generated totals.cv
+carven --tests totals.cv
 ```
 
-此命令只生成 C++。对这个单文件、没有 main 的例子，在同一仓库根目录继续执行：
+命令会生成 C++、编译并运行测试；需要可用的原生 C++ 工具链。如果从编译器源码仓库运行，使用 `./xmakew run carven --tests totals.cv`。通过时退出状态为零，有失败则非零。测试模式不执行 main 或顶层程序语句，因此被测函数和程序入口可以留在同一文件。
+
+这个例子也属于解释器支持范围，可以在不调用 C++ 编译器的情况下执行同一组测试：
 
 ```sh
-clang++ -std=c++20 -Igenerated -Icrafts \
-  generated/totals.cpp \
-  generated/carven/generated/carven-test-main.cpp \
-  -o generated/totals-tests
-./generated/totals-tests
+carven interpret --tests totals.cv
 ```
 
-使用支持项目目标运行时的 clang++；需要时换成其完整路径。测试通过时程序成功退出。`-Igenerated` 提供生成接口，`-Icrafts` 提供与编译器匹配的运行时头文件。使用已安装编译器的项目应将 Crafts 路径替换为安装位置。
+解释模式下，每条测试使用独立存储和执行预算。包含原生操作、Write 参数或 callable 的测试改用原生模式。要先检查而不运行普通测试，使用 `carven check totals.cv`；const test 仍会在检查时执行。
 
-一个测试可执行程序只链接一个入口。`--tests=default` 不会移除源码 main，因此这个示例不声明 main。其他项目需要按模块拆分程序入口和被测函数，再选择测试所需实现；原生依赖还需加入提供者和链接库。Carven 自身仓库的已注册测试目标使用 `./xmakew test -g language` 等命令运行。
+需要将测试接入自己的 C++ 构建时，用 `carven compile --tests -o generated totals.cv` 生成默认测试入口，或选择 `--tests=external` 接入已有入口和 reporter。源码收集与入口选择规则见[命令行 Reference](/zh/reference/cli/)。
 
 ## check、require 与 fail
 
@@ -45,9 +43,11 @@ check 失败报告后继续，适合一组独立断言。require 失败停止当
 
 即使条件成立，消息表达式也会求值，因此不应在其中放入仅应在失败时执行的操作。测试停止会穿过同步调用的 Carven 辅助函数和可调用视图，并清理局部值；try 无法捕获测试停止。
 
+把第一条断言的 36 临时改成 35，再运行测试。直接比较失败时会同时显示两侧表达式和实际值，便于看出 `total(12, 3)` 得到 36。恢复为 36 后继续。解释不会重新执行比较操作数；`&&` 或 `||` 短路跳过的一侧标记为 `<not evaluated>`。
+
 ## 测试可恢复失败
 
-将下面内容追加到前面的 totals.cv，再执行相同的生成、原生编译与运行命令：
+将下面内容追加到前面的 totals.cv，再运行 `carven --tests totals.cv`：
 
 ```carven
 struct Invalid {}

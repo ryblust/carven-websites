@@ -8,7 +8,7 @@ source: docs/semantics.md
 
 ## Structs
 
-A struct is an ordered nominal product type with unique field names. Construct it positionally in declaration order or by field name. Every field must be initialized exactly once; named and positional forms cannot mix. Empty construction is only for fieldless structs. Struct bodies contain fields, not member function definitions.
+A struct is an ordered nominal product type with unique field names. Construct it positionally in declaration order or by field name. Nonempty construction must initialize every field exactly once; named and positional forms cannot mix. Empty `T {}` requests whole-value default initialization. Struct bodies contain fields, not member function definitions.
 
 ```carven
 struct Point {
@@ -21,9 +21,29 @@ fn origin() -> Point => Point { 0, 0 };
 fn sample() -> Point => Point { y: 2, x: 1 };
 ```
 
-Named construction maps to field declarations but evaluates initializers in written order. Repeated, missing, excess, unknown, or incompatible fields are errors. Carven `T { ... }` constructs structs only; builtins, enums, and callables use their own expression forms. External C++ types have separate construction rules.
+Named construction maps to field declarations but evaluates initializers in written order. Repeated, missing, excess, unknown, or incompatible fields in nonempty construction are errors. Nonempty Carven `T { ... }` constructs structs only; empty construction also accepts builtin types with a default. Enums and callables use their own expression forms. External C++ types have separate construction rules.
 
 A struct supports equality only when every field supports equality.
+
+## Default initialization
+
+`T {}` requests whole-value default initialization for types accepted by construction syntax, such as `i32 {}`, `String {}`, and a named struct. The table also describes defaults of nested fields and elements; it does not introduce array or slice construction syntax. Struct fields initialize in declaration order, recursively; a nonempty construction cannot omit fields to request partial defaults.
+
+| Type                | Default                                     |
+| ------------------- | ------------------------------------------- |
+| Integers and floats | Zero; floating zero is positive             |
+| bool / char         | false / U+0000                              |
+| str / String        | Empty text; String owns independent storage |
+| Pointers            | Null, subject to ordinary non-null checks   |
+| Slices              | Empty read-only view                        |
+| Integer ranges      | Empty exclusive range from zero to zero     |
+| Fixed arrays        | Each element initialized independently      |
+| Structs             | Every field initialized recursively         |
+| External C++ types  | Native value initialization, checked by C++ |
+
+Numeric and payload enums, callable values/views, void, and entry or iteration-only opaque types have no default. A struct or nonempty array containing them also has no default. A zero-length array needs no element default. Unsupported requests report `CV-TYPE-DEFAULT-INITIALIZATION`.
+
+Local declarations still require an initializer; array literals still require their exact element count. Default construction does not extend borrows or relax access. Runtime, interpretation, and constant execution share defaults within each mode's supported subset; native defaults remain delegated to C++.
 
 ## Fixed arrays
 

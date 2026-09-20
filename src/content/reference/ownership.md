@@ -29,7 +29,7 @@ Arguments repeat declared access exactly: `read(x)`, `write(&x)`, `take(&&x)`. W
 
 ## Read values and aliases
 
-Carven arrays, String, closures, and aggregates containing those storage forms retain storage through const references. Other types, including native types, use const values when C++ copy construction and destruction are both trivial; otherwise they use const references. Explicit scalar import(cpp)/export(cpp) parameters always cross the boundary by value.
+Carven arrays, String, closures, and aggregates containing those storage forms retain storage through const references. Other types, including native types, use const values when C++ copy construction and destruction are both trivial; otherwise they use const references. Declared import(cpp)/export(cpp) functions use the same ordinary Read policy.
 
 By-value Read saves a value during argument evaluation. By-reference Read retains selected storage, so later aliased writes affect reads. An explicit owner copy can establish an independent immediate value, while views inside the copy still reference original backing. Take-conflict checks are not omitted based on native Read representation.
 

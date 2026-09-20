@@ -24,7 +24,7 @@ source: docs/grammar.md
 
 T { ... } 解析为构造，T(...) 总解析为调用。控制头部外层深度遇到所需大括号时开始 body；想在该位置使用构造表达式，需要括号包裹。if、match、循环容器与整数范围边界都遵守这个规则。模式的 is、绑定标识符、case 与竖线不依赖名字查找消歧。
 
-模块 import 是连续前缀。顶层 const 是模块常量；顶层可执行语句形成隐式入口。没有 namespace block、泛型声明、默认参数或可变参数语法。区间表达式 `a..b` 和 `a..=b` 不可连续结合，且必须提供两个整数端点。只有区间模式可以省略端点；不支持步长和隐式反向遍历。类型位置的非限定名 `range<T>` 表示整数区间。模式端点使用移位表达式，括号内可使用完整表达式；未加括号的 `|` 分隔模式分支。裸标识符绑定值，不表示检查一个已保存区间的成员关系。
+模块 import 是连续前缀。顶层 const 绑定是模块常量，`const { ... }` 引入常量块；顶层可执行语句形成隐式入口。没有 namespace block、泛型声明、默认参数或可变参数语法。区间表达式 `a..b` 和 `a..=b` 不可连续结合，且必须提供两个整数端点。只有区间模式可以省略端点；不支持步长和隐式反向遍历。类型位置的非限定名 `range<T>` 表示整数区间。模式端点使用移位表达式，括号内可使用完整表达式；未加括号的 `|` 分隔模式分支。裸标识符绑定值，不表示检查一个已保存区间的成员关系。
 
 ## 01 · 记法
 
@@ -163,7 +163,8 @@ top-level-item = module-item
                | CPP_SOURCE_FRAGMENT
                | statement;
 
-(* A top-level const is always a module constant declaration. *)
+(* A top-level const binding is a module constant declaration;
+   const test introduces a test and const { introduces a constant block. *)
 module-item = [ visibility-modifier ], module-declaration;
 
 visibility-modifier = "private" | "export";
@@ -320,6 +321,7 @@ ordinary-block = "{", { statement }, "}";
 
 ```text
 statement = variable-declaration
+          | constant-block
           | return-statement
           | throw-statement
           | rethrow-statement
@@ -339,6 +341,8 @@ update-statement = update-form, ";";
 expression-statement = expression, ";";
 
 control-flow-statement = if-form | match-form | try-form;
+
+constant-block = "const", ordinary-block;
 ```
 
 ## 18 · 赋值与更新

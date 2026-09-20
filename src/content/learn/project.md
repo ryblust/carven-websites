@@ -100,7 +100,7 @@ quote uses Read to inspect Item. purchase uses Write to update the original obje
 
 ## Extend the tests
 
-Keep Item, both failure types, quote, and purchase in the test file, then add the following test. When using the default test entry, omit the earlier main. Save as orders_tests.cv, then generate, compile, and run:
+Append this test to the original orders.cv, keeping its types, functions, and main:
 
 ```carven
 test "failed purchase preserves stock" {
@@ -119,15 +119,10 @@ test "failed purchase preserves stock" {
 ```
 
 ```sh
-carven compile --tests=default -o generated orders_tests.cv
-clang++ -std=c++20 -Igenerated -Icrafts \
-  generated/orders_tests.cpp \
-  generated/carven/generated/carven-test-main.cpp \
-  -o generated/orders-tests
-./generated/orders-tests
+carven --tests orders.cv
 ```
 
-Here crafts is the runtime-header directory matching the compiler. The relative path works directly from the Carven repository root. The test file does not import the original file containing main, avoiding two linked entries.
+Test mode executes the test and skips main, so it does not run the earlier purchase demonstration. purchase uses a Write parameter; use native test mode.
 
 ## Extend it yourself
 

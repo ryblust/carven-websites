@@ -1,6 +1,6 @@
 ---
 title: C++ 名字、操作与边界
-description: 头文件、原生类型、源片段、scalar 接口、异常和返回借用责任。
+description: 头文件、原生类型、源片段、函数契约、异常和返回借用责任。
 section: reference
 lesson: 15
 source: docs/semantics.md
@@ -50,7 +50,9 @@ Carven 检查已知 owner 可用性、显式冲突和已知文本 backing。它�
 
 每个顶层片段原样进入实现文件，保持独立，不解析或插入 Carven 值，不绑定同名 Carven 声明。宏、重载、模板、链接、异常、对象生命周期、ODR 和原生未定义行为由 C++ 契约负责。
 
-## 显式 scalar 边界
+片段只进入实现，不向生成头文件发布声明。公开原生声明应放在头文件，公开 Carven 入口使用 export(cpp)。片段围栏不隔离宏或 pragma 状态，也不能配置此前已包含的头文件；不同原生编译环境应由构建系统管理独立 C++ 文件。
+
+## 声明式函数边界
 
 ```carven
 private import(cpp) fn native_value(value: i32) -> i32;
@@ -58,21 +60,29 @@ private import(cpp) fn native_value(value: i32) -> i32;
 export(cpp) fn answer() -> i32 => 42;
 ```
 
-import(cpp) 是 private 或裸无体声明，调用同名无前缀全局 C++ 函数。Carven 不生成提供者声明、不解析比较其签名；定义、匹配和链接由作者/工具链完成。不同模块的同名导入仍是不同 Carven 能力。
+import(cpp) 是 private 或裸无体声明，按声明访问方式调用同名全局 C++ 提供者，由 C++ 进行重载解析与模板推导。Carven 不生成提供者声明，也不解析或比较其 C++ 签名；声明可见性、定义、契约匹配和链接由作者与工具链负责。不同模块中的同名导入仍是不同 Carven 能力。
 
-export(cpp) 是有体且对全批次可见的 Carven 函数，同时进入生成 API。不能直接导出 import(cpp)，需要普通包装函数。两方向均要求固定参数个数、无失败、Read 按值参数的顶层函数；不支持 Write/Take 或非空失败集合。
+export(cpp) 是有体、对全批次可见并进入生成 API 的 Carven 函数。不能直接导出 import(cpp)，需要普通包装函数。两个方向均遵循普通函数类型、访问、可见性、所有权与声明失败规则；void 仅能作为结果，可调用视图逃逸和公开类型可见性限制仍适用。
 
-| Carven         | C++                                     |
-| -------------- | --------------------------------------- |
-| bool           | bool                                    |
-| i8/i16/i32/i64 | std::int8_t/int16_t/int32_t/int64_t     |
-| u8/u16/u32/u64 | std::uint8_t/uint16_t/uint32_t/uint64_t |
-| isize/usize    | std::ptrdiff_t/std::size_t              |
-| f32/f64        | float/double                            |
-| char           | char32_t，入站检查标量有效性            |
-| void           | 仅结果                                  |
+| Carven 契约            | C++ 表示                                      |
+| ---------------------- | --------------------------------------------- |
+| 标量                   | 普通标量表示；char 为 char32_t                |
+| String / str           | carven::runtime::String / std::string_view    |
+| 数组、切片、区间、指针 | 普通生成容器、视图与指针类型                  |
+| 结构体、枚举、具体闭包 | 生成的名义类型                                |
+| 原生类型               | 声明的 C++ 类型及其头文件环境                 |
+| 可调用视图             | 声明签名对应的运行时 callable 表示            |
+| Read                   | 普通 Read 策略：值快照或 const 引用           |
+| Write                  | 可变引用                                      |
+| Take                   | 拥有值；导出使用普通转移，导入转发原生右值    |
+| 无失败结果             | 普通结果类型，包括 void                       |
+| 声明失败               | carven::runtime::Outcome<Result, Failures...> |
 
-str、String、数组、结构体、枚举、指针、callable、入口参数和范围视图不在此 scalar 边界内。头文件直接调用的原生能力与此闭合接口是不同形式。
+生成 API 头文件包含所需生成类型定义、原生头文件环境和运行时支持。消费者使用该头文件与匹配的运行时头文件作为 C++ 源码接口。内部测试停止传递不加入导出函数的声明失败集合；测试停止逃出原生入口时终止，声明失败仍作为 Outcome 返回。
+
+原生提供者与调用者负责生命周期、保留、重入和值有效性，包括 UTF-8 与 Unicode 标量。导入结果不建立未知 backing 关系，原生 Write 不证明旧借用已释放。声明回调可在调用期间执行，不授予超出借用寿命保留 callable 存储的权限。
+
+直接、无失败的导入 char 结果及导出 Read/Take char 参数会校验 Unicode 标量，无效时终止；这不是对聚合、指针、可变引用或 Outcome 的递归校验。
 
 提供者名不能是 main/std/carven。前导下划线的 C++ 保留规则由作者负责。export API 中安全名字保持拼写；不安全名字或以 `cv_escaped_` 开头的名字用该前缀加原 UTF-8 字节小写十六进制编码。排除 C++ 关键字、双下划线和 `_` 加大写首字母。函数/namespace 前缀冲突非法。
 
@@ -81,3 +91,5 @@ str、String、数组、结构体、枚举、指针、callable、入口参数和
 生成函数、闭包调用、导入桥接和导出 façade 是 noexcept 边界。原生操作不必自己声明 noexcept，但异常逃出边界调用 std::terminate。构造、成员、运算符和生命周期操作同样适用。Carven try 不捕获原生异常。
 
 需要继续执行时，在头文件、原生源或 cpp 片段的适配函数中先捕获异常，再通过选定接口返回应用结果。cpp 片段不会包围生成的 Carven 函数体。
+
+原生适配器可显式返回与声明失败契约匹配的 Outcome；C++ 异常不会自动转换为 Carven 失败。

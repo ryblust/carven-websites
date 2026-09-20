@@ -1,6 +1,6 @@
 ---
 title: "Modules, declarations, and visibility"
-description: "Explicit input batches, craft domains, import resolution, name lookup, and interface visibility."
+description: "Compilation batches, craft domains, import resolution, name lookup, and interface visibility."
 section: reference
 lesson: 2
 source: docs/semantics.md
@@ -8,7 +8,7 @@ source: docs/semantics.md
 
 ## Batches and canonical module names
 
-A compilation includes only source files explicitly supplied by the caller. Import does not search the filesystem or download dependencies. Each input maps to a unique canonical module name. Path components follow `[A-Za-z_][A-Za-z0-9_]*`; module components may be language keywords.
+A compilation analyzes a closed source batch assembled by its driver or build integration before import resolution. Import does not search the filesystem or download dependencies. Each input maps to a unique canonical module name. Path components follow `[A-Za-z_][A-Za-z0-9_]*`; module components may be language keywords.
 
 ```text
 src/main.cv                  → src.main
@@ -42,7 +42,7 @@ Imports have no runtime side effects. An import counts as used through an actual
 
 ## Declarations and lookup
 
-Functions, structs, enums, and module constants share one module namespace. Duplicate module declaration names are invalid; functions do not overload. Modules may also contain tests, C++ fragments, and entry statements.
+Functions, structs, enums, and module constants share one module namespace. Duplicate module declaration names are invalid; functions do not overload. Modules may also contain tests, constant blocks, C++ fragments, and entry statements.
 
 Declaration identities are collected across the batch. Valid forward calls, mutual recursion, and constant dependencies are independent of source order. Cycles in required constant facts are errors.
 
@@ -71,4 +71,4 @@ export fn expose() -> Hidden {
 }
 ```
 
-Direct execution assembles its batch from explicit application files plus the fixed toolchain and project Crafts roots. `compile` and `interpret` do not collect those roots automatically. This happens before import resolution and does not make imports search the filesystem.
+The CLI combines explicit application files with the toolchain and project Crafts roots for `check`, `compile`, native execution, and `interpret`. Collection happens before import resolution. See [source collection](/reference/cli/#source-collection) for roots, deduplication, and installed-library requirements.

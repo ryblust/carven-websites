@@ -14,7 +14,7 @@ The tutorial teaches programming in learning order. The Reference establishes wh
 
 ## Basic model
 
-Carven analyzes an explicitly supplied batch of `.cv` files and generates C++ headers and implementations. Within a batch it resolves modules, nominal types, function signatures, constant dependencies, failure sets, ownership, and known borrow relationships. The C++ toolchain checks native declarations, templates, construction, overloads, and linking requirements.
+Carven analyzes a closed batch of `.cv` files and generates C++ headers and implementations. The CLI assembles that batch from explicit application inputs and collected Crafts sources. Within a batch it resolves modules, nominal types, function signatures, constant dependencies, failure sets, ownership, and known borrow relationships. The C++ toolchain checks native declarations, templates, construction, overloads, and linking requirements.
 
 A type describes what a value is. Access describes how an operation uses storage. Ownership determines when a value's lifetime ends. A failure contract describes which failure types a call can propagate. These facts are checked separately.
 

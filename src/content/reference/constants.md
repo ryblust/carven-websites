@@ -28,13 +28,23 @@ Ordinary function calls and direct control-flow expressions are not constant exp
 
 Constant integer arithmetic checks overflow, division by zero, and shift ranges. Integer casts reduce modulo the destination width. Required constant execution supports f32/f64 negation, arithmetic, comparisons, and admitted numeric casts. `const x = 1.0 + 2.0;` evaluates to `3.0`. Ordinary runtime floating arithmetic and ordering retain native execution rather than acquiring optional facts through host computation.
 
+## Constant blocks
+
+`const { ... }` is a statement at module scope or inside statement blocks, without a trailing semicolon. Each block executes exactly once during semantic analysis, including blocks in uncalled functions, unselected runtime branches, and loops; it emits no runtime code. Blocks use constant-execution types and operations, including mutable locals, control flow, text, aggregates, const fn calls, and failure recovery.
+
+Each block has independent lexical scope, storage, and budget. Visible constants are available; enclosing execution-frame parameters and runtime locals are unavailable. The result is void; `return;` or a void return operand ends the block, and loop transfers target only loops inside it. Nested constant blocks are independent evaluation roots.
+
+Cross-block order is unspecified; operations requiring a sequence belong in one block. Declarations and lifetimes end inside the block. Output and diagnostics go to the compiler's caller and cannot be read back by another block.
+
+`?` may propagate to the block boundary. Escaping failures, execution errors, and exhausted budgets fail compilation; completed output remains visible. Blocks create no test context: check/require/fail require an active const test. Blocks execute independently of test-artifact selection, including during `check`.
+
 ## const fn
 
 A const fn is a named function eligible for required constant execution. Declaration alone does not execute it. Ordinary runtime calls remain runtime calls, even with literal arguments. Entries and import(cpp) cannot be const fn.
 
 ```carven
 const fn label(count: i32) -> String {
-    var result = String::new();
+    var result = String {};
 
     for index in 0..count {
         result.append_format(f"{index:02}");

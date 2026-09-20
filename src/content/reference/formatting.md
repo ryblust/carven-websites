@@ -64,7 +64,7 @@ Each constant interpolation result is limited to 1 MiB, with additional cumulati
 
 ## Printing
 
-print/println/eprint/eprintln need no import and follow ordinary lookup and shadowing. They accept one or more Read builtin scalars or str/String and return void. println() and eprintln() also allow zero arguments.
+print/println/eprint/eprintln need no import and follow ordinary lookup and shadowing. They accept one or more Read values and return void. void, entry arguments, and character-iteration views are not printable. println() and eprintln() also allow zero arguments.
 
 | Operation | Stream | Ending           |
 | --------- | ------ | ---------------- |
@@ -78,3 +78,11 @@ Arguments are evaluated once left to right and separated by one space. Scalars s
 Printing needs no ?. Buffering and flushing follow the C++ standard library, with no promise to flush every call. Native formatting or output failures terminate. An expected signature may select a printing callable, for example `let output: fn(str, i32) -> void = println;`.
 
 const fn and const test can print directly within their supported type subset. Only required constant execution writes through the compiler host; ordinary runtime calls still print at runtime. Completed output remains after later failure. Output bytes count toward cumulative text work.
+
+## Structural display
+
+Direct `println(value)` displays logical data structure: structs show source type names and fields in declaration order, enums show `Type::Case` and payloads, arrays and slices show bracketed elements, and integer ranges show bounds with `..` or `..=`. Nonempty structs, sequences, and enum payloads expand across lines, with four spaces per level, a trailing comma per item, and a closing delimiter on its own line. Empty structs and sequences remain `Type {}` and `[]`. Layout does not depend on line width.
+
+Nested text and characters are quoted and escaped; top-level text stays verbatim. Pointers show an address or `nullptr` without dereferencing; external C++ types and callables show `<opaque>`. Display never calls custom formatters, stream insertion operators, or getters. `println(f"{value}")` first performs explicit formatting instead. Read and backing requirements cover the complete value; printing adds no owning copy or transfer.
+
+The root has depth zero. Display expands at most eight levels, shows at most 64 elements per array or slice, and retains at most 16,384 UTF-8 bytes including layout whitespace, marking omissions with `...`. These limits also apply to structural values in assertion explanations, but not top-level verbatim text. Display is diagnostic text, not serialization. Constant blocks, const fn, and const test use the same display rules within their execution subsets.

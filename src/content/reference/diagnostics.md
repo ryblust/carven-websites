@@ -20,7 +20,7 @@ Unused checks count reachable references as uses. _ is never an unused candidate
 | CONST             | Constant contexts, execution subsets, overflow, dependency cycles, and budgets   |
 | EFFECT            | Nonempty ? operands, declared bounds, and residual catch sets                    |
 | TYPE / MATCH      | Canonical types, context, case payloads, and pattern coverage                    |
-| CPP               | Provider boundary shapes, scalar types, and API names                            |
+| CPP               | Native provider identifiers and API name collisions                              |
 | PTR               | Local non-null proof before dereference                                          |
 | ENTRY / INTERPRET | Entry count and parameters, interpreter execution subset                         |
 | TEST              | Conditions, message types, argument counts, and active tests                     |
@@ -46,8 +46,6 @@ The following preserves registered codes, default severities, and English defaul
 | `CV-ACCESS-RANGE-ITERABLE`                | Error            | Invalid Write range iterable.                                                |
 | `CV-CATALOG`                              | Error            | Semantic catalog failure.                                                    |
 | `CV-COMPILATION-INPUT`                    | Error            | Invalid closed-compilation input.                                            |
-| `CV-CPP-BOUNDARY`                         | Error            | Invalid C++ boundary declaration.                                            |
-| `CV-CPP-CARRIER`                          | Error            | Unsupported C++ boundary type.                                               |
 | `CV-CPP-IDENTIFIER`                       | Error            | Invalid C++ boundary identifier.                                             |
 | `CV-CPP-API-PATH-COLLISION`               | Error            | C++ API function conflicts with a namespace path.                            |
 | `CV-CONST-ARRAY-EXTENT`                   | Error            | Invalid constant array extent.                                               |
@@ -118,6 +116,7 @@ The following preserves registered codes, default severities, and English defaul
 | `CV-TEST-DUPLICATE-NAME`                  | Error            | Duplicate test name.                                                         |
 | `CV-TEST-MAIN-NAME`                       | Error            | Reserved test-main name.                                                     |
 | `CV-TEST-MESSAGE-TYPE`                    | Error            | Inline-test message must have type str.                                      |
+| `CV-TYPE-DEFAULT-INITIALIZATION`          | Error            | Type has no default value.                                                   |
 | `CV-TYPE-ARRAY-ELEMENT`                   | Error            | Incompatible array element type.                                             |
 | `CV-TYPE-ASSIGNMENT-INTEGER`              | Error            | Integer assignment required.                                                 |
 | `CV-TYPE-ASSIGNMENT-NUMERIC`              | Error            | Numeric assignment required.                                                 |

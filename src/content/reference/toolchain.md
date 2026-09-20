@@ -14,7 +14,7 @@ Native consumers select exception support according to provider requirements. A 
 
 ## Build responsibilities
 
-Delivery requires Carven analysis, C++ compilation, and linking. The build system supplies the complete source batch, native include paths, providers, libraries, and compiler options. `carven compile` writes artifacts; direct source execution additionally performs local native compilation and execution.
+Delivery requires Carven analysis, C++ compilation, and linking. The build system supplies explicit application inputs, native include paths, providers, libraries, and compiler options. The CLI combines application inputs with the fixed Crafts roots. `carven compile` writes artifacts; direct source execution additionally performs local native compilation and execution.
 
 C++ checks delegated declarations, overloads, templates, conversions, construction, and linking. Generated diagnostics use source mapping. Earlier native aggregate components retained across a later failure may need copying or moving. An immovable component can fail native compilation even when direct construction at its final destination remains possible.
 

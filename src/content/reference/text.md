@@ -33,7 +33,7 @@ String owns contiguous valid UTF-8 bytes, including possible NUL. It performs no
 
 | Operation                 | Access and result                               |
 | ------------------------- | ----------------------------------------------- |
-| `String::new()`           | Empty String                                    |
+| `String {}`               | Empty String                                    |
 | `String::from_str(text)`  | Read str; independent copy                      |
 | `s.len()`, `s.is_empty()` | Read, O(1)                                      |
 | `s.as_str()`              | Read, O(1) borrow; no allocation or transcoding |
