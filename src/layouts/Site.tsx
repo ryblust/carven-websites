@@ -46,27 +46,43 @@ export default function Site({ children }: Props) {
           <a className="github-link" href={repository} target="_blank" rel="noopener noreferrer">
             GitHub <span aria-hidden="true">↗</span>
           </a>
-          <Link
-            className="language-switch"
-            to={localizedPath(pathname, locale === 'en' ? 'zh' : 'en')}
-            hrefLang={locale === 'en' ? 'zh-CN' : 'en'}
-            lang={locale === 'en' ? 'zh-CN' : 'en'}
-            aria-label={t('Read this page in English', '用中文阅读本页')}
-          >
-            {locale === 'en' ? '中文' : 'EN'}
-          </Link>
-          <details className="mobile-nav" key={`${pathname}#${hash}`}>
-            <summary>
-              {t('导航', 'Menu')} <span aria-hidden="true">＋</span>
-            </summary>
-            <nav aria-label={t('移动端导航', 'Mobile navigation')}>
-              {nav.map((item) => (
-                <Link key={item.key} to={localizedPath(item.path, locale)}>
-                  {t(item.label, item.english)}
-                </Link>
-              ))}
-            </nav>
-          </details>
+          <div className="header-actions">
+            <Link
+              className="language-switch"
+              to={localizedPath(pathname, locale === 'en' ? 'zh' : 'en')}
+              hrefLang={locale === 'en' ? 'zh-CN' : 'en'}
+              lang={locale === 'en' ? 'zh-CN' : 'en'}
+              aria-label={t('Read this page in English', '用中文阅读本页')}
+            >
+              {locale === 'en' ? '中文' : 'EN'}
+            </Link>
+            <details
+              className="mobile-nav"
+              key={`${pathname}#${hash}`}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape' && event.currentTarget.open) {
+                  event.preventDefault();
+                  event.currentTarget.open = false;
+                  event.currentTarget.querySelector('summary')?.focus();
+                }
+              }}
+            >
+              <summary aria-label={t('主导航菜单', 'Main navigation menu')}>
+                <svg className="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 6h16" />
+                  <path d="M4 12h16" />
+                  <path d="M4 18h16" />
+                </svg>
+              </summary>
+              <nav aria-label={t('移动端导航', 'Mobile navigation')}>
+                {nav.map((item) => (
+                  <Link key={item.key} to={localizedPath(item.path, locale)}>
+                    {t(item.label, item.english)}
+                  </Link>
+                ))}
+              </nav>
+            </details>
+          </div>
         </div>
       </header>
       <main id="main" ref={content} tabIndex={-1}>

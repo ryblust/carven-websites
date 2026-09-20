@@ -168,24 +168,6 @@
   border-radius: var(--radius);
   background: linear-gradient(145deg, #131316, #09090b);
 }
-.why-responsibilities {
-  margin: 32px 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 48px;
-  text-align: left;
-}
-.why-responsibilities dt {
-  color: var(--text);
-  font-size: 0.875rem;
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-.why-responsibilities dd {
-  color: var(--muted);
-  font-size: 1rem;
-  line-height: 1.8;
-}
 .why-selectors button:focus-visible {
   outline: 2px solid #c5cbd5;
   outline-offset: 3px;
@@ -208,7 +190,8 @@
 .why-demo pre {
   margin: 22px 0;
   padding: 20px 0;
-  height: 24rem;
+  max-height: 33rem;
+  min-height: 14rem;
   overflow-x: auto;
   font: var(--code-size) / var(--code-leading) var(--mono);
   color: #e1e3ea;
@@ -221,6 +204,7 @@
   font: inherit;
 }
 .why-result {
+  white-space: pre-line;
   text-align: left;
   border-top: 1px solid var(--line);
   padding-top: 16px;
@@ -252,6 +236,8 @@
   font-size: 0.75rem;
 }
 .why-demo-caption a {
+  display: inline-block;
+  margin-top: 24px;
   font-size: 0.875rem;
   text-underline-offset: 5px;
   text-decoration: underline;
@@ -341,10 +327,6 @@
   .why-demo-surface {
     padding: 16px;
   }
-  .why-responsibilities {
-    grid-template-columns: 1fr;
-    gap: 24px;
-  }
   .why-code-label > span {
     max-width: 130px;
     text-align: right;
@@ -358,7 +340,7 @@
     gap: 32px;
   }
   .why-demo pre {
-    height: 22rem;
+    max-height: 31rem;
   }
   .why-actions {
     flex-direction: column;

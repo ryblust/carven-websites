@@ -36,6 +36,23 @@ A tutorial links to Reference when a learner needs the full contract. Reference 
 
 Compiler paths below are relative to the sibling `carven` checkout; website paths are relative to this repository.
 
+## 2026-09-20 — homepage examples and navigation
+
+Website starting point: `ea1aec9`. This editorial pass retains the compiler baseline `65b142e0709dc725fb5377a05065f2932a17f7dc`; it does not claim a new full compiler review.
+
+- Keep selective failure recovery and direct JSON interop as distinct adoption reasons. Shorten bilingual homepage descriptions and remove the repeated responsibility columns.
+- Replace menu joining on the homepage and both compile-time feature pages with filtering route configuration into static endpoint text. The Carven and handwritten C++ examples use the same inputs and loop; the C++ comparison explicitly retains the computed text in an array behind a string_view. The tutorial still teaches construction and freezing through menu joining, and the feature pages identify that transition.
+- Source evidence: compiler `tests/language/functions/constant_structs.cv` for constant aggregate operations, `tests/language/functions/constant.cv` and `tests/language/text/formatted_append.cv` for constant text construction and freezing, and the existing constant-execution semantics. The displayed route list is text, not an HTTP router.
+- Put the benefit before the code, allow the longer Carven example to remain visible, and retain bounded scrolling for long C++ comparisons. Group language and menu controls at the right of the narrow header; use a menu/close icon with a 44-pixel target and Escape dismissal. Native details preserve navigation without JavaScript.
+
+Validation: the production build and TypeScript check pass; all 36 website tests pass; all 93 pages and 8,377 local links/assets pass link checking. Formatting and git diff checks pass. The extracted C++ example compiles in C++20 mode with static assertions for the exact endpoint text and its 15-character length. Safari review covers both homepage locales at desktop and narrow widths, example/language switching, and narrow navigation click, Space, and Escape behavior.
+
+Follow-up validation: rebuilt the local compiler with `./xmakew build`, then ran the route example through `carven check` and native execution with compile-time assertions. The default configuration produces `/health\n/users\n` (15 characters); enabling `/debug` produces `/health\n/users\n/debug\n` (22 characters). Both programs print the expected list. Validation used HEAD `65b142e0709dc725fb5377a05065f2932a17f7dc` plus pre-existing working-tree changes, including backend lowering/realization and provider-contract work; it is not a test of the pristine commit. No compiler source was changed by this website task, and no full compiler test-suite result is claimed.
+
+The feature pages now include a runnable entry that consumes the static text. AGENTS.md clarifies homepage purpose, fair C++ comparisons, execution checks for changed examples, and stable code alignment without mandatory equal heights. Website production build, all 36 tests, all 8,377 local link/asset checks, formatting and diff checks were repeated after the follow-up edits. Per user instruction, the earlier browser review was not repeated.
+
+The local preview was stopped. Old preview logs and Vite/Vitest caches were removed; production builds replace prior dist output and content generation prunes obsolete generated articles. Every public image, favicon and font is still referenced; font license and attribution files remain with the font. Publication uses the existing manually dispatched GitHub Pages workflow after pushing main.
+
 ## 2026-09-20 — commands, construction, and native contracts
 
 ### Content changes

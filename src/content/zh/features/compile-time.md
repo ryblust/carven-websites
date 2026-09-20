@@ -7,26 +7,49 @@ source: docs/semantics.md
 
 ## 编译期也能逐步构造
 
-查找表、固定记录与文本经常需要循环、局部修改和辅助函数。Carven 的 const fn 允许用这些普通语言结构准备数据。
+根据路由配置生成启用的接口清单：用循环筛选，再逐步追加文本。Carven 的 const fn 允许在编译期直接完成这些工作。
 
 ```carven
-const fn join(items: [str; 3]) -> String {
+struct Route { path: str, enabled: bool }
+
+const fn route_list(routes: [Route; 3]) -> String {
     var text = String {};
-    for item in items {
-        if !text.is_empty() {
-            text.append(" / ");
+    for route in routes {
+        if route.enabled {
+            text.append(route.path);
+            text.append("\n");
         }
-        text.append(item);
     }
     return text;
 }
 
-const menu = join(["Home", "Docs", "About"]);
+const endpoints = route_list([
+    Route { path: "/health", enabled: true },
+    Route { path: "/users", enabled: true },
+    Route { path: "/debug", enabled: false },
+]);
 ```
 
-menu 在编译时得到 `Home / Docs / About`。函数执行期间，String 可以增长、复制和转移；完成常量初始化后，结果冻结为具有静态存储的 str。运行程序不必重新执行这段构造循环。
+endpoints 在编译时得到以下文本，每个路径后都有换行；禁用的 `/debug` 不进入结果。这是一份文本清单，不会创建 HTTP 路由器。
+
+```text
+/health
+/users
+```
+
+函数执行期间，String 可以增长、复制和转移；完成常量初始化后，结果冻结为具有静态存储的 str。运行程序不必重新执行这段构造循环。
 
 **构造过程可以可变，交付的数据保持静态。** 固定数组和支持的结构体也可以逐步构造；数组结果还可在常量初始化边界形成具有静态 backing 的只读切片。
+
+把上面的代码保存为 `routes.cv`，追加一个打印清单的入口：
+
+```carven
+fn main() {
+    println(endpoints);
+}
+```
+
+用 `carven routes.cv` 运行即可查看清单。这时程序读取已经生成的静态文本，不再遍历配置或拼接字符串。将 `/debug` 的 enabled 改为 true，再次编译运行，清单便会增加 `/debug`。这里选择打印作为结果的消费方式；实际程序也可以把这份 str 交给接受文本的接口。
 
 ## 把构造过程与静态结果连接起来
 
@@ -34,22 +57,24 @@ C++ 的 constexpr、consteval 与模板同样能够表达编译期工作。手�
 
 Carven 为支持的源语言操作执行自己的常量计算，并在初始化完成处处理结果冻结。例如这里的临时 String 构造最终交付静态 str；这一步由 Carven 在生成 C++ 之前完成，不要求对应运行时文本函数也能完成同一次 C++ 常量求值。
 
-在[深入教程](/zh/learn/constants/)中，可以运行完整的 Carven 与 C++ 对照，并修改输入或契约，观察两边的行为。
+首页的 C++ 对照使用 `freeze` 模板，把计算出的字符复制到按结果长度建立的静态数组，再交给 `string_view` 引用。Carven 直接在常量初始化边界完成这项存储安排。静态字符串库也可以为 C++ 封装这些步骤。
+
+[深入教程](/zh/learn/constants/)用菜单拼接逐步讲解相同的构造与冻结过程，提供完整的 Carven 与 C++ 运行步骤。
 
 ## 一份算法，明确选择执行阶段
 
 在必需常量上下文调用 const fn，计算由 Carven 完成。普通运行时调用仍是运行时函数调用，即使实参恰好是字面量。
 
-因此 join 既能准备固定菜单，也能根据运行时输入构造文本。阶段选择有明确的源码契约；常量计算无法完成时会给出诊断，不会悄悄退回运行时。
+因此 route_list 既能准备固定清单，也能根据运行时的路由配置构造文本。阶段选择有明确的源码契约；常量计算无法完成时会给出诊断，不会悄悄退回运行时。
 
 ## 验证发生在程序运行之前
 
-编译期生成的数据可以立即接受编译期测试。下面的测试与前面的 menu 放在同一文件：
+编译期生成的数据可以立即接受编译期测试。下面的测试与前面的 endpoints 放在同一文件：
 
 ```carven
-const test "menu contents" {
-    check(menu == "Home / Docs / About");
-    check(menu.len() == 19);
+const test "enabled endpoints" {
+    check(endpoints == "/health\n/users\n");
+    check(endpoints.len() == 15);
 }
 ```
 

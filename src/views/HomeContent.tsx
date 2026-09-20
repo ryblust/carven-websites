@@ -12,19 +12,11 @@ export default function HomeContent({ locale }: { locale: Locale }) {
   const [language, setLanguage] = useState<'carven' | 'cpp'>('carven');
   const examples = [
     {
-      label: t('读取端口', 'Read a port'),
+      label: t('失败处理', 'Handle failures'),
       title: t('恢复一种失败，上层就少一种责任。', 'Handle a failure. Narrow the contract.'),
       detail: t(
-        '配置缺失时使用 8080；没有读取权限或端口格式不对，仍交给调用者处理。恢复 Missing 后，函数契约只剩 Denied 和 BadPort。',
-        'Use 8080 when the config is missing. Leave denied access and invalid ports to the caller. Handling Missing leaves only Denied and BadPort in the contract.',
-      ),
-      work: t(
-        '组合失败集合，检查恢复后剩余的类型。你写成功路径和恢复规则，编译器安排传播。',
-        'Compose failure sets and check what remains after recovery. You write the success path and recovery rules; the compiler arranges propagation.',
-      ),
-      foundation: t(
-        'C++ 的类型与控制流承载结果和失败。对照用 expected、variant 与分支显式组织这份契约。',
-        'C++ types and control flow carry results and failures. The comparison organizes this contract explicitly with expected, variant, and branches.',
+        '配置缺失，就用默认端口。你写成功路径和恢复规则，Carven 处理传播，并检查剩下的失败契约。',
+        'Use a default port when the config is missing. Write the success path and recovery rule; Carven handles propagation and checks the remaining failure contract.',
       ),
       html: homeExamples.failures,
       cpp: homeExamples.failuresCpp,
@@ -40,47 +32,31 @@ export default function HomeContent({ locale }: { locale: Locale }) {
       path: '/features/failure-contracts/',
     },
     {
-      label: t('编译期拼接文本', 'Compile-time text'),
+      label: t('编译期生成', 'Build at compile time'),
       title: t('构造时可以修改，运行时只剩结果。', 'Mutable while building. Static when shipped.'),
       detail: t(
-        '用循环拼接菜单，不必先算字符数或为结果另备数组。Carven 在编译期构造 String，再把结果冻结为静态 str。',
-        'Join menu items in a loop, without first calculating a character count or supplying a storage array. Carven builds a String at compile time, then freezes the result into a static str.',
-      ),
-      work: t(
-        '在常量初始化时完成计算，把临时 String 冻结为静态 str，无需另写保存结果的数组。',
-        'Evaluate the constant initializer and freeze the temporary String into a static str, without a separate array to retain the result.',
-      ),
-      foundation: t(
-        'C++ 的静态存储承载最终文本。对照用 constexpr、consteval 和模板完成计算与存储安排。',
-        'C++ static storage holds the final text. The comparison uses constexpr, consteval, and templates to calculate and retain it.',
+        '从配置生成启用的接口清单，照常写循环、判断和文本追加。Carven 在编译期完成构造，将结果保存为静态文本。',
+        'Build a list of enabled endpoints from configuration, using ordinary loops, conditions, and text operations. Carven runs the construction at compile time and keeps the result as static text.',
       ),
       html: homeExamples.constants,
       cpp: homeExamples.constantsCpp,
       result: t(
-        '可变 String → 静态 str · Home / Docs / About',
-        'Mutable String → Static str · Home / Docs / About',
+        '编译期结果 · 静态 str\n/health\n/users',
+        'Compile-time result · Static str\n/health\n/users',
       ),
       comparison: t(
-        '两边用相同的循环拼接三个菜单项。C++20 的 constexpr string 可以参与计算；这里用 freeze 模板按计算出的长度建立数组，保存字符，再让 string_view 引用它。Carven 在常量初始化时完成这一步。C++ 示例是手写等价代码，也可以采用其他静态字符串封装。',
-        'Both join three items with the same loop. C++20 constexpr string handles the computation; the freeze template sizes an array from the result, stores its characters, and gives string_view lasting storage. Carven does this at constant initialization. The C++ is handwritten; a static-string library could encapsulate this work.',
+        '两边筛选相同的路由配置，生成以换行分隔的路径文本；这里不创建 HTTP 路由器。C++20 用 constexpr string 构造，再用 freeze 模板按结果长度建立持久数组，供 string_view 引用。Carven 在常量初始化时将临时 String 冻结为静态 str。对照是手写等价实现；静态字符串库也可以封装这项存储工作。',
+        'Both filter the same route configuration into newline-separated path text; this does not create an HTTP router. C++20 builds with constexpr string, then freeze sizes lasting array storage for a string_view. Carven freezes the temporary String into a static str at constant initialization. The comparison is handwritten; a static-string library could encapsulate the storage work.',
       ),
       standard: 'C++20',
       path: '/features/compile-time/',
     },
     {
-      label: t('读取 JSON', 'Read JSON'),
+      label: t('调用 C++', 'Use C++ libraries'),
       title: t('现成的 C++ 库，直接用。', 'Use the C++ library you already have.'),
       detail: t(
-        '用 nlohmann/json 解析配置，调用 JSON 对象的方法读取端口。导入原生头文件即可使用这些接口，无需为这个调用另写绑定。',
-        'Parse config with nlohmann/json, then read the port through its JSON object. Import the native header and use these APIs without writing a binding for this call.',
-      ),
-      work: t(
-        '在 Carven 中表达调用，直接连接原生接口；这个调用无需另写绑定。',
-        'Express the call in Carven and connect directly to the native API, without writing a binding for this call.',
-      ),
-      foundation: t(
-        '解析能力来自 nlohmann/json。库的重载与模板由 C++ 编译器检查，原生库继续完成它擅长的工作。',
-        'Parsing comes from nlohmann/json. The C++ compiler checks library overloads and templates; the native library keeps doing its work.',
+        '导入 nlohmann/json，解析配置，调用对象方法。这个调用无需另写绑定，现成的 C++ 库继续为你工作。',
+        'Import nlohmann/json, parse the config, and call its object methods. No binding is needed for this call; the C++ library you already use keeps doing the work.',
       ),
       html: homeExamples.native,
       cpp: homeExamples.nativeCpp,
@@ -145,12 +121,20 @@ export default function HomeContent({ locale }: { locale: Locale }) {
           </h2>
           <p className="home-demo-lead">
             {t(
-              '切换同一任务的两种写法，看哪些工作可以交给语言，哪些能力继续由 C++ 提供。',
-              'Switch between two ways to express the same task. See what the language takes care of, and where C++ provides the power.',
+              '让语言处理失败传播与常量存储，继续使用现成的 C++ 库。切换代码，对比同一任务的两种写法。',
+              'Let the language handle failure propagation and constant storage. Keep using your C++ libraries. Switch code to compare two ways to express the same task.',
             )}
           </p>
         </header>
         <div className="why-comparison">
+          <div className="why-demo-caption" aria-live="polite" aria-atomic="true">
+            <p className="why-eyebrow">{t('同一个任务', 'The same task')}</p>
+            <h3>{example.title}</h3>
+            <p>{example.detail}</p>
+            <Link to={localizedPath(example.path, locale)}>
+              {t('探索这项能力', 'Explore this feature')} <span aria-hidden="true">↗</span>
+            </Link>
+          </div>
           <div className="why-demo-surface">
             <div
               className="why-selectors"
@@ -203,24 +187,6 @@ export default function HomeContent({ locale }: { locale: Locale }) {
                 <p>{example.comparison}</p>
               </details>
             </div>
-          </div>
-          <div className="why-demo-caption" aria-live="polite" aria-atomic="true">
-            <p className="why-eyebrow">{t('同一个任务', 'The same task')}</p>
-            <h3>{example.title}</h3>
-            <p>{example.detail}</p>
-            <dl className="why-responsibilities">
-              <div>
-                <dt>{t('Carven 承担的工作', 'What Carven takes care of')}</dt>
-                <dd>{example.work}</dd>
-              </div>
-              <div>
-                <dt>{t('C++ 提供的能力', 'What C++ brings')}</dt>
-                <dd>{example.foundation}</dd>
-              </div>
-            </dl>
-            <Link to={localizedPath(example.path, locale)}>
-              {t('深入这项能力', 'Explore this feature')} <span aria-hidden="true">↗</span>
-            </Link>
           </div>
         </div>
       </section>

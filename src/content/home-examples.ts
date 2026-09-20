@@ -9,18 +9,24 @@ fn port() -> i32 throw Denied + BadPort {
         Missing(_) => 8080,
     };
 }`,
-  constants: `const fn join(items: [str; 3]) -> String {
+  constants: `struct Route { path: str, enabled: bool }
+
+const fn route_list(routes: [Route; 3]) -> String {
     var text = String {};
-    for item in items {
-        if !text.is_empty() {
-            text.append(" / ");
+    for route in routes {
+        if route.enabled {
+            text.append(route.path);
+            text.append("\\n");
         }
-        text.append(item);
     }
     return text;
 }
 
-const menu = join(["Home", "Docs", "About"]);`,
+const endpoints = route_list([
+    Route { path: "/health", enabled: true },
+    Route { path: "/users", enabled: true },
+    Route { path: "/debug", enabled: false },
+]);`,
   native: `import <nlohmann/json.hpp> using nlohmann::json::parse;
 
 fn main() {
@@ -54,13 +60,15 @@ std::expected<int, std::variant<Denied, BadPort>> port() {
 #include <string>
 #include <string_view>
 
-constexpr std::string join(std::array<std::string_view, 3> items) {
+struct Route { std::string_view path; bool enabled; };
+
+constexpr std::string route_list(std::array<Route, 3> routes) {
     std::string text;
-    for (auto item : items) {
-        if (!text.empty()) {
-            text.append(" / ");
+    for (auto route : routes) {
+        if (route.enabled) {
+            text.append(route.path);
+            text.append("\\n");
         }
-        text.append(item);
     }
     return text;
 }
@@ -76,9 +84,13 @@ consteval auto freeze() {
 }
 
 constexpr auto data = freeze<[] {
-    return join({"Home", "Docs", "About"});
+    return route_list({{
+        {"/health", true},
+        {"/users", true},
+        {"/debug", false},
+    }});
 }>();
-constexpr std::string_view menu{data.data(), data.size()};`,
+constexpr std::string_view endpoints{data.data(), data.size()};`,
   nativeCpp: `#include <iostream>
 #include <nlohmann/json.hpp>
 

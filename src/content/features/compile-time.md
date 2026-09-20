@@ -7,26 +7,49 @@ source: docs/semantics.md
 
 ## Build incrementally during compilation
 
-Lookup tables, fixed records, and text often need loops, local mutation, and helper functions. Carven's const fn lets you prepare data with these ordinary language constructs.
+Generate a list of enabled endpoints from route configuration: filter in a loop and append text as you go. Carven's const fn runs these ordinary operations at compile time.
 
 ```carven
-const fn join(items: [str; 3]) -> String {
+struct Route { path: str, enabled: bool }
+
+const fn route_list(routes: [Route; 3]) -> String {
     var text = String {};
-    for item in items {
-        if !text.is_empty() {
-            text.append(" / ");
+    for route in routes {
+        if route.enabled {
+            text.append(route.path);
+            text.append("\n");
         }
-        text.append(item);
     }
     return text;
 }
 
-const menu = join(["Home", "Docs", "About"]);
+const endpoints = route_list([
+    Route { path: "/health", enabled: true },
+    Route { path: "/users", enabled: true },
+    Route { path: "/debug", enabled: false },
+]);
 ```
 
-menu becomes `Home / Docs / About` during compilation. While the function executes, String can grow, be copied, and be transferred. At the end of constant initialization, the result freezes into str backed by static storage. The running program does not need to repeat this construction loop.
+endpoints becomes the following text during compilation, with a newline after each path. The disabled `/debug` route is excluded. This builds a text list, not an HTTP router.
+
+```text
+/health
+/users
+```
+
+While the function executes, String can grow, be copied, and be transferred. At the end of constant initialization, the result freezes into str backed by static storage. The running program does not need to repeat this construction loop.
 
 **Construction can be mutable while the delivered data is static.** Fixed arrays and supported structures can also be built incrementally. Array results can become read-only slices with static backing at the constant-initialization boundary.
+
+Save the code above as `routes.cv` and append an entry that prints the list:
+
+```carven
+fn main() {
+    println(endpoints);
+}
+```
+
+Run `carven routes.cv` to see the list. The program reads the generated static text without traversing the configuration or joining strings again. Set enabled to true for `/debug`, then rebuild and run: the list gains `/debug`. Printing is the consumer here; an application can also pass this str to an interface that accepts text.
 
 ## Connect the construction process to a static result
 
@@ -34,22 +57,24 @@ C++ constexpr, consteval, and templates also express compile-time work. In handw
 
 Carven evaluates supported source operations itself and freezes results when initialization completes. Here, temporary String construction delivers a static str. This happens before C++ generation, without requiring the corresponding runtime text functions to perform the same computation in C++ constant evaluation.
 
-The [tutorial](/learn/constants/) provides complete runnable Carven and C++ versions, with edits to try and behavior to compare.
+The homepage C++ comparison uses a `freeze` template to copy the computed characters into a static array sized from the result, then exposes a `string_view`. Carven handles that storage at the constant-initialization boundary. A static-string library can also encapsulate these steps for C++.
+
+The [tutorial](/learn/constants/) teaches the same construction and freezing process through menu text, with complete Carven and C++ run instructions.
 
 ## One algorithm, an explicit execution stage
 
 A const fn call in a required constant context is evaluated by Carven. An ordinary runtime call remains a runtime function call, even when its arguments happen to be literals.
 
-join can therefore prepare a fixed menu or construct text from runtime input. The source contract determines the stage. A required constant computation that cannot complete produces a diagnostic rather than falling back to runtime.
+route_list can therefore prepare a fixed list or construct text from runtime route configuration. The source contract determines the stage. A required constant computation that cannot complete produces a diagnostic rather than falling back to runtime.
 
 ## Verify before the program runs
 
-Compile-time data can immediately be checked by a compile-time test. Place this test in the same file as menu above:
+Compile-time data can immediately be checked by a compile-time test. Place this test in the same file as endpoints above:
 
 ```carven
-const test "menu contents" {
-    check(menu == "Home / Docs / About");
-    check(menu.len() == 19);
+const test "enabled endpoints" {
+    check(endpoints == "/health\n/users\n");
+    check(endpoints.len() == 15);
 }
 ```
 

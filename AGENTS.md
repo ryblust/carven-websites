@@ -1,6 +1,6 @@
 # Carven website
 
-This repository owns the static Carven website. Website work stays local and does not require changing or building the neighboring compiler. Publish only when requested.
+This repository owns the static Carven website. Website work stays local unless publication is requested. Do not change the neighboring compiler as part of website work. Building or using it to validate language examples is appropriate when needed; avoid unrelated compiler work.
 
 ## Toolchain
 
@@ -19,10 +19,12 @@ For dependency or framework changes, use `package.json`, the lockfile and the re
 ## Content and design
 
 - Marketing demonstrates current capabilities. Tutorials teach a task through complete examples, commands, expected results, and a focused exercise; introduce one new idea at a time and mark fragments that depend on earlier code. Reference defines accepted forms, requirements, evaluation order, and failure boundaries with small illustrative examples. Link to the canonical rule instead of duplicating a contract table in a lesson. Keep language semantics, CLI policy, and native-provider obligations distinct.
-- Write concise, neutral explanations. Verify language claims against the current compiler source and documentation; website tests do not validate Carven semantics.
+- Homepage copy leads with concrete benefits and a few credible reasons to adopt Carven. Choose natural tasks that demonstrate one main capability each; do not try to cover the language or turn the homepage into a reference. Tutorials explain the work, and Reference states the rules. Keep all claims precise and avoid hype.
+- Handwritten C++ comparisons use reasonable, idiomatic implementations under the same task requirements. Explain requirements that account for extra code, identify omitted setup and distinguish comparisons from compiler output. Do not inflate C++ boilerplate or imply that alternative libraries and representations do not exist.
+- Verify language claims against the current compiler source and documentation. Run new or substantially changed examples with an available, up-to-date compiler, including stated results or failure cases; identify the compiler revision and relevant working-tree changes. If execution is unavailable, report that limitation. Website builds and tests do not validate Carven semantics.
 - Chinese and English share layouts and interactions. Locale comes from the URL; preserve corresponding articles, metadata and accessible labels.
 - Use platform system fonts for the Carven wordmark, homepage name and other text, Allura for the homepage tagline, and system monospace for code. Keep the dark palette and restrained surface depth. Keep prose, comments and controls readable, with visible keyboard focus and reduced-motion support.
-- Examples use deliberate line breaks and four-space indentation. Switching homepage examples preserves their content width and left/top origin; narrow screens allow horizontal code scrolling.
+- Examples use deliberate line breaks and four-space indentation. Keep code width and left/top alignment stable when switching homepage examples. Equal heights are not required: avoid clipping short examples or leaving large empty areas solely for uniformity. Narrow screens allow horizontal code scrolling.
 
 ## Content alignment
 
