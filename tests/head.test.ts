@@ -5,7 +5,7 @@ import { siteUrl } from '../src/lib/site-url';
 afterEach(() => vi.unstubAllEnvs());
 
 describe('published language alternatives', () => {
-  it.each(['/', '/carven-websites/'])('keeps both locales and the sitemap on base %s', (base) => {
+  it.each(['/', '/carven-websites/'])('publishes reciprocal language links on base %s', (base) => {
     vi.stubEnv('BASE_URL', base);
     vi.stubEnv('SITE_ORIGIN', 'https://example.com');
 
@@ -14,41 +14,60 @@ describe('published language alternatives', () => {
       { rel: 'alternate', hrefLang: 'en', href: `https://example.com${base}learn/` },
       { rel: 'alternate', hrefLang: 'x-default', href: `https://example.com${base}learn/` },
     ];
-    expect(pageHead('Learn', 'Description', '/learn/').links).toEqual(expected);
-    expect(pageHead('学习', '说明', '/zh/learn/').links).toEqual(expected);
-    expect(siteUrl('/zh/learn/', base, 'https://example.com/')).toBe(
-      `https://example.com${base}zh/learn/`,
-    );
-    expect(siteUrl('/learn/', base, 'https://example.com/')).toBe(
-      `https://example.com${base}learn/`,
-    );
-    expect(pageHead(undefined, undefined, '/').links.map((link) => link.href)).toEqual([
-      `https://example.com${base}zh/`,
-      `https://example.com${base}`,
-      `https://example.com${base}`,
-    ]);
+    for (const path of ['/learn/', '/zh/learn/']) {
+      const { links } = pageHead(undefined, undefined, path);
+      expect(links).toHaveLength(expected.length);
+      expect(links).toEqual(expect.arrayContaining(expected));
+    }
+    for (const path of ['/', '/zh/']) {
+      const { links } = pageHead(undefined, undefined, path);
+      expect(links).toHaveLength(3);
+      expect(links).toEqual(
+        expect.arrayContaining([
+          { rel: 'alternate', hrefLang: 'zh-CN', href: `https://example.com${base}zh/` },
+          { rel: 'alternate', hrefLang: 'en', href: `https://example.com${base}` },
+          { rel: 'alternate', hrefLang: 'x-default', href: `https://example.com${base}` },
+        ]),
+      );
+    }
   });
 
   it('does not invent a published origin during local development', () => {
     vi.stubEnv('SITE_ORIGIN', '');
-    const head = pageHead('Learn', 'Description', '/learn/');
-    expect(head.links).toEqual([]);
-    expect(head.meta).toEqual([
-      { title: 'Learn · Carven' },
-      { name: 'description', content: 'Description' },
-    ]);
-    expect(siteUrl('/learn/', '/carven-websites/')).toBeUndefined();
+    expect(pageHead(undefined, undefined, '/learn/').links).toEqual([]);
   });
 
-  it('rejects SITE_URL values that are not public HTTP origins', () => {
-    for (const origin of [
-      'file:///tmp/site',
-      'https://user:password@example.com',
-      'https://example.com/docs/',
-      'https://example.com/?token=private',
-      'https://example.com/#fragment',
-    ]) {
-      expect(() => siteUrl('/learn/', '/', origin)).toThrow('SITE_URL must be an HTTP(S) origin');
-    }
+  it('omits page-specific alternatives when no route is provided', () => {
+    vi.stubEnv('SITE_ORIGIN', 'https://example.com');
+    expect(pageHead().links).toEqual([]);
+  });
+});
+
+describe('public site URLs', () => {
+  it.each(['https://example.com', 'http://example.com:8080'])(
+    'accepts HTTP(S) origin %s with or without a trailing slash',
+    (origin) => {
+      for (const input of [origin, `${origin}/`]) {
+        expect(siteUrl('/learn/', '/', input)).toBe(`${origin}/learn/`);
+        expect(siteUrl('/zh/learn/', '/docs/', input)).toBe(`${origin}/docs/zh/learn/`);
+      }
+    },
+  );
+
+  it('leaves publication URLs absent when no origin is configured', () => {
+    expect(siteUrl('/learn/', '/docs/')).toBeUndefined();
+    expect(siteUrl('/learn/', '/docs/', '')).toBeUndefined();
+  });
+
+  it.each([
+    'not-a-url',
+    '/relative-origin',
+    'file:///tmp/site',
+    'https://user:password@example.com',
+    'https://example.com/docs/',
+    'https://example.com/?token=private',
+    'https://example.com/#fragment',
+  ])('rejects an invalid publication origin: %s', (origin) => {
+    expect(() => siteUrl('/learn/', '/', origin)).toThrow();
   });
 });

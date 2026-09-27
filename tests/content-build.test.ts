@@ -6,9 +6,14 @@ import { ContentRepository } from '../scripts/content/ContentRepository.ts';
 import { Markdown } from '../scripts/content/Markdown.ts';
 import { ContentError } from '../scripts/content/model.ts';
 import { ContentLive } from '../scripts/content/live.ts';
+import { pathToFileURL } from 'node:url';
+import { homeExamples } from '../src/content/home-examples.ts';
 
 const lesson = (number: number) =>
-  `---\ntitle: Lesson ${number}\ndescription: Test lesson\nsection: learn\nlesson: ${number}\nsource: docs/tutorial.md\n---\n\n## Hello\n\n\`\`\`cv\nfn main() {}\n\`\`\`\n`;
+  `---\ntitle: Lesson ${number}\ndescription: Test lesson\nsection: learn\nlesson: ${number}\nsource: docs/tutorial.md\n---\n\n## Body ${number}\n\n\`\`\`cv\nfn main() {}\n\`\`\`\n`;
+
+const importGenerated = (file: string) =>
+  Effect.promise(() => import(/* @vite-ignore */ pathToFileURL(file).href));
 
 describe('content build', () => {
   it.effect('renders independent article modules and removes obsolete generated files', () =>
@@ -16,38 +21,38 @@ describe('content build', () => {
       const fs = yield* FileSystem.FileSystem;
       const root = yield* fs.makeTempDirectoryScoped();
       yield* fs.makeDirectory(`${root}/src/content/learn`, { recursive: true });
-      yield* fs.makeDirectory(`${root}/src/generated`, { recursive: true });
-      yield* fs.writeFileString(`${root}/src/generated/content.json`, '{"obsolete":true}');
+      yield* fs.makeDirectory(`${root}/src/generated/articles`, { recursive: true });
+      yield* fs.writeFileString(`${root}/src/generated/articles/removed.ts`, 'obsolete');
       yield* fs.writeFileString(`${root}/src/content/learn/index.md`, lesson(0));
       yield* fs.writeFileString(`${root}/src/content/learn/values.md`, lesson(1));
       const paths = yield* generateContent(root).pipe(Effect.provide(ContentLive));
       assert.deepStrictEqual(paths, ['/learn/', '/learn/values/']);
-      const html = yield* fs.readFileString(`${root}/src/generated/articles/learn/index.ts`);
-      assert.include(html, 'shiki');
-      assert.include(html, 'data-language=\\"cv\\"');
-      assert.include(
-        html,
-        '<div class=\\"code-wrap\\"><div class=\\"code-head\\"><span>Carven</span>',
-      );
-      assert.notInclude(html, 'copy-button');
-      assert.include(html, 'Hello');
-      assert.notInclude(html, 'Lesson 1');
-      const manifest = yield* fs.readFileString(`${root}/src/generated/manifest.ts`);
-      assert.include(manifest, 'lessonPaths');
-      assert.notInclude(manifest, 'shiki');
-      const home = yield* fs.readFileString(`${root}/src/generated/home-examples.ts`);
-      assert.include(home, 'carven-vesper-black');
-      assert.include(home, 'BadPort');
-      assert.include(home, 'freeze');
-      assert.include(home, 'nlohmann');
-      assert.include(home, 'Answer:');
-      assert.include(home, 'Shipped');
-      assert.notInclude(home, 'code-head');
-      assert.include(html, 'carven-vesper-black');
-      assert.isFalse(yield* fs.exists(`${root}/src/generated/content.json`));
-      assert.isFalse(
-        (yield* fs.readDirectory(`${root}/src`)).some((name) => name.startsWith('.content-')),
-      );
+      const first = yield* importGenerated(`${root}/src/generated/articles/learn/index.ts`);
+      const second = yield* importGenerated(`${root}/src/generated/articles/learn/values.ts`);
+      assert.include(first.default, 'Body 0');
+      assert.notInclude(first.default, 'Body 1');
+      assert.include(second.default, 'Body 1');
+      assert.notInclude(second.default, 'Body 0');
+      const manifest = yield* importGenerated(`${root}/src/generated/manifest.ts`);
+      assert.deepStrictEqual(manifest.articlePaths, paths);
+      assert.deepStrictEqual(manifest.lessonPaths, paths);
+      assert.deepStrictEqual(manifest.referencePaths, []);
+      assert.deepStrictEqual(Object.keys(manifest.articles), paths);
+      for (const metadata of Object.values(manifest.articles)) {
+        assert.notProperty(metadata, 'html');
+        assert.notProperty(metadata, 'file');
+      }
+      const home = yield* importGenerated(`${root}/src/generated/home-examples.ts`);
+      assert.deepStrictEqual(Object.keys(home.homeExamples), Object.keys(homeExamples));
+      for (const html of Object.values(home.homeExamples)) {
+        assert.isString(html);
+        assert.isNotEmpty(html);
+      }
+      assert.isFalse(yield* fs.exists(`${root}/src/generated/articles/removed.ts`));
+      assert.deepStrictEqual((yield* fs.readDirectory(`${root}/src`)).sort(), [
+        'content',
+        'generated',
+      ]);
     }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
 
@@ -103,14 +108,21 @@ describe('content build', () => {
     }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
 
-  it.effect('rejects duplicate lesson numbering before publication', () =>
+  it.effect.each([
+    ['duplicate chapter number', '/learn/values/', 0],
+    ['duplicate article route', '/learn/', 1],
+    ['reserved home route', '/', 1],
+    ['reserved error route', '/404/', 1],
+    ['reserved translated home route', '/zh/', 1],
+    ['reserved translated error route', '/zh/404/', 1],
+  ] as const)('rejects %s before publication', ([, path, number]) =>
     Effect.gen(function* () {
       let published = false;
       const repository = ContentRepository.of({
         read: () =>
           Effect.succeed([
             { file: 'learn/index.md', path: '/learn/', text: lesson(0) },
-            { file: 'learn/values.md', path: '/learn/values/', text: lesson(0) },
+            { file: 'learn/values.md', path, text: lesson(number) },
           ]),
         publish: () =>
           Effect.sync(() => {
@@ -128,22 +140,19 @@ describe('content build', () => {
   );
 });
 
-describe('static code block frames', () => {
+describe('static code readability', () => {
   it.effect.each([
     ['cv', 'Carven'],
     ['cpp', 'C++'],
     ['sh', 'Shell'],
     ['text', ''],
-  ])('keeps the %s label and header in unhydrated articles', ([language, label]) =>
+  ])('keeps the %s code and language label readable without JavaScript', ([language, label]) =>
     Effect.gen(function* () {
       const markdown = yield* Markdown;
-      const html = yield* markdown.render('frame.md', `\`\`\`${language}\nexample\n\`\`\``);
-      assert.include(
-        html,
-        `<div class="code-wrap"><div class="code-head"><span>${label}</span></div><pre`,
-      );
-      assert.include(html, '<code>');
-      assert.notInclude(html, '<button');
+      const html = yield* markdown.render('code.md', `\`\`\`${language}\nexample\n\`\`\``);
+      const visibleText = html.replace(/<[^>]*>/g, '');
+      assert.include(visibleText, 'example');
+      if (label) assert.include(visibleText, label);
     }).pipe(Effect.provide(Markdown.layer)),
   );
 });

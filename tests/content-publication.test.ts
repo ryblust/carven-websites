@@ -26,8 +26,7 @@ const publish = (root: string, fs: FileSystem.FileSystem, articles: ArticleDocum
     Effect.provideService(FileSystem.FileSystem, fs),
   );
 
-const snapshot = Effect.fn('snapshot')(function* (root: string, fs: FileSystem.FileSystem) {
-  const directory = `${root}/src/generated`;
+const snapshot = Effect.fn('snapshot')(function* (directory: string, fs: FileSystem.FileSystem) {
   const files: Record<string, string> = {};
   for (const name of (yield* fs.readDirectory(directory, { recursive: true })).sort()) {
     if ((yield* fs.stat(`${directory}/${name}`)).type === 'File') {
@@ -42,13 +41,11 @@ const fixture = Effect.fn('fixture')(function* () {
   const root = yield* fs.makeTempDirectoryScoped();
   yield* fs.makeDirectory(`${root}/src`);
   yield* publish(root, fs, previous);
-  return { fs, root, before: yield* snapshot(root, fs) };
+  return { fs, root, before: yield* snapshot(`${root}/src/generated`, fs) };
 });
 
 const assertClean = Effect.fn('assertClean')(function* (root: string, fs: FileSystem.FileSystem) {
-  assert.isFalse(
-    (yield* fs.readDirectory(`${root}/src`)).some((name) => name.startsWith('.content-')),
-  );
+  assert.deepStrictEqual(yield* fs.readDirectory(`${root}/src`), ['generated']);
 });
 
 describe('content publication transaction', () => {
@@ -73,15 +70,15 @@ describe('content publication transaction', () => {
         const faulty = FileSystem.FileSystem.of({
           ...fs,
           writeFileString: (path, contents, options) =>
-            phase === 'write' && path.endsWith('/next/manifest.ts')
+            phase === 'write' && path.endsWith('/manifest.ts')
               ? fail('writeFileString', path)
               : fs.writeFileString(path, contents, options),
           copyFile: (from, to) =>
-            phase === 'backup' && to.endsWith('/previous/manifest.ts')
+            phase === 'backup' && from === `${root}/src/generated/manifest.ts`
               ? fail('copyFile', to)
               : fs.copyFile(from, to),
           rename: (from, to) =>
-            phase === 'replace' && from.endsWith('/next/manifest.ts')
+            phase === 'replace' && to === `${root}/src/generated/manifest.ts` && failures === 0
               ? fail('rename', to)
               : fs.rename(from, to),
           remove: (path, options) =>
@@ -92,7 +89,7 @@ describe('content publication transaction', () => {
         const error = yield* publish(root, faulty, next).pipe(Effect.flip);
         assert.strictEqual(error.operation, 'publish');
         assert.strictEqual(failures, 1);
-        assert.deepStrictEqual(yield* snapshot(root, fs), before);
+        assert.deepStrictEqual(yield* snapshot(`${root}/src/generated`, fs), before);
         yield* assertClean(root, fs);
       }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
@@ -108,7 +105,7 @@ describe('content publication transaction', () => {
             .writeFileString(path, contents, options)
             .pipe(
               Effect.andThen(
-                path.endsWith('/next/manifest.ts')
+                path.endsWith('/manifest.ts')
                   ? Deferred.succeed(entered, undefined).pipe(Effect.andThen(Effect.never))
                   : Effect.void,
               ),
@@ -120,7 +117,7 @@ describe('content publication transaction', () => {
       const exit = yield* Fiber.await(fiber);
       assert.strictEqual(exit._tag, 'Failure');
       if (exit._tag === 'Failure') assert.isTrue(Cause.hasInterruptsOnly(exit.cause));
-      assert.deepStrictEqual(yield* snapshot(root, fs), before);
+      assert.deepStrictEqual(yield* snapshot(`${root}/src/generated`, fs), before);
       yield* assertClean(root, fs);
     }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
@@ -128,37 +125,54 @@ describe('content publication transaction', () => {
   it.effect('retains recovery files and reports a failed rollback', () =>
     Effect.gen(function* () {
       const { fs, root, before } = yield* fixture();
+      let commitFailed = false;
       const faulty = FileSystem.FileSystem.of({
         ...fs,
-        rename: (from, to) =>
-          from.endsWith('/next/manifest.ts') || from.endsWith('/previous/articles/first.ts')
-            ? Effect.fail(
-                PlatformError.systemError({
-                  _tag: 'PermissionDenied',
-                  module: 'FileSystem',
-                  method: 'rename',
-                  pathOrDescriptor: to,
-                }),
-              )
-            : fs.rename(from, to),
+        rename: (from, to) => {
+          if (to === `${root}/src/generated/manifest.ts`) commitFailed = true;
+          if (
+            commitFailed &&
+            [
+              `${root}/src/generated/manifest.ts`,
+              `${root}/src/generated/articles/first.ts`,
+            ].includes(to)
+          ) {
+            return Effect.fail(
+              PlatformError.systemError({
+                _tag: 'PermissionDenied',
+                module: 'FileSystem',
+                method: 'rename',
+                pathOrDescriptor: to,
+              }),
+            );
+          }
+          return fs.rename(from, to);
+        },
       });
       const exit = yield* publish(root, faulty, next).pipe(Effect.exit);
       assert.strictEqual(exit._tag, 'Failure');
-      if (exit._tag === 'Failure') assert.include(Cause.pretty(exit.cause), 'backups retained at');
-      const recovery = (yield* fs.readDirectory(`${root}/src`)).filter((name) =>
-        name.startsWith('.content-'),
+      const recovery = (yield* fs.readDirectory(`${root}/src`)).filter(
+        (name) => name !== 'generated',
       );
       assert.strictEqual(recovery.length, 1);
-      assert.strictEqual(
-        yield* fs.readFileString(`${root}/src/${recovery[0]}/previous/articles/first.ts`),
-        before['articles/first.ts'],
-      );
+      const recoveryDirectory = `${root}/src/${recovery[0]}`;
+      if (exit._tag === 'Failure') {
+        assert.isTrue(Cause.hasFails(exit.cause));
+        assert.isTrue(Cause.hasDies(exit.cause));
+        assert.include(Cause.pretty(exit.cause), recoveryDirectory);
+      }
+      const recoveryFiles = yield* snapshot(recoveryDirectory, fs);
+      assert.include(Object.values(recoveryFiles), before['articles/first.ts']);
     }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
 
   it.effect('finishes an in-progress commit before honoring cancellation', () =>
     Effect.gen(function* () {
       const { fs, root } = yield* fixture();
+      const expectedRoot = yield* fs.makeTempDirectoryScoped();
+      yield* fs.makeDirectory(`${expectedRoot}/src`);
+      yield* publish(expectedRoot, fs, next);
+      const expected = yield* snapshot(`${expectedRoot}/src/generated`, fs);
       const entered = yield* Deferred.make<void>();
       const release = yield* Deferred.make<void>();
       const paused = FileSystem.FileSystem.of({
@@ -168,7 +182,7 @@ describe('content publication transaction', () => {
             .rename(from, to)
             .pipe(
               Effect.andThen(
-                from.endsWith('/next/articles/first.ts')
+                to === `${root}/src/generated/articles/first.ts`
                   ? Deferred.succeed(entered, undefined).pipe(
                       Effect.andThen(Deferred.await(release)),
                     )
@@ -186,12 +200,7 @@ describe('content publication transaction', () => {
       const exit = yield* Fiber.await(fiber);
       assert.strictEqual(exit._tag, 'Failure');
       if (exit._tag === 'Failure') assert.isTrue(Cause.hasInterruptsOnly(exit.cause));
-      const after = yield* snapshot(root, fs);
-      assert.include(after['articles/first.ts']!, '"new"');
-      assert.include(after['articles/added.ts']!, '"new"');
-      assert.include(after['manifest.ts']!, '"/added/"');
-      assert.notProperty(after, 'articles/removed.ts');
-      assert.notInclude(after['manifest.ts']!, '"/removed/"');
+      assert.deepStrictEqual(yield* snapshot(`${root}/src/generated`, fs), expected);
       yield* assertClean(root, fs);
     }).pipe(Effect.provide(NodeFileSystem.layer)),
   );

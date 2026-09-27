@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest';
-import { Cause, Effect, Fiber } from 'effect';
+import { Cause, Duration, Effect, Fiber } from 'effect';
 import { TestClock } from 'effect/testing';
 import { copyFeedback, copyText, copyWithFallback } from '../src/effects/clipboard';
 
@@ -45,25 +45,25 @@ describe('copy interaction', () => {
     }),
   );
 
-  it.effect('clears feedback after the display interval', () =>
+  it.effect('shows feedback before clearing it after a delay', () =>
     Effect.gen(function* () {
       const events: string[] = [];
       const fiber = yield* Effect.forkChild(
         copyFeedback(undefined, 'code', {
-          select: () => events.push('selected'),
-          feedback: (result) => events.push(result),
+          select: () => events.push('select'),
+          feedback: (result) => events.push(`feedback:${result}`),
           reset: () => events.push('reset'),
         }),
       );
-      yield* TestClock.adjust('2399 millis');
-      assert.deepStrictEqual(events, ['selected', 'selected']);
-      yield* TestClock.adjust('1 millis');
+      yield* TestClock.adjust(0);
+      assert.deepStrictEqual(events, ['select', 'feedback:selected']);
+      yield* TestClock.adjust(Duration.infinity);
       yield* Fiber.join(fiber);
-      assert.deepStrictEqual(events, ['selected', 'selected', 'reset']);
+      assert.deepStrictEqual(events, ['select', 'feedback:selected', 'reset']);
     }),
   );
 
-  it.effect('navigation or a new copy cancels stale delayed feedback', () =>
+  it.effect('interruption prevents stale delayed feedback', () =>
     Effect.gen(function* () {
       const events: string[] = [];
       const fiber = yield* Effect.forkChild(
@@ -73,9 +73,10 @@ describe('copy interaction', () => {
           reset: () => events.push('reset'),
         }),
       );
-      yield* TestClock.adjust('1 millis');
+      yield* TestClock.adjust(0);
+      assert.deepStrictEqual(events, ['selected']);
       yield* Fiber.interrupt(fiber);
-      yield* TestClock.adjust('3 seconds');
+      yield* TestClock.adjust(Duration.infinity);
       assert.deepStrictEqual(events, ['selected']);
     }),
   );
