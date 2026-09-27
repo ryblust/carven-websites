@@ -8,17 +8,15 @@ source: docs/semantics.md
 
 ## 保存和修改值
 
-保存为 main.cv 并按第一章的原生运行命令执行：
+保存为 main.cv 并按第一章的原生运行命令执行。和第一个程序一样，这里使用顶层语句：
 
 ```carven
-fn main() {
-    let unit_price = 12;
-    var quantity = 2;
-    quantity += 1;
-    const tax_percent: i32 = 5;
-    let subtotal = unit_price * quantity;
-    println(subtotal, tax_percent);
-}
+let unit_price = 12;
+var quantity = 2;
+quantity += 1;
+const tax_percent: i32 = 5;
+let subtotal = unit_price * quantity;
+println(subtotal, tax_percent);
 ```
 
 输出 `36 5`。let 的绑定不可重新赋值，var 允许修改。const 的初始化必须能在编译期完成；使用这个名字时取得的是常量值，不创建运行时变量。
@@ -30,21 +28,28 @@ fn main() {
 整数有 i8 到 i64、u8 到 u64，以及指针宽度的 isize/usize。浮点有 f32/f64，布尔是 bool。无后缀整数默认 i32，浮点默认 f64；类型注解可以让整数字面量采用另一种整数类型，或让浮点字面量采用另一种浮点类型。
 
 ```carven
-fn main() {
-    let count: u8 = 12;
-    let total = count as i32;
-    let fraction: f32 = 1.5;
-    println(count, total, fraction);
-}
+let count: u8 = 12;
+let total = count as i32;
+let fraction: f32 = 1.5;
+println(count, total, fraction);
 ```
+
+输出 `12 12 1.5`。
 
 一个变量定型后不会根据后续使用改类型。已有 u8 值不能自动提升为 i32，要明确 as。条件必须 bool，`if 1` 不合法；若确实需要按零/非零判断，写 `value != 0` 或显式转 bool。
 
-## 算术的两个阶段
+## 整数运算会回绕
 
-运行时整数加减乘和左移按类型宽度回绕。必需常量计算检查溢出。把可证明溢出的字面量运算放进 let，也不会绕过检查。
+```carven
+let small: u8 = 250;
+let wrapped = small + 10;
+const folded: u8 = 250 + 10;
+println(wrapped, folded);
+```
 
-整数 cast 按目标宽度取模；它不是范围检查接口。业务中的“必须在 0 到 100 之间”应先做比较，再转换。除零和非法移位在动态执行时终止，不是可捕获失败。
+输出 `4 4`。整数取负、加、减、乘和左移都按类型宽度回绕。运行时的值和编译期常量遵循同一规则，把计算移进 const 不会改变结果。字面量本身仍须能放进它的类型：`let big: u8 = 300;` 会以 `CV-CONST-LITERAL-RANGE` 被拒绝。
+
+整数 cast 按目标宽度取模；它不是范围检查接口。业务中的“必须在 0 到 100 之间”应先做比较，再转换。除零和非法移位若发生在编译期求值中会报诊断，例如 `const broken: i32 = 10 / 0;`（`CV-CONST-DIVIDE-BY-ZERO`）；运行时则终止执行。它们都不是可捕获失败。
 
 ## 作用域与遮蔽
 
@@ -52,4 +57,4 @@ fn main() {
 
 ## 练习
 
-在第一个程序中把 quantity 改成 let，观察赋值诊断；再恢复 var。把 tax_percent 改成 export 模块常量时保留类型注解，因为 export const 要求显式类型。
+在第一个程序中把 quantity 改成 let，观察 `CV-ACCESS-IMMUTABLE` 诊断；再恢复 var。然后把回绕示例中的 `small` 改成 246，运行前先预测输出。把 tax_percent 改成 export 模块常量时保留类型注解，因为 export const 要求显式类型。

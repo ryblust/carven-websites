@@ -8,32 +8,32 @@ source: docs/semantics.md
 
 ## Your first native call
 
+Save this as hello.cv:
+
 ```carven
 import <cstdio> using std::printf;
 
-fn main() {
-    printf(c"Hello from C++\n");
-}
+let greeting = c"Hello from C++";
+printf(c"%s\n", greeting);
+println(greeting);
 ```
 
-Native execution prints Hello from C++. The header import supplies C++ declarations; using makes the name available for lookup. A c literal is a trailing-NUL native const char*, not str. Interior NUL is rejected.
+`carven hello.cv` prints Hello from C++ twice: once through printf, once through println. The header import supplies C++ declarations; using makes the name available for lookup. A c literal is a trailing-NUL native const char*, not str. Interior NUL is rejected. println and default interpolation display a C string's bytes as text, not its address.
 
-You may also use `::std::printf` for an explicit global C++ path. Carven does not read header contents. The C++ compiler checks function existence, overloads, and argument validity.
+You may also use `::std::printf` for an explicit global C++ path. Carven does not read header contents. The C++ compiler checks function existence, overloads, and argument validity. `carven interpret` accepts files with header imports, but it stops with `CV-INTERPRET-ADMISSION` when execution reaches a native call such as printf; run native code with `carven`.
 
 ## Native types
 
 ```carven
 import <vector> using std::vector;
 
-fn main() {
-    var values = vector<i32> { 1, 2, 3 };
-    values.push_back(4);
-    let count: usize = values.size();
-    println(count);
-}
+var values = vector { 1, 2, 3 };
+values.push_back(4);
+let count: usize = values.size();
+println(count, values[3]);
 ```
 
-The output is 4. Native template arguments may be types. C++ decides construction, methods, and conversion validity; the usize annotation requests destination construction. Native indexing follows provider rules and does not automatically gain Carven array bounds checks.
+The output is `4 4`. C++ performs the braced construction, including class template argument deduction; `vector<i32> { 1, 2, 3 }` states the element type explicitly. C++ decides construction, methods, and conversion validity; the usize annotation requests destination construction. Native indexing follows provider rules and does not automatically gain Carven array bounds checks.
 
 ## Use a third-party library
 
@@ -42,11 +42,9 @@ The same import mechanism works with [nlohmann/json](https://json.nlohmann.me/in
 ```carven
 import <nlohmann/json.hpp> using nlohmann::json::parse;
 
-fn main() {
-    let config = parse(c"{\"port\":9000}");
-    let port: i32 = config.value(c"port", 8080);
-    println(f"Port: {port}");
-}
+let config = parse(c"{\"port\":9000}");
+let port: i32 = config.value(c"port", 8080);
+println(f"Port: {port}");
 ```
 
 parse creates the library's native JSON object. Its value method reads port, using 8080 if the key is missing. The i32 annotation gives the native result a Carven destination type; println then uses that value normally. No binding code is needed for these calls.
@@ -78,9 +76,7 @@ private import(cpp) fn native_double(value: i32) -> i32;
 
 export(cpp) fn doubled(value: i32) -> i32 => native_double(value);
 
-fn main() {
-    println(doubled(21));
-}
+println(doubled(21));
 ```
 
 The output is 42. The cpp fragment enters the implementation unchanged. import(cpp) calls a global provider of the same name, and export(cpp) puts the wrapper in the module's generated API. C++ consumers include `carven/api/<module-name>.hpp` and use the module namespace under `carven::api`.
@@ -98,7 +94,7 @@ export(cpp) fn rename(&label: String, next: str) throw EmptyLabel {
     if next.is_empty() {
         throw EmptyLabel {};
     }
-    label = String::from_str(next);
+    label = next as String;
 }
 ```
 
@@ -133,7 +129,36 @@ carven --tests labels.cv
 carven compile -o generated labels.cv
 ```
 
-Both tests should pass: success changes the text to after, while failure leaves it as before. The Write parameter requires native test mode. Open `generated/carven/api/labels.hpp` to inspect the generated interface. The Write parameter becomes a mutable reference, the declared failure becomes a `carven::runtime::Outcome`, and the header includes the necessary type definitions. A C++ consumer includes this API and matching runtime headers, then compiles and links generated implementations.
+Both tests should pass: success changes the text to after, while failure leaves it as before. `carven interpret --tests labels.cv` runs the same tests without a C++ compiler. Open `generated/carven/api/labels.hpp` to inspect the generated interface. The Write parameter becomes a mutable reference, the declared failure becomes a `carven::runtime::Outcome`, and the header includes the necessary type definitions.
+
+A C++ consumer includes this API. Save consumer.cpp beside labels.cv:
+
+```cpp
+#include <carven/api/labels.hpp>
+
+#include <iostream>
+
+int main() {
+    auto label = carven::runtime::String::from_str("before");
+    auto renamed = carven::api::labels::rename(label, "after");
+    auto rejected = carven::api::labels::rename(label, "");
+    if (!renamed.success_if() || rejected.success_if()) {
+        return 1;
+    }
+    std::cout << label.as_str() << '\n';
+}
+```
+
+Compile it with the generated implementations, including the bundled UTF Craft sources that `compile` writes under `generated/crafts/`:
+
+```sh
+clang++ -std=c++20 -Igenerated -I/path/to/carven/crafts \
+    consumer.cpp generated/labels.cpp generated/crafts/carven/std/utf/*.cpp \
+    -o consumer
+./consumer
+```
+
+Replace `/path/to/carven/crafts` with the installed Crafts directory, which supplies the runtime headers. The program prints `after`: the first call succeeded, and the rejected call left the text unchanged. `success_if()` returns a pointer for success and null for failure; EmptyLabel is this function's only declared failure. An unexpected outcome returns a nonzero exit status.
 
 The caller handles success or EmptyLabel. This is an explicit result contract; C++ exceptions do not become it automatically. See [interop Reference](/reference/interop/) for representations and lifetime obligations.
 
@@ -142,6 +167,68 @@ The caller handles success or EmptyLabel. This is an explicit result contract; C
 Generated functions have noexcept boundaries: an escaping C++ exception terminates. Carven try does not catch native exceptions. For recovery, catch inside a native adapter first and return a result through the selected interface.
 
 Carven tracks known storage and text backing. It does not prove the lifetime of arbitrary C++ returned pointers or infer whether a native function retains arguments long-term. Callers and providers must satisfy those contracts.
+
+## Convert native exceptions into a declared failure
+
+A native adapter can catch exceptions and return the declared failure instead. Save port.cv:
+
+```carven
+import <cstdint>;
+import <string>;
+import <string_view>;
+
+struct InvalidPort {}
+
+#[cpp] ---
+#include <carven/runtime/outcome.hpp>
+
+template<typename Failure>
+auto parse_port_native(std::string_view text, const Failure& invalid) noexcept
+    -> carven::runtime::Outcome<std::int32_t, Failure> {
+    using Result = carven::runtime::Outcome<std::int32_t, Failure>;
+    try {
+        std::size_t used = 0;
+        const int port = std::stoi(std::string{text}, &used);
+        if (used != text.size() || port < 1 || port > 65535) {
+            return Result::failure(invalid);
+        }
+        return Result::success_from([port]() noexcept -> std::int32_t { return port; });
+    } catch (const std::invalid_argument&) {
+        return Result::failure(invalid);
+    } catch (const std::out_of_range&) {
+        return Result::failure(invalid);
+    }
+}
+---
+
+import(cpp) fn parse_port_native(text: str, invalid: InvalidPort) -> i32 throw InvalidPort;
+
+fn port(text: str) -> i32 throw InvalidPort => parse_port_native(text, {})?;
+
+fn report(text: str) {
+    try {
+        println("Port:", port(text)?);
+    } catch {
+        InvalidPort(_) => println("Invalid port:", text),
+    }
+}
+
+report("8080");
+report("http");
+report("99999999999999999999");
+report("80suffix");
+```
+
+`carven port.cv` prints:
+
+```text
+Port: 8080
+Invalid port: http
+Invalid port: 99999999999999999999
+Invalid port: 80suffix
+```
+
+In `parse_port_native(text, {})`, the parameter type supplies the type for `{}`, so the call passes an empty InvalidPort. The C++ template deduces the generated failure type from that argument, without spelling a compiler-private namespace. The adapter decides which exceptions become InvalidPort; an exception it does not catch, such as allocation failure, still terminates at the noexcept boundary. Carven's `?` and catch then work with the declared contract.
 
 ## Exercise
 

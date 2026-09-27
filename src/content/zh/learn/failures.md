@@ -8,6 +8,8 @@ source: docs/semantics.md
 
 ## 从一个校验函数开始
 
+保存为 quantity.cv：
+
 ```carven
 struct InvalidQuantity {
     value: i32,
@@ -21,21 +23,19 @@ fn line_total(price: i32, quantity: i32) -> i32 throw InvalidQuantity {
     return price * quantity;
 }
 
-fn main() {
-    let result = try {
-        line_total(12, 0)?
-    } catch {
-        InvalidQuantity(error) => {
-            println("Invalid quantity:", error.value);
-            0
-        },
-    };
+let total = try {
+    line_total(12, 0)?
+} catch {
+    InvalidQuantity(error) => {
+        println("Invalid quantity:", error.value);
+        0
+    },
+};
 
-    println("Total:", result);
-}
+println("Total:", total);
 ```
 
-输出 `Invalid quantity: 0` 和 `Total: 0`。失败类型是结构体，携带被拒绝的值。`throw InvalidQuantity` 是函数签名中的上界，体内 `throw ...;` 才实际产生失败。
+运行 `carven quantity.cv`，输出 `Invalid quantity: 0` 和 `Total: 0`。失败类型是结构体，携带被拒绝的值。`throw InvalidQuantity` 是函数签名中的上界，体内 `throw ...;` 才实际产生失败。throw 语句不提供预期类型，所以要写出失败类型名，不能使用上下文构造 `{ value: quantity }`。
 
 ## 成功值与传播
 
@@ -45,7 +45,18 @@ fn main() {
 
 ## 推断和发布
 
-前面的模块章节介绍了私有辅助函数和公开接口。private 非入口函数可以省略 throw 子句，由编译器推断函数体可能向外传播的失败。普通裸函数、export 和 main 若有向外失败，必须显式声明，private main 也不例外。下一章介绍的闭包同样可以推断失败。
+前面的模块章节介绍了私有辅助函数和公开接口。private 非入口函数可以省略 throw 子句，由编译器推断函数体可能向外传播的失败。顶层语句构成隐式入口，也以同样方式推断向外失败。下一章介绍的闭包同样可以推断失败。
+
+把 quantity.cv 中的 try 表达式和最后的 println 换成两次直接调用：
+
+```carven
+println("Total:", line_total(12, 3)?);
+println("Total:", line_total(12, 0)?);
+```
+
+这段代码依赖上面的结构体和 line_total。程序先输出 `Total: 36`，第二次调用的 InvalidQuantity 随后离开隐式入口；进程以失败状态退出，不打印载荷。顶层语句不需要 throw 子句。
+
+普通裸函数、export 函数和显式 main 若有向外失败，必须显式声明，private main 也不例外。把同样两行放进没有 `throw InvalidQuantity` 的 `fn main() { ... }`，会报告 `CV-EFFECT-THROW-PUBLISHED`。
 
 失败集合可写 `throw A + B`，顺序无关，类型不可重复。失败载荷必须是可复制名义结构体或枚举。
 
@@ -75,17 +86,13 @@ fn fee(online: bool) -> i32 throw Offline {
     return 2;
 }
 
-private fn quote(has_price: bool, online: bool) -> i32 {
-    return (price(has_price) + fee(online))?;
-}
+private fn quote(has_price: bool, online: bool) -> i32 => (price(has_price) + fee(online))?;
 
-fn total(has_price: bool, online: bool) -> i32 throw Offline {
-    return try {
-        quote(has_price, online)?
-    } catch {
-        MissingPrice(_) => 12,
-    };
-}
+fn total(has_price: bool, online: bool) -> i32 throw Offline => try {
+    quote(has_price, online)?
+} catch {
+    MissingPrice(_) => 12,
+};
 
 fn main() {
     let price = try {
@@ -98,15 +105,15 @@ fn main() {
 }
 ```
 
-输出 `12`。quote 用 `+` 组合两个普通成功值，用一个 `?` 标记整个表达式的失败出口。它的私有契约推断为 MissingPrice + Offline；price 失败后不再调用 fee。
+输出 `12`。quote 用 `+` 组合两个普通成功值，用一个 `?` 标记整个表达式的失败出口。它的私有契约推断为 MissingPrice + Offline；price 失败后不再调用 fee。quote 和 total 都使用表达式函数体：`=>` 直接返回右侧表达式的值，包括整个 try 表达式。
 
 total 用默认总价恢复 MissingPrice，公开契约只剩 Offline，main 也只需处理后者。组合过程无需另外定义一个聚合错误类型。
 
 把 main 中的实参改成 `(true, true)` 得到 `17`，改成 `(true, false)` 得到 `0`。`(false, false)` 仍得到 `12`：价格缺失让求值在服务调用前停止。契约列出可能失败，不要求每项操作都执行。
 
-在 MissingPrice arm 后增加 `_ => rethrow,` 也会保留同一剩余集合。这里省略该 arm 是合法的，因为 total 声明的契约可以接收 Offline。没有向外契约的 main 必须处理自己的全部失败。
+在 MissingPrice arm 后增加 `_ => rethrow,` 也会保留同一剩余集合。这里省略该 arm 是合法的，因为 total 声明的契约可以接收 Offline。本例使用没有 throw 子句的显式 main，因此 main 必须处理自己的全部失败。
 
-把上面的完整程序保存为 quote.cv，在 Carven 仓库根目录运行 `./xmakew run carven quote.cv`。依次修改 main 中 total 的两个实参，用下面的表检查结果；后面的 C++ 对照使用相同输入。
+把上面的完整程序保存为 quote.cv，运行 `carven quote.cv`。依次修改 main 中 total 的两个实参，用下面的表检查结果；后面的 C++ 对照使用相同输入。
 
 | has_price | online | 输出 | 路径                     |
 | --------- | ------ | ---- | ------------------------ |
@@ -114,6 +121,38 @@ total 用默认总价恢复 MissingPrice，公开契约只剩 Offline，main 也
 | false     | true   | 12   | 恢复缺失价格，跳过 fee   |
 | true      | false  | 0    | Offline 传给 main 恢复   |
 | false     | false  | 12   | price 先失败，不调用 fee |
+
+### 调用者漏掉一种失败
+
+把 quote.cv 中的 main 换成直接调用 quote、但只处理 MissingPrice 的版本：
+
+```carven
+fn main() {
+    let price = try {
+        quote(false, true)?
+    } catch {
+        MissingPrice(_) => 12,
+    };
+
+    println(price);
+}
+```
+
+再运行 `carven quote.cv`，编译在生成 C++ 之前停止。报告的错误中包括：
+
+```text
+error [CV-EFFECT-CATCH-NON-EXHAUSTIVE]: catch does not cover every protected failure
+ --> quote.cv:27:17
+   |
+27 |     let price = try {
+   |                 ^^^^^
+   | ...
+31 |     };
+   | ^^^^^
+note: failure type not fully covered: quote.Offline
+```
+
+note 带模块名指出未覆盖的失败类型。同一次运行还会在 main 处报告 `CV-EFFECT-THROW-PUBLISHED`：剩下的 Offline 会逃出没有 throw 子句的显式入口。增加 `Offline(_) => 0,` 分支，或声明 `fn main() throw Offline`，两个错误都会消失。若同样的 try 写在顶层，Offline 会传出隐式入口。继续之前先恢复原来的 main。
 
 ## 用 C++23 保留相同的失败信息
 
@@ -178,14 +217,14 @@ int main() {
 
 C++ 的组合器或结果库也能封装这些分支。这里保留显式写法，方便观察类型与控制流如何对应。Carven 把这套组合规则放进语言中，私有函数不必另行声明汇总类型。
 
-保持 total 的接口只允许 Offline：把 Carven 中 total 的函数体改成 `return quote(has_price, online)?;`，并删除 C++ 中处理 MissingPrice 的 if 分支。Carven 会报告剩余失败超出契约。上面的 C++ 写法仍能编译，但缺少价格时，剩下的 `std::get<Offline>` 会抛出 std::bad_variant_access：返回类型并不能证明当前 variant 一定保存 Offline。Carven 的检查同时利用了失败类型与处理分支的覆盖范围。
+保持 total 的接口只允许 Offline：把 Carven 中 total 的函数体改成 `=> quote(has_price, online)?;`，并删除 C++ 中处理 MissingPrice 的 if 分支。Carven 会报告 `CV-EFFECT-SIGNATURE-BOUND`：函数体超出了声明的契约。上面的 C++ 写法仍能编译，但缺少价格时，剩下的 `std::get<Offline>` 会抛出 std::bad_variant_access：返回类型并不能证明当前 variant 一定保存 Offline。Carven 的检查同时利用了失败类型与处理分支的覆盖范围。
 
 ## 副作用与入口状态
 
 失败不回滚已经完成的修改。局部值按控制流清理；失败载荷包含借用时，借用的底层存储必须保持存活。C++ 异常、动态越界和除零等终止行为不是这里的类型化失败。
 
-main 声明失败并让它逃出时产生失败进程状态，不自动打印载荷；需要用户可读消息时自行 catch 并打印。正常 return 的整数不是退出码。
+失败逃出隐式入口或显式 main 时产生失败进程状态，不自动打印载荷；需要用户可读消息时自行 catch 并打印。正常 return 的整数不是退出码。
 
 ## 练习
 
-把数量改成 3，应只输出 Total: 36。再增加 TooExpensive 失败，限制总价，调整签名和 main 的处理。尝试漏掉该处理，观察边界诊断。
+把 quantity.cv 中的数量改成 3，应只输出 `Total: 36`。再增加 TooExpensive 失败限制总价，调整 line_total 的签名，并在顶层 try 中处理它。然后去掉这条处理：隐式入口会把 TooExpensive 传出去，进程以失败状态退出。把这些语句移进 `fn main() { ... }`，就能看到边界诊断。

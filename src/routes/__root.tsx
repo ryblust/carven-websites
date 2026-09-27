@@ -14,6 +14,13 @@ export const Route = createRootRoute({
       { rel: 'icon', href: href('/favicon.ico'), sizes: '16x16 32x32 48x48 64x64 256x256' },
       { rel: 'icon', href: href('/favicon-32.png'), type: 'image/png', sizes: '32x32' },
       { rel: 'icon', href: href('/favicon.svg'), type: 'image/svg+xml', sizes: 'any' },
+      {
+        rel: 'preload',
+        href: href('/fonts/cinzel-latin.woff2'),
+        as: 'font',
+        type: 'font/woff2',
+        crossOrigin: 'anonymous',
+      },
     ],
     meta: [
       { charSet: 'utf-8' },

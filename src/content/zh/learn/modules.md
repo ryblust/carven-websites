@@ -19,9 +19,7 @@ fn add(left: i32, right: i32) -> i32 => left + right;
 ```carven
 import math using add;
 
-fn main() {
-    println(add(20, 22));
-}
+println(add(20, 22));
 ```
 
 把两个文件都传给编译器：
@@ -30,7 +28,17 @@ fn main() {
 ./xmakew run carven main.cv math.cv
 ```
 
-输出 42。导入不搜索磁盘，编译批次必须已经包含 math.cv。输入顺序不控制函数是否能被引用。
+输出 42。导入不搜索磁盘，编译批次必须已经包含 math.cv；只传 main.cv 会报告 `CV-IMPORT-RESOLUTION`。输入顺序不控制函数是否能被引用。
+
+文件名去掉 `.cv` 后成为模块名的一部分，所以它必须是标识符：只能由字母、数字和下划线组成，且不以数字开头。`my-math.cv` 会被拒绝，改用 `my_math.cv`。
+
+想查看生成的 C++，运行：
+
+```sh
+./xmakew run carven compile --stdout main.cv math.cv
+```
+
+输出只列出属于显式输入的产物，标题依次是 `carven/generated/math.hpp`、`main.cpp` 和 `math.cpp`。自动收集的 Crafts（例如标准库的 `std::utf` 模块）仍参与分析，但不会显示；所显示文件的依赖只以 include 的形式出现。换成 `compile -o generated` 写入目录时，还会生成 `generated/crafts/carven/std/utf/` 下的 C++ 源文件；手动构建生成的 C++ 时也要编译它们。
 
 ## 路径决定模块名
 

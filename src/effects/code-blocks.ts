@@ -16,17 +16,16 @@ export function enhanceCodeBlocks(
   const cleanups: Array<() => void> = [];
   root.querySelectorAll<HTMLPreElement>('pre').forEach((pre) => {
     const code = pre.querySelector('code');
-    if (!code || pre.parentElement?.classList.contains('code-wrap')) return;
-    const wrapper = document.createElement('div');
-    wrapper.className = 'code-wrap';
-    pre.replaceWith(wrapper);
-    wrapper.append(pre);
+    const wrapper = pre.parentElement;
+    const head = wrapper?.querySelector(':scope > .code-head');
+    if (!code || !wrapper?.classList.contains('code-wrap') || !head) return;
+    if (head.querySelector('.copy-button')) return;
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'copy-button';
     button.textContent = t('复制', 'Copy');
     button.setAttribute('aria-label', t('复制代码', 'Copy code'));
-    wrapper.append(button);
+    head.append(button);
     let pending: AbortController | undefined;
 
     const onCopy = () => {
@@ -76,7 +75,7 @@ export function enhanceCodeBlocks(
     cleanups.push(() => {
       pending?.abort();
       button.removeEventListener('click', onCopy);
-      wrapper.replaceWith(pre);
+      button.remove();
     });
   });
   return () => cleanups.forEach((cleanup) => cleanup());

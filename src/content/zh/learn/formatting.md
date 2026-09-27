@@ -9,11 +9,9 @@ source: docs/semantics.md
 ## 直接打印值
 
 ```carven
-fn main() {
-    println("quantity", 3, true);
-    println();
-    eprintln("status", "ready");
-}
+println("quantity", 3, true);
+println();
+eprintln("status", "ready");
 ```
 
 println 在相邻实参间加空格，并追加换行；eprintln 写 stderr。print/eprint 不自动加换行。文本不是格式串，`println("{count}", 3)` 会原样打印花括号。
@@ -21,12 +19,10 @@ println 在相邻实参间加空格，并追加换行；eprintln 写 stderr。pr
 ## 用插值控制格式
 
 ```carven
-fn main() {
-    let id = 42;
-    let amount = 12.5;
-    let message = f"Order {id:04}: {amount:.2f}";
-    println(message);
-}
+let id = 42;
+let amount = 12.5;
+let message = f"Order {id:04}: {amount:.2f}";
+println(message);
 ```
 
 输出 `Order 0042: 12.50`。插值结果是独立 String。`{...}` 中的部分称为插值字段，可以在其中写普通计算。`:04` 是宽度和零填充，`:.2f` 将浮点数保留两位小数。花括号本身写 `{{` 和 `}}`。
@@ -34,18 +30,16 @@ fn main() {
 ## 在已有 String 追加
 
 ```carven
-fn main() {
-    var report = String {};
+var report: String = {};
 
-    for index in 0..3 {
-        report.append_format(f"[{index}]");
-    }
-
-    println(report);
+for index in 0..3 {
+    report.append_format(f"[{index}]");
 }
+
+println(report);
 ```
 
-输出 `[0][1][2]`。append_format 直接接收 f 字面量，可以避免创建中间的源级 String。把已有 String 变量传给它不符合该方法语法；普通文本追加使用 append。
+输出 `[0][1][2]`。`{}` 按注解类型构造空 String。append_format 直接接收 f 字面量，可以避免创建中间的源级 String。把已有 String 变量传给它不符合该方法语法；普通文本追加使用 append。
 
 ## 顺序会影响观察
 

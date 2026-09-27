@@ -15,12 +15,13 @@ Carven 将 `.cv` 源文件生成 C++，再由原生工具链编译和链接。�
 
 ```carven
 export(cpp) fn price_cents(quantity: i32) -> i32 {
+    assert(quantity >= 0, "quantity must be nonnegative");
     let unit_price: i32 = if quantity >= 10 { 90 } else { 100 };
     return quantity * unit_price;
 }
 ```
 
-在这个示例里，程序入口仍在 C++ 中。构建步骤生成公共头文件与实现，C++ 包含生成的头文件，然后与实现一起链接。示例传入少量非负数量；这段计算本身不负责校验任意输入，也没有处理整数溢出。
+在这个示例里，程序入口仍在 C++ 中。构建步骤生成声明 `carven::api::pricing::price_cents` 的公共头文件与实现；C++ 包含该头文件，再把实现与生成的 UTF Craft 源码一起链接。这里的负数数量属于调用方的错误，所以 `assert` 会把条件与消息输出到 stderr 并终止进程，不受原生构建 `NDEBUG` 设置的影响。它不是可恢复的失败；需要处理错误输入的调用方应当得到类型化失败。这段计算没有防范整数溢出，数量过大时会回绕。
 
 显式 `import(cpp)` 与 `export(cpp)` 边界使用普通 Carven 类型、Read/Write/Take 访问和声明失败契约。具体作用域和命名规则见原生互操作文档。
 
@@ -60,12 +61,36 @@ Carven 的报价示例将库存和配送逻辑组合起来，对一种配送失�
 
 ## 减少 C++ 接口维护
 
+类可以把一小块状态收在自己的操作之后。只有类体能读取字段或构造它；它仍是普通的值，不带堆分配、继承或虚派发。
+
+```carven
+class Cart {
+    count: i32,
+    total_cents: i32,
+    fn empty() -> Cart => { count: 0, total_cents: 0 };
+    fn add(&self, price_cents: i32) {
+        self.count += 1;
+        self.total_cents += price_cents;
+    }
+    fn total(self) -> i32 => self.total_cents;
+}
+
+var cart = Cart::empty();
+cart.add(250);
+cart.add(120);
+println(cart.total());
+```
+
+用 `carven cart.cv` 运行，输出 `370`。生成的 C++ 用 struct 保存字段，每个操作都成为普通函数。类没有隐式相等比较；`println(cart)` 只打印类名 `Cart`，不暴露字段。类不能用于必需的常量求值。
+
 当一段逻辑包含多个类型和相互调用的函数时，在 Carven 中维护一份 `.cv` 声明即可。编译器根据可见性和类型依赖生成接口与实现，安排前置声明与定义顺序；仅用于函数体的依赖不会因此合并接口。
 
 **适合的起点：** 希望减少声明与实现同步维护、并通过生成的公共接口接入 C++ 的模块。
 
 ## 选择一个可验证的小范围
 
-目前更适合把 Carven 用于学习、语言探索和受控的集成实验。正式评估时，应使用同一修订版本的编译器、支持头文件、文档与示例，并验证目标工程实际需要的功能。
+目前更适合把 Carven 用于学习、语言探索和受控的集成实验。正式评估时，应使用同一修订版本的编译器、支持头文件、文档与示例，并验证目标工程实际需要的功能。`carven check` 执行语义分析和编译期测试而不生成 C++，适合作为第一道快速检查。
 
-当前工具链文档区分了两个要求：构建编译器需要支持 C++26 的工具链，生成程序与支持库使用 C++20。仓库当前验证的编译器宿主为 LLVM/Clang 与 libc++ 23.1.0。
+Carven 没有线程或同步操作，Read/Write/Take 规则也不保证跨线程安全。如果 C++ 从多个线程调用生成的代码，同步与共享数据由 C++ 一侧负责。
+
+当前工具链文档区分了两个要求：构建编译器需要支持 C++26 的 LLVM/Clang 工具链，生成程序与支持库使用 C++20。仓库验证的宿主工具链为 LLVM 23。

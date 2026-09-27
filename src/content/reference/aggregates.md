@@ -1,6 +1,6 @@
 ---
-title: "Structs, arrays, and enums"
-description: "Construction order, type identity, bounds checks, enum payloads, and recursive storage."
+title: "Structs, classes, arrays, and enums"
+description: "Construction order, value classes, contextual construction, bounds checks, enum payloads, and recursive storage."
 section: reference
 lesson: 5
 source: docs/semantics.md
@@ -8,7 +8,7 @@ source: docs/semantics.md
 
 ## Structs
 
-A struct is an ordered nominal product type with unique field names. Construct it positionally in declaration order or by field name. Nonempty construction must initialize every field exactly once; named and positional forms cannot mix. Empty `T {}` requests whole-value default initialization. Struct bodies contain fields, not member function definitions.
+A struct is an ordered nominal product type with unique field names. Construct it positionally in declaration order or by field name. Nonempty construction must initialize every field exactly once; named and positional forms cannot mix. Empty `T {}` requests whole-value default initialization. Struct bodies contain fields only; operations with private fields belong to a [class](#ordinary-value-classes).
 
 ```carven
 struct Point {
@@ -21,7 +21,7 @@ fn origin() -> Point => Point { 0, 0 };
 fn sample() -> Point => Point { y: 2, x: 1 };
 ```
 
-Named construction maps to field declarations but evaluates initializers in written order. Repeated, missing, excess, unknown, or incompatible fields in nonempty construction are errors. Nonempty Carven `T { ... }` constructs structs only; empty construction also accepts builtin types with a default. Enums and callables use their own expression forms. External C++ types have separate construction rules.
+Named construction maps to field declarations but evaluates initializers in written order. Repeated, missing, excess, unknown, or incompatible fields in nonempty construction are errors. Nonempty Carven `T { ... }` constructs structs, and classes only inside their own body; empty construction also accepts builtin types with a default. The type may be omitted when context supplies it; see [contextual construction](#contextual-construction). Enums and callables use their own expression forms. External C++ types have separate construction rules.
 
 A struct supports equality only when every field supports equality.
 
@@ -41,9 +41,91 @@ A struct supports equality only when every field supports equality.
 | Structs             | Every field initialized recursively         |
 | External C++ types  | Native value initialization, checked by C++ |
 
-Numeric and payload enums, callable values/views, void, and entry or iteration-only opaque types have no default. A struct or nonempty array containing them also has no default. A zero-length array needs no element default. Unsupported requests report `CV-TYPE-DEFAULT-INITIALIZATION`.
+Ordinary classes, numeric and payload enums, callable values/views, void, and entry or iteration-only opaque types have no default. A struct or nonempty array containing them also has no default. A zero-length array needs no element default. Unsupported requests report `CV-TYPE-DEFAULT-INITIALIZATION`.
 
 Local declarations still require an initializer; array literals still require their exact element count. Default construction does not extend borrows or relax access. Runtime, interpretation, and constant execution share defaults within each mode's supported subset; native defaults remain delegated to C++.
+
+## Ordinary value classes
+
+A `class` is an encapsulated nominal value: private fields plus operations declared in its body. It adds no heap allocation, reference identity, inheritance, virtual dispatch, or custom copy, move, or destruction hooks. Field types determine copying, ownership, stored borrows, and destruction under the same rules as structs.
+
+```carven
+class Counter {
+    value: i32,
+
+    fn create(value: i32) -> Counter => { value: value };
+    fn read(self) -> i32 => self.value;
+
+    fn increment(&self) {
+        self.value += 1;
+    }
+}
+
+var counter = Counter::create(3);
+counter.increment();
+println(counter.read(), counter); // 4 Counter
+```
+
+Fields end in commas (the last may omit it) and may be interleaved with operations. A class body cannot contain nested declarations, `const fn`, or C++ import/export operations.
+
+| Form                   | Meaning                                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------ |
+| `fn name(params)`      | Associated operation, called as `Type::name(...)`; `Type::name` is also its callable value |
+| `fn name(self, ...)`   | Instance operation with a Read receiver                                                    |
+| `fn name(&self, ...)`  | Instance operation with a Write receiver; preserves the original updatable place           |
+| `fn name(&&self, ...)` | Instance operation that Takes the complete owner                                           |
+| `private fn ...`       | Accessible only inside this class body                                                     |
+
+Instance operations are called as `expression.name(...)`. The receiver evaluates once, before the explicit arguments, and binds by ordinary Read, Write, or Take rules; explicit arguments still need their own access markers. An instance operation cannot be selected as a standalone value. There is no `static` keyword, member overloading, or implicit `self` lookup: inside an operation, fields are reached only as `self.field`.
+
+Selecting fields and constructing the representation are allowed only in the lexical body of the defining class. That authority covers other values of the same class and lambdas written inside its operations, but not module peers or free functions they call. Outside the body, `counter.value`, `Counter { value: 1 }`, and `let c: Counter = {};` report `CV-ACCESS-CLASS-PRIVATE`; calling a `private fn` from outside reports the same code. Ordinary operations follow the class's own `private`/`export` audience. Operations do not enter the module namespace, and fields and operations share one namespace in which each name is unique.
+
+Construction inside the body must supply every field; there is no automatic default, including through a containing struct or nonempty array. `{}` in a class returning itself therefore reports `CV-TYPE-DEFAULT-INITIALIZATION` unless the class has no fields. A type name is not callable.
+
+A class has no implicit equality: `a == b`, including through a struct containing a class field, reports `CV-TYPE-EQUALITY-UNSUPPORTED`. Write an operation when a comparison is needed. [Structural display](/reference/formatting/#structural-display) prints only the class name. Required constant evaluation rejects class values and operations with `CV-CONST-ADMISSION`. Class representation patterns do not exist. Generated C++ represents class operations as ordinary functions taking the receiver as a parameter.
+
+## Contextual construction
+
+When an expression has a known expected type, a construction may omit that type: `{ field: value }` constructs it by name, and `{}` requests its default. Field checking, class representation access, ownership, borrowing, and constant-execution admission are the same as for the spelled form. Named fields require `field: value`; shorthand such as `{ quantity, amount }` is unsupported. Positional construction keeps its explicit type; `{ 1, 2 }` is a syntax error.
+
+```carven
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+struct Segment {
+    start: Point,
+    end: Point,
+}
+
+fn origin() -> Point => { x: 0, y: 0 };
+
+fn width(segment: Segment) -> i32 => segment.end.x - segment.start.x;
+
+var text: String = {};
+text.append("ok");
+let points: [Point; 2] = [origin(), { x: 3, y: 4 }];
+let segment = Segment { start: {}, end: points[1] };
+println(text, width(segment), width({ start: origin(), end: { x: 5, y: 0 } }));
+```
+
+This prints `ok 3 5`. Expected types come from declared function and callable results, annotated bindings, assignment destinations, resolved Carven parameters, record fields, and known array element types; value-control branches receive their surrounding expected type. A type already established by forward analysis of array elements or branches may also supply context. No later use is searched, and `let point = { x: 1, y: 2 };` reports `CV-TYPE-CONSTRUCT-CONTEXT`.
+
+There is no structural search by field names and no failure-type selection: `throw { code: 404 };` also reports `CV-TYPE-CONSTRUCT-CONTEXT`, so spell the failure type. For `-> T throw E`, a returned construction uses `T`. Native C++ types never infer construction; `{}` for an external result reports `CV-TYPE-CONSTRUCT-CONTEXT`.
+
+At the start of a match or catch arm body, `{ field: value }` is a construction but `{}` is an empty branch block. Write `({})` for an empty construction arm:
+
+```carven
+fn pick(flag: bool) -> Point {
+    return match flag {
+        true => { x: 1, y: 0 },
+        false => ({}),
+    };
+}
+```
+
+This fragment uses `Point` from the previous example. A function, if, or try body is always a block; its final expression may itself be a contextual construction.
 
 ## Fixed arrays
 
@@ -92,4 +174,4 @@ Equality compares the case first. Different cases are unequal; matching cases co
 
 ## Recursive storage and visibility
 
-The by-value storage graph formed by struct fields, enum payloads, and array elements must be acyclic. Even zero-length arrays retain an element-type edge. Function parameters and results do not form storage edges. Pointers do not own their targets and can support recursive structures. Published field and payload types must be visible to the declaration's audience.
+The by-value storage graph formed by struct fields, enum payloads, and array elements must be acyclic. Even zero-length arrays retain an element-type edge. Function parameters and results do not form storage edges. Pointers do not own their targets and can support recursive structures. Published field and payload types must be visible to the declaration's audience. Class fields are private to the class body and may use module-private types; class operations remain subject to their declared audience.

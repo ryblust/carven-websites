@@ -18,32 +18,32 @@ Carven analyzes a closed batch of `.cv` files and generates C++ headers and impl
 
 A type describes what a value is. Access describes how an operation uses storage. Ownership determines when a value's lifetime ends. A failure contract describes which failure types a call can propagate. These facts are checked separately.
 
-| Term                | Meaning                                                        |
-| ------------------- | -------------------------------------------------------------- |
-| Nominal type        | Type determined by a struct or enum declaration's identity     |
-| Value               | Result of a computation                                        |
-| Storage location    | Readable or writable object, field, element, or pointer target |
-| Owner               | Binding owning an immediate value and its scoped lifetime      |
-| Read / Write / Take | Reading, non-owning writable access, ownership transfer        |
-| Backing             | Object providing actual storage for a slice or text view       |
-| Full expression     | Usual evaluation and cleanup boundary for temporaries          |
-| Normal completion   | Producing a success result or reaching the next statement      |
-| Typed failure       | Recoverable control effect carrying a nominally typed payload  |
-| Published interface | Declaration surface visible to readers outside its module      |
+| Term                | Meaning                                                            |
+| ------------------- | ------------------------------------------------------------------ |
+| Nominal type        | Type determined by a struct, class, or enum declaration's identity |
+| Value               | Result of a computation                                            |
+| Storage location    | Readable or writable object, field, element, or pointer target     |
+| Owner               | Binding owning an immediate value and its scoped lifetime          |
+| Read / Write / Take | Reading, non-owning writable access, ownership transfer            |
+| Backing             | Object providing actual storage for a slice or text view           |
+| Full expression     | Usual evaluation and cleanup boundary for temporaries              |
+| Normal completion   | Producing a success result or reaching the next statement          |
+| Typed failure       | Recoverable control effect carrying a nominally typed payload      |
+| Published interface | Declaration surface visible to readers outside its module          |
 
 ## Find a rule in source order
 
 The Reference follows a source file from imports and declarations into function bodies, then covers execution and native integration. Unlike the tutorial, each chapter collects the full rules for one topic.
 
-| In your program                         | Start here                                                                                                                                                 |
-| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Source spelling and file imports        | [Lexical syntax](/reference/lexical/), [modules and visibility](/reference/modules/)                                                                       |
-| Values, bindings, and declarations      | [Types](/reference/types/), [access and ownership](/reference/ownership/), [structs and enums](/reference/aggregates/), [functions](/reference/functions/) |
-| Function bodies and calls               | [Control flow](/reference/control/), [failure contracts](/reference/failures/), [closures](/reference/closures/)                                           |
-| Text and borrowed sequences             | [Text](/reference/text/), [slices](/reference/slices/), [formatting](/reference/formatting/)                                                               |
-| Compile-time work and program execution | [Constants](/reference/constants/), [entries and tests](/reference/entry-testing/)                                                                         |
-| External code and libraries             | [C++ interoperation](/reference/interop/), [pointers](/reference/pointers/), [UTF library](/reference/utf/)                                                |
-| Invoking and integrating the compiler   | [CLI and Graver](/reference/cli/), [builds and artifacts](/reference/toolchain/)                                                                           |
+| In your program                         | Start here                                                                                                                                                           |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source spelling and file imports        | [Lexical syntax](/reference/lexical/), [modules and visibility](/reference/modules/)                                                                                 |
+| Values, bindings, and declarations      | [Types](/reference/types/), [access and ownership](/reference/ownership/), [structs, classes, and enums](/reference/aggregates/), [functions](/reference/functions/) |
+| Function bodies and calls               | [Control flow](/reference/control/), [failure contracts](/reference/failures/), [closures](/reference/closures/)                                                     |
+| Text and borrowed sequences             | [Text](/reference/text/), [slices](/reference/slices/), [formatting](/reference/formatting/)                                                                         |
+| Compile-time work and program execution | [Constants](/reference/constants/), [entries, assertions, and tests](/reference/entry-testing/)                                                                      |
+| External code and libraries             | [C++ interoperation](/reference/interop/), [pointers](/reference/pointers/), [UTF library](/reference/utf/)                                                          |
+| Invoking and integrating the compiler   | [CLI and Graver](/reference/cli/), [builds and artifacts](/reference/toolchain/)                                                                                     |
 
 The [grammar appendix](/reference/grammar/) retains the complete EBNF productions; the [diagnostic catalog](/reference/diagnostics/) lists current compiler codes. Declaration order is a reading aid here: functions may refer to declarations written later.
 
@@ -51,4 +51,4 @@ The [grammar appendix](/reference/grammar/) retains the complete EBNF production
 
 Carven checks availability, access markers, and borrows of known Carven storage. Providers and callers remain responsible for external address lifetimes, C++ pointer retention, iterator invalidation, reentrancy, and native undefined behavior.
 
-The current source language has no async/await, thread scheduling, atomics, concurrent memory model, user-defined generics, traits, inheritance, source-level destructors, or general reference types. Pointers and C++ integration do not confer those features. This manual describes implemented synchronous evaluation and lifetime rules.
+The current source language has no async/await, thread creation or synchronization, atomics, concurrent memory model, user-defined generics, traits, inheritance, virtual dispatch, source-level destructors or custom copy/move hooks, or general reference types. Read/Write/Take do not establish cross-thread safety. Pointers and C++ integration do not confer those features. This manual describes implemented synchronous evaluation and lifetime rules.

@@ -22,9 +22,11 @@ An unparenthesized if/match/try at the start of a statement is a control stateme
 
 Explicit comma lists accept one trailing comma only where their productions permit it; it creates no empty item. Shorthand return/throw/rethrow/break/continue arms have no semicolon. Use a branch block for multiple statements.
 
-T { ... } parses as construction; T(...) always parses as a call. At the outer depth of a control header, the required opening brace starts the body. Group a construction expression in parentheses to use it at that position. This applies to if, match, loop containers, and integer-range bounds. Pattern is, binding identifiers, cases, and vertical bars are disambiguated without name lookup.
+`T { ... }` parses as construction with an explicit type; `{ ... }` without a type accepts only named fields or an empty initializer, and semantic analysis requires a known expected type. At the start of a match or catch arm body, `{` followed by `IDENTIFIER :` begins a construction; any other leading brace begins a branch block, so `{}` there is an empty block and `({})` is an empty construction arm. Function, if, and try bodies remain blocks. These decisions use tokens only. T(...) always parses as a call. At the outer depth of a control header, the required opening brace starts the body. Group a construction expression in parentheses to use it at that position. This applies to if, match, loop containers, and integer-range bounds. Pattern is, binding identifiers, cases, and vertical bars are disambiguated without name lookup.
 
-Module imports form a contiguous prefix. Top-level const bindings declare module constants, while `const { ... }` introduces a constant block; top-level executable statements form an implicit entry. There is no namespace block, generic declaration, default parameter, or variadic parameter syntax. Range expressions `a..b` and `a..=b` are non-associative and require both integer bounds. Omitted bounds are permitted only in range patterns; step and implicit-reverse forms are unsupported. Unqualified `range<T>` denotes an integer range type. Pattern bounds use shift expressions; parentheses allow the full expression grammar. An unparenthesized `|` separates alternatives. A bare identifier binds a value; it does not test membership in a stored range.
+Module imports form a contiguous prefix. Top-level const bindings declare module constants, while `const { ... }` or `const "label" { ... }` introduces a constant block; the optional label only names the block in diagnostics and need not be unique. A test name is optional; explicit names are unique within a module, and anonymous tests are identified by source location in reports. Top-level executable statements form an implicit entry. There is no namespace block, generic declaration, default parameter, or variadic parameter syntax. Range expressions `a..b` and `a..=b` are non-associative and require both integer bounds. Omitted bounds are permitted only in range patterns; step and implicit-reverse forms are unsupported. Unqualified `range<T>` denotes an integer range type. Pattern bounds use shift expressions; parentheses allow the full expression grammar. An unparenthesized `|` separates alternatives. A bare identifier binds a value; it does not test membership in a stored range.
+
+`class` is a reserved keyword. A class body interleaves fields, each followed by a comma except optionally the last, and operations. An instance operation's first parameter is untyped `self`, `&self`, or `&&self`; this spelling is contextual, not a keyword. An operation without a receiver is associated, with no `static` keyword. Other parameters need type annotations. Class forms, nested declarations, `const fn`, and C++ boundary operations are not admitted in class bodies. The optional `const` before a top-level `fn` declares compile-time call capability: required constant execution calls only such functions, and a `const fn` may call only other `const fn` dependencies.
 
 ## 01 · Notation
 
@@ -171,6 +173,7 @@ visibility-modifier = "private" | "export";
 
 module-declaration = enum-declaration
                    | struct-declaration
+                   | class-declaration
                    | function-definition
                    | module-constant-declaration;
 
@@ -248,7 +251,18 @@ struct-field-list = struct-field,
 struct-field = IDENTIFIER, ":", type;
 ```
 
-## 13 · Functions
+## 13 · Classes and functions
+
+```text
+class-declaration = "class", IDENTIFIER, "{", { class-member }, "}";
+class-member = struct-field, ","
+             | [ "private" ], class-operation;
+class-operation = "fn", IDENTIFIER,
+                  "(", [ class-parameter-list ], ")",
+                  [ "->", function-result-type ], [ throw-clause ], function-body;
+class-parameter-list = receiver, [ ",", parameter-list ] | parameter-list;
+receiver = [ "&" | "&&" ], "self";
+```
 
 ```text
 function-definition = function-head, function-body;
@@ -274,7 +288,7 @@ throw-clause = "throw", named-type, { "+", named-type };
 ## 14 · Tests
 
 ```text
-test-declaration = [ "const" ], "test", STRING_LITERAL, test-block;
+test-declaration = [ "const" ], "test", [ STRING_LITERAL ], test-block;
 
 test-block = "{", { statement }, "}";
 ```
@@ -342,7 +356,7 @@ expression-statement = expression, ";";
 
 control-flow-statement = if-form | match-form | try-form;
 
-constant-block = "const", ordinary-block;
+constant-block = "const", [ STRING_LITERAL ], ordinary-block;
 ```
 
 ## 18 · Assignment and updates
@@ -527,7 +541,8 @@ contextual-case-expression = ".", IDENTIFIER;
 grouped-expression = "(", expression, ")";
 
 construction-expression = construction-type,
-                          "{", [ construction-initializer-list ], "}";
+                          "{", [ construction-initializer-list ], "}"
+                        | "{", [ field-initializer-list ], "}";
 
 construction-type = named-type | function-type;
 

@@ -23,12 +23,12 @@ For dependency or framework changes, use `package.json`, the lockfile and the re
 - Handwritten C++ comparisons use reasonable, idiomatic implementations under the same task requirements. Explain requirements that account for extra code, identify omitted setup and distinguish comparisons from compiler output. Do not inflate C++ boilerplate or imply that alternative libraries and representations do not exist.
 - Verify language claims against the current compiler source and documentation. Run new or substantially changed examples with an available, up-to-date compiler, including stated results or failure cases; identify the compiler revision and relevant working-tree changes. If execution is unavailable, report that limitation. Website builds and tests do not validate Carven semantics.
 - Chinese and English share layouts and interactions. Locale comes from the URL; preserve corresponding articles, metadata and accessible labels.
-- Use platform system fonts for the Carven wordmark, homepage name and other text, Allura for the homepage tagline, and system monospace for code. Keep the dark palette and restrained surface depth. Keep prose, comments and controls readable, with visible keyboard focus and reduced-motion support.
+- Use Cinzel for the Carven wordmark and homepage name, Allura for the homepage tagline, platform system fonts for other text, and system monospace for code. Keep the dark palette and restrained surface depth; the warm copper accent marks current, selected and focused states only. Use the design tokens in `src/styles/global.css` rather than local constants. Keep prose, comments and controls readable, with visible keyboard focus and reduced-motion support.
 - Examples use deliberate line breaks and four-space indentation. Keep code width and left/top alignment stable when switching homepage examples. Equal heights are not required: avoid clipping short examples or leaving large empty areas solely for uniformity. Narrow screens allow horizontal code scrolling.
 
 ## Content alignment
 
-For compiler-driven content updates, follow [docs/content-sync.md](docs/content-sync.md). Record the exact reviewed compiler revision, user-visible changes and source evidence, bilingual coverage, and validation actually performed. Keep tutorial steps and Reference rules distinct. Historical checks are not evidence for the current revision; record skipped checks and unresolved gaps explicitly.
+For compiler-driven content updates, follow [docs/content-sync.md](docs/content-sync.md). Record the exact compiler revision, user-visible changes, implementation approach, source evidence, and bilingual coverage. Keep tutorial steps and Reference rules distinct. Sync records describe what changed and how; do not add execution logs, check counts, or skipped-check histories.
 
 ## Completion
 

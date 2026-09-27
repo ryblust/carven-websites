@@ -9,11 +9,9 @@ source: docs/semantics.md
 ## Print values directly
 
 ```carven
-fn main() {
-    println("quantity", 3, true);
-    println();
-    eprintln("status", "ready");
-}
+println("quantity", 3, true);
+println();
+eprintln("status", "ready");
 ```
 
 println separates adjacent arguments with spaces and adds a newline; eprintln writes to stderr. print/eprint do not add a newline. Text is not a format string: `println("{count}", 3)` prints the braces literally.
@@ -21,12 +19,10 @@ println separates adjacent arguments with spaces and adds a newline; eprintln wr
 ## Control formatting with interpolation
 
 ```carven
-fn main() {
-    let id = 42;
-    let amount = 12.5;
-    let message = f"Order {id:04}: {amount:.2f}";
-    println(message);
-}
+let id = 42;
+let amount = 12.5;
+let message = f"Order {id:04}: {amount:.2f}";
+println(message);
 ```
 
 The output is `Order 0042: 12.50`. Interpolation produces an independent String, and numeric holes can contain ordinary calculations. `:04` specifies width and zero padding; `:.2f` formats a floating value with two decimal places. Write literal braces as `{{` and `}}`.
@@ -34,18 +30,16 @@ The output is `Order 0042: 12.50`. Interpolation produces an independent String,
 ## Append to an existing String
 
 ```carven
-fn main() {
-    var report = String {};
+var report: String = {};
 
-    for index in 0..3 {
-        report.append_format(f"[{index}]");
-    }
-
-    println(report);
+for index in 0..3 {
+    report.append_format(f"[{index}]");
 }
+
+println(report);
 ```
 
-The output is `[0][1][2]`. append_format takes an f literal directly and can avoid an intermediate source-level String. Passing an existing String variable does not satisfy this method's syntax; use append for ordinary text.
+The output is `[0][1][2]`. `{}` constructs an empty String from the annotated type. append_format takes an f literal directly and can avoid an intermediate source-level String. Passing an existing String variable does not satisfy this method's syntax; use append for ordinary text.
 
 ## Evaluation order affects observations
 

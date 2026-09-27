@@ -20,7 +20,7 @@ Carven 分析封闭的 `.cv` 文件批次，生成 C++ 头文件和实现。CLI 
 
 | 术语                | 含义                                     |
 | ------------------- | ---------------------------------------- |
-| 名义类型            | 由结构体或枚举的声明身份决定的类型       |
+| 名义类型            | 由结构体、类或枚举的声明身份决定的类型   |
 | 值                  | 一次计算的结果                           |
 | 存储位置            | 可读取或写入的对象、字段、元素或指针目标 |
 | owner               | 拥有立即值并负责其作用域生命周期的绑定   |
@@ -35,15 +35,15 @@ Carven 分析封闭的 `.cv` 文件批次，生成 C++ 头文件和实现。CLI 
 
 Reference 从文件开头的导入与声明进入函数体，再说明执行和原生接入。教程按学习任务推进；这里把同一主题的完整规则放在一起，便于写代码时查阅。
 
-| 代码中的位置或任务   | 从这里开始                                                                                                                                          |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 源码拼写与文件导入   | [词法](/zh/reference/lexical/)、[模块与可见性](/zh/reference/modules/)                                                                              |
-| 值、绑定与声明       | [类型](/zh/reference/types/)、[访问与所有权](/zh/reference/ownership/)、[结构体与枚举](/zh/reference/aggregates/)、[函数](/zh/reference/functions/) |
-| 函数体与调用         | [控制流](/zh/reference/control/)、[失败契约](/zh/reference/failures/)、[闭包](/zh/reference/closures/)                                              |
-| 文本与借用序列       | [文本](/zh/reference/text/)、[切片](/zh/reference/slices/)、[格式化](/zh/reference/formatting/)                                                     |
-| 编译期工作与程序执行 | [常量](/zh/reference/constants/)、[入口与测试](/zh/reference/entry-testing/)                                                                        |
-| 外部代码与库         | [C++ 互操作](/zh/reference/interop/)、[指针](/zh/reference/pointers/)、[UTF 库](/zh/reference/utf/)                                                 |
-| 调用编译器与接入构建 | [CLI 与 Graver](/zh/reference/cli/)、[构建与产物](/zh/reference/toolchain/)                                                                         |
+| 代码中的位置或任务   | 从这里开始                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 源码拼写与文件导入   | [词法](/zh/reference/lexical/)、[模块与可见性](/zh/reference/modules/)                                                                                  |
+| 值、绑定与声明       | [类型](/zh/reference/types/)、[访问与所有权](/zh/reference/ownership/)、[结构体、类与枚举](/zh/reference/aggregates/)、[函数](/zh/reference/functions/) |
+| 函数体与调用         | [控制流](/zh/reference/control/)、[失败契约](/zh/reference/failures/)、[闭包](/zh/reference/closures/)                                                  |
+| 文本与借用序列       | [文本](/zh/reference/text/)、[切片](/zh/reference/slices/)、[格式化](/zh/reference/formatting/)                                                         |
+| 编译期工作与程序执行 | [常量](/zh/reference/constants/)、[入口、断言与测试](/zh/reference/entry-testing/)                                                                      |
+| 外部代码与库         | [C++ 互操作](/zh/reference/interop/)、[指针](/zh/reference/pointers/)、[UTF 库](/zh/reference/utf/)                                                     |
+| 调用编译器与接入构建 | [CLI 与 Graver](/zh/reference/cli/)、[构建与产物](/zh/reference/toolchain/)                                                                             |
 
 [形式语法附录](/zh/reference/grammar/)保留完整 EBNF 产生式；[诊断目录](/zh/reference/diagnostics/)列出当前编译器代码。这里的声明顺序是阅读路线，并不限制函数引用写在后面的声明。
 
@@ -51,4 +51,4 @@ Reference 从文件开头的导入与声明进入函数体，再说明执行和�
 
 Carven 检查已知 Carven 存储的可用性、访问标记和借用关系。对于外部地址的存活、C++ 指针保留、迭代器失效、重入及原生未定义行为，提供者和调用者须遵守相应的 C++ 契约。
 
-当前源语言没有 async/await、线程调度、原子操作、并发内存模型、用户定义泛型、trait、继承、源级析构器或通用引用类型。指针和 C++ 接入的存在不授予这些能力。本文说明已实现的同步求值与生命周期规则。
+当前源语言没有 async/await、线程创建或同步、原子操作、并发内存模型、用户定义泛型、trait、继承、虚派发、源级析构器或自定义复制/移动钩子，也没有通用引用类型。Read/Write/Take 不建立跨线程安全。指针和 C++ 接入的存在不授予这些能力。本文说明已实现的同步求值与生命周期规则。

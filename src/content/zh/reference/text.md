@@ -23,7 +23,7 @@ str 和 String 都提供：
 | `text.bytes`      | 只读 `[u8]`                  |
 | `text.chars`      | 解码为 char 的 Read 迭代范围 |
 
-`bytes/chars` 是特定类型上的计算投影，不是通用属性机制。chars 视图类型不能手写，只支持推断绑定和 Read 范围迭代。字节视图使用完整切片 API。用户结构体可有同名字段。
+`bytes/chars` 是特定类型上的计算投影，不是通用属性机制。chars 视图类型不能手写，只支持推断绑定和 Read 范围迭代。字节视图使用完整切片 API。按字节位置遍历可写 `0..text.len()`：字面量端点取另一端点的类型，因此区间是 `range<usize>`。用户结构体可有同名字段。
 
 ## String 的拥有语义
 
@@ -84,3 +84,28 @@ text.append(snapshot);
 `char::from_u32_unchecked(u32)` 要求合法 Unicode 标量；`str::from_utf8_unchecked([u8])` 要求合法 UTF-8 并借用输入。两者是直接内建工厂，不验证内容。编译器检查类型和已知借用；调用者保证内容前置条件。未验证输入使用 UTF 库的检查接口。
 
 String 分配失败和长度不可表示时终止。
+
+## 编译期执行中的文本
+
+必需的编译期执行支持 String 的构造与修改、`as_str`、`len`、`is_empty`、插值，以及字节视图：`text.bytes`、它的切片操作和按字节循环。经 `text.chars` 的字符迭代与未检查文本构造仍不在执行器范围内，报告 `CV-CONST-ADMISSION`。
+
+```carven
+const fn count_spaces(text: str) -> usize {
+    var count = 0usize;
+    for byte in text.bytes {
+        if byte == 0x20 {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+const spaces = count_spaces("a b c");
+for index in 0..spaces {
+    println(index);
+}
+```
+
+程序输出 `0` 和 `1`。区间 `0..spaces` 是 `range<usize>`，因为无后缀字面量取另一端点的类型。编译期执行会检查字节地址是否仍存活，见[指针](/zh/reference/pointers/#存活检查)。
+
+C 字符串字面量 `c"..."` 是原生 `const char*` 值，不是 `str`。在编译期执行中，它们可以初始化常量、在函数间传递，也可以复制、赋值和 Take；冻结时保留其字节和指针类型。常量执行和解释器在打印与默认文本格式化时读取保留的字节。不支持指针比较、观察地址和 C 字符串字面量模式；见 [C 字符串](/zh/reference/interop/#c-字符串)。

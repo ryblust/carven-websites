@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { MobileChapters } from '../components/MobileChapters';
 import { ChapterNavigation } from '../components/ChapterNavigation';
 import { ArticleBody } from '../components/ArticleBody';
+import { PageOutline } from '../components/PageOutline';
 import { articles, lessonPaths, referencePaths, type ArticlePath } from '../generated/manifest';
 import { sourceLink } from '../lib/site';
 import { articleHeadings } from '../lib/article-headings';
@@ -68,6 +69,11 @@ export default function Article({ path, html }: { path: ArticlePath; html: strin
         )}
         <article>
           <header className="article-header">
+            {book && (
+              <p className="article-kicker">
+                {label} · {String(article.lesson).padStart(2, '0')}
+              </p>
+            )}
             <h1>{title}</h1>
             <p>{description}</p>
           </header>
@@ -97,38 +103,24 @@ export default function Article({ path, html }: { path: ArticlePath; html: strin
           <nav className="chapter-nav" aria-label={t('章节导航', 'Chapter navigation')}>
             {previous && (
               <Link to={previous}>
-                <span>{t('上一章', 'Previous')}</span>
-                <strong>← {articles[previous].title}</strong>
+                <span>← {t('上一章', 'Previous')}</span>
+                <strong>{articles[previous].title}</strong>
               </Link>
             )}
             {next && (
               <Link className="chapter-next" to={next}>
-                <span>{t('下一章', 'Next')}</span>
-                <strong>{articles[next].title} →</strong>
+                <span>{t('下一章', 'Next')} →</span>
+                <strong>{articles[next].title}</strong>
               </Link>
             )}
           </nav>
         )}
       </div>
-      <aside className="page-outline" aria-label={t('本页目录', 'Page contents')}>
-        <div className="page-outline-inner">
-          <p className="nav-group-label">{t('本页内容', 'On this page')}</p>
-          <nav>
-            {headings.map((heading) => (
-              <a
-                key={heading.id}
-                className={heading.level === 3 ? 'outline-nested' : undefined}
-                href={`#${heading.id}`}
-              >
-                {heading.title}
-              </a>
-            ))}
-          </nav>
-          <a className="back-top" href="#main">
-            {t('回到顶部 ↑', 'Back to top ↑')}
-          </a>
-        </div>
-      </aside>
+      <PageOutline
+        headings={headings}
+        label={t('本页内容', 'On this page')}
+        backLabel={t('回到顶部 ↑', 'Back to top ↑')}
+      />
     </div>
   );
 }

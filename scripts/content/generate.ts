@@ -84,6 +84,7 @@ export const generateContent = Effect.fn('generateContent')(function* (root: str
         const html = yield* markdown.render(
           `home-examples/${name}`,
           '```' + language + '\n' + code + '\n```',
+          { codeBlockFrame: false },
         );
         return [name, html] as const;
       }),

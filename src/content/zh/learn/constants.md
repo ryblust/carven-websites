@@ -20,36 +20,50 @@ const test "heading" {
     check(heading == "Build 0042");
 }
 
-fn main() {
-    println(heading);
-}
+println(heading);
 ```
 
 使用 `carven main.cv` 时，编译阶段输出 `Preparing title`，随后启动的程序输出 `Build 0042`。单独运行已生成的可执行文件只输出 `Build 0042`。heading 的最终类型是 str；String 在计算时拥有内容，在常量初始化完成时冻结为静态文本。
 
 ## const fn 不意味着每次编译期运行
 
-普通运行时表达式中的 `title(42)` 仍是普通函数调用。声明 const fn 只是让它具备必需常量执行资格；只有 const 初始化、数组长度、const test 等上下文要求编译期执行。
+普通运行时表达式中的 `title(42)` 仍是普通函数调用。声明 const fn 只是让它具备必需常量执行资格；只有 const 初始化、数组长度、常量块、const test 等上下文要求编译期执行，而且这些上下文只能调用显式声明为 const fn 的函数。
 
-const fn 内可以写局部变量、循环、支持的数组和结构体以及 String 操作；普通 const 初始化器不能直接用任意控制流表达式，复杂逻辑放进 const fn。
+const fn 内可以写局部变量、循环、支持的数组、切片和结构体以及 String 操作；普通 const 初始化器不能直接用任意控制流表达式，复杂逻辑放进 const fn。
+
+编译器会在定义处检查每个 const fn 是否具备编译期执行能力，即使还没有任何调用。它能调用到的函数也必须是 const fn。保存为 admission.cv：
+
+```carven
+fn double(value: i32) -> i32 => value * 2;
+
+const fn quadruple(value: i32) -> i32 => double(double(value));
+
+println(quadruple(3));
+```
+
+`carven check admission.cv` 在定义处报告：
+
+```text
+error [CV-CONST-ADMISSION]: const fn can only call an explicitly declared const fn
+```
+
+把 double 也声明为 `const fn`，程序输出 `12`。这项检查针对操作与被调函数，而不是所有输入：除零、预算耗尽和断言失败仍要到某次调用实际执行时才会发现。
 
 ## 在编译时执行一个块
 
 只需要执行准备工作、不需要保留结果时，使用常量块。将下面的程序单独保存为 prepare.cv：
 
 ```carven
-const {
-    var label = String {};
+const "prepare data" {
+    var label: String = {};
     label.append("Preparing data");
     println(label);
 }
 
-fn main() {
-    println("Running");
-}
+println("Running");
 ```
 
-`carven check prepare.cv` 在检查阶段打印 `Preparing data`，不执行 main。`carven prepare.cv` 先打印同一行，再由程序打印 `Running`。常量块没有尾分号，局部值在块结束时销毁。
+`carven check prepare.cv` 在检查阶段打印 `Preparing data`，不执行程序。`carven prepare.cv` 先打印同一行，再由程序打印 `Running`。const 后面的字符串是可选标签，用于诊断，可以重复。`var label: String = {};` 使用上下文构造：类型标注为 `{}` 提供了类型。常量块没有尾分号，局部值在块结束时销毁。
 
 块也可以写在函数内，但仍在语义分析时执行一次，不随函数调用重复。它能读取可见常量，不能读取外围函数参数或运行时局部值。需要顺序的编译期操作放在同一块中；不同块的执行顺序未定义。要验证结果则使用 const test，常量块本身不创建测试上下文。
 
@@ -70,20 +84,18 @@ const test "average at compile time" {
     check(result == 3.0);
 }
 
-fn main() {
-    println(result);
-}
+println(result);
 ```
 
 这个程序在编译期计算出 `3.0`，在运行时打印。f32/f64 可以与调用、循环、数组和结构体组合。计算使用编译器宿主的原生浮点环境，不另建一套浮点算术规则。浮点数也可以在编译期格式化，例如 `const label = f"{result:.2f}";` 得到保留两位小数的文本。
 
 ## 从构造文本到保留结果
 
-标题例子只生成一个值。再把首页的文本拼接示例补成完整程序：用普通循环拼接三个名称，编译完成后只需保留结果文本。单独保存为 menu.cv：
+标题例子只生成一个值。再在一个完整程序中构造文本：用普通循环拼接三个名称，编译完成后只需保留结果文本。单独保存为 menu.cv：
 
 ```carven
 const fn join(items: [str; 3]) -> String {
-    var text = String {};
+    var text: String = {};
     for item in items {
         if !text.is_empty() {
             text.append(" / ");
@@ -99,9 +111,7 @@ const test "menu" {
     check(menu == "Home / Docs / About");
 }
 
-fn main() {
-    println(menu);
-}
+println(menu);
 ```
 
 运行 `carven menu.cv`，输出 `Home / Docs / About`。items 决定输入，join 决定拼接规则，const 决定执行阶段；无需另外声明结果的字符数或存储数组。
@@ -176,9 +186,7 @@ const test "range total" {
     check(total == 10);
 }
 
-fn main() {
-    println(total);
-}
+println(total);
 ```
 
 程序输出 `10`。`..` 与 `..=` 的端点规则在编译期和运行时相同；区间模式也可用于 const fn 中的整数分类。
@@ -189,18 +197,83 @@ fn main() {
 const table: [i32] = [2, 4, 6];
 const middle = table.slice(1usize, 3usize);
 
-fn main() {
-    println(middle.len(), middle[0]);
-}
+println(middle.len(), middle[0]);
 ```
 
-输出 `2 4`。这是具有静态 backing 的冻结切片，可以返回与长期保存。普通运行时局部数组的 view 不具有这个生命周期。const fn 内切片操作仍不在支持子集中，数组结果可以到常量初始化边界再冻结。
+输出 `2 4`。这是具有静态 backing 的冻结切片，可以返回与长期保存。普通运行时局部数组的 view 不具有这个生命周期。
+
+## 筛选路由表
+
+const fn 中也可以使用切片、Write 参数和字节迭代。保存为 routes.cv，它只保留已启用、以 `/` 开头且不含空格的路径：
+
+```carven
+struct Route {
+    path: str,
+    enabled: bool,
+}
+
+const fn valid_path(path: str) -> bool {
+    if path.is_empty() || path.bytes[0] != "/".bytes[0] {
+        return false;
+    }
+    for byte in path.bytes {
+        if byte == " ".bytes[0] {
+            return false;
+        }
+    }
+    return true;
+}
+
+const fn add_route(&text: String, path: str) {
+    text.append(path);
+    text.append("\n");
+}
+
+const fn route_list(routes: [Route]) -> String {
+    var text: String = {};
+    for route in routes {
+        if route.enabled && valid_path(route.path) {
+            add_route(&text, route.path);
+        }
+    }
+    return text;
+}
+
+const routes: [Route] = [
+    { path: "/health", enabled: true },
+    { path: "/users", enabled: true },
+    { path: "/debug", enabled: false },
+    { path: "orders", enabled: true },
+];
+
+const endpoints = route_list(routes);
+
+const test {
+    check(endpoints == "/health\n/users\n");
+}
+
+print(endpoints);
+```
+
+`carven routes.cv` 分两行输出 `/health` 和 `/users`。数组元素都使用上下文构造，元素类型来自 `[Route]` 标注。`path.bytes` 是文本的 `[u8]` 视图，`"/".bytes[0]` 和 `" ".bytes[0]` 直接从可读文本取得 `/` 与空格的字节值。add_route 通过 `&text` 获得 Write 访问，原地追加内容。匿名 `const test` 在编译期检查结果。
+
+把 `/debug` 改成 `enabled: true`，运行 `carven check routes.cv`。静态测试失败时，条件和操作数的格式与运行时报告相同：
+
+```text
+error [CV-CONST-TEST]: check failed
+  condition: endpoints == "/health\n/users\n"
+  operands:
+    endpoints: "/health\n/users\n/debug\n"
+    "/health\n/users\n": "/health\n/users\n"
+```
+
+诊断随后给出指向该 check 的源码片段。继续之前把它恢复为 `enabled: false`。
 
 ## 检查失败和预算
 
-const test 始终在语义分析时执行，不需要测试产物选项。check 失败使编译失败，但继续当前测试；require/fail 停止当前测试，后续静态测试继续。普通 test 则交给运行时 runner。
+const test 始终在语义分析时执行，不需要测试产物选项。check 失败使编译失败，但继续当前测试；require/fail 停止当前测试，后续静态测试继续。普通 test 则交给运行时 runner。编译期执行中的 assert 失败报告 `CV-ASSERT`。
 
-Carven 在执行前检查 const fn 的所有分支。整数溢出或求值预算耗尽会产生编译错误。可用操作与结果类型见[常量执行规则](/zh/reference/constants/)。
+整数算术在编译期与运行时完全一致，按类型宽度回绕：由 const fn 计算的 `2147483647 * 2` 在两个阶段都得到 `-2`。除零和非法移位量在运行时会终止程序，在编译期执行时则是编译错误。求值预算耗尽也会产生编译错误。可用操作与结果类型见[常量执行规则](/zh/reference/constants/)。
 
 ## 用相同的失败契约选择编译期配置
 
@@ -216,13 +289,11 @@ const fn port(value: i32) -> i32 throw InvalidPort {
     return value;
 }
 
-const fn configured_port(value: i32) -> i32 {
-    return try {
-        port(value)?
-    } catch {
-        InvalidPort(_) => 8080,
-    };
-}
+const fn configured_port(value: i32) -> i32 => try {
+    port(value)?
+} catch {
+    InvalidPort(_) => 8080,
+};
 
 const selected = configured_port(0);
 const explicit_port = port(443)?;

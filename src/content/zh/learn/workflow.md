@@ -22,13 +22,41 @@ source: docs/cli.md
 | 限制解释步数  | `carven interpret --max-steps 10000 main.cv`             |
 | 查看词法/语法 | `carven dump tokens main.cv` / `carven dump ast main.cv` |
 
-解释器先做同样的语义分析，再检查被调用代码是否属于支持的执行范围，不支持的操作报错而不转原生执行。类型化失败也使用这套共享执行器。包含闭包、切片或原生操作的代码应使用原生运行模式。
+解释器先做同样的语义分析，再在执行到每个操作时检查它是否受支持。不支持的操作报 `CV-INTERPRET-ADMISSION`，不会转为原生执行。类型化失败、切片、字节视图、局部指针、Write 参数，以及通过局部绑定调用具名函数，都使用这套共享执行器。允许导入 C++ 头文件，但执行到原生操作、闭包或没有 Carven 函数体的可调用值时，解释会停止；这类程序使用原生运行。
 
-要逐步观察执行过程，可以用 `carven interpret main.cv` 运行[整数分类示例](/zh/learn/control/)，再加上 `--trace` 观察执行过程。学习完整语言和接入 C++ 库时，使用原生运行模式。
+要逐步观察执行过程，可以用 `carven interpret main.cv` 运行[整数分类示例](/zh/learn/control/)，再加上 `--trace` 查看执行到的语句。学习完整语言和接入 C++ 库时，使用原生运行模式。
 
-直接运行需要原生 C++ 工具链与匹配的 Crafts，不依赖 Xmake。它自动收集工具链的 `crafts/carven/` 和项目可选的 `crafts/`；其他应用文件仍须显式列出。`check`、`compile` 和 `interpret` 也使用相同收集规则。安装布局、临时文件和工具链选择见[命令行 Reference](/zh/reference/cli/)。
+直接运行需要原生 C++ 工具链与匹配的 Crafts，不依赖 Xmake。`check`、`compile`、`interpret` 和直接运行都会收集工具链的 `crafts/carven/` 和项目可选的 `crafts/`；其他应用文件仍须显式列出，文件名主干必须是合法标识符。安装布局、临时文件和工具链选择见[命令行 Reference](/zh/reference/cli/)。
 
-只想检查类型、借用和必需常量时，先用 `carven check main.cv`；它不要求程序入口，也不调用原生编译器。需要定位编译耗时，再加 `--timings`。查看一个文件的词法和语法可直接用 `carven dump main.cv`，两种结果会依次输出。
+## 先检查，再运行
+
+只想检查类型、借用和编译期计算，而不构建程序时，先用 check。保存为 `prices.cv`：
+
+```carven
+const fn line_total(price: i32, quantity: i32) -> i32 => price * quantity;
+
+const test {
+    check(line_total(12, 3) == 36);
+}
+```
+
+运行：
+
+```sh
+carven check prices.cv
+```
+
+命令在 stderr 输出 `carven: check passed`。这个文件没有程序入口，check 也不需要：它分析输入批次，执行必需的编译期求值和 `const test`，然后停止，不调用原生编译器。改用 `carven prices.cv` 则会报告运行程序需要运行时入口。把 36 改成 35 再检查：静态测试以 `CV-CONST-TEST` 失败，显示条件和两个操作数的值，check 返回 1。
+
+编译期调用只能选择 `const fn`。去掉 line_total 的 `const` 后，check 会在测试中的调用处报告 `CV-CONST-ADMISSION`。
+
+加上 `--timings` 查看命令把时间花在哪里：
+
+```sh
+carven check --timings prices.cv
+```
+
+stderr 报告显示总耗时和各阶段耗时，例如源文件收集、语法分析和语义分析；原生运行还会列出 C++ 生成、原生编译和执行。耗时报告不会混入 stdout 上的程序输出或生成产物。在终端中，诊断会带颜色；把 `NO_COLOR` 设为非空值或设置 `TERM=dumb` 可以关闭。查看一个文件的词法和语法可直接用 `carven dump main.cv`，两种结果会依次输出。
 
 ## 用 Graver 格式化源码
 
@@ -62,7 +90,7 @@ import <vector> using std::{ vector, allocator };
 
 ## 测试放在哪一层
 
-编译期算法使用 const test，运行时行为使用 test。原生互操作在 C++ 构建中测试，同时覆盖链接、析构和异常边界。
+编译期算法使用 const test，运行时行为使用 test；两者都可以省略名字，失败时以文件、行和列标识测试。原生互操作在 C++ 构建中测试，同时覆盖链接、析构和异常边界。
 
 Carven 仓库使用 ./xmakew，相关组有 internal、language、crafts、interop、cli、examples。使用 Carven 的项目定义自己的 Xmake 目标，不把编译器内部测试目标当成应用 API。
 

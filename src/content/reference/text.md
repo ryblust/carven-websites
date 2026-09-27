@@ -23,7 +23,7 @@ Both str and String provide:
 | `text.bytes`      | Read-only `[u8]`                          |
 | `text.chars`      | Read iteration range decoding char values |
 
-bytes/chars are computed projections on specific types, not a general property mechanism. The chars view type cannot be spelled explicitly; it supports inferred bindings and Read range iteration. Byte views expose the full slice API. User structs may have fields with these names.
+bytes/chars are computed projections on specific types, not a general property mechanism. The chars view type cannot be spelled explicitly; it supports inferred bindings and Read range iteration. Byte views expose the full slice API. Use `0..text.len()` for byte positions: the literal bound takes the other bound's type, so the range is `range<usize>`. User structs may have fields with these names.
 
 ## String ownership
 
@@ -84,3 +84,28 @@ Failure structs and enums may contain String. throw copies by default; explicit 
 `char::from_u32_unchecked(u32)` requires a valid Unicode scalar. `str::from_utf8_unchecked([u8])` requires valid UTF-8 and borrows its input. Both are direct builtin factories that do not validate contents. The compiler checks types and known borrows; the caller guarantees content preconditions. Use checked UTF library interfaces for unvalidated input.
 
 String allocation failure and unrepresentable length terminate.
+
+## Text in compile-time execution
+
+Required compile-time execution supports String construction and mutation, `as_str`, `len`, `is_empty`, interpolation, and byte views: `text.bytes`, its slice operations, and byte loops. Character iteration through `text.chars` and unchecked text construction remain outside the executor and report `CV-CONST-ADMISSION`.
+
+```carven
+const fn count_spaces(text: str) -> usize {
+    var count = 0usize;
+    for byte in text.bytes {
+        if byte == 0x20 {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+const spaces = count_spaces("a b c");
+for index in 0..spaces {
+    println(index);
+}
+```
+
+This prints `0` and `1`. The range `0..spaces` is `range<usize>` because the unsuffixed literal takes the type of the other bound. Byte addresses are checked for liveness during compile-time execution; see [pointers](/reference/pointers/#liveness-checks).
+
+C string literals `c"..."` are native `const char*` values, not `str`. They can initialize constants, pass through functions, and be copied, assigned, and Taken during compile-time execution; freezing keeps their bytes and pointer type. Constant execution and interpretation read their retained bytes for printing and default text formatting. Pointer comparison, address observation, and C string literal patterns are not supported; see [C strings](/reference/interop/#c-strings).

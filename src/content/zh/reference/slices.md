@@ -56,6 +56,27 @@ fn table_view() -> [i32] => table;
 
 元素支持整数、bool、char、str，以及递归符合要求的固定数组和结构体。保持名义类型、字段类型、嵌套数组长度；不递归把内部数组转为切片或把 String 字段转成 str。空切片保留元素类型，常量索引和子范围在求值时检查。
 
-`const fn` 的数组返回值可以在常量初始化完成时成为冻结切片。`const fn` 内仍不支持切片参数、局部切片和切片操作。仅仅知道一个运行时数组的内容，不会赋予它静态 backing。
-
 保留数组和构造常量子切片按元素引用数量计入初始化器的 524,288 个元素工作预算；原数组仍满足每值大小和嵌套限制。
+
+## 编译期执行中的切片
+
+在必需的编译期执行中，切片参数、局部切片、`len`、`is_empty`、索引、子切片和循环都基于存活的 backing 存储执行。复制和链式切片保留 backing 关系但不延长其寿命；索引和子区间在执行时检查边界，越界报告 `CV-CONST-INDEX-BOUNDS`。完成的常量根在释放 backing 前冻结所选元素，因此 `const fn` 可以返回冻结常量切片的视图：
+
+```carven
+const fn total(values: [i32]) -> i32 {
+    var sum = 0;
+    for value in values {
+        sum += value;
+    }
+    return sum;
+}
+
+const fn tail(values: [i32]) -> [i32] => values.slice(1, values.len());
+
+const table: [i32] = [2, 4, 6];
+const rest = tail(table);
+const sum = total(rest);
+println(rest.len(), sum); // 2 10
+```
+
+普通生命周期规则仍然适用：返回 `const fn` 局部数组的切片会被拒绝。`const fn` 的数组返回值也可以在常量初始化完成时成为冻结切片。仅仅知道一个运行时数组的内容，不会赋予它静态 backing。

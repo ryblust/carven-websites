@@ -8,7 +8,7 @@ source: docs/semantics.md
 
 ## Creation and capture
 
-A lambda must have a capture list; use [] when empty. Creating a closure does not run its body. Captures are established in list order, with each name appearing once. Only runtime bindings visible at creation may be captured. Module declarations and compile-time constants are not explicitly captured.
+A lambda must have a capture list; use [] when empty. Its body is a block or `=> expression`, as in `[factor](item: i32) => item * factor`; an expression body implicitly returns under the same rules as named functions. Creating a closure does not run its body. Captures are established in list order, with each name appearing once. Only runtime bindings visible at creation may be captured. Module declarations and compile-time constants are not explicitly captured.
 
 | Form        | Captured content                   | Body access   |
 | ----------- | ---------------------------------- | ------------- |
@@ -28,17 +28,17 @@ An immutable closure owner can invoke stored Write permissions. Taking the whole
 
 ## Signature context
 
-An expected callable view may supply omitted lambda parameter types. Without context, parameter types are mandatory. An explicit result annotation takes priority, followed by the expected view's result, then independent inference of consistent return types. The body is checked before the closure type is completed.
+An expected callable view may supply omitted lambda parameter types. Without context, parameter types are mandatory. An explicit result annotation takes priority, followed by the expected view's result, then independent inference of consistent return types. The body is checked before the closure type is completed. An expression body may itself produce a lambda, as `factory` does below.
 
 ```carven
-fn apply(callback: fn(i32) -> i32, value: i32) -> i32 {
-    return callback(value);
-}
+fn apply(callback: fn(i32) -> i32, value: i32) -> i32 => callback(value);
 
-fn main() {
-    let offset = 2;
-    println(apply([offset](value) => value + offset, 40));
-}
+let offset = 2;
+let factor = 3;
+let scale = [factor](item: i32) => item * factor;
+let factory = [](value: i32) => [value](_: i32) => value;
+let seven = factory(7);
+println(apply([offset](value) => value + offset, 40), scale(4), seven(0)); // 42 12 7
 ```
 
 ## Non-owning callable views
@@ -79,3 +79,19 @@ The wide view invokes the source view and adapts its result. It neither owns tha
 A concrete closure call selects the object before evaluating arguments. Reassigning that same closure object during argument evaluation affects this call's captures. A view call first saves its target description. Rebinding the current view variable affects later calls; mutating the already selected closure object still affects this call.
 
 A wide view targets the source view object, so rebinding that source during argument evaluation affects the current wide-view call too. For an independent capture snapshot, make an owning copy of the concrete closure first. Copying a view saves only its target description.
+
+## Known function targets
+
+An immutable local initialized from a named function keeps that function as its known target through copies and view adaptation. A call through it uses the function's own failure contract, including an explicit `throw` clause, so a wider view type adds no failures to that call:
+
+```carven
+struct E {}
+
+fn exact(value: i32) -> i32 => value + 1;
+
+let step = exact;
+let wide: fn(i32) -> i32 throw E = step;
+println(step(1), wide(2)); // 2 3
+```
+
+Neither call needs `?`. Calls through parameters, `var` views, or targets that cannot be resolved use the view's contract: with `var step: fn(i32) -> i32 throw E = exact;`, `step(1)` requires `?` and otherwise reports `CV-EFFECT-UNMARKED`.

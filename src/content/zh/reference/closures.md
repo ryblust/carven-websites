@@ -8,7 +8,7 @@ source: docs/semantics.md
 
 ## 创建与捕获
 
-lambda 的捕获列表必须存在，无捕获写 `[]`。创建闭包不执行函数体，捕获按列表顺序建立，每个名字出现一次。只能捕获创建位置可见的运行时绑定；模块声明与编译期常量不显式捕获。
+lambda 的捕获列表必须存在，无捕获写 `[]`。函数体可以是块或 `=> expression`，例如 `[factor](item: i32) => item * factor`；表达式体按与具名函数相同的规则隐式返回。创建闭包不执行函数体，捕获按列表顺序建立，每个名字出现一次。只能捕获创建位置可见的运行时绑定；模块声明与编译期常量不显式捕获。
 
 | 形式        | 捕获内容         | 体内权限 |
 | ----------- | ---------------- | -------- |
@@ -28,17 +28,17 @@ lambda 的捕获列表必须存在，无捕获写 `[]`。创建闭包不执行�
 
 ## 签名上下文
 
-期望 callable view 可以提供省略的 lambda 参数类型；无上下文时参数类型必须显式。显式返回类型优先，其次使用期望 view 返回类型，否则独立推断各 return 的一致类型。完成闭包类型前检查函数体。
+期望 callable view 可以提供省略的 lambda 参数类型；无上下文时参数类型必须显式。显式返回类型优先，其次使用期望 view 返回类型，否则独立推断各 return 的一致类型。完成闭包类型前检查函数体。表达式体本身也可以产生 lambda，如下例中的 `factory`。
 
 ```carven
-fn apply(callback: fn(i32) -> i32, value: i32) -> i32 {
-    return callback(value);
-}
+fn apply(callback: fn(i32) -> i32, value: i32) -> i32 => callback(value);
 
-fn main() {
-    let offset = 2;
-    println(apply([offset](value) => value + offset, 40));
-}
+let offset = 2;
+let factor = 3;
+let scale = [factor](item: i32) => item * factor;
+let factory = [](value: i32) => [value](_: i32) => value;
+let seven = factory(7);
+println(apply([offset](value) => value + offset, 40), scale(4), seven(0)); // 42 12 7
 ```
 
 ## 非拥有 callable view
@@ -79,3 +79,19 @@ fn example() throw E + F {
 具体闭包调用先选中对象，再求值参数。参数求值期间对同一闭包对象重新赋值，会影响本次调用的捕获。view 调用先保存其目标描述：重新绑定当前 view 变量影响后续调用，修改已选中的闭包对象仍影响本次。
 
 宽 view 的目标是源 view 对象，因此参数求值期间重新绑定源 view，本次宽 view 调用也观察到新内容。需要独立捕获快照时，先建立具体闭包的拥有副本。复制 view 只保存目标描述。
+
+## 已知函数目标
+
+用具名函数初始化的不可变局部绑定，在复制和 view 适配后仍保留该函数作为已知目标。通过它的调用使用函数自身的失败契约（包括显式 `throw` 子句），因此更宽的 view 类型不会给这次调用增加失败：
+
+```carven
+struct E {}
+
+fn exact(value: i32) -> i32 => value + 1;
+
+let step = exact;
+let wide: fn(i32) -> i32 throw E = step;
+println(step(1), wide(2)); // 2 3
+```
+
+两个调用都不需要 `?`。通过参数、`var` view 或无法解析的目标调用时，使用 view 的契约：若写成 `var step: fn(i32) -> i32 throw E = exact;`，`step(1)` 必须加 `?`，否则报告 `CV-EFFECT-UNMARKED`。

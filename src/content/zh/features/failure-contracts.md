@@ -29,13 +29,11 @@ Carven
 ```carven
 // read: str throw Missing + Denied
 // parse: i32 throw BadPort
-fn port() -> i32 throw Denied + BadPort {
-    return try {
-        parse(read()?)?
-    } catch {
-        Missing(_) => 8080,
-    };
-}
+fn port() -> i32 throw Denied + BadPort => try {
+    parse(read()?)?
+} catch {
+    Missing(_) => 8080,
+};
 ```
 
 </div>
@@ -88,36 +86,63 @@ C++ 的结果类型、variant 和控制流提供了表达这些行为的能力�
 读取端口分成两步：先读取配置文本，再解析为端口号。下面的节选假设 read 返回 str，声明 Missing + Denied；parse 接收 str，返回 i32，声明 BadPort。
 
 ```carven
-private fn load() -> i32 {
-    return parse(read()?)?;
-}
+private fn load() -> i32 => parse(read()?)?;
 ```
 
-每个 `?` 都标出一个失败出口。read 失败时，parse 不会执行。编译器为 load 推断 Missing + Denied + BadPort，无需额外定义汇总错误类型。私有函数的推断也覆盖前向调用、直接递归和相互递归。
+每个 `?` 都标出一个失败出口。read 失败时，parse 不会执行。load 是私有函数，省略了 `throw` 子句，编译器为它推断 Missing + Denied + BadPort，无需额外定义汇总错误类型。私有函数的推断也覆盖前向调用、直接递归和相互递归。
 
 ## 配置缺失用默认值，其余失败保留
 
 公开的 port 函数在配置缺失时使用 8080：
 
 ```carven
-fn port() -> i32 throw Denied + BadPort {
-    return try {
-        load()?
-    } catch {
-        Missing(_) => 8080,
-    };
-}
+fn port() -> i32 throw Denied + BadPort => try {
+    load()?
+} catch {
+    Missing(_) => 8080,
+};
 ```
 
 处理 Missing 后，它不再出现在向外的契约中。Denied 和 BadPort 仍携带原有数据传给调用者。首页将 load 的表达式直接写入 port，行为相同。
 
 如果 catch 只处理某些载荷，或带有守卫条件，该失败类型可能仍在集合中。编译器检查实际覆盖范围，再决定能否从契约中移除这个类型。
 
+### 剩余的失败由编译器计算
+
+剩余集合是推导出来的，不靠约定。如果 port 只声明 `throw Denied`，函数体仍会让 BadPort 传出，检查随即失败：
+
+```text
+error [CV-EFFECT-SIGNATURE-BOUND]: callable body exceeds its declared failure contract
+```
+
+这份责任也随调用传递。调用者如果只恢复 Denied，BadPort 就没有得到处理：
+
+```carven
+fn report() {
+    try {
+        println(port()?);
+    } catch {
+        Denied(_) => println("access denied"),
+    }
+}
+```
+
+catch 诊断会指出仍未覆盖的失败类型，并带上所在模块（这里是 `config`）：
+
+```text
+error [CV-EFFECT-CATCH-NON-EXHAUSTIVE]: catch does not cover every protected failure
+note: failure type not fully covered: config.BadPort
+```
+
+report 是公开函数且没有 `throw` 子句，所以编译器还会报告 `CV-EFFECT-THROW-PUBLISHED`。补上 `BadPort(error) => ...` 分支，或为 report 声明 `throw BadPort`，两个诊断都会消失。这些节选依赖前面的 port 定义；诊断只列出主要行，省略了源码片段。
+
 在[深入教程](/zh/learn/failures/)中，可以运行完整的 Carven 与 C++ 对照，并修改输入或契约，观察两边的行为。
 
 ## 内部可以推断，接口明确承诺
 
-编译器根据私有辅助函数与 lambda 中的操作推断失败集合。模块外可见的函数若有向外传播的失败，须显式声明允许的类型；编译器检查实现是否超出这一上界。调用者根据声明理解接口，无需阅读函数体。
+编译器根据私有辅助函数、lambda 以及顶层语句构成的隐式入口中的操作推断失败集合。模块外可见的函数和显式 `main` 若有向外传播的失败，须显式声明允许的类型；编译器检查实现是否超出这一上界。调用者根据声明理解接口，无需阅读函数体。
+
+因此顶层的 `println(port()?);` 不需要 `throw` 子句：失败逸出隐式入口时，程序以失败状态结束，不会自动输出内容。
 
 声明允许的某种失败，即使当前实现没有产生它，也仍属于调用契约。实现可以在已声明范围内调整；扩大范围则是调用者需要重新处理的接口变化。
 
@@ -129,9 +154,7 @@ fn port() -> i32 throw Denied + BadPort {
 fn process(
     amount: i32,
     policy: fn(i32) -> i32 throw InvalidAmount + LimitExceeded,
-) -> i32 throw InvalidAmount + LimitExceeded {
-    return policy(amount)?;
-}
+) -> i32 throw InvalidAmount + LimitExceeded => policy(amount)?;
 ```
 
 这里的失败类型由策略模块提供。增加捕获了额度的策略闭包时，它可以保留输入错误，再引入带有实际金额和额度的 LimitExceeded。调用方仍按接口所声明的集合恢复。

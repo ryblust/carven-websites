@@ -13,17 +13,19 @@ C++ provides objects, templates, containers, algorithms, and a mature toolchain.
 
 ## Describe the computation. Let the compiler arrange storage.
 
-Joining text at compile time needs inputs, a separator, an order, and a choice of when to compute it. Those decisions belong in source. The resulting byte count and its static storage can be determined from the result.
+Building a list of enabled routes at compile time needs inputs, a loop, an order, and a choice of when to compute it. Those decisions belong in source. The resulting byte count and its static storage can be determined from the result.
 
-The [compile-time tutorial](/learn/constants/) puts two complete implementations together. C++20 join builds a string with an ordinary loop; a freeze template then computes its length, creates an array, and supplies a string_view. Carven uses the same loop and freezes String into str when const initialization completes.
+The [compile-time feature page](/features/compile-time/) puts both implementations side by side. In C++20, a `constexpr std::string` allocation cannot survive into runtime, so the handwritten version runs the construction once to learn the size and again to copy the text into a sized array. Carven uses the same loop and freezes String into str when const initialization completes.
 
-Changing the input text can change the result length without changing the algorithm. Carven includes the storage step in its language rules, so each result needs no separately arranged storage code. A C++ library can encapsulate this work too; Carven makes it available directly for supported constant construction.
+Changing the input can change the result length without changing the algorithm. Carven includes the storage step in its language rules, so each result needs no separately arranged storage code. A C++ library can encapsulate this work too; Carven makes it available directly for supported constant construction.
 
 ## Keep meaningful decisions in the source
 
 Reading, modifying, and transferring ownership express different intentions. Carven names them Read, Write, and Take, checking the corresponding permissions at declarations and uses. Inference supplies information the compiler can determine; explicit operations express choices about access, captures, and propagation.
 
 In C++, the permitted uses of an object after a move depend on the type and operation contracts. Carven's Take also changes the source owner's static availability: the compiler checks subsequent uses and restoration. The same rule participates in calls, closures, and control-flow joins.
+
+A class gathers fields and operations behind one boundary without changing that cost model. It is an encapsulated value: declaring one adds no heap allocation, inheritance, or virtual dispatch, and its fields still decide copying, ownership, and cleanup. Its operations state their receiver as `self`, `&self`, or `&&self`, using the same Read, Write, and Take rules as any other parameter.
 
 Known borrowing relationships constrain the lifetime of backing storage. Providers and callers remain responsible for the validity of objects reached through external C++ pointers. The scope of checking follows the information the compiler actually has.
 
@@ -43,13 +45,15 @@ Constant functions can construct data using loops and mutable locals. Required c
 
 Dynamic operations can still have known structure. Fixed text, integer formats, and capacity bounds can be prepared ahead of time and consumed by specialized runtime operations. A known result and permission to omit execution are separate decisions: side effects and object lifetimes remain part of the program.
 
+Some conditions are not recoverable business failures. `assert(condition, message)` is always enabled, independently of `NDEBUG`; the message is evaluated only when the condition is false, and a failure stops the program rather than becoming a typed failure that `try` could recover.
+
 Static checking and native optimization have distinct jobs. Carven establishes types, pattern coverage, evaluation order, ownership, and failure contracts. Simplification must preserve required execution and storage observations; the C++ compiler handles native optimization, including eliminating storage when it can prove that safe.
 
 ## Bring existing libraries with you
 
 These language rules sit on a native ecosystem you can keep using. The [third-party library example](/learn/interop/) calls nlohmann/json, retains its native object, and invokes its methods. Those calls need no dedicated binding layer; the native project still manages dependencies and include paths.
 
-The boundary stays explicit. Carven does not automatically turn native exceptions into typed failures or prove arbitrary external pointer lifetimes. An adapter can establish the contract the application needs; Carven then checks and composes the facts available to it.
+The boundary stays explicit. Carven does not automatically turn native exceptions into typed failures or prove arbitrary external pointer lifetimes. It also has no thread or synchronization operations, and its access rules do not establish cross-thread safety; code that calls Carven from several threads owns that coordination. An adapter can establish the contract the application needs; Carven then checks and composes the facts available to it.
 
 ## Measure cost against equivalent handwritten C++
 

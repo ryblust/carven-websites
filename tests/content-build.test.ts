@@ -24,6 +24,12 @@ describe('content build', () => {
       assert.deepStrictEqual(paths, ['/learn/', '/learn/values/']);
       const html = yield* fs.readFileString(`${root}/src/generated/articles/learn/index.ts`);
       assert.include(html, 'shiki');
+      assert.include(html, 'data-language=\\"cv\\"');
+      assert.include(
+        html,
+        '<div class=\\"code-wrap\\"><div class=\\"code-head\\"><span>Carven</span>',
+      );
+      assert.notInclude(html, 'copy-button');
       assert.include(html, 'Hello');
       assert.notInclude(html, 'Lesson 1');
       const manifest = yield* fs.readFileString(`${root}/src/generated/manifest.ts`);
@@ -34,6 +40,9 @@ describe('content build', () => {
       assert.include(home, 'BadPort');
       assert.include(home, 'freeze');
       assert.include(home, 'nlohmann');
+      assert.include(home, 'Answer:');
+      assert.include(home, 'Shipped');
+      assert.notInclude(home, 'code-head');
       assert.include(html, 'carven-vesper-black');
       assert.isFalse(yield* fs.exists(`${root}/src/generated/content.json`));
       assert.isFalse(
@@ -116,6 +125,26 @@ describe('content build', () => {
       assert.strictEqual(error.operation, 'metadata');
       assert.isFalse(published);
     }),
+  );
+});
+
+describe('static code block frames', () => {
+  it.effect.each([
+    ['cv', 'Carven'],
+    ['cpp', 'C++'],
+    ['sh', 'Shell'],
+    ['text', ''],
+  ])('keeps the %s label and header in unhydrated articles', ([language, label]) =>
+    Effect.gen(function* () {
+      const markdown = yield* Markdown;
+      const html = yield* markdown.render('frame.md', `\`\`\`${language}\nexample\n\`\`\``);
+      assert.include(
+        html,
+        `<div class="code-wrap"><div class="code-head"><span>${label}</span></div><pre`,
+      );
+      assert.include(html, '<code>');
+      assert.notInclude(html, '<button');
+    }).pipe(Effect.provide(Markdown.layer)),
   );
 });
 

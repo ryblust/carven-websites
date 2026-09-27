@@ -1,18 +1,35 @@
 // Authored homepage snippets. Highlighted during content generation.
 export const homeExamples = {
+  quickstart: `let answer = 20 + 22;
+println("Answer:", answer);`,
+  display: `enum Status {
+    Pending,
+    Shipped(i32),
+}
+
+struct Order {
+    id: i32,
+    status: Status,
+    items: [str; 2],
+}
+
+let order = Order {
+    id: 7,
+    status: Status::Shipped(3),
+    items: ["disk", "cable"],
+};
+println(order);`,
   failures: `// read: str throw Missing + Denied
 // parse: i32 throw BadPort
-fn port() -> i32 throw Denied + BadPort {
-    return try {
-        parse(read()?)?
-    } catch {
-        Missing(_) => 8080,
-    };
-}`,
+fn port() -> i32 throw Denied + BadPort => try {
+    parse(read()?)?
+} catch {
+    Missing(_) => 8080,
+};`,
   constants: `struct Route { path: str, enabled: bool }
 
 const fn route_list(routes: [Route; 3]) -> String {
-    var text = String {};
+    var text: String = {};
     for route in routes {
         if route.enabled {
             text.append(route.path);
@@ -23,16 +40,50 @@ const fn route_list(routes: [Route; 3]) -> String {
 }
 
 const endpoints = route_list([
-    Route { path: "/health", enabled: true },
-    Route { path: "/users", enabled: true },
-    Route { path: "/debug", enabled: false },
-]);`,
+    { path: "/health", enabled: true },
+    { path: "/users", enabled: true },
+    { path: "/debug", enabled: false },
+]);
+
+const test {
+    check(endpoints == "/health\\n/users\\n");
+}`,
   native: `import <nlohmann/json.hpp> using nlohmann::json::parse;
 
-fn main() {
-    let config = parse(c"{\\"port\\":9000}");
-    let port: i32 = config.value(c"port", 8080);
-    println(f"Port: {port}");
+let config = parse(c"{\\"port\\":9000}");
+let port: i32 = config.value(c"port", 8080);
+println(f"Port: {port}");`,
+  displayCpp: `#include <array>
+#include <ostream>
+#include <string_view>
+#include <variant>
+
+struct Pending {};
+struct Shipped { int boxes; };
+using Status = std::variant<Pending, Shipped>;
+
+struct Order {
+    int id;
+    Status status;
+    std::array<std::string_view, 2> items;
+};
+
+std::ostream& operator<<(std::ostream& out, const Status& status) {
+    if (auto* shipped = std::get_if<Shipped>(&status)) {
+        return out << "Status::Shipped(" << shipped->boxes << ")";
+    }
+    return out << "Status::Pending";
+}
+
+std::ostream& operator<<(std::ostream& out, const Order& order) {
+    out << "Order {\\n"
+        << "    id: " << order.id << ",\\n"
+        << "    status: " << order.status << ",\\n"
+        << "    items: [";
+    for (auto item : order.items) {
+        out << '"' << item << "\\", ";
+    }
+    return out << "],\\n}\\n";
 }`,
   failuresCpp: `#include <expected>
 #include <string_view>
@@ -90,7 +141,8 @@ constexpr auto data = freeze<[] {
         {"/debug", false},
     }});
 }>();
-constexpr std::string_view endpoints{data.data(), data.size()};`,
+constexpr std::string_view endpoints{data.data(), data.size()};
+static_assert(endpoints == "/health\\n/users\\n");`,
   nativeCpp: `#include <iostream>
 #include <nlohmann/json.hpp>
 

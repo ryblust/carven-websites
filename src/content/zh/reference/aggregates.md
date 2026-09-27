@@ -1,6 +1,6 @@
 ---
-title: 结构体、数组与枚举
-description: 构造次序、类型身份、边界检查、枚举载荷和递归存储。
+title: 结构体、类、数组与枚举
+description: 构造次序、值类、上下文构造、边界检查、枚举载荷和递归存储。
 section: reference
 lesson: 5
 source: docs/semantics.md
@@ -8,7 +8,7 @@ source: docs/semantics.md
 
 ## 结构体
 
-结构体是有序、字段名唯一的名义乘积类型。可以按声明顺序位置构造，或用字段名构造。非空构造必须恰好初始化每个字段一次，不能混合位置和命名形式。空的 `T {}` 请求整值默认初始化。字段体只容纳字段，没有成员函数定义。
+结构体是有序、字段名唯一的名义乘积类型。可以按声明顺序位置构造，或用字段名构造。非空构造必须恰好初始化每个字段一次，不能混合位置和命名形式。空的 `T {}` 请求整值默认初始化。结构体体内只容纳字段；需要私有字段和操作时使用[类](#普通值类)。
 
 ```carven
 struct Point {
@@ -21,7 +21,7 @@ fn origin() -> Point => Point { 0, 0 };
 fn sample() -> Point => Point { y: 2, x: 1 };
 ```
 
-命名形式映射到字段声明，但初始化表达式仍按书写顺序求值。非空构造的重复、遗漏、多余、未知字段和不兼容值都报错。非空 Carven `T { ... }` 仅构造结构体；空构造也支持有默认值的内建类型。枚举和 callable 使用各自的表达式形式。外部 C++ 类型有单独的构造规则。
+命名形式映射到字段声明，但初始化表达式仍按书写顺序求值。非空构造的重复、遗漏、多余、未知字段和不兼容值都报错。非空 Carven `T { ... }` 构造结构体，类只能在自身类体内构造；空构造也支持有默认值的内建类型。上下文能提供类型时可以省略类型，见[上下文构造](#上下文构造)。枚举和 callable 使用各自的表达式形式。外部 C++ 类型有单独的构造规则。
 
 结构体仅在每个字段均可比较时支持相等比较。
 
@@ -41,9 +41,91 @@ fn sample() -> Point => Point { y: 2, x: 1 };
 | 结构体        | 各字段递归初始化             |
 | 外部 C++ 类型 | 原生值初始化，由 C++ 验证    |
 
-数值与载荷枚举、callable 值及视图、void、入口或仅用于迭代的不透明类型没有默认值。包含它们的结构体或非空数组也没有默认值；零长度数组不要求元素可默认初始化。不支持的请求报告 `CV-TYPE-DEFAULT-INITIALIZATION`。
+普通类、数值与载荷枚举、callable 值及视图、void、入口或仅用于迭代的不透明类型没有默认值。包含它们的结构体或非空数组也没有默认值；零长度数组不要求元素可默认初始化。不支持的请求报告 `CV-TYPE-DEFAULT-INITIALIZATION`。
 
 局部声明仍须提供初始化器，数组字面量仍须提供精确元素数。默认构造不延长借用、不放宽访问规则。运行时、解释和常量执行在各自支持子集内使用相同默认值；原生默认值仍委托 C++。
+
+## 普通值类
+
+`class` 是封装的名义值：字段私有，操作声明在类体内。它不引入堆分配、引用身份、继承、虚派发，也没有自定义复制、移动或析构钩子。复制、所有权、存储的借用和析构都由字段类型决定，规则与结构体相同。
+
+```carven
+class Counter {
+    value: i32,
+
+    fn create(value: i32) -> Counter => { value: value };
+    fn read(self) -> i32 => self.value;
+
+    fn increment(&self) {
+        self.value += 1;
+    }
+}
+
+var counter = Counter::create(3);
+counter.increment();
+println(counter.read(), counter); // 4 Counter
+```
+
+字段以逗号结尾（最后一个可省略），可与操作交错书写。类体内不能嵌套声明，也不能包含 `const fn` 或 C++ 导入/导出操作。
+
+| 形式                   | 含义                                                                   |
+| ---------------------- | ---------------------------------------------------------------------- |
+| `fn name(params)`      | 关联操作，用 `Type::name(...)` 调用；`Type::name` 也是它的 callable 值 |
+| `fn name(self, ...)`   | 以 Read 访问接收者的实例操作                                           |
+| `fn name(&self, ...)`  | 以 Write 访问接收者的实例操作，保留原可更新位置                        |
+| `fn name(&&self, ...)` | Take 整个 owner 的实例操作                                             |
+| `private fn ...`       | 只能在本类体内访问                                                     |
+
+实例操作用 `expression.name(...)` 调用。接收者在显式实参之前求值一次，按普通 Read、Write 或 Take 规则绑定；显式实参仍需写自己的访问标记。实例操作不能单独取为值。没有 `static` 关键字、成员重载或隐式 `self` 查找：操作内部只能用 `self.field` 访问字段。
+
+选择字段和构造表示只允许在定义该类的词法类体内进行。这项权限覆盖同类的其他值以及类操作中书写的 lambda，但不延伸到同模块的其他声明或它们调用的自由函数。在类体外写 `counter.value`、`Counter { value: 1 }` 或 `let c: Counter = {};` 报告 `CV-ACCESS-CLASS-PRIVATE`；从外部调用 `private fn` 也报告此代码。普通操作沿用类自身的 `private`/`export` 可见范围。操作不进入模块命名空间；字段与操作共用一个命名空间，名字必须唯一。
+
+类体内的构造必须提供全部字段；类没有自动默认值，包含它的结构体或非空数组也不会自动构造它。因此，除非类没有字段，在返回自身类型的操作里写 `{}` 会报告 `CV-TYPE-DEFAULT-INITIALIZATION`。类型名不可调用。
+
+类没有隐式相等：`a == b`，包括通过含类字段的结构体比较，都报告 `CV-TYPE-EQUALITY-UNSUPPORTED`。需要比较时请写一个操作。[结构化打印](/zh/reference/formatting/#结构化打印)只输出类名。必需的常量求值以 `CV-CONST-ADMISSION` 拒绝类值和类操作。没有类表示模式。生成的 C++ 把类操作表示为以接收者为参数的普通函数。
+
+## 上下文构造
+
+表达式已有已知期望类型时，构造可以省略类型：`{ field: value }` 按字段名构造，`{}` 请求默认值。字段检查、类表示访问、所有权、借用和常量执行准入都与写出类型的形式相同。命名字段必须写成 `field: value`，不支持 `{ quantity, amount }` 这样的简写。位置构造保留显式类型，`{ 1, 2 }` 是语法错误。
+
+```carven
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+struct Segment {
+    start: Point,
+    end: Point,
+}
+
+fn origin() -> Point => { x: 0, y: 0 };
+
+fn width(segment: Segment) -> i32 => segment.end.x - segment.start.x;
+
+var text: String = {};
+text.append("ok");
+let points: [Point; 2] = [origin(), { x: 3, y: 4 }];
+let segment = Segment { start: {}, end: points[1] };
+println(text, width(segment), width({ start: origin(), end: { x: 5, y: 0 } }));
+```
+
+输出 `ok 3 5`。期望类型来自声明的函数和 callable 结果、带注解的绑定、赋值目标、已解析的 Carven 参数、记录字段和已知数组元素类型；值控制分支沿用外围期望类型。数组元素或分支的前向分析已确定的类型也可提供上下文。编译器不会搜索后续用途，`let point = { x: 1, y: 2 };` 报告 `CV-TYPE-CONSTRUCT-CONTEXT`。
+
+没有按字段名的结构搜索，也不选择失败类型：`throw { code: 404 };` 同样报告 `CV-TYPE-CONSTRUCT-CONTEXT`，需写出失败类型。对 `-> T throw E`，返回的构造使用 `T`。原生 C++ 类型从不推断构造；外部结果类型的 `{}` 报告 `CV-TYPE-CONSTRUCT-CONTEXT`。
+
+在 match 或 catch 分支体开头，`{ field: value }` 是构造，而 `{}` 是空分支块。空构造分支写作 `({})`：
+
+```carven
+fn pick(flag: bool) -> Point {
+    return match flag {
+        true => { x: 1, y: 0 },
+        false => ({}),
+    };
+}
+```
+
+此片段使用上一例中的 `Point`。函数体、if 体和 try 体始终是块；块的末尾表达式本身可以是上下文构造。
 
 ## 固定数组
 
@@ -92,4 +174,4 @@ enum Reply {
 
 ## 递归存储与可见性
 
-结构体字段、枚举载荷和数组元素形成的按值存储图不能有环；长度为零的数组仍形成元素类型边。函数参数和结果不形成存储边，指针也不拥有目标，可用于递归结构。公开字段和载荷类型必须对声明的读者可见。
+结构体字段、枚举载荷和数组元素形成的按值存储图不能有环；长度为零的数组仍形成元素类型边。函数参数和结果不形成存储边，指针也不拥有目标，可用于递归结构。公开字段和载荷类型必须对声明的读者可见。类字段对类体私有，可以使用模块私有类型；类操作仍服从其声明的可见范围。

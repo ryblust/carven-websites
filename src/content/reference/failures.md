@@ -24,9 +24,9 @@ fn load() -> i32 throw ReadError + ParseError {
 }
 ```
 
-An explicit throw clause bounds the body's failure set. Calls to load always use its declared set, even if the current body always succeeds. Callers do not look through an interface to narrow that set.
+An explicit throw clause bounds the body's failure set; a body that can produce more reports `CV-EFFECT-SIGNATURE-BOUND`. Calls to load always use its declared set, even if the current body always succeeds. Callers do not look through an interface to narrow that set.
 
-Module-private non-entry functions and lambdas without contracts infer a least fixed point across forward calls, direct recursion, and mutual recursion. Bare and export functions with nonempty actual failures must declare them, or receive `CV-EFFECT-THROW-PUBLISHED`. An entry that propagates failures outward needs an explicit contract regardless of visibility. Tests cannot expose escaping failures. Failure types must be visible to interface readers.
+Module-private non-entry functions, implicit entries, and lambdas without contracts infer a least fixed point across forward calls, direct recursion, and mutual recursion. Bare and export functions with nonempty actual failures must declare them, or receive `CV-EFFECT-THROW-PUBLISHED`. An explicit entry function that propagates failures outward needs an explicit contract regardless of visibility; top-level statements infer theirs. Tests cannot expose escaping failures. Failure types must be visible to interface readers.
 
 ## `?` and `throw`
 
@@ -46,7 +46,7 @@ If the first load fails, the second and the addition are skipped. Pending failur
 
 try handles failures from its protected body. catch supports type, wildcard, alternative, payload, and guarded patterns. Uncovered failures go to the outer target.
 
-An outer protected body, lambda, inferred private non-entry function, or function with an explicit throw contract may accept residual failures. At a test boundary or a published/entry function without an explicit contract, every protected-body failure must be covered. The final outward set is always checked against the enclosing callable contract.
+An outer protected body, lambda, inferred private non-entry function or implicit entry, or function with an explicit throw contract may accept residual failures. At a test boundary or a published or explicit entry function without an explicit contract, every protected-body failure must be covered. The final outward set is always checked against the enclosing callable contract.
 
 ```carven
 struct A {}
@@ -77,6 +77,29 @@ fn wrapper() throw B {
 ```
 
 Choose one of the two wrapper definitions; they have the same outward set. A type is removed from the residual set only when the arms collectively cover all its possible values, accounting for guard rejection. A try with a nonfallible protected body is valid and receives no redundancy diagnostic.
+
+## Known function targets
+
+An immutable local initialized from a known function keeps that function as its target through copies and view adaptation. Calling it uses the function's own contract, including an explicit throw clause; a wider view type does not add failures to this known call. Calls through parameters, mutable views, or unresolved target selections use the view's contract.
+
+```carven
+struct Missing {}
+
+fn parse(text: str) -> i32 => text.len() as i32;
+
+fn run(values: [str]) -> i32 {
+    let measure: fn(str) -> i32 throw Missing = parse;
+    var total = 0;
+    for value in values {
+        total += measure(value);
+    }
+    return total;
+}
+
+println(run(["ab", "cde"]));
+```
+
+`measure` has a view type that permits `Missing`, but it is known to call `parse`, which cannot fail, so `measure(value)` needs no `?`. The program prints `5`.
 
 ## Selection order and guards
 

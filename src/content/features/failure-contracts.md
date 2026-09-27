@@ -29,13 +29,11 @@ Carven
 ```carven
 // read: str throw Missing + Denied
 // parse: i32 throw BadPort
-fn port() -> i32 throw Denied + BadPort {
-    return try {
-        parse(read()?)?
-    } catch {
-        Missing(_) => 8080,
-    };
-}
+fn port() -> i32 throw Denied + BadPort => try {
+    parse(read()?)?
+} catch {
+    Missing(_) => 8080,
+};
 ```
 
 </div>
@@ -88,36 +86,63 @@ For obligations involving storage lifetime, see the [borrowing comparison in the
 Reading a port takes two steps: read the config text, then parse it as a port number. These excerpts assume read returns str and declares Missing + Denied, while parse takes str, returns i32, and declares BadPort.
 
 ```carven
-private fn load() -> i32 {
-    return parse(read()?)?;
-}
+private fn load() -> i32 => parse(read()?)?;
 ```
 
-Each `?` marks a failure exit. If read fails, parse never runs. The compiler infers Missing + Denied + BadPort for load; no additional error wrapper is needed. Private-function inference also covers forward calls, direct recursion, and mutual recursion.
+Each `?` marks a failure exit. If read fails, parse never runs. load is private and omits its `throw` clause, so the compiler infers Missing + Denied + BadPort; no additional error wrapper is needed. Private-function inference also covers forward calls, direct recursion, and mutual recursion.
 
 ## Handle the missing file, keep the other failures
 
 The public port function uses 8080 when the config is missing:
 
 ```carven
-fn port() -> i32 throw Denied + BadPort {
-    return try {
-        load()?
-    } catch {
-        Missing(_) => 8080,
-    };
-}
+fn port() -> i32 throw Denied + BadPort => try {
+    load()?
+} catch {
+    Missing(_) => 8080,
+};
 ```
 
 Handling Missing removes it from the outward contract. Denied and BadPort still reach the caller with their original payloads. The homepage inlines load's expression; the behavior is the same.
 
 A catch that handles only some payloads, or uses a guard, may leave that failure type in the set. The compiler checks actual coverage before removing a type from the contract.
 
+### The compiler computes what remains
+
+The remaining set is derived, not assumed. If port declares only `throw Denied`, the body still lets BadPort escape, and checking fails:
+
+```text
+error [CV-EFFECT-SIGNATURE-BOUND]: callable body exceeds its declared failure contract
+```
+
+The obligation also follows the call. A caller that recovers only Denied leaves BadPort unhandled:
+
+```carven
+fn report() {
+    try {
+        println(port()?);
+    } catch {
+        Denied(_) => println("access denied"),
+    }
+}
+```
+
+The catch diagnostic names the failure type that is still uncovered, qualified by its module (`config` here):
+
+```text
+error [CV-EFFECT-CATCH-NON-EXHAUSTIVE]: catch does not cover every protected failure
+note: failure type not fully covered: config.BadPort
+```
+
+Because report is published and has no `throw` clause, the compiler also reports `CV-EFFECT-THROW-PUBLISHED`. Adding a `BadPort(error) => ...` arm, or declaring `throw BadPort` on report, resolves both. These excerpts depend on the port definitions above; each diagnostic is shown with its source snippet omitted.
+
 The [tutorial](/learn/failures/) provides complete runnable Carven and C++ versions, with edits to try and behavior to compare.
 
 ## Infer internally, commit at the interface
 
-Private helpers and lambdas infer failure sets as operations compose. Functions visible to module readers explicitly declare allowed types when failures escape. Their implementations are checked against that upper bound. Callers use the declaration without reading the body.
+Private helpers, lambdas, and the implicit entry formed by top-level statements infer failure sets as operations compose. Functions visible to module readers, and an explicit `main`, declare allowed types when failures escape. Their implementations are checked against that upper bound. Callers use the declaration without reading the body.
+
+A top-level `println(port()?);` therefore needs no clause: a failure that escapes the implicit entry ends the program with a failure status and no automatic output.
 
 A declared failure remains part of the call contract even when the current implementation never produces it. The implementation can change within the declared set; expanding the set is an interface change callers must address.
 
@@ -129,9 +154,7 @@ Failure checking covers functions, closures, and non-owning callable views. A va
 fn process(
     amount: i32,
     policy: fn(i32) -> i32 throw InvalidAmount + LimitExceeded,
-) -> i32 throw InvalidAmount + LimitExceeded {
-    return policy(amount)?;
-}
+) -> i32 throw InvalidAmount + LimitExceeded => policy(amount)?;
 ```
 
 These failure types are supplied by the policy module. A policy closure that captures a limit can retain the input error and introduce LimitExceeded carrying the actual amount and limit. Callers recover according to the set declared by the interface.

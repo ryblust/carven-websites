@@ -22,7 +22,7 @@ Local and module declarations retain ordinary lookup. External imports cannot co
 
 ## Types, construction, and conversions
 
-External template arguments can only be types and may nest. This does not provide Carven user generics. Native `T { ... }` uses positional initialization and may be empty. Native types in signatures and fields must be named explicitly; local owners may infer them from native expressions.
+External template arguments can only be types and may nest. This does not provide Carven user generics. Native `T { ... }` uses positional initialization and may be empty; native construction keeps its explicit type and is not inferred from context. C++ determines the result of the complete braced construction, including template argument deduction and narrowing checks, so `vector { 1, 2, 3 }` deduces `std::vector<int>`. Read scalar operands with established constant results and no selected source storage, such as literals, named constants, and folded scalar expressions, are delivered to native construction as constants after their effects and failures execute. Reading an ordinary binding keeps its storage access and does not establish a native constant expression. Native types in signatures and fields must be named explicitly; local owners may infer them from native expressions.
 
 When destination and value types differ and at least one is native, ordinary initialization, assignment, Read/Take arguments, returns, aggregates, and typed value branches delegate destination construction to C++, including narrowing constraints. Write parameters retain source storage and let C++ check reference binding; & and writability checks still apply. An explicit as with either side native generates static_cast<T>.
 
@@ -34,7 +34,20 @@ For example, an aggregate's first member comes from a native factory and its sec
 
 ## C strings
 
-`c"text"` produces an external const char* to static immutable storage with trailing NUL. Empty strings are valid; interior NUL and `\0` are invalid. Even when passed directly to a template, it is a pointer rather than a character array. It is not str and does not participate in Carven constants or literal patterns; it retains external type and native conversions.
+`c"text"` produces an external const char* to static immutable storage with trailing NUL. Empty strings are valid; interior NUL and `\0` are invalid. Even when passed directly to a template, it is a pointer rather than a character array. It is not str, and literal patterns reject it; contextual typing preserves `const char*`, and conversions follow the native rules above.
+
+C strings can initialize constants and can be passed, copied, assigned, and taken during compile-time execution; freezing preserves their bytes and pointer type, including inside supported aggregates. Each emitted pointer refers to static storage; pointer identity across translation units is unspecified. Printing and default text formatting display the text, in constant execution and interpretation as well as natively. Reading unknown native memory, comparing C string pointers, and observing addresses are outside the evaluator. Native interpolation uses the C++ formatter; to format an address, use a C++ adapter that converts it to a pointer type with a pointer formatter, such as `const void*`. The C++ spellings `const char*` and `const void*` are not Carven type syntax; let C-string bindings infer their type, as below.
+
+```carven
+import <cstdio> using std::puts;
+
+const greeting = c"hello";
+
+puts(greeting);
+println(greeting);
+```
+
+Native execution prints `hello` twice.
 
 ## Access and lifetimes
 
@@ -51,6 +64,10 @@ Results of native calls, construction, and representation conversions establish 
 Each top-level fragment enters the implementation unchanged and independently. It does not parse or interpolate Carven values or bind same-named Carven declarations. C++ contracts govern macros, overloads, templates, linking, exceptions, object lifetimes, ODR, and native undefined behavior.
 
 Fragments are implementation-only and publish no declarations to generated headers. Public native declarations belong in headers; public Carven entries use export(cpp). Fences do not isolate macros or pragmas and cannot configure headers already included. Use separate C++ files managed by the build for distinct native compilation environments.
+
+## Threads and shared state
+
+Carven has no source operations for creating threads, sharing state between threads, or synchronizing access. Read/Write/Take and borrow checking do not establish cross-thread safety. C++ fragment authors, import providers, and export callers own concurrent calls, shared data, synchronization, and referent lifetimes.
 
 ## Declared function boundaries
 

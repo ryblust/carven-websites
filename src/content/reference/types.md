@@ -10,7 +10,7 @@ source: docs/semantics.md
 
 Builtin types are `bool`, `char`, `str`, `String`, `void`, signed integers `i8/i16/i32/i64/isize`, unsigned integers `u8/u16/u32/u64/usize`, and `f32/f64`.
 
-Structs and enums have declaration identity; identical fields do not imply compatibility. Array types include element type and length; slice types include element type. `range<T>` accepts a builtin integer element type. Half-open and closed intervals share that type; upper-bound inclusion is part of the value, not its type. Callable view types include parameter access, parameter types, success result, and failure set. Each pointer layer includes its target type and Read/Write target access.
+Structs, classes, and enums have declaration identity; identical fields do not imply compatibility. A class is an ordinary value type with private fields; see [ordinary value classes](/reference/aggregates/#ordinary-value-classes). Array types include element type and length; slice types include element type. `range<T>` accepts a builtin integer element type. Half-open and closed intervals share that type; upper-bound inclusion is part of the value, not its type. Callable view types include parameter access, parameter types, success result, and failure set. Each pointer layer includes its target type and Read/Write target access.
 
 Ordinary Carven values require the same canonical type. Literal, text, slice, callable, and pointer conversions occur only in explicitly supported positions. There is no general numeric promotion, structural conversion, or truthiness.
 
@@ -28,6 +28,8 @@ void denotes absence of a value and is allowed only where no value is valid, suc
 | Element with array context    | Array element type                                      |
 | Value-control branch          | Result type supplied by the enclosing context           |
 | Lambda parameter or result    | Expected callable view, subject to explicit annotations |
+
+Contextual construction uses these same sources: `{ field: value }` or `{}` is checked as construction of the expected type. The complete rules are in [contextual construction](/reference/aggregates/#contextual-construction).
 
 Parentheses carry existing context. Context does not change a binding's type or insert access markers or captures. Inferred runtime bindings do not change type according to later uses. Inference does not search all use sites for one type that happens to work.
 
@@ -71,8 +73,16 @@ Disallowed conversions include f64 to f32; floating point to integer or bool; bo
 
 ## Arithmetic and termination
 
-Runtime integer negation, addition, subtraction, multiplication, and left shifts wrap at the type's width, as do compound assignments and increment/decrement. Signed minimum divided by -1 yields signed minimum, with remainder zero. Signed right shift is arithmetic. Zero divisors for division/remainder, negative shift amounts, and shift amounts at least the width terminate.
+Integer negation, addition, subtraction, multiplication, and left shifts wrap at the type's width, as do compound assignments and increment/decrement. The rule is the same during required compile-time execution and at runtime, and for constant and `let` initializers alike. Signed minimum divided by -1 yields signed minimum, with remainder zero. Signed right shift is arithmetic.
 
-Required constant integer evaluation checks overflow instead of wrapping. Provably overflowing literal operations are diagnosed even in runtime let initializers. Negated literals are checked with their sign, including parentheses: `-(2147483648)` can represent i32 minimum.
+Zero divisors for division/remainder, negative shift amounts, and shift amounts at least the width terminate at runtime. When required compile-time execution evaluates them, they are diagnostics instead (`CV-CONST-DIVIDE-BY-ZERO`, `CV-CONST-SHIFT-RANGE`). Evaluation never relies on undefined host arithmetic.
+
+```carven
+const wrapped: i32 = 2147483647 + 1;
+let runtime: u8 = 255u8 + 1;
+println(wrapped, runtime); // -2147483648 0
+```
+
+Literals are still range checked for their selected type: `let small: u8 = 256;` reports `CV-CONST-LITERAL-RANGE`. Negated literals are checked with their sign, including parentheses: `-(2147483648)` can represent i32 minimum.
 
 isize/usize width follows the host pointer model; the target must match. f32/f64 are IEEE 754 binary32/binary64. Native C++ operations and the floating-point environment determine runtime floating behavior. The language has no independent rounding-mode control or floating exception mechanism; floating division by zero follows native floating rules.

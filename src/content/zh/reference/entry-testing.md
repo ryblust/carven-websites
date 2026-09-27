@@ -1,6 +1,6 @@
 ---
 title: 入口、运行时测试与编译期测试
-description: 入口选择、进程状态、check/require/fail 和测试停止传播。
+description: 入口选择、进程状态、assert、check/require/fail、测试报告和测试停止传播。
 section: reference
 lesson: 14
 source: docs/semantics.md
@@ -10,20 +10,32 @@ source: docs/semantics.md
 
 一个编译批次最多一个程序入口，可以是名为 main 的函数，也可以是一个包含顶层可执行语句的文件。多个入口在各源位置诊断。生成 C++ 可以没有入口，执行程序必须有入口。
 
-顶层语句按顺序组成隐式入口。声明可穿插其中；顶层 const 绑定仍是模块常量，常量块在分析时执行且不形成入口，let/var 是入口局部变量，模块函数不能捕获它们。隐式入口没有源码 callable 名字、参数或声明失败集合，使用普通函数体的推断、访问、清理和失败处理规则。因此，顶层语句必须处理所有失败；需要声明向外失败时使用显式 main。
+顶层语句按顺序组成隐式入口。声明可穿插其中；顶层 const 绑定仍是模块常量，常量块在分析时执行且不形成入口，let/var 是入口局部变量，模块函数不能捕获它们。隐式入口没有源码 callable 名字、参数或声明失败集合；它像没有 throw 子句的私有函数一样，从函数体推断向外失败。它使用普通函数体的推断、访问、清理和失败处理规则，因此顶层语句可以用 `?` 传播失败：
 
 ```carven
-const heading = "Carven";
-println(heading);
+struct Missing {}
+
+fn load(ready: bool) -> i32 throw Missing {
+    if !ready {
+        throw Missing {};
+    }
+    return 42;
+}
+
+println(load(true)?);
+println(load(false)?);
+println("not reached");
 ```
+
+原生执行打印 `42`，第二个失败逃出后以状态 1 退出。`carven interpret` 打印 `42`，然后对逃逸的失败报告 `CV-INTERPRET-EXECUTION`。
 
 显式 main 的模块路径、craft 与可见性不影响选择。它可无参，或有一个无类型注解的 Read 命令行参数。该参数是入口专用不透明值，不是可索引/迭代序列。普通函数参数仍要求类型。
 
-入口 outward 失败必须显式 throw，包括 private main。正常完成返回进程状态零；Carven 返回值即使是整数也不作为进程状态。typed failure 逃出入口产生 C++ EXIT_FAILURE，不自动打印载荷、不变成 C++ 异常，普通局部/返回值/载荷清理照常。捕获后正常完成返回零。
+有向外失败的显式 main 仍必须写 throw 子句，包括 private main；省略时报告 `CV-EFFECT-THROW-PUBLISHED`。正常完成返回进程状态零；Carven 返回值即使是整数也不作为进程状态。typed failure 逃出任一种入口都产生 C++ EXIT_FAILURE，不自动打印载荷、不变成 C++ 异常，普通局部/返回值/载荷清理照常。捕获后正常完成返回零。
 
 ## 测试声明
 
-`test "name" { ... }` 是模块局部无参数、无结果体。名字在模块内唯一，不能是 main。无论是否请求测试产物，测试都参与解析和语义检查；不得向外暴露失败。
+`test "name" { ... }` 与 `test { ... }` 声明模块局部、无参数、无结果的测试体。名字可省略；显式名字在模块内唯一，不能是 main。报告以文件、行和列标识匿名测试。无论是否请求测试产物，测试都参与解析和语义检查；不得向外暴露失败。
 
 ```carven
 fn add(a: i32, b: i32) -> i32 => a + b;
@@ -38,6 +50,8 @@ test "addition" {
 ## 测试操作
 
 ```text
+assert(condition);
+assert(condition, message);
 check(condition);
 check(condition, message);
 require(condition);
@@ -46,21 +60,90 @@ fail();
 fail(message);
 ```
 
-condition 必须是 bool；可选 message 是 str 或 String。实参个数、条件类型、消息类型分别用 `CV-TEST-ARGUMENT-COUNT`、`CV-TEST-CONDITION-TYPE`、`CV-TEST-MESSAGE-TYPE` 诊断。
+condition 必须是 bool；可选 message 是 str 或 String。check/require/fail 的实参个数、条件类型、消息类型错误分别用 `CV-TEST-ARGUMENT-COUNT`、`CV-TEST-CONDITION-TYPE`、`CV-TEST-MESSAGE-TYPE` 诊断；assert 对应使用 `CV-TYPE-CALL-ARITY`、`CV-TYPE-CONDITION-BOOL` 和 `CV-TYPE-MISMATCH`。
 
-条件先于消息求值，每个一次，即使条件成功也会求值消息。失败的 check 报告后继续；失败的 require 和 fail 报告并停止整个当前测试，包括嵌套 Carven helper 和 view。停止不同于 return、break 和 typed failure，try 捕获不到。普通清理完成后 runner 执行下一测试。该传播不能穿过任意原生 C++ 回调。
+直接调用 assert、check 和 require 时，条件恰好求值一次。只有条件为假才求值可选消息，且只求值一次、在条件之后。fail 总会求值消息。被跳过的消息仍接受类型检查。把 builtin 绑定为 callable 值后，间接调用处仍按普通规则先求值全部实参。
 
-测试上下文由 runner 提供给同步 Carven 调用链，源码没有上下文实参。在没有活动测试的运行时调用测试操作违反运行时契约。builtin 遵守普通查找和遮蔽；本地名字、模块声明和显式 import 可遮蔽，原生 namespace wildcard 不遮蔽已知 builtin。作为值使用时需要具体 `fn(...) -> void` 上下文。
+失败的 check 报告后继续；失败的 require 和 fail 报告并停止整个当前测试，包括嵌套 Carven helper 和 view。停止不同于 return、break 和 typed failure，try 捕获不到。普通清理完成后 runner 执行下一测试。该传播不能穿过任意原生 C++ 回调。
+
+runner 为同步 Carven 调用链提供 check/require/fail 所需的测试上下文，源码没有上下文实参。在没有活动测试的运行时调用它们违反运行时契约。builtin 遵守普通查找和遮蔽；本地名字、模块声明和显式 import 可遮蔽，原生 namespace wildcard 不遮蔽已知 builtin。作为值使用时需要具体 `fn(...) -> void` 上下文。
+
+## assert
+
+assert 不需要测试上下文，并且总是启用，与原生构建配置和 `NDEBUG` 无关。它不是 typed failure，try 无法恢复。
+
+| 失败位置           | 结果                                       |
+| ------------------ | ------------------------------------------ |
+| 原生程序或测试     | 向 stderr 报告并中止进程，不执行普通栈清理 |
+| `carven interpret` | 报告并停止整个执行，包括剩余测试；状态 1   |
+| 编译期执行         | 产生 `CV-ASSERT` 并停止当前求值            |
+
+```carven
+fn checked_index(index: usize, len: usize) -> usize {
+    assert(index < len, "index out of range");
+    return index;
+}
+
+println(checked_index(1, 3));
+println(checked_index(3, 3));
+println("not reached");
+```
+
+`carven main.cv` 打印 `1`，随后在 stderr 报告并中止（POSIX 上因 `SIGABRT` 返回 134）：
+
+```text
+main.cv:2:5: error: assertion failed
+  condition: index < len
+  operands:
+    index: 3
+    len: 3
+  message: index out of range
+  note: execution aborted
+```
+
+解释执行的报告会在 note 之前多出 `called from: main.cv:7:9`。中止的运行不输出完成汇总。原生测试中 assert 失败时，报告包含模块以及显式测试名或源位置。
 
 ## 报告位置
 
-失败报告包含原始 .cv 显示位置、操作名字的一基行号、操作种类和可选运行时消息。作为 callable 值使用时定位到 builtin 的绑定表达式。直接 check/require 还报告完整条件源码的 UTF-8 字节片段，含括号、空白、换行和注释。fail 无条件片段，最终呈现由 reporter 决定。
+每条失败报告以 `file:line:column: error: description` 开头，使用原始 .cv 显示位置以及操作名的一基行号和列号。随后是缩进字段：`test`（模块，以及显式名字或源位置）、`condition`、`operands`，有消息时还有 `message`。多行字段使用缩进块；显式空消息显示为 `message: ""`。builtin 作为 callable 值使用时定位到其绑定表达式。直接 assert/check/require 报告完整条件源码的 UTF-8 字节，含括号、空白、换行和注释；fail 没有条件。
+
+```carven
+fn add(a: i32, b: i32) -> i32 => a + b;
+
+test "addition" {
+    check(add(20, 22) == 42);
+}
+
+test {
+    let total = add(2, 2);
+    check(total == 5, "total mismatch");
+    require(total > 0);
+}
+```
+
+`carven --tests main.cv` 与 `carven interpret --tests main.cv` 在 stderr 输出相同报告并返回 1：
+
+```text
+main.cv:9:5: error: check failed
+  test:
+    module: main
+    name: main.cv:7:1
+  condition: total == 5
+  operands:
+    total: 4
+    5: 5
+  message: total mismatch
+
+carven: tests: 1 passed; 1 failed
+```
+
+报告在操作失败时立即输出。成功用例没有单独报告；同一测试中多次 check 失败只计为一个失败用例。运行结束时在 stderr 输出 `carven: tests: N passed; M failed`；程序打印保持原来的流。最后的 note 标明被停止的测试或中止的执行。原生自定义 reporter 自行控制输出，不会收到默认汇总。编译期诊断保留错误代码与源码摘录，并使用相同的 condition、operands 和 message 布局。
 
 ## 断言解释
 
-直接 check/require 的最外层条件为 Carven 二元比较时，失败报告附带两侧源码与结构值；最外层 `&&` / `||` 显示两个布尔子表达式，短路跳过项标记 `<not evaluated>`。括号保留此行为；间接调用及其他条件形式仍只报告原条件和消息。不会递归跟踪内部运算或查找首个不同字段。
+直接 assert/check/require 的最外层条件为 Carven 比较时，失败报告附带两侧源码与结构值；最外层 `&&` / `||` 显示两个布尔子表达式，短路跳过项标记 `<not evaluated>`。括号保留此行为；间接调用及其他条件形式仍只报告原条件和消息。不会递归跟踪内部运算或查找首个不同字段。
 
-解释复用原求值，不重复执行操作数、不调用 formatter，并保留求值顺序、快照、短路、传播与清理。失败值在可选消息表达式执行前显示，因此消息中的修改不会改变解释；成功断言不渲染值。运行时 reporter 接收只在同步回调期间有效的借用 explanation 字符串；静态测试诊断包含相同解释。
+解释复用原求值，不重复执行操作数、不调用 formatter，并保留求值顺序、快照、短路、传播与清理。失败值在可选消息表达式执行前显示，因此消息中的修改不会改变解释；成功的条件不渲染值。运行时 reporter 接收只在同步回调期间有效的借用 explanation 字符串；静态测试诊断包含相同解释。
 
 ## const test
 
@@ -73,7 +156,7 @@ const test "square at compile time" {
 }
 ```
 
-const test 在语义分析完成 body 构建后执行一次，与测试产物开关无关。使用常量执行准入子集，直接 const fn、打印和测试操作可用；不活动分支也接受准入检查。每个测试拥有独立存储和预算，按输入批次模块顺序及模块内源码顺序执行。通过的 const test 不生成运行时测试函数或 runner 项。
+`const test` 与匿名的 `const test { ... }` 在语义分析完成 body 构建后执行一次，与测试产物开关无关。body 使用常量执行子集，可直接调用 const fn、通过具名 const fn 的局部绑定调用、打印和使用测试操作；不支持的操作在执行到时诊断。每个测试拥有独立存储和预算，按输入批次模块顺序及模块内源码顺序执行。通过的 const test 不生成运行时测试函数或 runner 项。
 
 失败 check 是编译错误但继续当前测试；失败 require/fail、执行错误或预算耗尽停止当前测试，后续 const test 仍执行。失败消息文本计入累计文本工作预算。普通必需常量初始化器没有活动测试，执行测试操作会被拒绝。
 

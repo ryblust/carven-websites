@@ -24,9 +24,9 @@ fn load() -> i32 throw ReadError + ParseError {
 }
 ```
 
-显式 throw 子句是函数体失败集合的上界。调用 load 始终使用声明集合，即使当前体只返回成功。调用者不能根据当前函数体的行为缩小这个集合。
+显式 throw 子句是函数体失败集合的上界，函数体可能产生更多失败时报告 `CV-EFFECT-SIGNATURE-BOUND`。调用 load 始终使用声明集合，即使当前体只返回成功。调用者不能根据当前函数体的行为缩小这个集合。
 
-模块私有的非入口函数和 lambda 省略契约时，编译器推断满足其调用关系的最小失败集合，覆盖前向调用、直接递归和相互递归。裸函数和 export 函数实际失败非空时必须声明，否则 `CV-EFFECT-THROW-PUBLISHED`。入口若向外传播失败，无论可见性都必须显式声明契约，test 不能向外暴露失败。失败类型必须对接口读者可见。
+模块私有的非入口函数、隐式入口和 lambda 省略契约时，编译器推断满足其调用关系的最小失败集合，覆盖前向调用、直接递归和相互递归。裸函数和 export 函数实际失败非空时必须声明，否则 `CV-EFFECT-THROW-PUBLISHED`。显式入口函数若向外传播失败，无论可见性都必须显式声明契约，顶层语句则自行推断；test 不能向外暴露失败。失败类型必须对接口读者可见。
 
 ## `?` 与 `throw`
 
@@ -46,7 +46,7 @@ fn sum() -> i32 throw ReadError + ParseError {
 
 try 处理其保护体中的失败。catch 可以使用类型模式、通配模式、由 `|` 连接的候选模式、载荷模式和守卫条件。未覆盖的失败传给外围目标。
 
-外围 try 的保护体、lambda、推断失败的私有非入口函数，以及具有显式 throw 契约的函数，都允许接收剩余失败。在 test 中，或在没有显式契约的公开函数和入口函数中，catch 必须覆盖保护体的所有失败。最终向外传播的失败集合仍须符合外围函数或闭包的契约。
+外围 try 的保护体、lambda、推断失败的私有非入口函数或隐式入口，以及具有显式 throw 契约的函数，都允许接收剩余失败。在 test 中，或在没有显式契约的公开函数和显式入口函数中，catch 必须覆盖保护体的所有失败。最终向外传播的失败集合仍须符合外围函数或闭包的契约。
 
 ```carven
 struct A {}
@@ -77,6 +77,29 @@ fn wrapper() throw B {
 ```
 
 两个 wrapper 定义择一使用，向外传播的失败集合相同。只有各分支合起来覆盖某个失败类型的所有可能值，并考虑守卫条件可能不成立的情况后，才能从剩余集合中移除该类型。保护体无失败时，try 仍合法，不会因多余而产生诊断。
+
+## 已知函数目标
+
+用已知函数初始化的不可变局部绑定，在复制和 view 适配后仍保留该函数作为目标。调用它时使用函数本身的契约，包括显式 throw 子句；更宽的 view 类型不会给这个已知调用增加失败。通过参数、可变 view 或无法确定目标的选择进行的调用，使用 view 的契约。
+
+```carven
+struct Missing {}
+
+fn parse(text: str) -> i32 => text.len() as i32;
+
+fn run(values: [str]) -> i32 {
+    let measure: fn(str) -> i32 throw Missing = parse;
+    var total = 0;
+    for value in values {
+        total += measure(value);
+    }
+    return total;
+}
+
+println(run(["ab", "cde"]));
+```
+
+`measure` 的 view 类型允许 `Missing`，但已知它调用的是不会失败的 `parse`，因此 `measure(value)` 不需要 `?`。程序打印 `5`。
 
 ## 选择次序与守卫条件
 

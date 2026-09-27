@@ -22,13 +22,41 @@ source: docs/cli.md
 | Limit interpreter steps        | `carven interpret --max-steps 10000 main.cv`             |
 | Inspect tokens or syntax       | `carven dump tokens main.cv` / `carven dump ast main.cv` |
 
-The interpreter first performs the same semantic analysis, then checks execution eligibility of called code. Unsupported operations produce an error without switching to native execution. Typed failures also use this shared executor. Use the native path for closures, slices, and native operations.
+The interpreter first performs the same semantic analysis, then checks each operation when execution reaches it. An unsupported operation produces `CV-INTERPRET-ADMISSION` without switching to native execution. Typed failures, slices, byte views, local pointers, Write parameters, and calls through local bindings of named functions use this shared executor. C++ header imports are accepted, but reaching a native operation, closure, or other callable value without a Carven body stops interpretation. Use the native path for those programs.
 
-To observe execution step by step, run the [integer classification example](/learn/control/) with `carven interpret main.cv`, then add `--trace` to inspect the steps. Use native execution when exploring the full language or integrating C++ libraries.
+To observe execution step by step, run the [integer classification example](/learn/control/) with `carven interpret main.cv`, then add `--trace` to see the statements it executes. Use native execution when exploring the full language or integrating C++ libraries.
 
-Direct execution needs a native C++ toolchain and matching Crafts, but does not require Xmake. It automatically collects the toolchain's `crafts/carven/` and the project's optional `crafts/`; other application files remain explicit. `check`, `compile`, and `interpret` use the same source collection. See [CLI Reference](/reference/cli/) for installation layout, temporary files, and toolchain selection.
+Direct execution needs a native C++ toolchain and matching Crafts, but does not require Xmake. `check`, `compile`, `interpret`, and direct execution all collect the toolchain's `crafts/carven/` and the project's optional `crafts/`; other application files remain explicit, and their file stems must be valid identifiers. See [CLI Reference](/reference/cli/) for installation layout, temporary files, and toolchain selection.
 
-Start with `carven check main.cv` when you want type, borrowing, and required-constant checks. It needs no program entry and does not invoke the native compiler. Add `--timings` to inspect compilation stages. Use `carven dump main.cv` to view tokens followed by the syntax tree for one file.
+## Check before running
+
+Start with check when you want type, borrowing, and compile-time checks without building a program. Save this as `prices.cv`:
+
+```carven
+const fn line_total(price: i32, quantity: i32) -> i32 => price * quantity;
+
+const test {
+    check(line_total(12, 3) == 36);
+}
+```
+
+Run:
+
+```sh
+carven check prices.cv
+```
+
+The command prints `carven: check passed` on stderr. The file has no program entry, and check does not need one: it analyzes the batch, runs required compile-time evaluation and `const test`, then stops without invoking the native compiler. `carven prices.cv` would instead report that running a program requires a runtime entry point. Change 36 to 35 and check again: the static test fails with `CV-CONST-TEST`, showing the condition and both operand values, and check returns 1.
+
+Compile-time calls must select a `const fn`. Remove `const` from line_total and check reports `CV-CONST-ADMISSION` at the call inside the test.
+
+Add `--timings` to see where a command spends its time:
+
+```sh
+carven check --timings prices.cv
+```
+
+The stderr report shows the total and stage durations, such as source collection, parsing, and semantic analysis. Native runs add C++ generation, native compilation, and execution. Timing output never mixes with program or artifact output on stdout. Rendered diagnostics use color on a terminal; set `NO_COLOR` to a nonempty value, or `TERM=dumb`, to disable it. Use `carven dump main.cv` to view tokens followed by the syntax tree for one file.
 
 ## Format source with Graver
 
@@ -62,7 +90,7 @@ Adjacent top-level single-line declarations of the same category can stay togeth
 
 ## Put tests at the appropriate layer
 
-Use const test for compile-time algorithms and test for runtime behavior. Exercise native interop in a C++ build so the tests also cover linking, destruction, and exception boundaries.
+Use const test for compile-time algorithms and test for runtime behavior; both may omit the name, and failures then identify the test by file, line, and column. Exercise native interop in a C++ build so the tests also cover linking, destruction, and exception boundaries.
 
 The Carven repository uses ./xmakew with groups including internal, language, crafts, interop, cli, and examples. Consumer projects use their own Xmake targets, not compiler-internal test targets as application APIs.
 

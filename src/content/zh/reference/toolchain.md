@@ -8,13 +8,24 @@ source: docs/toolchain.md
 
 ## 宿主与目标
 
-Carven 编译器使用 C++26，关闭异常与 RTTI。当前验证宿主为 LLVM/Clang 与 libc++ 23.1.0。生成程序和安装 Crafts 的最低标准为 C++20；使用 Carven 的项目选择标准，运行时通过特性检测使用可用设施。宿主要求不提高目标最低标准。
+Carven 编译器使用 C++26，关闭异常与 RTTI。当前验证的宿主工具链为 LLVM 23（LLVM/Clang 与 libc++ 23.1.0）。生成程序和安装 Crafts 的最低标准为 C++20；使用 Carven 的项目选择标准，运行时通过特性检测使用可用设施。宿主要求不提高目标最低标准。
 
 原生调用方根据提供者需求配置异常支持；包含 C++ throw/try/catch 的 cpp 片段需要其翻译单元开启异常。宿主和目标的 isize/usize 数据模型必须相同，f32/f64 要求 IEEE binary32/64，原生选项须保留相等和求值语义。
 
 ## 构建责任
 
 成功构建需要完成 Carven 分析、C++ 编译和链接。构建系统提供显式应用输入、原生头文件搜索路径、提供者、库和编译选项；CLI 将应用输入与固定 Crafts 根合并。`carven compile` 写出产物，直接源码运行模式另外完成本地原生编译与执行。
+
+`compile` 也为每个收集到的 Crafts 模块写出生成实现，但不编译也不复制收集到的 `.cpp` 源码。手动 C++ 构建必须把收集到的 Crafts 的生成实现与应用的一起编译，包括内置的 UTF Craft：
+
+```sh
+carven compile -o out main.cv
+clang++ -std=c++20 -Iout -I/path/to/carven/crafts \
+    out/main.cpp out/crafts/carven/std/utf/*.cpp -o out/app
+./out/app
+```
+
+把 `/path/to/carven/crafts` 换成工具链 `bin/` 旁安装的 `crafts/`。导入 `std::utf.text` 不需要额外的 `.cv` 输入，因为 Crafts 会被自动收集。安装的其他 Crafts 也要把各自的生成实现和原生提供者加入 C++ 构建。
 
 C++ 检查被委托的声明、重载、模板、转换、构造和链接。生成诊断带源映射。早期原生聚合组件跨后续失败保存时可能需要复制/移动；不可移动组件可能在原生编译时失败，直接最终位置构造仍可能可用。
 
@@ -54,8 +65,8 @@ export(cpp) 的声明写入可独立包含的 `carven/api` 头文件，位于 `c
 
 ## 运行时支持
 
-安装布局是 bin 旁的 crafts。生成代码按需 include passing、numeric、array、slice、text、utf、string、format、writer、print、entry、deferred、outcome、callable、unreachable、testing 等 runtime 叶头；runtime.hpp 汇总它们。
+安装布局是 bin 旁的 crafts。生成代码按需 include passing、numeric、array、range、slice、text、utf、string、format、writer、print、display、entry、deferred、outcome、callable、unreachable、testing 等 runtime 叶头；runtime.hpp 为直接使用者汇总 runtime 叶头。
 
-编译器与支持头文件必须匹配。生成的私有名字、辅助函数的选择和数据表示布局属于实现细节。一般插值需要 C++20 format 支持；print 可按特性检测使用 C++23 实现而不改变调用方选择的 C++ 标准。
+编译器与支持头文件必须匹配。生成的私有名字、辅助函数的选择和数据表示布局属于实现细节。一般插值需要 C++20 format 支持；受支持的内建格式化（包括混合整数、浮点、bool、char 和文本字段）使用 writer.hpp，结构化打印使用 display.hpp；print 可按特性检测使用 C++23 实现而不改变调用方选择的 C++ 标准。
 
 原生直接调用 String::from_str/append 要求合法 UTF-8，push 要求合法标量；from_utf8 检查字节并在非法时终止。这些原生 runtime API 与标准库返回 typed failure 的验证 API 分别遵守各自契约。

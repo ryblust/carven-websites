@@ -8,7 +8,7 @@ source: docs/semantics.md
 
 ## Batches and canonical module names
 
-A compilation analyzes a closed source batch assembled by its driver or build integration before import resolution. Import does not search the filesystem or download dependencies. Each input maps to a unique canonical module name. Path components follow `[A-Za-z_][A-Za-z0-9_]*`; module components may be language keywords.
+A compilation analyzes a closed source batch assembled by its driver or build integration before import resolution. Import does not search the filesystem or download dependencies. Each input maps to a unique canonical module name. Path components, including the file stem, follow `[A-Za-z_][A-Za-z0-9_]*`; module components may be language keywords. The CLI rejects `my-file.cv` with `invalid module file stem`; name it `my_file.cv`.
 
 ```text
 src/main.cv                  → src.main
@@ -42,7 +42,7 @@ Imports have no runtime side effects. An import counts as used through an actual
 
 ## Declarations and lookup
 
-Functions, structs, enums, and module constants share one module namespace. Duplicate module declaration names are invalid; functions do not overload. Modules may also contain tests, constant blocks, C++ fragments, and entry statements.
+Functions, structs, classes, enums, and module constants share one module namespace. Duplicate module declaration names are invalid; functions do not overload. Modules may also contain tests, constant blocks, C++ fragments, and entry statements.
 
 Declaration identities are collected across the batch. Valid forward calls, mutual recursion, and constant dependencies are independent of source order. Cycles in required constant facts are errors.
 
@@ -60,7 +60,7 @@ A lambda is a capture boundary. Outer runtime bindings need explicit capture; mo
 
 Every declaration is visible in its own module. Its defining domain determines visibility, regardless of import spelling. Modules selected through `std::` still belong to the carven craft. Ordinary application modules can select each other's bare declarations.
 
-A declaration's published surface may use only nominal types visible to all its readers. Recursive checks cover parameters, results, failure sets, nested callables, fields, enum payloads and backing types, arrays, and constants' types and normalized values. Identities eliminated within bodies or constant computation are not part of that surface. Leaking an invisible type produces `CV-TYPE-VISIBILITY-LEAK`.
+A declaration's published surface may use only nominal types visible to all its readers. Recursive checks cover parameters, results, failure sets, nested callables, fields, enum payloads and backing types, arrays, and constants' types and normalized values. Identities eliminated within bodies or constant computation are not part of that surface. Leaking an invisible type produces `CV-TYPE-VISIBILITY-LEAK`. Class fields are private to the class body and may use module-private types; class operations follow the declared audience of the class, and `private fn` members are accessible only within that class body.
 
 ```carven
 private struct Hidden {}

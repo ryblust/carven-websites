@@ -15,11 +15,13 @@ Carven 词法分析的源文本使用 UTF-8。标识符使用 ASCII：首字符�
 保留关键字如下：
 
 ```text
-as break catch const continue else enum export false fn for if import in is let
+as break catch class const continue else enum export false fn for if import in is let
 match nullptr private rethrow return struct test throw true try using var while
 ```
 
 `new`、`delete` 等没有语言产生式的拼写仍是普通标识符。`_` 在绑定位置表示丢弃；`_name` 是普通名字。
+
+`self` 是上下文关键字，不是保留字。只有作为类操作的第一个无类型参数（`self`、`&self` 或 `&&self`）时它才表示接收者；其他位置的 `fn echo(self: i32) -> i32 => self;` 与 `let self = 2;` 都是普通绑定。`println`、`check`、`assert`、`addressof` 等内建 callable 也是普通标识符，通过名字查找解析，可被遮蔽。
 
 ## 数字
 
@@ -71,6 +73,8 @@ int native_answer() {
 
 模块导入连续放在文件开头。函数块体不带结尾分号，表达式体 `=> expression;` 带分号。绑定、赋值、控制转移和普通表达式语句以分号结束。`if`、`match`、`try` 的值分支以末尾表达式产生值；这不是普通函数块的隐式返回。
 
-赋值和自增减是语句动作，不是表达式；自增减使用前缀形式。没有独立的 `{ ... }` 块语句、元组或类型别名声明。`&`、`&&` 在参数和实参位置表示访问；在普通表达式中，`&&` 也可表示 Take 或二元逻辑与，取决于位置。词法采用最长匹配，模板类型中的连续 `>` 由类型解析规则处理。
+赋值和自增减是语句动作，不是表达式；自增减使用前缀形式。没有独立的 `{ ... }` 块语句、元组或类型别名声明。
+
+在表达式位置，`{ field: value }` 与 `{}` 是上下文构造，类型来自期望类型。在 match 或 catch 分支体开头，`{` 后紧跟 `IDENTIFIER :` 时开始构造；其他开头的花括号，包括 `{}`，都开始分支块。空构造分支写作 `({})`。函数体、if 体和 try 体始终是块。解析器只依据 token 判断，不做名字或类型查找。`&`、`&&` 在参数和实参位置表示访问；在普通表达式中，`&&` 也可表示 Take 或二元逻辑与，取决于位置。词法采用最长匹配，模板类型中的连续 `>` 由类型解析规则处理。
 
 `..` 与 `..=` 各自按最长匹配识别为一个 token，分别表示半开与闭区间。区间表达式必须有两端；省略端点的写法只用于区间模式。

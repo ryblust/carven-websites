@@ -56,6 +56,27 @@ This element storage has static lifetime and may be copied, stored, and returned
 
 Supported elements include integers, bool, char, str, and recursively eligible fixed arrays and structs. Nominal types, field types, and nested array lengths are preserved. Internal arrays do not recursively become slices, nor do String fields become str. Empty slices retain their element type. Constant indexing and subranges are checked during evaluation.
 
-A const fn array result may become a frozen slice when constant initialization completes. Slice parameters, local slices, and slice operations inside const fn remain unsupported. Knowing a runtime array's contents does not grant it static backing.
-
 Retaining arrays and constructing constant subslices count element references toward the initializer's 524,288-element work budget. The original array remains subject to per-value size and nesting limits.
+
+## Slices in compile-time execution
+
+During required compile-time execution, slice parameters, locals, `len`, `is_empty`, indexing, subslicing, and loops run against live backing storage. Copies and chained slices keep that backing relationship without extending its lifetime; indexing and subranges are bounds-checked when executed and report `CV-CONST-INDEX-BOUNDS` on failure. A completed constant root freezes the selected elements before releasing its backing, so a `const fn` may return a view of a frozen constant slice:
+
+```carven
+const fn total(values: [i32]) -> i32 {
+    var sum = 0;
+    for value in values {
+        sum += value;
+    }
+    return sum;
+}
+
+const fn tail(values: [i32]) -> [i32] => values.slice(1, values.len());
+
+const table: [i32] = [2, 4, 6];
+const rest = tail(table);
+const sum = total(rest);
+println(rest.len(), sum); // 2 10
+```
+
+Ordinary lifetime rules still apply: returning a slice of a `const fn` local array is rejected. A `const fn` array result may also become a frozen slice when constant initialization completes. Knowing a runtime array's contents does not grant it static backing.

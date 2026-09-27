@@ -15,11 +15,13 @@ Whitespace includes spaces, tabs, LF, CR, and CRLF. Line comments run from `//` 
 Reserved keywords:
 
 ```text
-as break catch const continue else enum export false fn for if import in is let
+as break catch class const continue else enum export false fn for if import in is let
 match nullptr private rethrow return struct test throw true try using var while
 ```
 
 Spellings without language productions, such as `new` and `delete`, remain ordinary identifiers. `_` discards in binding positions; `_name` is an ordinary name.
+
+`self` is contextual, not reserved. It has receiver meaning only as the untyped first parameter of a class operation (`self`, `&self`, or `&&self`); elsewhere `fn echo(self: i32) -> i32 => self;` and `let self = 2;` are ordinary bindings. Builtin callables such as `println`, `check`, `assert`, and `addressof` are ordinary identifiers resolved by name lookup and may be shadowed.
 
 ## Numbers
 
@@ -71,6 +73,8 @@ int native_answer() {
 
 Module imports form a contiguous prefix at the start of a file. A function block body has no trailing semicolon; `=> expression;` does. Bindings, assignments, transfers, and ordinary expression statements end in semicolons. Value branches of if, match, and try yield a final expression; this is not an implicit return from an ordinary function block.
 
-Assignment and increment/decrement are statement actions, not expressions. Increment/decrement use prefix form. There are no standalone `{ ... }` block statements, tuples, or type-alias declarations. `&` and `&&` mark access in parameter and argument positions. In ordinary expressions, `&&` may mean Take or binary logical and according to position. Lexing uses maximal munch; type parsing handles consecutive `>` in template types.
+Assignment and increment/decrement are statement actions, not expressions. Increment/decrement use prefix form. There are no standalone `{ ... }` block statements, tuples, or type-alias declarations.
+
+In expression positions, `{ field: value }` and `{}` are contextual constructions whose type comes from the expected type. At the start of a match or catch arm body, a `{` followed by `IDENTIFIER :` begins a construction, while any other leading brace, including `{}`, begins a branch block; write `({})` for an empty construction arm. Function, if, and try bodies are always blocks. The parser decides from tokens alone, without name or type lookup. `&` and `&&` mark access in parameter and argument positions. In ordinary expressions, `&&` may mean Take or binary logical and according to position. Lexing uses maximal munch; type parsing handles consecutive `>` in template types.
 
 `..` and `..=` are each recognized as one maximal-munch token, denoting half-open and closed ranges. Range expressions require both bounds; omitted bounds are allowed only in range patterns.

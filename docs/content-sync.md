@@ -6,13 +6,13 @@ This log records which compiler behavior the website describes and the evidence 
 
 | Field                  | Value                                                                             |
 | ---------------------- | --------------------------------------------------------------------------------- |
-| Reviewed compiler      | `65b142e0709dc725fb5377a05065f2932a17f7dc`                                        |
-| Review date            | 2026-09-20                                                                        |
-| Website starting point | `6a50b4c`                                                                         |
+| Reviewed compiler      | `2fcff38d8a75514ee34a3c98643a9fbbf7766fa5`                                        |
+| Review date            | 2026-09-27                                                                        |
+| Website starting point | `38933bf`                                                                         |
 | Scope                  | English and Chinese authored content, homepage snippets, grammar, and diagnostics |
-| Status                 | Content reviewed; website builds, tests, links, and browser checks passed         |
+| Status                 | Content aligned                                                                   |
 
-The revision identifies the local compiler checkout, not a packaged release or the deployed website. Validation applies only to the entry that records it.
+The revision identifies the local compiler checkout, not a packaged release or the deployed website.
 
 ## Update rules
 
@@ -20,8 +20,8 @@ The revision identifies the local compiler checkout, not a packaged release or t
 2. Classify each user-visible change as a correction, an addition, already covered, or not relevant to the website. Track unresolved items explicitly instead of implying complete coverage.
 3. Update matching English and Chinese pages together. Tutorials introduce a task, runnable steps, expected results, and a small next exercise. Reference states accepted forms, requirements, evaluation order, and failure boundaries. Marketing demonstrates supported capabilities without turning into a change log.
 4. Update authored files in `src/content/`, including homepage snippets. Keep formal grammar and diagnostic entries aligned with their compiler sources. Do not edit generated article bodies.
-5. Record checks actually performed, their scope, and any skipped checks. Static review, website builds, browser inspection, and compiler execution are distinct evidence. User-requested omissions remain visible in the record.
-6. Advance the baseline after the content pass and document any remaining gaps. Keep dated entries newest first; do not carry earlier passing results into a new entry. Publishing remains a separate action.
+5. Record what changed, how it was implemented, the relevant source evidence, and bilingual coverage. Keep execution logs, check counts, and skipped-check histories out of the sync record.
+6. Advance the baseline after the content pass and document any remaining gaps. Keep dated entries newest first. Publishing remains a separate action.
 
 ## Editorial responsibilities
 
@@ -30,11 +30,43 @@ The revision identifies the local compiler checkout, not a packaged release or t
 | Tutorial              | How do I complete this task?                      | A named file or explicit earlier context, one new idea, commands, expected results, and a focused exercise      | Exhaustive type matrices, all flags, diagnostic catalogs, and implementation details |
 | Reference             | What exactly is allowed, required, or observable? | Syntax, preconditions, ordering, supported boundaries, failure behavior, and small examples that clarify a rule | A project walkthrough or an assumed lesson sequence                                  |
 | Feature/use-case page | What capability is useful here?                   | A concrete supported use and its relevant limits                                                                | A second tutorial or a promise beyond current behavior                               |
-| Sync record           | What changed, and how was it checked?             | Exact revision, affected pages, evidence, review findings, and validation scope                                 | Language rules already documented in Reference or unqualified historical test claims |
+| Sync record           | What changed, and how was it implemented?         | Exact revision, affected pages, implementation approach, source evidence, and bilingual coverage                | Language rules already documented in Reference, execution logs, and check histories  |
 
 A tutorial links to Reference when a learner needs the full contract. Reference links to a tutorial for a complete exercise. Distinguish a language rule from CLI source collection, generated C++ behavior, and native-provider responsibilities. Translated examples should preserve code and observable results; prose may use natural wording for each language.
 
 Compiler paths below are relative to the sibling `carven` checkout; website paths are relative to this repository.
+
+## 2026-09-27 — review fixes
+
+- Use the public `success_if` API in both interop tutorials to fix the failure of `consumer.cpp` to compile. Replace numeric route-filter literals with `"/".bytes[0]` and `" ".bytes[0]` in both constants tutorials.
+- Generate article code frames and language labels into static HTML, reserving room for the copy control so hydration preserves fragment positions. The client attaches and cleans up only its own copy button and behavior; homepage snippets omit article frames.
+- Memoize the article HTML prop so copy-feedback updates preserve the enhanced controls, comparison selection, and headings tracked by the page outline.
+- Show homepage Carven examples at full height, while retaining bounded vertical scrolling for C++ comparisons and horizontal scrolling on narrow screens.
+- Clarify the C++ adapter boundary for `const char*` and `const void*` source signatures and the lack of contextual-construction shorthand fields in both Reference locales.
+- Carry record-kind metadata through both display-name adapters (`ExecutionDisplayNames`) so interpreted class display uses the class name, matching the native runtime and semantic contract. Keep structural field display for structs.
+- Advance the content baseline to `2fcff38d8a75514ee34a3c98643a9fbbf7766fa5` and keep sync records focused on changes and implementation.
+
+## 2026-09-27 — compiler sync to 2fcff38d and example rewrite
+
+Reviewed compiler: `2fcff38d` (the commit before the `9031c5f3` checkpoint, which is excluded), exported and built in isolation. Previous baseline: `65b142e0709dc725fb5377a05065f2932a17f7dc`. Compiler commits covered: `73d19b9e`, `7eee3e5b`, `56eb57d0`, `2fcff38d`.
+
+- All bilingual tutorials, Reference pages, feature pages, philosophy and use cases were updated. Changes cover expression bodies, contextual construction, ordinary value classes, `assert`, lazy test messages, anonymous tests and constant block labels, the unified test report, and failure inference for implicit entries. They also cover `const fn` capability checking, wrapping compile-time arithmetic, the extended compile-time executor, `addressof`, owning field projection, known-function failure contracts, range bound inference, interpreter subset changes, `carven check`, `--timings`, `compile --stdout` input selection, Crafts collection, the thread-safety boundary, and the grammar and diagnostic catalog.
+- Examples were rewritten for current idioms without backward compatibility. The homepage now shows four examples: structural printing, compile-time construction with `const test`, failure-contract narrowing, and direct C++ library use.
+- Evidence: target `docs/semantics.md`, `docs/grammar.md`, `docs/cli.md`, `docs/tutorial.md`, `docs/testing.md`, `docs/toolchain.md`, `README.md`, `src/diagnostics/code.cpp`, and `crafts/carven/std/utf/`.
+
+Validation: homepage snippets and their C++ comparisons were run or compiled from `src/content/home-examples.ts` with the 2fcff38d release build. Per-page examples were run by the content passes, but several passes stopped validating at the user's request before final text; known unverified items include the interop `consumer.cpp` output, the constants `routes.cv`/`admission.cv` final text, and the timing stage names in CLI Reference. Website build, 36 tests, formatting, and link checks (93 pages, 9,368 links/assets) pass. Final example and prose review is left to the user. Known compiler discrepancy: `carven interpret` prints class fields, while semantics and native execution print only the class name; pages follow the semantics.
+
+## 2026-09-27 — site redesign, homepage workflow and quick start
+
+Website starting point: `38933bf`. This design pass does not advance the compiler baseline; the recorded baseline remains `65b142e0709dc725fb5377a05065f2932a17f7dc`.
+
+- Rebuild both stylesheets on shared design tokens, adopt Cinzel for the wordmark and homepage name, and use a restrained copper accent for current, selected and focused states. Code blocks show a language label beside the copy control. The page outline marks the section being read. The footer groups learning, capability and Reference links and offers both locales.
+- Arrange the homepage comparison as example selection and explanation beside one code window. Existing bilingual comparison copy and examples are unchanged.
+- Add a three-step workflow (write, `carven compile -o generated main.cv`, `carven main.cv`) and a quick start that repeats the first tutorial's build commands, top-level `main.cv`, and `Answer: 42` output. Evidence: compiler `README.md` (Xmake, LLVM/Clang with C++26 support, C++20 output, `.\xmakew.ps1`) and `docs/cli.md` (compile output, direct execution, `CXX` defaulting to `clang++`).
+
+Validation: ran `main.cv` with the local debug compiler at HEAD `9031c5f3b93804de96cfe79f915736a13fd8cda2` plus pre-existing working-tree changes in backend, ownership analysis and build scripts. `carven main.cv` printed `Answer: 42`; `compile --stdout` printed the generated `main.cpp`; `compile -o generated` wrote `main.cpp` with runtime support directories. This is not a test of a pristine commit, and no compiler source was changed. The clone and `./xmakew build` steps were not re-run.
+
+Website production build, TypeScript check, all 36 tests, formatting, and link checks (93 pages, 9,216 local links/assets) pass. A `BASE_PATH=carven-websites` build passes link checking and prefixes the font preload and stylesheet URL; the normal build was restored. Headless Chromium layout probes cover both homepage locales at 1440, 1024 and 390 pixels plus Learn, Reference, overview and 404 pages, with no horizontal page overflow and Cinzel/Allura loaded. Keyboard checks cover tab order and visible focus on homepage controls, and Enter/Space activation of example tabs. Screenshots were not visually reviewed in this pass, and Safari was not checked.
 
 ## 2026-09-20 — homepage examples and navigation
 

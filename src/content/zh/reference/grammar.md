@@ -22,9 +22,11 @@ source: docs/grammar.md
 
 显式逗号列表仅在产生式允许时接一个尾逗号，尾逗号不产生空项。简写的 return/throw/rethrow/break/continue arm 不带分号，多条语句放入分支块。
 
-T { ... } 解析为构造，T(...) 总解析为调用。控制头部外层深度遇到所需大括号时开始 body；想在该位置使用构造表达式，需要括号包裹。if、match、循环容器与整数范围边界都遵守这个规则。模式的 is、绑定标识符、case 与竖线不依赖名字查找消歧。
+`T { ... }` 是带显式类型的构造；省略类型的 `{ ... }` 只接受具名字段或空初始化，语义分析要求已知期望类型。match 或 catch arm body 开头的 `{` 后接 `IDENTIFIER :` 时开始构造，其他开头大括号都开始分支块，所以那里的 `{}` 是空块，空构造 arm 写作 `({})`。函数、if 和 try 的 body 仍是块。这些判断只看 token。T(...) 总解析为调用。控制头部外层深度遇到所需大括号时开始 body；想在该位置使用构造表达式，需要括号包裹。if、match、循环容器与整数范围边界都遵守这个规则。模式的 is、绑定标识符、case 与竖线不依赖名字查找消歧。
 
-模块 import 是连续前缀。顶层 const 绑定是模块常量，`const { ... }` 引入常量块；顶层可执行语句形成隐式入口。没有 namespace block、泛型声明、默认参数或可变参数语法。区间表达式 `a..b` 和 `a..=b` 不可连续结合，且必须提供两个整数端点。只有区间模式可以省略端点；不支持步长和隐式反向遍历。类型位置的非限定名 `range<T>` 表示整数区间。模式端点使用移位表达式，括号内可使用完整表达式；未加括号的 `|` 分隔模式分支。裸标识符绑定值，不表示检查一个已保存区间的成员关系。
+模块 import 是连续前缀。顶层 const 绑定是模块常量，`const { ... }` 或 `const "label" { ... }` 引入常量块；可选标签只用于诊断中标识该块，不要求唯一。测试名可省略；显式名字在模块内唯一，匿名测试在报告中以源位置标识。顶层可执行语句形成隐式入口。没有 namespace block、泛型声明、默认参数或可变参数语法。区间表达式 `a..b` 和 `a..=b` 不可连续结合，且必须提供两个整数端点。只有区间模式可以省略端点；不支持步长和隐式反向遍历。类型位置的非限定名 `range<T>` 表示整数区间。模式端点使用移位表达式，括号内可使用完整表达式；未加括号的 `|` 分隔模式分支。裸标识符绑定值，不表示检查一个已保存区间的成员关系。
+
+`class` 是保留关键字。类体中字段与操作可以交错，字段后接逗号，最后一个字段可省略逗号。实例操作的第一个参数是不带类型的 `self`、`&self` 或 `&&self`；这个拼写只在该位置有特殊含义，不是关键字。没有 receiver 的操作是关联操作，不需要 `static` 关键字。其他参数必须注明类型。类体中不允许类形式、嵌套声明、`const fn` 和 C++ 边界操作。顶层 `fn` 前可选的 `const` 声明编译期调用能力：必需常量执行只调用这类函数，`const fn` 也只能调用其他 `const fn`。
 
 ## 01 · 记法
 
@@ -171,6 +173,7 @@ visibility-modifier = "private" | "export";
 
 module-declaration = enum-declaration
                    | struct-declaration
+                   | class-declaration
                    | function-definition
                    | module-constant-declaration;
 
@@ -248,7 +251,18 @@ struct-field-list = struct-field,
 struct-field = IDENTIFIER, ":", type;
 ```
 
-## 13 · 函数
+## 13 · 类与函数
+
+```text
+class-declaration = "class", IDENTIFIER, "{", { class-member }, "}";
+class-member = struct-field, ","
+             | [ "private" ], class-operation;
+class-operation = "fn", IDENTIFIER,
+                  "(", [ class-parameter-list ], ")",
+                  [ "->", function-result-type ], [ throw-clause ], function-body;
+class-parameter-list = receiver, [ ",", parameter-list ] | parameter-list;
+receiver = [ "&" | "&&" ], "self";
+```
 
 ```text
 function-definition = function-head, function-body;
@@ -274,7 +288,7 @@ throw-clause = "throw", named-type, { "+", named-type };
 ## 14 · 测试
 
 ```text
-test-declaration = [ "const" ], "test", STRING_LITERAL, test-block;
+test-declaration = [ "const" ], "test", [ STRING_LITERAL ], test-block;
 
 test-block = "{", { statement }, "}";
 ```
@@ -342,7 +356,7 @@ expression-statement = expression, ";";
 
 control-flow-statement = if-form | match-form | try-form;
 
-constant-block = "const", ordinary-block;
+constant-block = "const", [ STRING_LITERAL ], ordinary-block;
 ```
 
 ## 18 · 赋值与更新
@@ -527,7 +541,8 @@ contextual-case-expression = ".", IDENTIFIER;
 grouped-expression = "(", expression, ")";
 
 construction-expression = construction-type,
-                          "{", [ construction-initializer-list ], "}";
+                          "{", [ construction-initializer-list ], "}"
+                        | "{", [ field-initializer-list ], "}";
 
 construction-type = named-type | function-type;
 

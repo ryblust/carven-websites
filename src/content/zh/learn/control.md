@@ -9,11 +9,9 @@ source: docs/semantics.md
 ## 条件产生一个值
 
 ```carven
-fn main() {
-    let quantity = 3;
-    let label = if quantity > 0 { "in stock" } else { "empty" };
-    println(label);
-}
+let quantity = 3;
+let label = if quantity > 0 { "in stock" } else { "empty" };
+println(label);
 ```
 
 输出 `in stock`。值形式 if 必须有 else，分支结果类型兼容。分支最后不带分号的表达式产生分支值；加分号后成为普通语句。
@@ -21,15 +19,13 @@ fn main() {
 ## 从范围计算总和
 
 ```carven
-fn main() {
-    var total = 0;
+var total = 0;
 
-    for value in 1..5 {
-        total += value;
-    }
-
-    println(total);
+for value in 1..5 {
+    total += value;
 }
+
+println(total);
 ```
 
 输出 `10`。`1..5` 包含 1、2、3、4，不含 5；起点和终点只求值一次。起点不小于终点时零次迭代。整数范围中的绑定只读，下一个值由循环提供。
@@ -39,36 +35,46 @@ fn main() {
 ## 保存一个区间
 
 ```carven
-fn main() {
-    var end = 4;
-    let values: range<i32> = 1..=end;
-    end = 8;
+var end = 4;
+let values: range<i32> = 1..=end;
+end = 8;
 
-    var total = 0;
-    for value in values {
-        total += value;
-    }
-    println(total);
+var total = 0;
+for value in values {
+    total += value;
+}
+println(values, total);
+```
+
+输出 `1..=4 10`。创建 values 时已经保存了 1 和 4；后来把 end 改成 8 不会改变它。`println` 按端点显示区间。`range<i32>` 表示整数区间的类型。区间可以像其他值一样保存，后续学到函数时也可以把它用作参数和返回值。
+
+循环开始时还会保存源区间的快照，因此在循环体里重新赋值源区间，也不会改变正在遍历的序列。
+
+## 让端点决定整数类型
+
+```carven
+let code = "A-17";
+let positions = 0..code.len();
+println(positions);
+
+for index in positions {
+    println(index);
 }
 ```
 
-仍然输出 `10`。创建 values 时已经保存了 1 和 4；后来把 end 改成 8 不会改变它。`range<i32>` 表示整数区间的类型。区间可以像其他值一样保存，后续学到函数时也可以把它用作参数和返回值。
-
-循环开始时还会保存源区间的快照，因此在循环体里重新赋值源区间，也不会改变正在遍历的序列。
+先输出 `0..4`，再逐行输出 0 到 3。`code.len()` 返回 usize 字节数，因此字面量 0 也按 usize 检查，positions 的类型是 `range<usize>`，不需要 cast 或带后缀的 0。两个无后缀端点仍默认 i32；这里若显式注解 `range<i32>` 会被拒绝，因为两个端点无法统一到该类型。已有变量保持原类型：i32 变量和 usize 长度不能组成一个区间。
 
 ## 按区间选择结果
 
 ```carven
-fn main() {
-    let score = 85;
-    let label = match score {
-        ..0 => "invalid",
-        0..60 => "retry",
-        60..=100 => "pass",
-        101.. => "invalid",
-    };
-    println(label);
-}
+let score = 85;
+let label = match score {
+    ..0 => "invalid",
+    0..60 => "retry",
+    60..=100 => "pass",
+    101.. => "invalid",
+};
+println(label);
 ```
 
 输出 `pass`。从上往下读：小于 0 无效；0 到 59 需要重试；60 到 100 通过；大于 100 无效。这里 `..0` 和 `101..` 省略一侧边界；这种写法只用于模式，不能用来创建区间值。
@@ -100,20 +106,18 @@ int main() {
 ## while 与 C 风格 for
 
 ```carven
-fn main() {
-    var index = 0;
+var index = 0;
 
-    while index < 3 {
-        println(index);
-        ++index;
-    }
+while index < 3 {
+    println(index);
+    ++index;
+}
 
-    for var i = 0; i < 3; ++i {
-        if i == 1 {
-            continue;
-        }
-        println(i);
+for var i = 0; i < 3; ++i {
+    if i == 1 {
+        continue;
     }
+    println(i);
 }
 ```
 
@@ -127,4 +131,4 @@ fn main() {
 
 ## 练习
 
-把求和区间分别改成 `1..1` 和 `1..=1`，比较 0 与 1。再用 `1..6` 跳过 3，结果应为 12，并用 while 写出相同结果。最后把分类示例中的 score 改为 -1、59、60、100 和 101，检查每个边界。
+把求和示例的区间分别改成 `1..1` 和 `1..=1`，比较 0 与 1。再用 `1..6` 跳过 3，结果应为 12，并用 while 写出相同结果。把分类示例中的 score 改为 -1、59、60、100 和 101，检查每个边界。最后把端点示例中的文本改成 `"order-1024"`，先预测输出的区间。

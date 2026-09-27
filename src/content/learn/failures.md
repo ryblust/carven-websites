@@ -8,6 +8,8 @@ source: docs/semantics.md
 
 ## Start with validation
 
+Save this as quantity.cv:
+
 ```carven
 struct InvalidQuantity {
     value: i32,
@@ -21,21 +23,19 @@ fn line_total(price: i32, quantity: i32) -> i32 throw InvalidQuantity {
     return price * quantity;
 }
 
-fn main() {
-    let result = try {
-        line_total(12, 0)?
-    } catch {
-        InvalidQuantity(error) => {
-            println("Invalid quantity:", error.value);
-            0
-        },
-    };
+let total = try {
+    line_total(12, 0)?
+} catch {
+    InvalidQuantity(error) => {
+        println("Invalid quantity:", error.value);
+        0
+    },
+};
 
-    println("Total:", result);
-}
+println("Total:", total);
 ```
 
-The output is `Invalid quantity: 0` followed by `Total: 0`. The failure type is a struct carrying the rejected value. `throw InvalidQuantity` in the signature is an upper bound; the `throw ...;` statement actually produces a failure.
+Run `carven quantity.cv`. The output is `Invalid quantity: 0` followed by `Total: 0`. The failure type is a struct carrying the rejected value. `throw InvalidQuantity` in the signature is an upper bound; the `throw ...;` statement actually produces a failure. A throw statement does not supply an expected type, so it names the failure type instead of using contextual `{ value: quantity }` construction.
 
 ## Success values and propagation
 
@@ -45,7 +45,18 @@ Applying ? to an expression that cannot fail is a compile error. When a private 
 
 ## Inference and publication
 
-The preceding module chapter introduced private helpers and published interfaces. A private non-entry function may omit its throw clause: the compiler infers the failures its body can propagate. Ordinary bare functions, export functions, and main must explicitly declare escaping failures; private main is no exception. Closures, introduced next, can also infer their failures.
+The preceding module chapter introduced private helpers and published interfaces. A private non-entry function may omit its throw clause: the compiler infers the failures its body can propagate. Top-level statements, which form the implicit entry, infer their outward failures the same way. Closures, introduced next, can also infer their failures.
+
+Replace the try expression and final println in quantity.cv with two direct calls:
+
+```carven
+println("Total:", line_total(12, 3)?);
+println("Total:", line_total(12, 0)?);
+```
+
+This fragment depends on the struct and line_total above. The program prints `Total: 36`, then the second call's InvalidQuantity leaves the implicit entry. The process exits with a failure status without printing the payload. No throw clause is needed on top-level statements.
+
+Ordinary bare functions, export functions, and an explicit main must declare escaping failures; private main is no exception. Moving the same two lines into `fn main() { ... }` without `throw InvalidQuantity` reports `CV-EFFECT-THROW-PUBLISHED`.
 
 Write a set as `throw A + B`. Order is irrelevant, and types cannot repeat. Failure payloads must be copyable nominal structs or enums.
 
@@ -75,17 +86,13 @@ fn fee(online: bool) -> i32 throw Offline {
     return 2;
 }
 
-private fn quote(has_price: bool, online: bool) -> i32 {
-    return (price(has_price) + fee(online))?;
-}
+private fn quote(has_price: bool, online: bool) -> i32 => (price(has_price) + fee(online))?;
 
-fn total(has_price: bool, online: bool) -> i32 throw Offline {
-    return try {
-        quote(has_price, online)?
-    } catch {
-        MissingPrice(_) => 12,
-    };
-}
+fn total(has_price: bool, online: bool) -> i32 throw Offline => try {
+    quote(has_price, online)?
+} catch {
+    MissingPrice(_) => 12,
+};
 
 fn main() {
     let price = try {
@@ -98,15 +105,15 @@ fn main() {
 }
 ```
 
-The output is `12`. quote combines two ordinary success values with `+` and uses one `?` for the composed expression. Its private contract is inferred as MissingPrice + Offline. If price fails, fee is not called.
+The output is `12`. quote combines two ordinary success values with `+` and uses one `?` for the composed expression. Its private contract is inferred as MissingPrice + Offline. If price fails, fee is not called. Both quote and total use expression bodies: `=>` returns the value of the expression, including a whole try expression.
 
 total recovers MissingPrice with a default total. Its public contract contains only Offline, which is all main must handle. No new aggregate error type is declared for the combination.
 
 Try `(true, true)` in main to get `17`, then `(true, false)` to get `0`. `(false, false)` still gives `12`: the missing price stops evaluation before the service call. The contract lists possible failures; it does not force all operations to run.
 
-Adding `_ => rethrow,` after the MissingPrice arm preserves the same residual set. Omitting it is valid here because total declares a contract accepting Offline. A main without an escaping contract must handle all its own failures.
+Adding `_ => rethrow,` after the MissingPrice arm preserves the same residual set. Omitting it is valid here because total declares a contract accepting Offline. This example uses an explicit main, which has no throw clause, so main must handle all its own failures.
 
-Save the complete program above as quote.cv and run `./xmakew run carven quote.cv` from the Carven repository root. Change the two arguments to total in main and check the results below. Use the same inputs in the C++ comparison that follows.
+Save the complete program above as quote.cv and run `carven quote.cv`. Change the two arguments to total in main and check the results below. Use the same inputs in the C++ comparison that follows.
 
 | has_price | online | Output | Path                                 |
 | --------- | ------ | ------ | ------------------------------------ |
@@ -114,6 +121,38 @@ Save the complete program above as quote.cv and run `./xmakew run carven quote.c
 | false     | true   | 12     | Recover missing price; skip fee      |
 | true      | false  | 0      | Forward Offline for main to recover  |
 | false     | false  | 12     | price fails first; fee is not called |
+
+### When a caller forgets a failure
+
+Replace main in quote.cv with a version that calls quote directly but handles only MissingPrice:
+
+```carven
+fn main() {
+    let price = try {
+        quote(false, true)?
+    } catch {
+        MissingPrice(_) => 12,
+    };
+
+    println(price);
+}
+```
+
+`carven quote.cv` now stops before generating C++. Among the reported errors:
+
+```text
+error [CV-EFFECT-CATCH-NON-EXHAUSTIVE]: catch does not cover every protected failure
+ --> quote.cv:27:17
+   |
+27 |     let price = try {
+   |                 ^^^^^
+   | ...
+31 |     };
+   | ^^^^^
+note: failure type not fully covered: quote.Offline
+```
+
+The note names the uncovered type with its module. The same run also reports `CV-EFFECT-THROW-PUBLISHED` at main, because the residual Offline would escape an explicit entry without a throw clause. Add an `Offline(_) => 0,` arm, or declare `fn main() throw Offline`, to resolve both. At the top level, the same try would instead forward Offline out of the implicit entry. Restore the original main before continuing.
 
 ## Preserve the same failures in C++23
 
@@ -178,14 +217,14 @@ Follow the call order: C++ quote checks price before calling fee, placing each e
 
 C++ combinators or result libraries can encapsulate these branches too. Explicit code makes the correspondence between types and control flow visible here. Carven makes the composition rules part of the language, so private functions need no separately declared aggregate error type.
 
-Keep total's interface limited to Offline: replace its Carven body with `return quote(has_price, online)?;` and remove the MissingPrice if branch in C++. Carven reports a failure outside the contract. The C++ above still compiles, but the remaining `std::get<Offline>` throws std::bad_variant_access when the price is missing: the return type does not prove which alternative the variant holds. Carven checks both the failure types and the coverage of the recovery branches.
+Keep total's interface limited to Offline: replace its Carven body with `=> quote(has_price, online)?;` and remove the MissingPrice if branch in C++. Carven reports `CV-EFFECT-SIGNATURE-BOUND`: the body exceeds the declared contract. The C++ above still compiles, but the remaining `std::get<Offline>` throws std::bad_variant_access when the price is missing: the return type does not prove which alternative the variant holds. Carven checks both the failure types and the coverage of the recovery branches.
 
 ## Side effects and entry status
 
 Failure does not roll back completed mutations. Locals are cleaned up according to control flow, and borrowed data in a failure payload must retain valid backing. C++ exceptions, dynamic bounds violations, and division-by-zero termination are not typed failures.
 
-If a declared failure escapes main, the process reports failure without automatically printing its payload. Catch and print it yourself when a readable message is needed. An ordinary returned integer is not an exit code.
+If a failure escapes an implicit entry or an explicit main, the process reports failure status without automatically printing its payload. Catch and print it yourself when a readable message is needed. An ordinary returned integer is not an exit code.
 
 ## Exercise
 
-Set the quantity to 3; expect only Total: 36. Add a TooExpensive failure to limit the total price, and update the signature and main's handling. Omit that handler to inspect the boundary diagnostic.
+In quantity.cv, set the quantity to 3; expect only `Total: 36`. Add a TooExpensive failure to limit the total price, update line_total's signature, and handle it in the top-level try. Then omit that handler: the implicit entry forwards TooExpensive and the process exits with a failure status. Move the statements into `fn main() { ... }` to inspect the boundary diagnostic instead.

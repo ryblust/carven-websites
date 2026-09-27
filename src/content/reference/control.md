@@ -10,7 +10,7 @@ source: docs/semantics.md
 
 ! requires bool; numeric negation requires a number; ~ requires an integer. Arithmetic and ordering require the same numeric type. Remainder, bitwise operations, and shifts require integers. Logical &&/|| require bool and short-circuit left to right. External C++ operands follow native operation rules.
 
-Equality supports bool, char, integers, floating point, str, String, memberwise comparable arrays/structs/enums, and pointers with the same target type. Callables, entry arguments, slices, integer ranges, and chars ranges do not support equality. Floating equality follows IEEE and != is its negation. `0.0` and `-0.0` are the same literal pattern.
+Equality supports bool, char, integers, floating point, str, String, memberwise comparable arrays/structs/enums, and pointers with the same target type. Classes have no implicit equality; a class, or a struct, array, or enum containing one, reports `CV-TYPE-EQUALITY-UNSUPPORTED`. Callables, entry arguments, slices, integer ranges, and chars ranges do not support equality. Floating equality follows IEEE and != is its negation. `0.0` and `-0.0` are the same literal pattern.
 
 ## Order and inactive code
 
@@ -31,11 +31,11 @@ for value in values {
 }
 ```
 
-This prints 1 through 4. An expected `range<T>` supplies T to the first bound; otherwise that bound establishes the type. The second bound is checked against it. Ordinary expression forms require both bounds; omitted bounds are only for patterns. There is no step or implicit reverse traversal.
+This prints 1 through 4. An expected `range<T>` supplies T to both bounds. Without one, the bounds follow the binary-operand rule in [expected types](/reference/types/#expected-types): a direct unsuffixed literal takes its type from the other bound, so `0..text.len()` is `range<usize>`. Otherwise the first bound establishes the type and the second is checked against it; incompatible bounds report `CV-TYPE-RANGE-BOUNDS`. Ordinary expression forms require both bounds; omitted bounds are only for patterns. There is no step or implicit reverse traversal.
 
 ## if and loops
 
-if conditions, while conditions, and guards require bool. A value-producing if needs else and compatible normally completing branch results. Statement forms produce no value.
+if conditions, while conditions, and guards require bool. A value-producing if needs else and compatible normally completing branch results. Value branches of if, match, and try receive the surrounding expected type, so a branch result may be a [contextual construction](/reference/aggregates/#contextual-construction); in match and catch arms, write `({})` for an empty one. Statement forms produce no value.
 
 ```carven
 let amount = if true { 10 } else { 20 };

@@ -15,12 +15,13 @@ Suppose a C++ application needs to calculate a quantity discount. Write the calc
 
 ```carven
 export(cpp) fn price_cents(quantity: i32) -> i32 {
+    assert(quantity >= 0, "quantity must be nonnegative");
     let unit_price: i32 = if quantity >= 10 { 90 } else { 100 };
     return quantity * unit_price;
 }
 ```
 
-The program entry remains in C++. The build generates a public header and an implementation; C++ includes the header and links the implementation. This example assumes small, nonnegative quantities. The calculation itself does not validate arbitrary input or handle integer overflow.
+The program entry remains in C++. The build generates a public header declaring `carven::api::pricing::price_cents` and an implementation; C++ includes the header and links the implementation together with the generated UTF Craft sources. A negative quantity is a caller bug here, so `assert` reports the condition and message to stderr and aborts the process, whatever the native build's `NDEBUG` setting. It is not a recoverable failure; a caller that needs to handle bad input should receive a typed failure instead. The calculation does not guard against integer overflow; large quantities wrap.
 
 Explicit `import(cpp)` and `export(cpp)` boundaries use ordinary Carven types, Read/Write/Take access, and declared failure contracts. Scope and naming follow the native interoperation rules.
 
@@ -60,12 +61,36 @@ Each example has a defined scope. The quote example does not actually deduct sto
 
 ## Reduce C++ interface maintenance
 
+A class keeps a small piece of state behind its own operations. Only the class body can read its fields or construct it, and it stays a plain value: no heap allocation, inheritance, or virtual dispatch.
+
+```carven
+class Cart {
+    count: i32,
+    total_cents: i32,
+    fn empty() -> Cart => { count: 0, total_cents: 0 };
+    fn add(&self, price_cents: i32) {
+        self.count += 1;
+        self.total_cents += price_cents;
+    }
+    fn total(self) -> i32 => self.total_cents;
+}
+
+var cart = Cart::empty();
+cart.add(250);
+cart.add(120);
+println(cart.total());
+```
+
+Run it with `carven cart.cv` to print `370`. Generated C++ holds the fields in a struct and lowers each operation to an ordinary function. A class has no implicit equality, and `println(cart)` prints only its name, `Cart`, without exposing the fields. Classes cannot be used in required constant evaluation.
+
 For logic involving several types and mutually calling functions, maintain their definitions in `.cv` source. The compiler generates interfaces and implementations from visibility and type dependencies, arranging forward declarations and definition order. Dependencies used only in function bodies do not merge interfaces.
 
 **A useful starting point:** modules that benefit from less manual synchronization of declarations and implementations, with a generated public interface for C++ consumers.
 
 ## Choose a scope you can verify
 
-Carven currently fits learning, language exploration, and controlled integration experiments. For an evaluation, use the same revision of the compiler, support headers, documentation, and examples, and verify the capabilities your target project actually needs.
+Carven currently fits learning, language exploration, and controlled integration experiments. For an evaluation, use the same revision of the compiler, support headers, documentation, and examples, and verify the capabilities your target project actually needs. `carven check` runs semantic analysis and compile-time tests without generating C++, which makes it a quick first gate.
 
-The toolchain has separate host and target requirements: building the compiler requires a toolchain with C++26 support; generated programs and support libraries use C++20. The compiler host currently validated by the repository is LLVM/Clang with libc++ 23.1.0.
+Carven has no thread or synchronization operations, and its Read/Write/Take rules do not establish cross-thread safety. If C++ calls generated code from several threads, the C++ side owns synchronization and shared data.
+
+The toolchain has separate host and target requirements: building the compiler requires an LLVM/Clang toolchain with C++26 support; generated programs and support libraries use C++20. The repository's validated host toolchain is LLVM 23.

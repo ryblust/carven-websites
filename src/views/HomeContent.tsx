@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { MorphingCode } from '../components/MorphingCode';
 import { Link } from '@tanstack/react-router';
 import { localizedPath, translate, type Locale } from '../lib/i18n';
-import { href } from '../lib/site';
+import { href, repository } from '../lib/site';
 import { homeExamples } from '../generated/home-examples';
 import '../styles/home.css';
 
@@ -12,31 +12,31 @@ export default function HomeContent({ locale }: { locale: Locale }) {
   const [language, setLanguage] = useState<'carven' | 'cpp'>('carven');
   const examples = [
     {
-      label: t('失败处理', 'Handle failures'),
-      title: t('恢复一种失败，上层就少一种责任。', 'Handle a failure. Narrow the contract.'),
+      label: t('打印任意值', 'Print any value'),
+      title: t(
+        '编译器知道字段名，你不用再写一遍。',
+        'The compiler knows the fields. So does println.',
+      ),
       detail: t(
-        '配置缺失，就用默认端口。你写成功路径和恢复规则，Carven 处理传播，并检查剩下的失败契约。',
-        'Use a default port when the config is missing. Write the success path and recovery rule; Carven handles propagation and checks the remaining failure contract.',
+        '结构体、枚举和数组直接交给 println，字段名、枚举成员和元素都会按结构打印。不用手写输出运算符，也不用反射库。',
+        'Pass a struct, enum, or array to println and it prints field names, enum cases, and elements. No handwritten output operator or reflection library.',
       ),
-      html: homeExamples.failures,
-      cpp: homeExamples.failuresCpp,
-      result: t(
-        'Missing → 8080 · Denied + BadPort → 调用者',
-        'Missing → 8080 · Denied + BadPort → caller',
-      ),
+      html: homeExamples.display,
+      cpp: homeExamples.displayCpp,
+      result: 'Order { id: 7, status: Status::Shipped(3), items: ["disk", "cable"] }',
       comparison: t(
-        '两边都省略错误类型及 read、parse 的实现。read 读取端口文本，可能产生 Missing 或 Denied；parse 将文本解析为端口，可能产生 BadPort。Carven 注释列出提供者契约。C++23 用 expected、variant 和分支实现同样的返回值与失败类型；异常或其他库可以提供不同写法。这里展示的是手写等价代码，不是编译器输出。',
-        'Both omit error types and the implementations of read and parse. read supplies port text or Missing / Denied; parse returns a port or BadPort. Carven comments summarize those contracts. C++23 uses expected, variant, and branches to preserve the same results and failure types; exceptions or other libraries offer different approaches. This is a handwritten equivalent, not compiler output.',
+        'Carven 的实际输出按每个字段、元素一行排列，这里的结果压缩成了一行。C++20 版本需要为每个类型手写 operator<<，字段增删后要同步修改，输出也更简略；main 与标准输出省略。Boost.PFR、magic_enum 或 C++26 反射可以减少这部分代码。同样的结构化显示也用于测试失败时报告的操作数值。',
+        'Carven prints one field or element per line; the result is condensed here. The C++20 version writes an operator<< for each type, which must change when fields change, and prints a simpler layout; main and standard output are omitted. Boost.PFR, magic_enum, or C++26 reflection can reduce this code. The same structural display reports operand values when a test fails.',
       ),
-      standard: 'C++23',
-      path: '/features/failure-contracts/',
+      standard: 'C++20',
+      path: '/learn/aggregates/',
     },
     {
       label: t('编译期生成', 'Build at compile time'),
       title: t('构造时可以修改，运行时只剩结果。', 'Mutable while building. Static when shipped.'),
       detail: t(
-        '从配置生成启用的接口清单，照常写循环、判断和文本追加。Carven 在编译期完成构造，将结果保存为静态文本。',
-        'Build a list of enabled endpoints from configuration, using ordinary loops, conditions, and text operations. Carven runs the construction at compile time and keeps the result as static text.',
+        '从配置生成启用的接口清单，照常写循环、判断和文本追加。Carven 在编译期完成构造，将结果保存为静态文本，const test 在编译时就检查它。',
+        'Build a list of enabled endpoints from configuration with ordinary loops, conditions, and text operations. Carven runs the construction at compile time, keeps the result as static text, and checks it with a const test during compilation.',
       ),
       html: homeExamples.constants,
       cpp: homeExamples.constantsCpp,
@@ -45,11 +45,31 @@ export default function HomeContent({ locale }: { locale: Locale }) {
         'Compile-time result · Static str\n/health\n/users',
       ),
       comparison: t(
-        '两边筛选相同的路由配置，生成以换行分隔的路径文本；这里不创建 HTTP 路由器。C++20 用 constexpr string 构造，再用 freeze 模板按结果长度建立持久数组，供 string_view 引用。Carven 在常量初始化时将临时 String 冻结为静态 str。对照是手写等价实现；静态字符串库也可以封装这项存储工作。',
-        'Both filter the same route configuration into newline-separated path text; this does not create an HTTP router. C++20 builds with constexpr string, then freeze sizes lasting array storage for a string_view. Carven freezes the temporary String into a static str at constant initialization. The comparison is handwritten; a static-string library could encapsulate the storage work.',
+        '两边筛选相同的路由配置，生成以换行分隔的路径文本；这里不创建 HTTP 路由器。C++20 中 constexpr std::string 的内存不能保留到运行时，所以 freeze 先执行一次构造得到长度，再执行一次把内容复制进固定大小的数组，供 string_view 引用。Carven 在常量初始化时直接把 String 冻结为静态 str。对照是手写等价实现；静态字符串库也可以封装这项存储工作。',
+        'Both filter the same route configuration into newline-separated path text; this does not create an HTTP router. In C++20, a constexpr std::string allocation cannot survive into runtime, so freeze runs the construction once for its length and again to copy it into a sized array behind a string_view. Carven freezes the String into a static str at constant initialization. The comparison is handwritten; a static-string library could encapsulate the storage work.',
       ),
       standard: 'C++20',
       path: '/features/compile-time/',
+    },
+    {
+      label: t('失败处理', 'Handle failures'),
+      title: t('恢复一种失败，契约就少一种。', 'Handle a failure. Narrow the contract.'),
+      detail: t(
+        '配置缺失时使用默认端口。编译器算出剩下的失败：契约少写 BadPort 会报错，调用者漏处理某种失败时，错误信息会指出漏掉的类型。',
+        'Use a default port when the config is missing. The compiler computes the failures that remain: leave BadPort out of the contract and it reports an error; a caller that misses a failure is told which type is uncovered.',
+      ),
+      html: homeExamples.failures,
+      cpp: homeExamples.failuresCpp,
+      result: t(
+        'Missing → 8080 · Denied + BadPort → 调用者',
+        'Missing → 8080 · Denied + BadPort → caller',
+      ),
+      comparison: t(
+        '两边都省略错误类型及 read、parse 的实现。read 读取端口文本，可能产生 Missing 或 Denied；parse 将文本解析为端口，可能产生 BadPort。Carven 注释列出提供者契约。C++23 用 expected、variant 和分支实现同样的返回值与失败类型，剩余失败类型由你手动维护；异常或其他库可以提供不同写法。这里展示的是手写等价代码，不是编译器输出。',
+        'Both omit error types and the implementations of read and parse. read supplies port text or Missing / Denied; parse returns a port or BadPort. Carven comments summarize those contracts. C++23 uses expected, variant, and branches to preserve the same results and failure types, and you maintain the remaining failure list by hand; exceptions or other libraries offer different approaches. This is a handwritten equivalent, not compiler output.',
+      ),
+      standard: 'C++23',
+      path: '/features/failure-contracts/',
     },
     {
       label: t('调用 C++', 'Use C++ libraries'),
@@ -73,6 +93,32 @@ export default function HomeContent({ locale }: { locale: Locale }) {
     },
   ] as const;
   const example = examples[selected]!;
+  const steps = [
+    {
+      title: t('编写 Carven', 'Write Carven'),
+      detail: t(
+        '在源码中写明读取、修改还是转移所有权，以及哪些失败会向外传递。编译器在生成代码前检查这些契约。',
+        'State whether code reads, mutates, or takes ownership, and which failures can escape. The compiler checks these contracts before generating code.',
+      ),
+      command: 'main.cv',
+    },
+    {
+      title: t('生成 C++', 'Generate C++'),
+      detail: t(
+        'compile 输出 C++20 源文件，可以直接打开阅读，也可以放进现有构建。',
+        'compile writes C++20 source files you can open, read, and add to an existing build.',
+      ),
+      command: 'carven compile -o generated main.cv',
+    },
+    {
+      title: t('原生构建', 'Build natively'),
+      detail: t(
+        '你的 C++ 编译器负责编译、链接与优化。直接运行源文件时默认使用 clang++，可用 CXX 指定其他编译器。',
+        'Your C++ compiler handles compilation, linking, and optimization. Running a source file directly uses clang++ by default; set CXX to choose another compiler.',
+      ),
+      command: 'carven main.cv',
+    },
+  ];
   return (
     <div className="home-page">
       <section className="home-intro" aria-labelledby="home-heading">
@@ -92,7 +138,7 @@ export default function HomeContent({ locale }: { locale: Locale }) {
             <br />
             in the palm of your hand.
           </p>
-          <p className="why-lead">
+          <p className="home-lead">
             {t(
               '一门编译为 C++ 的语言，沿用你的原生库与工具链。',
               'A language that compiles to C++, with your native libraries and toolchain.',
@@ -102,112 +148,180 @@ export default function HomeContent({ locale }: { locale: Locale }) {
             <Link className="button button-primary" to={localizedPath('/learn/', locale)}>
               {t('开始学习', 'Start learning')} <span aria-hidden="true">→</span>
             </Link>
-            <Link to={localizedPath('/reference/', locale)}>
-              Reference <span aria-hidden="true">↗</span>
+            <Link className="button button-secondary" to={localizedPath('/reference/', locale)}>
+              Reference
             </Link>
           </div>
         </div>
       </section>
-      <section
-        id="why-carven"
-        className="why-demo"
-        aria-label={t('Carven 代码示例', 'Carven code examples')}
-      >
-        <header className="home-demo-intro">
-          <p className="why-eyebrow">{t('建立在 C++ 之上', 'Built on C++')}</p>
-          <h2>
+
+      <section id="why-carven" className="home-section showcase" aria-labelledby="showcase-heading">
+        <header className="section-head">
+          <p className="eyebrow">{t('建立在 C++ 之上', 'Built on C++')}</p>
+          <h2 id="showcase-heading">
             <span>{t('意图，交给 Carven。', 'Express intent with Carven.')}</span>
             <span>{t('力量，来自 C++。', 'Build on the power of C++.')}</span>
           </h2>
-          <p className="home-demo-lead">
+          <p>
             {t(
-              '让语言处理失败传播与常量存储，继续使用现成的 C++ 库。切换代码，对比同一任务的两种写法。',
-              'Let the language handle failure propagation and constant storage. Keep using your C++ libraries. Switch code to compare two ways to express the same task.',
+              '编译器已经知道的字段、常量和失败类型，不需要再靠技巧取回。切换代码，对比同一任务的两种写法。',
+              'What the compiler already knows about fields, constants, and failures stays available without workarounds. Switch code to compare two ways to express the same task.',
             )}
           </p>
         </header>
-        <div className="why-comparison">
-          <div className="why-demo-caption" aria-live="polite" aria-atomic="true">
-            <p className="why-eyebrow">{t('同一个任务', 'The same task')}</p>
+        <div className="showcase-grid">
+          <div
+            className="showcase-tabs"
+            role="group"
+            aria-label={t('选择示例', 'Choose an example')}
+          >
+            {examples.map((item, index) => (
+              <button
+                key={item.path}
+                type="button"
+                aria-pressed={selected === index}
+                onClick={() => setSelected(index)}
+              >
+                <span className="showcase-index" aria-hidden="true">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div className="showcase-caption" aria-live="polite" aria-atomic="true">
             <h3>{example.title}</h3>
             <p>{example.detail}</p>
-            <Link to={localizedPath(example.path, locale)}>
-              {t('探索这项能力', 'Explore this feature')} <span aria-hidden="true">↗</span>
+            <Link className="text-link" to={localizedPath(example.path, locale)}>
+              {t('探索这项能力', 'Explore this feature')} <span aria-hidden="true">→</span>
             </Link>
           </div>
-          <div className="why-demo-surface">
-            <div
-              className="why-selectors"
-              role="group"
-              aria-label={t('选择示例', 'Choose an example')}
-            >
-              {examples.map((item, index) => (
+          <div className="code-window showcase-code">
+            <div className="code-window-bar">
+              <div
+                className="code-language-switch"
+                role="group"
+                aria-label={t('代码语言', 'Code language')}
+              >
                 <button
-                  key={item.path}
                   type="button"
-                  aria-pressed={selected === index}
-                  onClick={() => setSelected(index)}
+                  aria-pressed={language === 'carven'}
+                  onClick={() => setLanguage('carven')}
                 >
-                  {item.label}
+                  Carven
                 </button>
-              ))}
-            </div>
-            <div className="why-demo-body">
-              <div className="why-code-label">
-                <div
-                  className="code-language-switch"
-                  role="group"
-                  aria-label={t('代码语言', 'Code language')}
+                <button
+                  type="button"
+                  aria-pressed={language === 'cpp'}
+                  onClick={() => setLanguage('cpp')}
                 >
-                  <button
-                    type="button"
-                    aria-pressed={language === 'carven'}
-                    onClick={() => setLanguage('carven')}
-                  >
-                    Carven
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={language === 'cpp'}
-                    onClick={() => setLanguage('cpp')}
-                  >
-                    C++
-                  </button>
-                </div>
-                <span>
-                  {language === 'carven'
-                    ? t('Carven 源码', 'Carven source')
-                    : `${example.standard} · ${t('手写等价示例', 'Handwritten equivalent')}`}
-                </span>
+                  C++
+                </button>
               </div>
-              <MorphingCode html={language === 'carven' ? example.html : example.cpp} />
-              <p className="why-result">{example.result}</p>
-              <details className="why-example-details" key={selected}>
-                <summary>{t('对照条件与边界', 'Comparison scope and limits')}</summary>
-                <p>{example.comparison}</p>
-              </details>
+              <span>
+                {language === 'carven'
+                  ? t('Carven 源码', 'Carven source')
+                  : `${example.standard} · ${t('手写等价示例', 'Handwritten equivalent')}`}
+              </span>
             </div>
+            <MorphingCode html={language === 'carven' ? example.html : example.cpp} />
+            <div className="code-window-result">
+              <span>{t('结果', 'Result')}</span>
+              <p>{example.result}</p>
+            </div>
+            <details className="showcase-details" key={selected}>
+              <summary>{t('对照条件与边界', 'Comparison scope and limits')}</summary>
+              <p>{example.comparison}</p>
+            </details>
           </div>
         </div>
       </section>
-      <section className="why-native" aria-labelledby="native-heading">
-        <p className="why-eyebrow">{t('继续使用你的 C++ 工具链', 'Native integration')}</p>
-        <h2 id="native-heading">
-          {t('更高阶的表达，扎根原生能力。', 'Higher-level expression. Native foundations.')}
-        </h2>
-        <p>
-          {t(
-            '产物是可检查、可编译的 C++。Carven 检查访问、所有权与失败契约；C++ 工具链负责原生编译、链接和优化。',
-            'The output is inspectable, compilable C++. Carven checks access, ownership, and failure contracts; your C++ toolchain handles native compilation, linking, and optimization.',
-          )}
+
+      <section className="home-section workflow" aria-labelledby="native-heading">
+        <header className="section-head">
+          <p className="eyebrow">{t('继续使用你的 C++ 工具链', 'Native integration')}</p>
+          <h2 id="native-heading">
+            {t('更高阶的表达，扎根原生能力。', 'Higher-level expression. Native foundations.')}
+          </h2>
+          <p>
+            {t(
+              '产物是可检查、可编译的 C++。Carven 检查访问、所有权与失败契约；C++ 工具链负责原生编译、链接和优化。',
+              'The output is inspectable, compilable C++. Carven checks access, ownership, and failure contracts; your C++ toolchain handles native compilation, linking, and optimization.',
+            )}
+          </p>
+        </header>
+        <ol className="workflow-steps">
+          {steps.map((step, index) => (
+            <li key={step.command}>
+              <span className="workflow-index" aria-hidden="true">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <h3>{step.title}</h3>
+              <p>{step.detail}</p>
+              <code>{step.command}</code>
+            </li>
+          ))}
+        </ol>
+        <p className="workflow-more">
+          <Link className="text-link" to={localizedPath('/features/cpp-generation/', locale)}>
+            {t('了解 C++ 如何生成', 'See how the C++ is generated')}{' '}
+            <span aria-hidden="true">→</span>
+          </Link>
         </p>
-        <div className="why-actions">
-          <Link className="button button-primary" to={localizedPath('/learn/', locale)}>
-            {t('写第一个程序', 'Write your first program')} <span aria-hidden="true">→</span>
-          </Link>
-          <Link to={localizedPath('/use-cases/', locale)}>
-            {t('接入现有工程', 'Integrate with your project')} <span aria-hidden="true">↗</span>
-          </Link>
+      </section>
+
+      <section className="home-section quickstart" aria-labelledby="quickstart-heading">
+        <header className="section-head">
+          <p className="eyebrow">{t('快速上手', 'Quick start')}</p>
+          <h2 id="quickstart-heading">{t('运行第一个程序。', 'Run your first program.')}</h2>
+          <p>
+            {t(
+              '构建编译器需要 Git、Xmake，以及支持 C++26 的 LLVM/Clang 工具链；生成的程序使用 C++20。',
+              'Building the compiler requires Git, Xmake, and an LLVM/Clang toolchain with C++26 support. Generated programs use C++20.',
+            )}
+          </p>
+          <p className="quickstart-note">
+            {t(
+              'Windows 使用 .\\xmakew.ps1；已安装编译器时，用 carven 代替 ./xmakew run carven。',
+              'On Windows, use .\\xmakew.ps1. With an installed compiler, replace ./xmakew run carven with carven.',
+            )}
+          </p>
+          <div className="home-actions">
+            <Link className="button button-primary" to={localizedPath('/learn/', locale)}>
+              {t('写第一个程序', 'Write your first program')} <span aria-hidden="true">→</span>
+            </Link>
+            <Link className="text-link" to={localizedPath('/use-cases/', locale)}>
+              {t('接入现有工程', 'Integrate with your project')} <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+        </header>
+        <div className="code-window terminal">
+          <div className="terminal-step">
+            <p>{t('1 · 构建编译器', '1 · Build the compiler')}</p>
+            <pre>
+              <code>
+                <span className="prompt">git clone {repository}.git</span>
+                {'\n'}
+                <span className="prompt">cd carven</span>
+                {'\n'}
+                <span className="prompt">./xmakew build</span>
+              </code>
+            </pre>
+          </div>
+          <div className="terminal-step">
+            <p>{t('2 · 在仓库根目录保存 main.cv', '2 · Save main.cv in the repository root')}</p>
+            <div dangerouslySetInnerHTML={{ __html: homeExamples.quickstart }} />
+          </div>
+          <div className="terminal-step">
+            <p>{t('3 · 运行', '3 · Run')}</p>
+            <pre>
+              <code>
+                <span className="prompt">./xmakew run carven main.cv</span>
+                {'\n'}
+                <span className="terminal-output">Answer: 42</span>
+              </code>
+            </pre>
+          </div>
         </div>
       </section>
     </div>

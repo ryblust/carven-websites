@@ -1,5 +1,5 @@
 import type { Locale } from '../lib/i18n';
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useRouter } from '@tanstack/react-router';
 import { enhanceCodeComparisons } from '../effects/code-comparisons';
 import { enhanceCodeBlocks } from '../effects/code-blocks';
@@ -10,6 +10,9 @@ export function ArticleBody({ html, locale = 'zh' }: { html: string; locale?: Lo
   const content = useRef<HTMLDivElement>(null);
   const [status, announce] = useState('');
   const router = useRouter();
+  const base = import.meta.env.BASE_URL;
+  // Feedback updates must preserve the descendants owned by the enhancements.
+  const body = useMemo(() => ({ __html: articleHtmlWithBase(html, base) }), [html, base]);
   useEffect(() => {
     if (!content.current) return;
     const removeComparisons = enhanceCodeComparisons(content.current);
@@ -48,12 +51,7 @@ export function ArticleBody({ html, locale = 'zh' }: { html: string; locale?: Lo
 
   return (
     <>
-      <div
-        ref={content}
-        className="prose"
-        onClick={navigate}
-        dangerouslySetInnerHTML={{ __html: articleHtmlWithBase(html, import.meta.env.BASE_URL) }}
-      />
+      <div ref={content} className="prose" onClick={navigate} dangerouslySetInnerHTML={body} />
       <div className="sr-only" role="status" aria-live="polite">
         {status}
       </div>

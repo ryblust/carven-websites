@@ -35,24 +35,39 @@ By-value Read saves a value during argument evaluation. By-reference Read retain
 
 ## Take and availability
 
-A Take source must be a whole owner or temporary. Runtime let/var, ordinary pattern bindings, and Take parameters are owners. Read/Write parameters, range bindings, capture state, and const cannot be Taken. Individual fields and elements cannot be Taken.
+A Take source must be a whole owner or temporary. Runtime let/var, ordinary pattern bindings, and Take parameters are owners. Read/Write parameters, range bindings, capture state, and const cannot be Taken. Taking a field or element of a still-available owner, as in `&&message.title` or `&&items[0]`, reports `CV-ACCESS-TAKE-OPERAND`; use [owning field projection](#owning-field-projection) to move a field out.
 
 ```carven
 fn relay(&&value: i32) -> i32 => value;
 
-fn main() {
-    var value = 7;
-    let moved = &&value;
-    value = 9;
-    println(moved, value);
-}
+var value = 7;
+let moved = &&value;
+value = relay(&&moved);
+println(value); // 7
 ```
 
-Even for copyable i32, Take makes the original binding unavailable. An && expression preserves the value type; it does not specify a fixed number or particular kind of C++ move operations.
+Even for copyable i32, Take makes the original binding unavailable; the assignment from `relay(&&moved)` restores `value`. An && expression preserves the value type; it does not specify a fixed number or particular kind of C++ move operations.
 
 Only an ordinary assignment to a whole var restores availability, after its right side completes normally. Partial assignments, compound assignments, and increment/decrement need the old value. `x = relay(&&x)` restores x on normal return; if the right side fails, x remains unavailable. `x = &&x`, including parenthesized forms, is invalid.
 
 At a control-flow merge, a binding is available only if it is available on all normally continuing paths. Loops include zero-iteration paths and back edges.
+
+## Owning field projection
+
+`owner.field` is an ordinary Read and never consumes `owner`. To move one field out of an owner, take the owner first: `(&&owner).field` consumes the complete owner, evaluates it once, and transfers the selected field under the ordinary value-delivery policy. The remaining fields are cleaned up normally at the end of the full expression. Nested selections such as `(&&owner).inner.field` follow the same rule.
+
+```carven
+struct Message {
+    title: String,
+    body: String,
+}
+
+var message = Message { title: "Hello", body: "World" };
+let title = (&&message).title;
+println(title); // Hello
+```
+
+Afterwards `message` is unavailable; `message.body` reports `CV-ACCESS-UNAVAILABLE` until `message` is reassigned. The projection does not decompose one owner into several field owners, and returning a view into the destroyed temporary is invalid. A class operation with a `&&self` receiver uses the same form, as in `fn build(&&self) -> String => (&&self).text;`.
 
 ## Take and C++ move are different contracts
 

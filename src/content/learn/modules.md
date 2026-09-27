@@ -19,9 +19,7 @@ Save main.cv:
 ```carven
 import math using add;
 
-fn main() {
-    println(add(20, 22));
-}
+println(add(20, 22));
 ```
 
 Pass both files to the compiler:
@@ -30,7 +28,17 @@ Pass both files to the compiler:
 ./xmakew run carven main.cv math.cv
 ```
 
-The output is 42. Import does not search the filesystem: the compilation batch must already include math.cv. Input order does not control whether a function can be referenced.
+The output is 42. Import does not search the filesystem: the compilation batch must already include math.cv. Passing only main.cv reports `CV-IMPORT-RESOLUTION`. Input order does not control whether a function can be referenced.
+
+A file name without `.cv` becomes part of the module name, so it must be an identifier: letters, digits, and underscores, not starting with a digit. `my-math.cv` is rejected; use `my_math.cv`.
+
+To inspect the generated C++, run:
+
+```sh
+./xmakew run carven compile --stdout main.cv math.cv
+```
+
+The output shows only artifacts that belong to the explicit inputs, headed `carven/generated/math.hpp`, `main.cpp`, and `math.cpp`. Automatically collected Crafts, such as the standard `std::utf` modules, still take part in analysis but are not displayed; any dependency of the shown files appears only as an include. Writing to a directory with `compile -o generated` also produces their C++ sources under `generated/crafts/carven/std/utf/`; a manual C++ build of the generated code must compile those too.
 
 ## Paths determine module names
 

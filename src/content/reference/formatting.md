@@ -52,7 +52,7 @@ A native custom formatter may inspect the entire argument set, so original argum
 
 ## Required constant formatting
 
-Constant initialization and const fn execution support default integer, bool, char, and text formatting, plus integer `b/B/o/d/x/X`, decimal width, and zero padding. f32/f64 support default formatting and `a/A/e/E/f/F/g/G`, including fill, alignment, sign, alternate form, zero padding, width, and precision; locale-dependent `L` is excluded. Dynamic width and precision evaluate first and must be nonnegative integers. Conversion uses the native standard library within compile-time resource budgets.
+Constant initialization and const fn execution support default integer, bool, char, and text formatting (including known C string contents), plus integer `b/B/o/d/x/X`, decimal width, and zero padding. f32/f64 support default formatting and `a/A/e/E/f/F/g/G`, including fill, alignment, sign, alternate form, zero padding, width, and precision; locale-dependent `L` is excluded. Dynamic width and precision evaluate first and must be nonnegative integers. Conversion uses the native standard library within compile-time resource budgets.
 
 ```carven
 const amount = f"{12.5:.2f}"; // 12.50
@@ -77,12 +77,49 @@ Arguments are evaluated once left to right and separated by one space. Scalars s
 
 Printing needs no ?. Buffering and flushing follow the C++ standard library, with no promise to flush every call. Native formatting or output failures terminate. An expected signature may select a printing callable, for example `let output: fn(str, i32) -> void = println;`.
 
-const fn and const test can print directly within their supported type subset. Only required constant execution writes through the compiler host; ordinary runtime calls still print at runtime. Completed output remains after later failure. Output bytes count toward cumulative text work.
+const fn, constant blocks, and const test can print directly within their supported type subset, including C strings as text. Only required constant execution writes through the compiler host; ordinary runtime calls still print at runtime. Completed output remains after later failure. Output bytes count toward cumulative text work.
 
 ## Structural display
 
 Direct `println(value)` displays logical data structure: structs show source type names and fields in declaration order, enums show `Type::Case` and payloads, arrays and slices show bracketed elements, and integer ranges show bounds with `..` or `..=`. Nonempty structs, sequences, and enum payloads expand across lines, with four spaces per level, a trailing comma per item, and a closing delimiter on its own line. Empty structs and sequences remain `Type {}` and `[]`. Layout does not depend on line width.
 
-Nested text and characters are quoted and escaped; top-level text stays verbatim. Pointers show an address or `nullptr` without dereferencing; external C++ types and callables show `<opaque>`. Display never calls custom formatters, stream insertion operators, or getters. `println(f"{value}")` first performs explicit formatting instead. Read and backing requirements cover the complete value; printing adds no owning copy or transfer.
+Nested text and characters are quoted and escaped; top-level text stays verbatim. Class values show only their type name, also when nested, and never expand their private fields.
+
+Native results are classified by their C++ type:
+
+| C++ type                                           | Display                                                                             |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Arithmetic types                                   | Scalar value                                                                        |
+| `char32_t`                                         | Character, quoted when nested                                                       |
+| `char8_t`, `char16_t`, `wchar_t`                   | Numeric code unit                                                                   |
+| `std::string_view`, runtime `String`               | Quoted text                                                                         |
+| `char*`, `const char*`                             | Text rules; null shows `nullptr`, non-null requires readable NUL-terminated storage |
+| Other pointers convertible to `const void*`        | Address or `nullptr`, without dereferencing                                         |
+| Other external types, function pointers, callables | `<opaque>`                                                                          |
+
+```carven
+class Token {
+    id: i32,
+    fn create(id: i32) -> Token => { id: id };
+}
+
+struct Entry {
+    token: Token,
+    name: str,
+}
+
+println(Entry { token: Token::create(7), name: "seven" }, [c"7"]);
+```
+
+```text
+Entry {
+    token: Token,
+    name: "seven",
+} [
+    "7",
+]
+```
+
+Display never calls custom formatters, stream insertion operators, or getters, including for nested fields. `println(f"{value}")` first performs explicit formatting instead. Read and backing requirements cover the complete value; printing adds no owning copy or transfer.
 
 The root has depth zero. Display expands at most eight levels, shows at most 64 elements per array or slice, and retains at most 16,384 UTF-8 bytes including layout whitespace, marking omissions with `...`. These limits also apply to structural values in assertion explanations, but not top-level verbatim text. Display is diagnostic text, not serialization. Constant blocks, const fn, and const test use the same display rules within their execution subsets.

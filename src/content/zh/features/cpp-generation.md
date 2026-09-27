@@ -41,16 +41,29 @@ std::int32_t answer() {
 Carven 把同一意图写在一份源文件中：
 
 ```carven
-export(cpp) fn answer() -> i32 {
-    return helper();
-}
+export(cpp) fn answer() -> i32 => helper();
 
-private fn helper() -> i32 {
-    return 42;
-}
+private fn helper() -> i32 => 42;
 ```
 
-编译器先建立声明身份，再安排定义依赖。helper 可以写在使用处之后；公开入口与私有实现分别进入适当的产物。这里的 C++ 是手写组织方式的示意，生成的公共入口另有 Carven 的模块命名空间。
+编译器先建立声明身份，再安排定义依赖。helper 可以写在使用处之后；公开入口与私有实现分别进入适当的产物。上面的 C++ 是手写组织方式的示意。把 Carven 版本保存为 `answer.cv`，生成的公共 API 头如下（节选自 `carven compile --stdout answer.cv`）：
+
+```cpp
+// carven/api/answer.hpp
+#pragma once
+
+#include <cstdint>
+
+#include <carven/generated/answer.hpp>
+
+namespace carven::api::answer {
+
+auto answer() noexcept -> ::std::int32_t;
+
+} // namespace carven::api::answer
+```
+
+公开函数位于由模块名得到的命名空间中，再转交给私有生成命名空间里经过检查的实现。helper 留在 `answer.cpp` 的匿名命名空间内，该文件中的 `#line` 指令指回 `answer.cv`。
 
 接口组件根据完整定义依赖形成，需要时使用前置声明。只存在于函数体的依赖保留在实现中。仅调整私有函数体、保持接口及其依赖不变时，生成头文件可保持不变。
 
@@ -63,6 +76,8 @@ private fn helper() -> i32 {
 例如，某个聚合的前一项已经构造，后一项可能失败：编译器需要保住先前的值，并在失败路径结束它的生命周期。成功结果有明确目标时，生成直接构造所需的步骤，避免要求类型提供额外的默认构造函数。
 
 生成的局部存储根据原生程序中保留的访问需求选择。字段和数组投影把使用方的访问需求传回 owner：读取投影可以保留 const 访问，写入与所有权转移则可能要求可变存储。源码访问规则独立于具体 C++ 存储选择，仍由语义分析检查。
+
+类也遵循同样的思路。Carven 的 `class` 是封装的值，不带隐藏的堆分配、继承或虚派发。生成的 C++ 用一个保存字段的 struct 表示它，并把它的操作表示为普通函数：`&self` 接收者成为可变引用参数，`self` 成为 const 值参数。
 
 某些原生不可移动组件如果必须先保存，再转入聚合，仍可能无法通过 C++ 编译。在最终位置直接构造，与先保存中间值以处理后续失败，对类型的构造能力有不同要求。
 
@@ -83,6 +98,27 @@ private fn helper() -> i32 {
 ## 接回现有的 C++ 工程
 
 产物是可检查、可编译、可链接的头文件与实现文件。C++ 消费者包含生成的公共 API 头，并链接对应实现；项目继续选择原生库、编译选项和调试工具。
+
+`carven compile --stdout answer.cv` 只显示显式输入对应的产物，每个产物以 `==> logical/path <==` 标题分隔；收集到的 Crafts 仍参与分析。这是供查看的格式；构建时应把文件写入目录再编译。一个小型 C++ 宿主程序：
+
+```cpp
+// host.cpp
+#include <carven/api/answer.hpp>
+#include <cstdio>
+
+int main() {
+    std::printf("%d\n", carven::api::answer::answer());
+}
+```
+
+```sh
+carven compile -o out answer.cv
+clang++ -std=c++20 -Iout -I/path/to/carven/crafts \
+    host.cpp out/answer.cpp out/crafts/carven/std/utf/*.cpp -o host
+./host
+```
+
+程序输出 `42`。所有命令都会收集内置 Crafts，因此输出目录中还有 UTF Craft 的生成实现，位于 `out/crafts/carven/std/utf/`；手动构建时要与应用源码一起编译。把 `/path/to/carven/crafts` 换成工具链旁安装的 `crafts/` 目录。也可以交给 Xmake 规则完成这些步骤，见[工具链参考](/zh/reference/toolchain/)。
 
 Carven 不需要为工程提供者重新实现一套对象布局或机器码后端。它在原生构建之前完成语义检查和源码生成，支持运行时头文件随工具链提供。
 

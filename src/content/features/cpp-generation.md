@@ -41,16 +41,29 @@ std::int32_t answer() {
 Carven expresses the same intent in one source file:
 
 ```carven
-export(cpp) fn answer() -> i32 {
-    return helper();
-}
+export(cpp) fn answer() -> i32 => helper();
 
-private fn helper() -> i32 {
-    return 42;
-}
+private fn helper() -> i32 => 42;
 ```
 
-The compiler establishes declaration identities before arranging definition dependencies. helper can appear after its use; the public entry and private implementation go into the appropriate artifacts. The C++ above illustrates handwritten organization. Carven's generated public entry additionally uses the module namespace.
+The compiler establishes declaration identities before arranging definition dependencies. helper can appear after its use; the public entry and private implementation go into the appropriate artifacts. The C++ above illustrates handwritten organization. Saved as `answer.cv`, the Carven version generates this public API header (excerpt of `carven compile --stdout answer.cv`):
+
+```cpp
+// carven/api/answer.hpp
+#pragma once
+
+#include <cstdint>
+
+#include <carven/generated/answer.hpp>
+
+namespace carven::api::answer {
+
+auto answer() noexcept -> ::std::int32_t;
+
+} // namespace carven::api::answer
+```
+
+The public function lives in a namespace derived from the module and forwards to the checked implementation in a private generated namespace. helper stays in an anonymous namespace inside `answer.cpp`, and `#line` directives in that file point back to `answer.cv`.
 
 Interface components follow dependencies that require complete definitions, with forward declarations where appropriate. Dependencies confined to function bodies stay in implementation files. Changing only a private function body can leave the generated headers unchanged when the interface and its dependencies remain unchanged.
 
@@ -63,6 +76,8 @@ Handwritten C++ requires temporaries, branches, and scopes to be arranged around
 For example, an earlier aggregate component may already be constructed when a later component fails. The compiler must preserve the earlier value and end its lifetime on the failure path. When a successful result has a known destination, generation arranges direct construction without introducing an unnecessary default-construction requirement.
 
 Generated local storage follows the accesses retained in the native program. Field and array projections carry their consumer's access back to the owner: reading a projection can keep const access, while writes and ownership transfers can require mutable storage. Source access rules remain enforced independently of the chosen C++ storage.
+
+Classes follow the same approach. A Carven `class` is an encapsulated value with no hidden heap allocation, inheritance, or virtual dispatch. Generated C++ represents it as a struct holding its fields, and its operations as ordinary functions: a `&self` receiver becomes a mutable reference parameter, and `self` becomes a const value parameter.
 
 C++ can still reject an immovable native component that must first be saved and then transferred into an aggregate. Direct construction in the final destination has different requirements from intermediate storage across a failure boundary.
 
@@ -83,6 +98,27 @@ Generation continues to use checked facts:
 ## Connect to an existing C++ project
 
 The artifacts are inspectable headers and implementation files that can be compiled and linked. C++ consumers include the generated public API header and link the corresponding implementation. The project continues to choose its native libraries, compiler options, and debugging tools.
+
+`carven compile --stdout answer.cv` displays only the artifacts of the explicit inputs, each under a `==> logical/path <==` heading; collected Crafts still take part in analysis. It is an inspection format. To build, write the files to a directory and compile them. A small C++ host:
+
+```cpp
+// host.cpp
+#include <carven/api/answer.hpp>
+#include <cstdio>
+
+int main() {
+    std::printf("%d\n", carven::api::answer::answer());
+}
+```
+
+```sh
+carven compile -o out answer.cv
+clang++ -std=c++20 -Iout -I/path/to/carven/crafts \
+    host.cpp out/answer.cpp out/crafts/carven/std/utf/*.cpp -o host
+./host
+```
+
+The program prints `42`. Every command collects the bundled Crafts, so the output also contains generated implementations for the UTF Craft under `out/crafts/carven/std/utf/`; a manual build compiles them with the application sources. Replace `/path/to/carven/crafts` with the `crafts/` directory installed beside the toolchain. An Xmake rule can take over these steps; see the [toolchain reference](/reference/toolchain/).
 
 Carven does not require a separate object-layout or machine-code backend for project providers. It completes semantic checking and source generation before the native build, with runtime support headers supplied by the toolchain.
 

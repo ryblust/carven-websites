@@ -8,7 +8,7 @@ source: crafts/carven/std/utf/README.md
 
 ## 模块与接口
 
-标准库模块由构建系统加入输入批次。使用 `import std::utf.text using to_string;` 等选择具体能力。
+`carven`、`check`、`compile` 和 `interpret` 命令会自动收集官方库源码。使用 `import std::utf.text using to_string;` 等选择具体能力。
 
 | 模块                | 内容                                          |
 | ------------------- | --------------------------------------------- |
@@ -26,10 +26,12 @@ source: crafts/carven/std/utf/README.md
 | `encode_utf8(character: char) -> UTF8Encoded`                | 四字节数组 bytes 与有效 width            |
 | `char_from_u32(value: u32) -> char throw UnicodeScalarError` | 检查标量范围                             |
 | `char_to_u32(value: char) -> u32`                            | 标量编号                                 |
-| `validator() -> UTF8Validator`                               | 新验证状态                               |
-| `push(&state, byte: u8) throw UTF8Error`                     | 接受一个字节                             |
-| `feed(&state, bytes: [u8]) throw UTF8Error`                  | 接受一个块                               |
-| `finish(state) throw UTF8Error`                              | 声明逻辑 EOF                             |
+| `UTF8Validator::create() -> UTF8Validator`                   | 新验证状态                               |
+| `state.push(byte: u8) throw UTF8Error`                       | 接受一个字节                             |
+| `state.feed(bytes: [u8]) throw UTF8Error`                    | 接受一个块；块末尾不是 EOF               |
+| `state.finish() throw UTF8Error`                             | 声明逻辑 EOF                             |
+| `state.processed_bytes() -> usize`                           | 已接受的字节数                           |
+| `state.is_complete() -> bool`                                | 是否没有未完成的标量                     |
 
 数组可隐式转字节切片，也可显式 as_slice；文本 `.bytes` 提供切片。from_utf8 的结果借用输入，必须保持 backing 存活且不变；to_string 的结果独立，可从局部数组安全返回。
 
@@ -51,6 +53,31 @@ UTF8Error 包含 kind、offset、sequence_start。偏移均是逻辑流中的零
 
 ## 增量协议
 
-通过 validator 初始化，使用 push/feed 修改。状态记录字节位置与待完成序列，不保存输入。push 拒绝时状态不变；feed 拒绝时保留之前已接受字节的进度。发生错误后结束当前验证尝试，改字节重试对应另一个流。
+`UTF8Validator` 是一个[类](/zh/reference/aggregates/#普通值类)：用 `UTF8Validator::create()` 创建，通过 Write 操作 `push` 和 `feed` 修改。它的私有字段记录字节位置与待完成序列，不保存输入；在类外访问 `state.offset` 报告 `CV-ACCESS-CLASS-PRIVATE`。`finish`、`processed_bytes` 和 `is_complete` 使用 Read 访问，检查 EOF 不会消耗验证器。push 拒绝时状态不变；feed 拒绝时保留之前已接受字节的进度。发生错误后结束当前验证尝试，改字节重试对应另一个流。
 
 块末尾不等于 EOF。未完成序列可跨块保留，只有 finish 才报告截断。逻辑流总长度须能放入 usize。
+
+```carven
+import std::utf.validation using { UTF8Error, UTF8Validator };
+
+let bytes: [u8; 2] = [0x41, 0xe6];
+var state = UTF8Validator::create();
+try {
+    state.feed(bytes)?;
+    state.finish()?;
+} catch {
+    UTF8Error(error) => println(error),
+}
+println(state.processed_bytes());
+```
+
+该块在一个三字节序列中间结束，因此 `feed` 成功，`finish` 报告截断：
+
+```text
+UTF8Error {
+    kind: UTF8ErrorKind::Truncated,
+    offset: 2,
+    sequence_start: 1,
+}
+2
+```

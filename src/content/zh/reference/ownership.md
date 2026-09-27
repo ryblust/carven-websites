@@ -35,24 +35,39 @@ Carven 数组、String、闭包，以及包含这些存储的聚合通过 const 
 
 ## Take 与可用性
 
-Take 的源必须是完整 owner 或临时值。运行时 let/var、普通模式绑定和 Take 参数是 owner。Read/Write 参数、范围绑定、捕获状态和 const 不能被 Take；成员和元素不能单独 Take。
+Take 的源必须是完整 owner 或临时值。运行时 let/var、普通模式绑定和 Take 参数是 owner。Read/Write 参数、范围绑定、捕获状态和 const 不能被 Take。对仍可用 owner 的字段或元素做 Take，例如 `&&message.title` 或 `&&items[0]`，报告 `CV-ACCESS-TAKE-OPERAND`；要移出字段，使用[拥有字段投影](#拥有字段投影)。
 
 ```carven
 fn relay(&&value: i32) -> i32 => value;
 
-fn main() {
-    var value = 7;
-    let moved = &&value;
-    value = 9;
-    println(moved, value);
-}
+var value = 7;
+let moved = &&value;
+value = relay(&&moved);
+println(value); // 7
 ```
 
-即使 i32 可复制，Take 之后原绑定也不可用。`&&` 表达式保留值类型，不对应固定次数或特定 C++ move 操作。
+即使 i32 可复制，Take 之后原绑定也不可用；由 `relay(&&moved)` 赋值后，`value` 恢复可用。`&&` 表达式保留值类型，不对应固定次数或特定 C++ move 操作。
 
 只有对完整 var 的普通赋值能恢复可用性，而且必须等右侧正常完成。部分赋值、复合赋值、自增减都需要旧值。`x = relay(&&x)` 可在右侧正常返回后恢复 x；右侧失败则仍不可用。`x = &&x` 连同括号形式非法。
 
 控制流合流处，只有所有正常继续路径都可用，绑定才可用。循环包括零次迭代路径和回边。
+
+## 拥有字段投影
+
+`owner.field` 是普通 Read，从不消耗 `owner`。要从 owner 中移出一个字段，先 Take 整个 owner：`(&&owner).field` 消耗完整 owner，只求值一次，并按普通值交付规则转移所选字段。其余字段在完整表达式结束时正常清理。`(&&owner).inner.field` 这样的嵌套选择遵循同一规则。
+
+```carven
+struct Message {
+    title: String,
+    body: String,
+}
+
+var message = Message { title: "Hello", body: "World" };
+let title = (&&message).title;
+println(title); // Hello
+```
+
+之后 `message` 不可用；在重新赋值之前使用 `message.body` 报告 `CV-ACCESS-UNAVAILABLE`。这种投影不会把一个 owner 同时拆成多个字段 owner；返回指向已销毁临时值的视图是非法的。带 `&&self` 接收者的类操作使用同样的形式，例如 `fn build(&&self) -> String => (&&self).text;`。
 
 ## Take 与 C++ move 的区别
 

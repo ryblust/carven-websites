@@ -9,11 +9,9 @@ source: docs/semantics.md
 ## Produce a value with a condition
 
 ```carven
-fn main() {
-    let quantity = 3;
-    let label = if quantity > 0 { "in stock" } else { "empty" };
-    println(label);
-}
+let quantity = 3;
+let label = if quantity > 0 { "in stock" } else { "empty" };
+println(label);
 ```
 
 The output is `in stock`. A value-producing if needs else and compatible branch result types. The final expression without a semicolon supplies the branch value; with a semicolon it is an ordinary statement.
@@ -21,15 +19,13 @@ The output is `in stock`. A value-producing if needs else and compatible branch 
 ## Sum a range
 
 ```carven
-fn main() {
-    var total = 0;
+var total = 0;
 
-    for value in 1..5 {
-        total += value;
-    }
-
-    println(total);
+for value in 1..5 {
+    total += value;
 }
+
+println(total);
 ```
 
 The output is `10`. `1..5` includes 1, 2, 3, and 4, but not 5. Each endpoint is evaluated once. If the start is not less than the end, there are no iterations. Each integer range binding is read-only; the loop supplies its next value.
@@ -39,36 +35,46 @@ The output is `10`. `1..5` includes 1, 2, 3, and 4, but not 5. Each endpoint is 
 ## Save a range
 
 ```carven
-fn main() {
-    var end = 4;
-    let values: range<i32> = 1..=end;
-    end = 8;
+var end = 4;
+let values: range<i32> = 1..=end;
+end = 8;
 
-    var total = 0;
-    for value in values {
-        total += value;
-    }
-    println(total);
+var total = 0;
+for value in values {
+    total += value;
+}
+println(values, total);
+```
+
+The output is `1..=4 10`. Creating values saved the bounds 1 and 4; changing end to 8 does not change it. `println` shows a range by its bounds. `range<i32>` is the integer range type. Ranges can be stored like other values and, once you introduce functions, passed as arguments or returned.
+
+The loop also snapshots its source range before traversal. Reassigning that range inside the body does not change the sequence being visited.
+
+## Let a bound choose the integer type
+
+```carven
+let code = "A-17";
+let positions = 0..code.len();
+println(positions);
+
+for index in positions {
+    println(index);
 }
 ```
 
-The output is still `10`. Creating values saved the bounds 1 and 4; changing end to 8 does not change it. `range<i32>` is the integer range type. Ranges can be stored like other values and, once you introduce functions, passed as arguments or returned.
-
-The loop also snapshots its source range before traversal. Reassigning that range inside the body does not change the sequence being visited.
+This prints `0..4`, then 0 through 3 on separate lines. `code.len()` returns a usize byte count, so the literal 0 is also checked as usize and positions has type `range<usize>`. No cast or suffixed zero is needed. Two unsuffixed bounds still default to i32, and an explicit `range<i32>` annotation here is rejected because the bounds cannot share that type. Existing bindings keep their types: an i32 variable and a usize length cannot form one range.
 
 ## Choose a result by interval
 
 ```carven
-fn main() {
-    let score = 85;
-    let label = match score {
-        ..0 => "invalid",
-        0..60 => "retry",
-        60..=100 => "pass",
-        101.. => "invalid",
-    };
-    println(label);
-}
+let score = 85;
+let label = match score {
+    ..0 => "invalid",
+    0..60 => "retry",
+    60..=100 => "pass",
+    101.. => "invalid",
+};
+println(label);
 ```
 
 The output is `pass`. Read the arms in order: below 0 is invalid; 0 through 59 needs a retry; 60 through 100 passes; above 100 is invalid. The patterns `..0` and `101..` omit one bound. This is allowed only in patterns, not when creating a range value.
@@ -100,20 +106,18 @@ Bounds can also be runtime values; then a `_` fallback is usually needed. See th
 ## while and C-style for
 
 ```carven
-fn main() {
-    var index = 0;
+var index = 0;
 
-    while index < 3 {
-        println(index);
-        ++index;
-    }
+while index < 3 {
+    println(index);
+    ++index;
+}
 
-    for var i = 0; i < 3; ++i {
-        if i == 1 {
-            continue;
-        }
-        println(i);
+for var i = 0; i < 3; ++i {
+    if i == 1 {
+        continue;
     }
+    println(i);
 }
 ```
 
@@ -127,4 +131,4 @@ Use a statement-form if, as in the loop above, for break or continue. Value-prod
 
 ## Exercise
 
-Compare `1..1` with `1..=1`: expect 0 and 1. Then use `1..6` and skip 3; expect 12, and reproduce it with while. Finally, try scores -1, 59, 60, 100, and 101 to check each classification boundary.
+Compare `1..1` with `1..=1` in the summing example: expect 0 and 1. Then use `1..6` and skip 3; expect 12, and reproduce it with while. Try scores -1, 59, 60, 100, and 101 to check each classification boundary. Finally, change the text in the bound example to `"order-1024"` and predict the printed range.
