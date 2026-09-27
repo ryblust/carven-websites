@@ -13,7 +13,6 @@
 | Effect 4 RC               | 内容生成、I/O、Schema、资源管理、预期失败与取消 | 优先读安装包内的 `AGENTS.md` 和 `ai-docs/`；[官方 Skills](https://github.com/Effect-TS/skills)                                                       |
 | TypeScript 7              | 项目本地原生编译器执行类型检查                  | [7.0 发布说明](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/)                                                                 |
 | Vite 8                    | 开发服务、模块转换与构建                        | [指南](https://vite.dev/guide/)、[迁移说明](https://vite.dev/guide/migration)                                                                        |
-| Motion                    | React 网页动画                                  | [React 文档](https://motion.dev/docs/react)                                                                                                          |
 | Vitest / `@effect/vitest` | 单元测试、Effect 测试与 TestClock               | [Vitest](https://vitest.dev/guide/)、Effect 包内测试示例                                                                                             |
 | Prettier                  | 统一源码与配置格式                              | [项目安装方式](https://prettier.io/docs/install)                                                                                                     |
 
@@ -72,7 +71,6 @@ Effect、`@effect/platform-node` 和 `@effect/vitest` 保持相同 RC 版本。V
 - React：在渲染中派生数据，在事件处理器中响应用户操作；用 React effect 同步外部系统并清理订阅。首次客户端渲染与预渲染保持一致。
 - Vite：应用中的资源路径使用配置的 base；Node 构建依赖与浏览器依赖分开。调整插件时保持 TanStack Start 在 React 插件之前。
 - Shiki：通过 [Highlighter API](https://shiki.style/guide/install) 配置语言和主题，在构建服务内复用实例并释放。首页与文章使用同一语言定义和主题。
-- Motion：按交互需要使用动画，阅读和操作不依赖动画完成。用 [可访问性指南](https://motion.dev/docs/react-accessibility) 核对 reduced motion。
 
 ## 维护方式
 

@@ -1,5 +1,5 @@
 import type { Locale } from '../lib/i18n';
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useRouter } from '@tanstack/react-router';
 import { enhanceCodeComparisons } from '../effects/code-comparisons';
 import { enhanceCodeBlocks } from '../effects/code-blocks';
@@ -7,12 +7,17 @@ import { articleDestination } from '../lib/article-links';
 import { articleHtmlWithBase } from '../lib/article-html';
 
 export function ArticleBody({ html, locale = 'zh' }: { html: string; locale?: Locale }) {
+  const body = articleHtmlWithBase(html, import.meta.env.BASE_URL);
+  return <ArticleBodyContent key={`${locale}:${body}`} html={body} locale={locale} />;
+}
+
+function ArticleBodyContent({ html, locale }: { html: string; locale: Locale }) {
   const content = useRef<HTMLDivElement>(null);
   const [status, announce] = useState('');
   const router = useRouter();
-  const base = import.meta.env.BASE_URL;
-  // Feedback updates must preserve the descendants owned by the enhancements.
-  const body = useMemo(() => ({ __html: articleHtmlWithBase(html, base) }), [html, base]);
+  // React supplies immutable initial markup; effects own its enhanced descendants.
+  // A content or locale change remounts this boundary and releases its old enhancements.
+  const [body] = useState(() => ({ __html: html }));
   useEffect(() => {
     if (!content.current) return;
     const removeComparisons = enhanceCodeComparisons(content.current);

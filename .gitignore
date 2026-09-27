@@ -4,6 +4,7 @@ dist/
 .tanstack/
 .site/
 src/generated/
+src/routeTree.gen.ts
 src/.content-*/
 .DS_Store
 *.log

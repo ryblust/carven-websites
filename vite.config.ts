@@ -3,14 +3,15 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import react from '@vitejs/plugin-react';
 import { contentPlugin } from './scripts/content/vite.ts';
 import { articles } from './src/generated/manifest.ts';
+import { siteUrl } from './src/lib/site-url.ts';
 
 const basePath = `/${(process.env.BASE_PATH || '').replace(/^\/+|\/+$/g, '')}/`.replace('//', '/');
-const sitemapHost = process.env.SITE_URL
-  ? `${process.env.SITE_URL.replace(/\/$/, '')}${basePath.replace(/\/$/, '')}`
-  : undefined;
+const siteOrigin = siteUrl('', '/', process.env.SITE_URL)?.replace(/\/$/, '');
+const sitemapHost = siteUrl('', basePath, siteOrigin)?.replace(/\/$/, '');
 
 export default defineConfig({
   base: basePath,
+  define: { 'import.meta.env.SITE_ORIGIN': JSON.stringify(siteOrigin ?? '') },
   server: { host: '127.0.0.1', port: 4321, strictPort: true },
   preview: { host: '127.0.0.1', port: 4322, strictPort: true },
   plugins: [
@@ -20,15 +21,23 @@ export default defineConfig({
         path,
         sitemap: {
           exclude: path === '/404/' || path === '/zh/404/',
-          alternateRefs: sitemapHost
+          alternateRefs: siteOrigin
             ? [
                 {
                   hreflang: 'en',
-                  href: `${sitemapHost}${path.startsWith('/zh/') ? path.slice(3) : path}`,
+                  href: siteUrl(
+                    path.startsWith('/zh/') ? path.slice(3) : path,
+                    basePath,
+                    siteOrigin,
+                  )!,
                 },
                 {
                   hreflang: 'zh-CN',
-                  href: `${sitemapHost}${path.startsWith('/zh/') ? path : `/zh${path}`}`,
+                  href: siteUrl(
+                    path.startsWith('/zh/') ? path : `/zh${path}`,
+                    basePath,
+                    siteOrigin,
+                  )!,
                 },
               ]
             : [],
@@ -41,7 +50,7 @@ export default defineConfig({
         failOnError: true,
         autoSubfolderIndex: true,
       },
-      sitemap: { enabled: Boolean(process.env.SITE_URL), host: sitemapHost },
+      sitemap: { enabled: Boolean(siteOrigin), host: sitemapHost },
     }),
     react(),
   ],
