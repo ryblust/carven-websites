@@ -1303,14 +1303,13 @@ pre code {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.theme-moon {
+.theme-toggle svg {
   display: none;
 }
-:root[data-theme='dark'] .theme-moon {
+.theme-toggle[data-preference='system'] .theme-system,
+.theme-toggle[data-preference='light'] .theme-sun,
+.theme-toggle[data-preference='dark'] .theme-moon {
   display: block;
-}
-:root[data-theme='dark'] .theme-sun {
-  display: none;
 }
 .theme-toggle:disabled {
   visibility: hidden;
