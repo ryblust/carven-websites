@@ -128,12 +128,12 @@
   margin-top: var(--space-5);
 }
 
-/* Example comparison. The code column keeps one width and top edge. */
+/* Reserve the showcase footprint so switching examples never moves the next section. */
 .showcase-grid {
   margin-top: 56px;
   display: grid;
   grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
-  grid-template-rows: auto 1fr;
+  grid-template-rows: 1fr auto;
   grid-template-areas:
     'tabs code'
     'caption code';
@@ -181,8 +181,20 @@
 }
 .showcase-caption {
   grid-area: caption;
+  align-self: end;
+  display: grid;
   padding: var(--space-5) var(--space-4) 0;
   border-top: 1px solid var(--line);
+}
+/* All descriptions contribute their natural height; only the active one is exposed. */
+.showcase-caption-item {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  visibility: hidden;
+}
+.showcase-caption-item[aria-hidden='false'] {
+  visibility: visible;
 }
 .showcase-caption h3 {
   color: var(--ink-emphasis);
@@ -199,10 +211,34 @@
   margin-top: var(--space-3);
 }
 .showcase-caption .text-link {
-  margin-top: var(--space-4);
+  align-self: flex-start;
+  margin-top: auto;
+  padding-top: var(--space-4);
 }
 .showcase-code {
   grid-area: code;
+  align-self: stretch;
+  height: 42rem;
+  display: flex;
+  flex-direction: column;
+}
+.showcase-code .why-code-block {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.showcase-code .code-window-bar {
+  flex-shrink: 0;
+}
+.showcase-code .code-window-result {
+  flex: 0 0 6rem;
+  min-height: 0;
+  overflow: auto;
+}
+.showcase-code .showcase-details {
+  flex-shrink: 0;
+  max-height: 45%;
+  overflow: auto;
 }
 
 /* Code windows */
@@ -253,8 +289,9 @@
 .why-code-block pre {
   margin: 0;
   padding: var(--space-5) 28px;
-  min-height: 14rem;
-  max-height: 33rem;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
   overflow: auto;
   font: var(--code-weight) var(--code-size) / var(--code-leading) var(--mono);
   color: var(--code-text);
@@ -262,9 +299,6 @@
 .why-code-block pre code {
   display: block;
   font: inherit;
-}
-.why-code-block pre[data-language='cv'] {
-  max-height: none;
 }
 .morph-token {
   display: inline-block;
@@ -328,7 +362,6 @@
   gap: 20px;
 }
 .workflow-steps li {
-  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -337,14 +370,6 @@
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: 3px 3px 0 var(--shadow);
-}
-.workflow-steps li:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  top: 39px;
-  right: -21px;
-  width: 20px;
-  border-top: 1px dashed var(--accent-line);
 }
 .workflow-index {
   font-family: var(--mono);
@@ -424,6 +449,9 @@
   }
 }
 @media (max-width: 900px) {
+  .showcase-code {
+    height: 36rem;
+  }
   .showcase-grid {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: none;
@@ -460,9 +488,6 @@
   .workflow-steps {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-3);
-  }
-  .workflow-steps li:not(:last-child)::after {
-    display: none;
   }
   .quickstart {
     grid-template-columns: minmax(0, 1fr);
@@ -507,7 +532,6 @@
   }
   .why-code-block pre {
     padding: 20px var(--space-4);
-    max-height: 31rem;
   }
   .code-window-result,
   .showcase-details,
@@ -528,9 +552,6 @@
   }
 }
 
-.workflow-steps li {
-  border-radius: 5px 8px 6px 4px;
-}
 .workflow-index {
   font-size: 1.15rem;
   font-family: var(--heading);

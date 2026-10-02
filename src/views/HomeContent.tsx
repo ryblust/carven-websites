@@ -190,11 +190,20 @@ export default function HomeContent({ locale }: { locale: Locale }) {
             ))}
           </div>
           <div className="showcase-caption" aria-live="polite" aria-atomic="true">
-            <h3>{example.title}</h3>
-            <p>{example.detail}</p>
-            <Link className="text-link" to={localizedPath(example.path, locale)}>
-              {t('查看示例讲解', 'Walk through the example')} <span aria-hidden="true">→</span>
-            </Link>
+            {examples.map((item, index) => (
+              <div
+                key={item.path}
+                className="showcase-caption-item"
+                aria-hidden={selected !== index}
+                inert={selected !== index}
+              >
+                <h3>{item.title}</h3>
+                <p>{item.detail}</p>
+                <Link className="text-link" to={localizedPath(item.path, locale)}>
+                  {t('查看示例讲解', 'Walk through the example')} <span aria-hidden="true">→</span>
+                </Link>
+              </div>
+            ))}
           </div>
           <div className="code-window showcase-code">
             <div className="code-window-bar">

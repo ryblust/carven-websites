@@ -100,10 +100,10 @@
   --space-9: 96px;
   --space-10: 128px;
 
-  --radius-sm: 4px;
-  --radius: 6px;
-  --radius-lg: 7px;
-  --radius-pill: 5px;
+  --radius-sm: 6px;
+  --radius: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
 
   --header-height: 78px;
   --page-width: 1184px;
@@ -128,6 +128,12 @@ html[lang^='zh'] {
 }
 :root[data-theme='dark'] {
   color-scheme: dark;
+  --code-weight: 400;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --code-weight: 400;
+  }
 }
 
 /* Base */
@@ -605,6 +611,9 @@ pre code {
   color: var(--text);
   background: var(--surface);
 }
+.chapter-list a > span {
+  white-space: nowrap;
+}
 .chapter-list a[aria-current] {
   color: var(--text);
   background: var(--accent-soft);
@@ -614,6 +623,44 @@ pre code {
   color: var(--muted);
   font-size: 0.8125rem;
   padding: var(--space-3);
+}
+@media (min-width: 801px) {
+  .reading-nav {
+    position: relative;
+    inset-inline-start: -8px;
+  }
+  .reading-nav-inner {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+  .reading-nav .book-label,
+  .desktop-chapters .chapter-search {
+    flex-shrink: 0;
+  }
+  .desktop-chapters {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .desktop-chapters .chapter-list {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    padding: 2px 8px 2px 2px;
+  }
+  .desktop-chapters .chapter-list:hover,
+  .desktop-chapters .chapter-list:focus-within {
+    scrollbar-color: var(--line) transparent;
+  }
+  @media (forced-colors: active) {
+    .desktop-chapters .chapter-list {
+      scrollbar-color: auto;
+    }
+  }
 }
 .mobile-chapters,
 .mobile-toc {
@@ -725,7 +772,7 @@ pre code {
   color: var(--prose);
   background: var(--bg-soft);
   border: 1px solid var(--line-soft);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   padding: 1px 5px;
   font-family: var(--mono);
   font-size: 0.85em;
@@ -1072,7 +1119,7 @@ pre code {
     place-items: center;
     width: 44px;
     height: 44px;
-    border-radius: 10px;
+    border-radius: var(--radius);
     cursor: pointer;
   }
   .mobile-nav summary::-webkit-details-marker {
@@ -1239,6 +1286,7 @@ pre code {
   *,
   *::before,
   *::after {
+    animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
   }
@@ -1304,12 +1352,14 @@ pre code {
   stroke-linejoin: round;
 }
 .theme-toggle svg {
-  display: none;
+  grid-area: 1 / 1;
+  opacity: 0;
+  pointer-events: none;
 }
 .theme-toggle[data-preference='system'] .theme-system,
 .theme-toggle[data-preference='light'] .theme-sun,
 .theme-toggle[data-preference='dark'] .theme-moon {
-  display: block;
+  opacity: 1;
 }
 .theme-toggle:disabled {
   visibility: hidden;
@@ -1631,6 +1681,72 @@ pre code {
 .chapter-nav a:hover {
   background: var(--accent-soft);
   box-shadow: 2px 2px 0 var(--shadow);
+}
+
+/* Small physical cues for controls and the hand-drawn reading marker. */
+@media (prefers-reduced-motion: no-preference) {
+  .button,
+  .chapter-nav a {
+    transition:
+      color 160ms var(--ease),
+      background-color 160ms var(--ease),
+      border-color 160ms var(--ease),
+      box-shadow 160ms var(--ease),
+      transform 160ms var(--ease);
+  }
+  .icon-button,
+  .search-trigger {
+    transition:
+      color 160ms var(--ease),
+      background-color 160ms var(--ease),
+      border-color 160ms var(--ease);
+  }
+  .button:active {
+    transform: translateY(1px);
+  }
+  .button-primary:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 var(--shadow);
+  }
+  .theme-toggle svg {
+    transform: rotate(-12deg) scale(0.85);
+    transition:
+      opacity 160ms var(--ease),
+      transform 180ms var(--ease);
+  }
+  .theme-toggle[data-preference='system'] .theme-system,
+  .theme-toggle[data-preference='light'] .theme-sun,
+  .theme-toggle[data-preference='dark'] .theme-moon {
+    transform: none;
+  }
+  .menu-icon path {
+    transition:
+      transform 180ms var(--ease),
+      opacity 120ms var(--ease);
+  }
+  .outline-underline {
+    transform: scaleX(0.2);
+    transform-origin: left center;
+    transition:
+      opacity 120ms var(--ease),
+      transform 220ms var(--ease);
+  }
+  .page-outline nav a[aria-current] .outline-underline {
+    transform: scaleX(1);
+  }
+}
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+  .button:hover,
+  .chapter-nav a:hover {
+    transform: translateY(-1px);
+  }
+  .button:active,
+  .chapter-nav a:active {
+    transform: translateY(1px);
+  }
+  .button-primary:active {
+    transform: translate(2px, 2px);
+  }
 }
 
 @media (max-width: 1300px) {

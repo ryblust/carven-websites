@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { localeOf, translate } from '../lib/i18n';
 import { articles, lessonPaths, referencePaths, type ArticlePath } from '../generated/manifest';
+import { chapterLabel } from '../content/chapter-labels';
 
 export function ChapterNavigation({ path, reference }: { path: ArticlePath; reference: boolean }) {
   const locale = localeOf(path);
@@ -14,7 +15,7 @@ export function ChapterNavigation({ path, reference }: { path: ArticlePath; refe
   );
   const normalized = query.trim().toLocaleLowerCase();
   const visible = paths.filter((item) =>
-    `${articles[item].title} ${plainInlineText(articles[item].description)}`
+    `${chapterLabel(item)} ${articles[item].title} ${plainInlineText(articles[item].description)}`
       .toLocaleLowerCase()
       .includes(normalized),
   );
@@ -42,9 +43,10 @@ export function ChapterNavigation({ path, reference }: { path: ArticlePath; refe
             to={item}
             activeOptions={{ exact: true }}
             className={item === path ? 'current-chapter' : undefined}
+            title={articles[item].title}
           >
             <ChapterIcon path={item} />
-            <span>{articles[item].title}</span>
+            <span>{chapterLabel(item)}</span>
           </Link>
         ))}
         {visible.length === 0 && (

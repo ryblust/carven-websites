@@ -18,6 +18,7 @@ let order = Order {
     status: Status::Shipped(3),
     items: ["disk", "cable"],
 };
+
 println(order);`,
   failures: `// read: str throw Missing + Denied
 // parse: i32 throw BadPort
