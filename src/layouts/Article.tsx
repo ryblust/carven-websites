@@ -1,5 +1,7 @@
 import { localeOf, localizedPath, translate } from '../lib/i18n';
 import { Link } from '@tanstack/react-router';
+import { InlineCode } from '../components/InlineCode';
+import { Sketch } from '../components/Sketch';
 import { MobileChapters } from '../components/MobileChapters';
 import { ChapterNavigation } from '../components/ChapterNavigation';
 import { ArticleBody } from '../components/ArticleBody';
@@ -23,7 +25,7 @@ export default function Article({ path, html }: { path: ArticlePath; html: strin
   const next = book ? chapterPaths[article.lesson + 1] : undefined;
   const headings = articleHeadings(html);
   const label = reference
-    ? t('语言 Reference', 'Language Reference')
+    ? t('语言参考', 'Language Reference')
     : section === 'learn'
       ? t('Carven 教程', 'Carven Tutorial')
       : t('认识 Carven', 'Discover Carven');
@@ -74,8 +76,15 @@ export default function Article({ path, html }: { path: ArticlePath; html: strin
                 {label} · {String(article.lesson).padStart(2, '0')}
               </p>
             )}
-            <h1>{title}</h1>
-            <p>{description}</p>
+            <div className="article-title-row">
+              <h1>
+                <span>{title}</span>
+              </h1>
+              {path.endsWith('/values/') && <Sketch kind="values" />}
+            </div>
+            <p>
+              <InlineCode text={description} />
+            </p>
           </header>
           <details className="mobile-toc" key={`${path}-toc`}>
             <summary>

@@ -26,7 +26,7 @@ External template arguments can only be types and may nest. This does not provid
 
 When destination and value types differ and at least one is native, ordinary initialization, assignment, Read/Take arguments, returns, aggregates, and typed value branches delegate destination construction to C++, including narrowing constraints. Write parameters retain source storage and let C++ check reference binding; & and writability checks still apply. An explicit as with either side native generates static_cast<T>.
 
-Native conditions convert to bool; &&/|| preserve Carven short-circuiting. C++ checks native unary and nonlogical binary overloads and result types. Once inferred as an external expression type, a value does not automatically become Carven i32 even if C++ ultimately calls it int.
+Native conditions convert to `bool`; &&/|| preserve Carven short-circuiting. C++ checks native unary and nonlogical binary overloads and result types. Once inferred as an external expression type, a value does not automatically become Carven `i32` even if C++ ultimately calls it int.
 
 Carven analysis does not prove native constructibility. An earlier aggregate component retained across a later failure may need copying or moving into its final position. An immovable component may fail at C++ compilation; this does not prohibit every prvalue that can construct directly in its final position.
 
@@ -34,7 +34,7 @@ For example, an aggregate's first member comes from a native factory and its sec
 
 ## C strings
 
-`c"text"` produces an external const char* to static immutable storage with trailing NUL. Empty strings are valid; interior NUL and `\0` are invalid. Even when passed directly to a template, it is a pointer rather than a character array. It is not str, and literal patterns reject it; contextual typing preserves `const char*`, and conversions follow the native rules above.
+`c"text"` produces an external `const char*` to static immutable storage with trailing NUL. Empty strings are valid; interior NUL and `\0` are invalid. Even when passed directly to a template, it is a pointer rather than a character array. It is not `str`, and literal patterns reject it; contextual typing preserves `const char*`, and conversions follow the native rules above.
 
 C strings can initialize constants and can be passed, copied, assigned, and taken during compile-time execution; freezing preserves their bytes and pointer type, including inside supported aggregates. Each emitted pointer refers to static storage; pointer identity across translation units is unspecified. Printing and default text formatting display the text, in constant execution and interpretation as well as natively. Reading unknown native memory, comparing C string pointers, and observing addresses are outside the evaluator. Native interpolation uses the C++ formatter; to format an address, use a C++ adapter that converts it to a pointer type with a pointer formatter, such as `const void*`. The C++ spellings `const char*` and `const void*` are not Carven type syntax; let C-string bindings infer their type, as below.
 
@@ -57,7 +57,7 @@ Carven checks known owner availability, explicit conflicts, and known text backi
 
 Direct C++ calls can receive dynamic text views and aggregates containing them, protecting known backing through argument evaluation and the call. Providers and callers handle long-term retention, returned aliases, reentrancy, and indirect pointer lifetimes. A Write view slot does not prove release of its old backing borrow.
 
-Results of native calls, construction, and representation conversions establish no new known borrow relationships, even when returning Carven types. String does not implicitly become a native string container.
+Results of native calls, construction, and representation conversions establish no new known borrow relationships, even when returning Carven types. `String` does not implicitly become a native string container.
 
 ## `#[cpp]`
 
@@ -83,13 +83,13 @@ export(cpp) is a Carven function with a body, visible throughout the batch and i
 
 | Carven contract                   | C++ representation                                                                |
 | --------------------------------- | --------------------------------------------------------------------------------- |
-| Scalars                           | Ordinary scalar representations; char uses char32_t                               |
-| String / str                      | carven::runtime::String / std::string_view                                        |
+| Scalars                           | Ordinary scalar representations; `char` uses char32_t                             |
+| `String` / `str`                  | carven::runtime::`String` / std::string_view                                      |
 | Arrays, slices, ranges, pointers  | Ordinary generated container, view, and pointer types                             |
 | Structs, enums, concrete closures | Generated nominal types                                                           |
 | Native types                      | Declared C++ type and its header environment                                      |
 | Callable views                    | Runtime callable representation for the declared signature                        |
-| Read                              | Ordinary Read policy: value snapshots or const references                         |
+| Read                              | Ordinary Read policy: value snapshots or `const` references                       |
 | Write                             | Mutable references                                                                |
 | Take                              | Owned values; ordinary transfer for exports, native rvalue forwarding for imports |
 | Infallible result                 | Ordinary result type, including void                                              |
@@ -99,7 +99,7 @@ Generated API headers include required generated type definitions, native header
 
 Native providers and callers own lifetime, retention, reentry, and value-validity obligations, including UTF-8 and Unicode scalar validity. Imported results establish no unknown backing relationship; native Write operations do not prove release of previous borrows. Declared callbacks may run during the call but cannot retain borrowed callable storage beyond its lifetime.
 
-Direct infallible imported char results and exported Read/Take char parameters check Unicode scalar validity and terminate on invalid values. This is not recursive validation of aggregates, pointers, mutable references, or Outcomes.
+Direct infallible imported `char` results and exported Read/Take `char` parameters check Unicode scalar validity and terminate on invalid values. This is not recursive validation of aggregates, pointers, mutable references, or Outcomes.
 
 Provider names cannot be main/std/carven. Authors are responsible for C++ leading-underscore reservation rules. Safe names retain their spelling in export APIs. Unsafe names and names beginning cv_escaped_ use that prefix followed by lowercase hexadecimal encoding of the original UTF-8 bytes. C++ keywords, double underscores, and underscore followed by uppercase are excluded. Function/namespace prefix conflicts are invalid.
 

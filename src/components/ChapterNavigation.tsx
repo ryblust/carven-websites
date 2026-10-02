@@ -1,3 +1,5 @@
+import { plainInlineText } from '../lib/inline-code';
+import { ChapterIcon } from './ChapterIcon';
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { localeOf, translate } from '../lib/i18n';
@@ -12,7 +14,7 @@ export function ChapterNavigation({ path, reference }: { path: ArticlePath; refe
   );
   const normalized = query.trim().toLocaleLowerCase();
   const visible = paths.filter((item) =>
-    `${articles[item].title} ${articles[item].description}`
+    `${articles[item].title} ${plainInlineText(articles[item].description)}`
       .toLocaleLowerCase()
       .includes(normalized),
   );
@@ -31,7 +33,7 @@ export function ChapterNavigation({ path, reference }: { path: ArticlePath; refe
       <nav
         className="chapter-list"
         aria-label={
-          reference ? t('Reference 章节', 'Reference chapters') : t('教程章节', 'Tutorial chapters')
+          reference ? t('参考手册章节', 'Reference chapters') : t('教程章节', 'Tutorial chapters')
         }
       >
         {visible.map((item) => (
@@ -41,7 +43,7 @@ export function ChapterNavigation({ path, reference }: { path: ArticlePath; refe
             activeOptions={{ exact: true }}
             className={item === path ? 'current-chapter' : undefined}
           >
-            <span className="chapter-number">{String(articles[item].lesson).padStart(2, '0')}</span>
+            <ChapterIcon path={item} />
             <span>{articles[item].title}</span>
           </Link>
         ))}

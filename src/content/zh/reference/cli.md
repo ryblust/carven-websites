@@ -75,7 +75,7 @@ carven: check passed in 3.6 ms
 
 解释模式直接执行支持的源操作，遵循普通 Carven 语义。完整语言与 C++ 接入使用原生编译。解释器的支持范围不限制语言要求的编译期求值；后者只调用显式 `const fn` 及其 `const fn` 依赖。
 
-interpret 使用与 check、compile 和原生运行相同的源码收集。必需常量初始化器、`const {}` 块和 `const test` 在分析时执行。随后解释器执行发布的语义操作，并在某个操作的操作数完成、执行到达该操作时检查它是否受支持。支持数值、bool、char、str 和 String 局部值；允许的结构体、枚举、固定数组和切片；字节视图与迭代；typed failure 与恢复；直接调用以及通过具名 Carven 函数的局部绑定进行的调用；局部修改、局部指针和 Write 参数；分支、循环、匹配、打印与格式化。保留的 C 字符串值支持文本打印和默认文本格式化。
+interpret 使用与 check、compile 和原生运行相同的源码收集。必需常量初始化器、`const {}` 块和 `const test` 在分析时执行。随后解释器执行发布的语义操作，并在某个操作的操作数完成、执行到达该操作时检查它是否受支持。支持数值、`bool`、`char`、`str` 和 `String` 局部值；允许的结构体、枚举、固定数组和切片；字节视图与迭代；typed failure 与恢复；直接调用以及通过具名 Carven 函数的局部绑定进行的调用；局部修改、局部指针和 Write 参数；分支、循环、匹配、打印与格式化。保留的 C 字符串值支持文本打印和默认文本格式化。
 
 程序执行必须有顶层可执行语句或 `main` 提供入口。只包含声明、静态测试或内容为空的文件使用 `check`。
 
@@ -123,7 +123,7 @@ compile 使用共享源码收集，不调用原生编译链接。它也为收集
 
 调用、读取、源码或写入失败向 stderr 报告并返回非零；警告不会使成功编译返回非零。stderr 是终端时，Carven 输出的诊断带颜色；`NO_COLOR` 非空或 `TERM=dumb` 时不带颜色，重定向的 stderr 从不加样式。dump 只解析一个文件，不执行语义分析、常量测试或产物生成；省略类型时，dump 以 `Tokens` 和 `AST` 标题依次输出 token 和语法树。tokens 在词法成功后输出 token，ast 在解析成功后输出树。组合模式的词法错误阻止解析，解析错误保留已输出 token 而不输出 AST。`--timings` 报告已尝试的加载、词法和解析阶段。
 
-必需常量执行的 print/println 到 stdout，eprint/eprintln 到 stderr；`compile --stdout` 时所有编译期程序输出改去 stderr，保持 stdout 只包含产物。编译后续失败不撤回已输出内容。增量构建复用产物时不会重新执行或重放编译期输出。
+必需常量执行的 print/`println` 到 stdout，eprint/eprintln 到 stderr；`compile --stdout` 时所有编译期程序输出改去 stderr，保持 stdout 只包含产物。编译后续失败不撤回已输出内容。增量构建复用产物时不会重新执行或重放编译期输出。
 
 ## Graver
 

@@ -83,7 +83,7 @@ C++ 的结果类型、variant 和控制流提供了表达这些行为的能力�
 
 ## 成功路径自然表达，传播位置清楚可见
 
-读取端口分成两步：先读取配置文本，再解析为端口号。下面的节选假设 read 返回 str，声明 Missing + Denied；parse 接收 str，返回 i32，声明 BadPort。
+读取端口分成两步：先读取配置文本，再解析为端口号。下面的节选假设 read 返回 `str`，声明 Missing + Denied；parse 接收 `str`，返回 `i32`，声明 BadPort。
 
 ```carven
 private fn load() -> i32 => parse(read()?)?;
@@ -115,7 +115,7 @@ fn port() -> i32 throw Denied + BadPort => try {
 error [CV-EFFECT-SIGNATURE-BOUND]: callable body exceeds its declared failure contract
 ```
 
-这份责任也随调用传递。调用者如果只恢复 Denied，BadPort 就没有得到处理：
+调用者也必须处理剩余的失败，或在契约中声明继续传播。如果下面的调用者只恢复 `Denied`，`BadPort` 就没有得到处理：
 
 ```carven
 fn report() {
@@ -169,4 +169,4 @@ Carven 将失败契约实现为带有具体备选类型的 C++ 结果与显式�
 
 ## 也用于编译期校验
 
-const fn 可以在编译期执行抛出、传播、恢复和重抛，并保留普通静态契约检查。这让同一套校验函数同时用于常量配置和运行时输入；[编译期教程](/zh/learn/constants/#用相同的失败契约选择编译期配置)给出了可运行示例。
+`const fn` 可以在编译期执行抛出、传播、恢复和重抛，并保留普通静态契约检查。这让同一套校验函数同时用于常量配置和运行时输入；[编译期教程](/zh/learn/constants/#用相同的失败契约选择编译期配置)给出了可运行示例。

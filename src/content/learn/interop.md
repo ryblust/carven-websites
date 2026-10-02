@@ -1,6 +1,6 @@
 ---
 title: "Call C++ and export an interface"
-description: "Move from printf to declared function contracts, with explicit native types, exceptions, and build responsibilities."
+description: "Move from `printf` to declared function contracts, with explicit native types, exceptions, and build responsibilities."
 section: learn
 lesson: 13
 source: docs/semantics.md
@@ -18,9 +18,9 @@ printf(c"%s\n", greeting);
 println(greeting);
 ```
 
-`carven hello.cv` prints Hello from C++ twice: once through printf, once through println. The header import supplies C++ declarations; using makes the name available for lookup. A c literal is a trailing-NUL native const char*, not str. Interior NUL is rejected. println and default interpolation display a C string's bytes as text, not its address.
+`carven hello.cv` prints Hello from C++ twice: once through `printf`, once through `println`. The header import supplies C++ declarations; using makes the name available for lookup. A c literal is a trailing-NUL native `const char*`, not `str`. Interior NUL is rejected. `println` and default interpolation display a C string's bytes as text, not its address.
 
-You may also use `::std::printf` for an explicit global C++ path. Carven does not read header contents. The C++ compiler checks function existence, overloads, and argument validity. `carven interpret` accepts files with header imports, but it stops with `CV-INTERPRET-ADMISSION` when execution reaches a native call such as printf; run native code with `carven`.
+You may also use `::std::printf` for an explicit global C++ path. Carven does not read header contents. The C++ compiler checks function existence, overloads, and argument validity. `carven interpret` accepts files with header imports, but it stops with `CV-INTERPRET-ADMISSION` when execution reaches a native call such as `printf`; run native code with `carven`.
 
 ## Native types
 
@@ -33,7 +33,7 @@ let count: usize = values.size();
 println(count, values[3]);
 ```
 
-The output is `4 4`. C++ performs the braced construction, including class template argument deduction; `vector<i32> { 1, 2, 3 }` states the element type explicitly. C++ decides construction, methods, and conversion validity; the usize annotation requests destination construction. Native indexing follows provider rules and does not automatically gain Carven array bounds checks.
+The output is `4 4`. C++ performs the braced construction, including class template argument deduction; `vector<i32> { 1, 2, 3 }` states the element type explicitly. C++ decides construction, methods, and conversion validity; the `usize` annotation requests destination construction. Native indexing follows provider rules and does not automatically gain Carven array bounds checks.
 
 ## Use a third-party library
 
@@ -47,7 +47,7 @@ let port: i32 = config.value(c"port", 8080);
 println(f"Port: {port}");
 ```
 
-parse creates the library's native JSON object. Its value method reads port, using 8080 if the key is missing. The i32 annotation gives the native result a Carven destination type; println then uses that value normally. No binding code is needed for these calls.
+parse creates the library's native JSON object. Its value method reads port, using 8080 if the key is missing. The `i32` annotation gives the native result a Carven destination type; `println` then uses that value normally. No binding code is needed for these calls.
 
 For a self-contained local trial, put the single header beside config.cv under nlohmann/. These commands pin the version used to verify the example:
 

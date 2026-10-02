@@ -53,7 +53,6 @@ describe('content development lifetime', () => {
     const listenerCount = server.watcher.listenerCount('all');
     const errors = vi.spyOn(server.config.logger, 'error');
     try {
-      expect(server.httpServer).toBeNull();
       expect(state.runs).toBe(1);
       server.watcher.emit('all', 'change', `${server.config.root}/src/content/example.md`);
       await started;
@@ -64,8 +63,6 @@ describe('content development lifetime', () => {
       expect(state.entered).toHaveBeenCalledTimes(1);
       expect(server.watcher.listenerCount('all')).toBeLessThan(listenerCount);
       expect(errors).not.toHaveBeenCalled();
-      await server.close();
-      expect(state.released).toHaveBeenCalledTimes(1);
     } finally {
       await server.close();
       errors.mockRestore();

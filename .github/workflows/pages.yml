@@ -17,15 +17,15 @@ jobs:
       contents: read
       pages: read
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version: '26'
       - uses: pnpm/action-setup@v6
       - run: pnpm install --frozen-lockfile
       - name: Read Pages configuration
         id: pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
       - run: ./sitew format:check
       - name: Build and verify
         env:
@@ -35,7 +35,7 @@ jobs:
           ./sitew build
           ./sitew test
           ./sitew check:links
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist/client
 
@@ -52,4 +52,4 @@ jobs:
     steps:
       - name: Deploy
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

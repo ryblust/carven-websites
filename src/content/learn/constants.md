@@ -1,6 +1,6 @@
 ---
 title: "Build data at compile time"
-description: "Organize loops and text construction with const fn, and understand freezing and execution stages."
+description: "Organize loops and text construction with `const fn`, and understand freezing and execution stages."
 section: learn
 lesson: 12
 source: docs/semantics.md
@@ -23,15 +23,15 @@ const test "heading" {
 println(heading);
 ```
 
-With `carven main.cv`, the compilation stage prints Preparing title, then the launched program prints Build 0042. Running the generated executable on its own prints only Build 0042. heading's final type is str. String owns its contents during computation and freezes into static text when constant initialization finishes.
+With `carven main.cv`, the compilation stage prints Preparing title, then the launched program prints Build 0042. Running the generated executable on its own prints only Build 0042. heading's final type is `str`. `String` owns its contents during computation and freezes into static text when constant initialization finishes.
 
-## const fn does not always run at compile time
+## `const fn` does not always run at compile time
 
-In an ordinary runtime expression, `title(42)` remains an ordinary function call. A const fn declaration makes it eligible for required constant execution; const initializers, array lengths, constant blocks, const test, and similar contexts require that execution. Those contexts call only functions explicitly declared const fn.
+In an ordinary runtime expression, `title(42)` remains an ordinary function call. A `const fn` declaration makes it eligible for required constant execution; `const` initializers, array lengths, constant blocks, `const test`, and similar contexts require that execution. Those contexts call only functions explicitly declared `const fn`.
 
-A const fn can use mutable locals, loops, supported arrays, slices and structs, and String operations. An ordinary const initializer cannot directly contain arbitrary control-flow expressions. Put complex logic in a const fn.
+A `const fn` can use mutable locals, loops, supported arrays, slices and structs, and `String` operations. An ordinary `const` initializer cannot directly contain arbitrary control-flow expressions. Put complex logic in a `const fn`.
 
-The compiler checks each const fn definition for compile-time capability, even before anything calls it. Every function it can reach must also be a const fn. Save this as admission.cv:
+The compiler checks each `const fn` definition for compile-time capability, even before anything calls it. Every function it can reach must also be a `const fn`. Save this as admission.cv:
 
 ```carven
 fn double(value: i32) -> i32 => value * 2;
@@ -63,9 +63,9 @@ const "prepare data" {
 println("Running");
 ```
 
-`carven check prepare.cv` prints `Preparing data` during checking and does not execute the program. `carven prepare.cv` prints that line first, then the program prints `Running`. The string after const is an optional label used in diagnostics; labels need not be unique. `var label: String = {};` uses contextual construction: the annotation supplies the type for `{}`. A constant block has no trailing semicolon; its local values end with the block.
+`carven check prepare.cv` prints `Preparing data` during checking and does not execute the program. `carven prepare.cv` prints that line first, then the program prints `Running`. The string after `const` is an optional label used in diagnostics; labels need not be unique. `var label: String = {};` uses contextual construction: the annotation supplies the type for `{}`. A constant block has no trailing semicolon; its local values end with the block.
 
-A block may appear inside a function but still executes once during semantic analysis, independently of calls. It can read visible constants, not enclosing function parameters or runtime locals. Put compile-time operations that need a sequence in one block; order across blocks is unspecified. Use const test for assertions: a constant block does not create a test context.
+A block may appear inside a function but still executes once during semantic analysis, independently of calls. It can read visible constants, not enclosing function parameters or runtime locals. Put compile-time operations that need a sequence in one block; order across blocks is unspecified. Use `const test` for assertions: a constant block does not create a test context.
 
 ## Floating computation
 
@@ -87,7 +87,7 @@ const test "average at compile time" {
 println(result);
 ```
 
-This program computes `3.0` during compilation and prints it at runtime. f32/f64 values compose with calls, loops, arrays, and structs. Computation uses the compiler host's native floating environment; it does not define a separate floating arithmetic model. Floating values can also be formatted during compilation: `const label = f"{result:.2f}";` produces text with two decimal places.
+This program computes `3.0` during compilation and prints it at runtime. `f32`/`f64` values compose with calls, loops, arrays, and structs. Computation uses the compiler host's native floating environment; it does not define a separate floating arithmetic model. Floating values can also be formatted during compilation: `const label = f"{result:.2f}";` produces text with two decimal places.
 
 ## From building text to keeping the result
 
@@ -114,7 +114,7 @@ const test "menu" {
 println(menu);
 ```
 
-Run `carven menu.cv` to print `Home / Docs / About`. items supplies the input, join defines the algorithm, and const selects the execution stage. There is no separate result length or storage array to declare.
+Run `carven menu.cv` to print `Home / Docs / About`. items supplies the input, join defines the algorithm, and `const` selects the execution stage. There is no separate result length or storage array to declare.
 
 ### The same task in C++20
 
@@ -158,17 +158,17 @@ int main() {
 }
 ```
 
-Save as menu.cpp, compile with `c++ -std=c++20 menu.cpp -o menu` using a toolchain with C++20 constexpr string support, and run `./menu`. The output matches; static_assert and const test both check the result during compilation.
+Save as menu.cpp, compile with `c++ -std=c++20 menu.cpp -o menu` using a toolchain with C++20 `constexpr` string support, and run `./menu`. The output matches; `static_assert` and `const test` both check the result during compilation.
 
 Read the code in order: join computes the text; freeze obtains its length, uses it in the array type, then fills the array; data retains the characters, and menu views them. C++20 permits temporary allocation during constant evaluation, but an allocation still outstanding from that evaluation cannot simply become its retained result. The array crosses that storage boundary here. See the [C++20 constant-expression rules](https://timsong-cpp.github.io/cppwp/n4868/expr.const).
 
-Carven includes this step in constant initialization: the working String freezes into str. A C++ project can encapsulate freeze in a static-string library; this comparison opens up that work rather than claiming a unique implementation.
+Carven includes this step in constant initialization: the working `String` freezes into `str`. A C++ project can encapsulate freeze in a static-string library; this comparison opens up that work rather than claiming a unique implementation.
 
 Change About to Getting started in both versions and update the assertions. The result length changes: Carven source still only specifies the text, while the C++ freeze template determines a new array length. This compares construction and storage responsibilities, not execution speed.
 
 ## Pass a range at compile time
 
-The ranges introduced in the control-flow lesson are also compile-time values. sum accepts a range, and the const initializer requires this call to execute at compile time.
+The ranges introduced in the control-flow lesson are also compile-time values. sum accepts a range, and the `const` initializer requires this call to execute at compile time.
 
 ```carven
 const fn sum(values: range<i32>) -> i32 {
@@ -189,7 +189,7 @@ const test "range total" {
 println(total);
 ```
 
-The program prints `10`. The endpoint rules for `..` and `..=` are the same at compile time and runtime. Range patterns can also classify integers inside a const fn.
+The program prints `10`. The endpoint rules for `..` and `..=` are the same at compile time and runtime. Range patterns can also classify integers inside a `const fn`.
 
 ## Static tables
 
@@ -204,7 +204,7 @@ The output is `2 4`. This is a frozen slice with static backing, so it can be re
 
 ## Filter a route table
 
-Slices, Write parameters, and byte iteration also work inside const fn. Save this as routes.cv. It keeps only enabled routes whose path starts with `/` and contains no space:
+Slices, Write parameters, and byte iteration also work inside `const fn`. Save this as routes.cv. It keeps only enabled routes whose path starts with `/` and contains no space:
 
 ```carven
 struct Route {
@@ -271,9 +271,9 @@ The diagnostic continues with a source excerpt pointing at the check. Restore `e
 
 ## Failures and budgets
 
-const test always runs during semantic analysis without a test-artifact option. A failed check fails compilation but continues the current test. require/fail stop that test; later static tests still run. Ordinary test uses a runtime runner. A failed assert during compile-time execution reports `CV-ASSERT`.
+`const test` always runs during semantic analysis without a test-artifact option. A failed check fails compilation but continues the current test. require/fail stop that test; later static tests still run. Ordinary test uses a runtime runner. A failed assert during compile-time execution reports `CV-ASSERT`.
 
-Integer arithmetic wraps at the type's width at compile time exactly as at runtime: `2147483647 * 2` computed by a const fn yields `-2` in both stages. Division by zero and invalid shift counts, which terminate at runtime, are compile errors when executed during compilation. An exhausted evaluation budget also produces a compile error. See [constant execution rules](/reference/constants/) for accepted operations and result types.
+Integer arithmetic wraps at the type's width at compile time exactly as at runtime: `2147483647 * 2` computed by a `const fn` yields `-2` in both stages. Division by zero and invalid shift counts, which terminate at runtime, are compile errors when executed during compilation. An exhausted evaluation budget also produces a compile error. See [constant execution rules](/reference/constants/) for accepted operations and result types.
 
 ## Select compile-time configuration with the same failure contracts
 

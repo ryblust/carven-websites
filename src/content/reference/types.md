@@ -33,13 +33,13 @@ Contextual construction uses these same sources: `{ field: value }` or `{}` is c
 
 Parentheses carry existing context. Context does not change a binding's type or insert access markers or captures. Inferred runtime bindings do not change type according to later uses. Inference does not search all use sites for one type that happens to work.
 
-For a binary expression, a directly unsuffixed numeric left operand can take context from a right operand that is not such a literal. Otherwise, the left takes outer context and supplies the right's type. In equality comparisons, a direct `.Case` can take its enum type from the other operand when that operand is not a direct case. This takes precedence over the numeric rule. Logical operators require bool.
+For a binary expression, a directly unsuffixed numeric left operand can take context from a right operand that is not such a literal. Otherwise, the left takes outer context and supplies the right's type. In equality comparisons, a direct `.Case` can take its enum type from the other operand when that operand is not a direct case. This takes precedence over the numeric rule. Logical operators require `bool`.
 
 These rules inspect direct operands only; they do not search through parentheses, unary operations, or compound expressions for literals. Context selection does not change left-to-right runtime evaluation.
 
 ## Numeric literals
 
-Unsuffixed integers default to i32 and floating literals to f64. Expected numeric context may select a representable type in the same integer or floating family. An explicit suffix fixes the type. char is not numeric.
+Unsuffixed integers default to `i32` and floating literals to `f64`. Expected numeric context may select a representable type in the same integer or floating family. An explicit suffix fixes the type. `char` is not numeric.
 
 ```carven
 let small: u8 = 12;
@@ -49,7 +49,7 @@ let wide = 12i64;
 let narrow: i32 = wide;
 ```
 
-Integer range bounds use the same numeric sibling selection when there is no expected `range<T>`: `0..text.len()` is `range<usize>`, checking the literal directly as usize rather than converting an i32 value. An expected `range<T>` supplies T to both bounds. Two unsuffixed bounds default to i32; suffixed literals and existing bindings retain their types. Incompatible bounds or out-of-range literals are rejected. This applies to stored ranges, arguments, returns, and loops.
+Integer range bounds use the same numeric sibling selection when there is no expected `range<T>`: `0..text.len()` is `range<usize>`, checking the literal directly as `usize` rather than converting an `i32` value. An expected `range<T>` supplies T to both bounds. Two unsuffixed bounds default to `i32`; suffixed literals and existing bindings retain their types. Incompatible bounds or out-of-range literals are rejected. This applies to stored ranges, arguments, returns, and loops.
 
 Floating literals convert directly to the selected precision using the host's native parsing, without an intermediate floating type. Literals outside that type's conversion range are rejected.
 
@@ -61,15 +61,15 @@ When both sides are Carven types, these conversions are allowed:
 | ------------ | ------------------- | ----------------------------------------------------- |
 | Any type     | Same canonical type | Identity                                              |
 | Integer      | Any integer         | Modulo `2^N`, interpreted with destination signedness |
-| Integer      | bool                | Zero is false, otherwise true                         |
-| bool         | Integer             | false is 0, true is 1                                 |
-| Integer      | f32 or f64          | Corresponding native floating conversion              |
-| f32          | f64                 | Floating widening                                     |
+| Integer      | `bool`              | Zero is false, otherwise true                         |
+| `bool`       | Integer             | false is 0, true is 1                                 |
+| Integer      | `f32` or `f64`      | Corresponding native floating conversion              |
+| `f32`        | `f64`               | Floating widening                                     |
 | Numeric enum | Any integer         | Case's numeric value                                  |
-| char         | u32                 | Unicode scalar number                                 |
-| str          | String              | Independent owning text copy                          |
+| `char`       | `u32`               | Unicode scalar number                                 |
+| `str`        | `String`            | Independent owning text copy                          |
 
-Disallowed conversions include f64 to f32; floating point to integer or bool; bool to floating point; integer to enum; other numeric char conversions; and `String as str`. Borrow String as str through destination context or `.as_str()`.
+Disallowed conversions include `f64` to `f32`; floating point to integer or `bool`; `bool` to floating point; integer to enum; other numeric `char` conversions; and `String as str`. Borrow `String` as `str` through destination context or `.as_str()`.
 
 ## Arithmetic and termination
 
@@ -83,6 +83,6 @@ let runtime: u8 = 255u8 + 1;
 println(wrapped, runtime); // -2147483648 0
 ```
 
-Literals are still range checked for their selected type: `let small: u8 = 256;` reports `CV-CONST-LITERAL-RANGE`. Negated literals are checked with their sign, including parentheses: `-(2147483648)` can represent i32 minimum.
+Literals are still range checked for their selected type: `let small: u8 = 256;` reports `CV-CONST-LITERAL-RANGE`. Negated literals are checked with their sign, including parentheses: `-(2147483648)` can represent `i32` minimum.
 
-isize/usize width follows the host pointer model; the target must match. f32/f64 are IEEE 754 binary32/binary64. Native C++ operations and the floating-point environment determine runtime floating behavior. The language has no independent rounding-mode control or floating exception mechanism; floating division by zero follows native floating rules.
+`isize`/`usize` width follows the host pointer model; the target must match. `f32`/`f64` are IEEE 754 binary32/binary64. Native C++ operations and the floating-point environment determine runtime floating behavior. The language has no independent rounding-mode control or floating exception mechanism; floating division by zero follows native floating rules.

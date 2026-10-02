@@ -51,7 +51,7 @@ const nul = "a\0b";
 
 The c in `c"..."` must touch the quote. The result is native `const char*`; decoded interior NUL is invalid. `c "..."` is not one literal. There is no raw form.
 
-`f"..."` is an interpolation expression producing String. `{{` and `}}` represent literal braces. Holes contain ordinary expressions and optional `:` format specifications; dynamic width and precision also use holes. Only a top-level hole colon not belonging to `::` begins a format specification. Holes may contain parentheses, strings, nested interpolation, and ordinary newlines. Empty holes are invalid. Decoded escapes are not rescanned as interpolation delimiters.
+`f"..."` is an interpolation expression producing `String`. `{{` and `}}` represent literal braces. Holes contain ordinary expressions and optional `:` format specifications; dynamic width and precision also use holes. Only a top-level hole colon not belonging to `::` begins a format specification. Holes may contain parentheses, strings, nested interpolation, and ordinary newlines. Empty holes are invalid. Decoded escapes are not rescanned as interpolation delimiters.
 
 ## C++ headers and source fragments
 

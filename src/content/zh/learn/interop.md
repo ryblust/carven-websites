@@ -1,6 +1,6 @@
 ---
 title: "调用 C++ 与导出接口"
-description: 从 printf 到声明式函数契约，了解原生类型、异常与构建要求。
+description: 从 `printf` 到声明式函数契约，了解原生类型、异常与构建要求。
 section: learn
 lesson: 13
 source: docs/semantics.md
@@ -18,9 +18,9 @@ printf(c"%s\n", greeting);
 println(greeting);
 ```
 
-`carven hello.cv` 输出两次 Hello from C++：一次来自 printf，一次来自 println。头导入提供 C++ 声明，using 让名字可查找。c 字面量是尾随 NUL 的原生 const char*，不是 str；内部 NUL 被拒绝。println 和默认插值把 C 字符串的字节作为文本显示，而不是显示地址。
+`carven hello.cv` 输出两次 Hello from C++：一次来自 `printf`，一次来自 `println`。头导入提供 C++ 声明，using 让名字可查找。c 字面量是尾随 NUL 的原生 `const char*`，不是 `str`；内部 NUL 被拒绝。`println` 和默认插值把 C 字符串的字节作为文本显示，而不是显示地址。
 
-也可用 `::std::printf` 明确全局 C++ 路径。Carven 不读取头文件内容，C++ 编译器检查函数存在、重载和实参是否合法。`carven interpret` 接受带头导入的文件，但执行到 printf 这样的原生调用时会以 `CV-INTERPRET-ADMISSION` 停止；原生代码请用 `carven` 运行。
+也可用 `::std::printf` 明确全局 C++ 路径。Carven 不读取头文件内容，C++ 编译器检查函数存在、重载和实参是否合法。`carven interpret` 接受带头导入的文件，但执行到 `printf` 这样的原生调用时会以 `CV-INTERPRET-ADMISSION` 停止；原生代码请用 `carven` 运行。
 
 ## 原生类型
 
@@ -33,7 +33,7 @@ let count: usize = values.size();
 println(count, values[3]);
 ```
 
-输出 `4 4`。花括号构造交给 C++ 完成，包括类模板实参推导；`vector<i32> { 1, 2, 3 }` 则显式写出元素类型。C++ 检查构造、方法调用和转换是否合法；usize 注解要求用调用结果构造一个 usize 值。原生索引遵守提供者规则，不自动获得 Carven 数组越界检查。
+输出 `4 4`。花括号构造交给 C++ 完成，包括类模板实参推导；`vector<i32> { 1, 2, 3 }` 则显式写出元素类型。C++ 检查构造、方法调用和转换是否合法；`usize` 注解要求用调用结果构造一个 `usize` 值。原生索引遵守提供者规则，不自动获得 Carven 数组越界检查。
 
 ## 使用第三方库
 
@@ -47,7 +47,7 @@ let port: i32 = config.value(c"port", 8080);
 println(f"Port: {port}");
 ```
 
-parse 创建库提供的原生 JSON 对象；它的 value 方法读取 port，键不存在时使用 8080。i32 标注为原生结果指定 Carven 目标类型，随后就能用 println 输出。这些调用无需另写绑定代码。
+parse 创建库提供的原生 JSON 对象；它的 value 方法读取 port，键不存在时使用 8080。`i32` 标注为原生结果指定 Carven 目标类型，随后就能用 `println` 输出。这些调用无需另写绑定代码。
 
 本地试运行时，将单头文件放在 config.cv 旁边的 nlohmann/ 目录中。本例使用以下版本：
 
@@ -160,7 +160,7 @@ clang++ -std=c++20 -Igenerated -I/path/to/carven/crafts \
 
 把 `/path/to/carven/crafts` 换成安装的 Crafts 目录，运行时头文件由它提供。程序输出 `after`：第一次调用成功，被拒绝的调用没有改动文本。`success_if()` 在成功时返回指针，失败时返回空指针；EmptyLabel 是这个函数唯一声明的失败类型。结果不符合预期时，程序返回非零退出状态。
 
-调用者需要处理成功或 EmptyLabel 结果。这里的失败是显式返回契约，C++ 异常不会自动转换成它。完整类型映射和生命周期责任见[互操作 Reference](/zh/reference/interop/)。
+调用者需要处理成功或 EmptyLabel 结果。这里的失败是显式返回契约，C++ 异常不会自动转换成它。完整类型映射和生命周期责任见[互操作参考](/zh/reference/interop/)。
 
 ## 异常和借用
 

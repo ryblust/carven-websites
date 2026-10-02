@@ -1,5 +1,6 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { resolve, join, extname } from 'node:path';
+import { plainInlineText } from '../src/lib/inline-code.ts';
 import { articles } from '../src/generated/manifest.ts';
 
 const root = resolve('dist/client');
@@ -12,7 +13,7 @@ async function collect(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) files.push(...(await collect(path)));
-    else if (extname(entry.name) === '.html') files.push(path);
+    else if (['.html', '.css'].includes(extname(entry.name))) files.push(path);
   }
   return files;
 }
@@ -24,7 +25,8 @@ function decode(value) {
     .replace(/&quot;/g, '"');
 }
 
-for (const file of await collect(root)) {
+const outputFiles = await collect(root);
+for (const file of outputFiles.filter((file) => extname(file) === '.html')) {
   const html = await readFile(file, 'utf8');
   documents.set(file, {
     html,
@@ -47,18 +49,32 @@ for (const file of await collect(root)) {
   if (
     article &&
     (decode(titles[0]?.[1] ?? '') !== `${article.title} · Carven` ||
-      decode(descriptions[0]?.[1] ?? '') !== article.description)
+      decode(descriptions[0]?.[1] ?? '') !== plainInlineText(article.description))
   ) {
     failures.push(`${file}: document metadata does not match its article`);
   }
 }
 
 let checked = 0;
-for (const [file, { html }] of documents) {
+const references = new Map(
+  [...documents].map(([file, { html }]) => [
+    file,
+    [...html.matchAll(/\b(?:href|src)="([^"]+)"/g)].map((match) => decode(match[1])),
+  ]),
+);
+for (const file of outputFiles.filter((file) => extname(file) === '.css')) {
+  const css = await readFile(file, 'utf8');
+  references.set(
+    file,
+    [...css.matchAll(/url\(\s*(?:"([^"]+)"|'([^']+)'|([^\s)]+))\s*\)/g)].map(
+      (match) => match[1] ?? match[2] ?? match[3],
+    ),
+  );
+}
+for (const [file, urls] of references) {
   const relative = file.slice(root.length).replace(/\/index\.html$/, '/');
   const current = new URL(`${base}${relative}`, 'http://local.test');
-  for (const [, raw] of html.matchAll(/\b(?:href|src)="([^"]+)"/g)) {
-    const reference = decode(raw);
+  for (const reference of urls) {
     const target = new URL(reference, current);
     if (target.origin !== current.origin) continue;
     checked++;

@@ -21,6 +21,8 @@ describe('shared syntax rendering', () => {
         );
         const code = html.match(/<code\b[^>]*>([\s\S]*?)<\/code>/)?.[1];
         assert.isDefined(code);
+        assert.include(html, '--shiki-light:');
+        assert.include(html, '--shiki-dark:');
         assert.notMatch(html, /<\/?(?:script|tag)\b/i);
         const text = code!
           .replace(/<[^>]+>/g, '')

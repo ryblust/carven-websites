@@ -43,13 +43,13 @@ This example also fits the interpreter subset. Run the same tests without invoki
 carven interpret --tests totals.cv
 ```
 
-The interpreter prints the same summary. Each test gets independent storage and an execution budget. Tests that reach native C++ operations need native mode. To check without executing ordinary tests, use `carven check totals.cv`; const test still executes during checking.
+The interpreter prints the same summary. Each test gets independent storage and an execution budget. Tests that reach native C++ operations need native mode. To check without executing ordinary tests, use `carven check totals.cv`; `const test` still executes during checking.
 
 To integrate tests into your own C++ build, use `carven compile --tests -o generated totals.cv` for a default test entry, or `--tests=external` for your own entry and reporter. See [CLI Reference](/reference/cli/) for source collection and entry selection.
 
 ## check, require, and fail
 
-A failed check reports and continues, suitable for independent assertions. A failed require stops the whole current test, suitable for a prerequisite of later code. fail always stops the current test. Messages are str or String; conditions must be bool.
+A failed check reports and continues, suitable for independent assertions. A failed require stops the whole current test, suitable for a prerequisite of later code. fail always stops the current test. Messages are `str` or `String`; conditions must be `bool`.
 
 A check or require message is evaluated only when the condition is false, so it can build a detailed description such as `f"quantity {quantity} gives no total"` without cost on success. fail always evaluates its message. Test stopping propagates through synchronous Carven helpers and views, cleaning up locals. try cannot catch a test stop.
 
@@ -142,4 +142,4 @@ Use `_` for an intentionally unused value. Warnings do not fail an otherwise val
 
 ## Exercise
 
-Add an anonymous success test for positive with input 3, then change the input to -1 and read the report. Compare whether a println after check(false) and require(false) executes. Change stock.cv so the second call is `remaining(2, 2)` and confirm all three lines print. These are runtime tests; pure compile-time algorithms can additionally use const test.
+Add an anonymous success test for positive with input 3, then change the input to -1 and read the report. Compare whether a `println` after check(false) and require(false) executes. Change stock.cv so the second call is `remaining(2, 2)` and confirm all three lines print. These are runtime tests; pure compile-time algorithms can additionally use `const test`.

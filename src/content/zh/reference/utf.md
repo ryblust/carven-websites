@@ -17,21 +17,21 @@ source: crafts/carven/std/utf/README.md
 | std::utf.validation | UTF8ErrorKind、UTF8Error、UTF8Validator、验证 |
 | std::utf.text       | 借用与拥有文本构造                            |
 
-| 操作                                                         | 结果                                     |
-| ------------------------------------------------------------ | ---------------------------------------- |
-| `validate_utf8(bytes: [u8]) throw UTF8Error`                 | 无分配检查整个输入                       |
-| `from_utf8(bytes: [u8]) -> str throw UTF8Error`              | 验证后借用相同存储                       |
-| `to_string(bytes: [u8]) -> String throw UTF8Error`           | 验证后独立复制                           |
-| `decode_utf8(bytes: [u8]) -> UTF8Decode throw UTF8Error`     | 空输入 End，否则首个 Scalar(char, usize) |
-| `encode_utf8(character: char) -> UTF8Encoded`                | 四字节数组 bytes 与有效 width            |
-| `char_from_u32(value: u32) -> char throw UnicodeScalarError` | 检查标量范围                             |
-| `char_to_u32(value: char) -> u32`                            | 标量编号                                 |
-| `UTF8Validator::create() -> UTF8Validator`                   | 新验证状态                               |
-| `state.push(byte: u8) throw UTF8Error`                       | 接受一个字节                             |
-| `state.feed(bytes: [u8]) throw UTF8Error`                    | 接受一个块；块末尾不是 EOF               |
-| `state.finish() throw UTF8Error`                             | 声明逻辑 EOF                             |
-| `state.processed_bytes() -> usize`                           | 已接受的字节数                           |
-| `state.is_complete() -> bool`                                | 是否没有未完成的标量                     |
+| 操作                                                         | 结果                                         |
+| ------------------------------------------------------------ | -------------------------------------------- |
+| `validate_utf8(bytes: [u8]) throw UTF8Error`                 | 无分配检查整个输入                           |
+| `from_utf8(bytes: [u8]) -> str throw UTF8Error`              | 验证后借用相同存储                           |
+| `to_string(bytes: [u8]) -> String throw UTF8Error`           | 验证后独立复制                               |
+| `decode_utf8(bytes: [u8]) -> UTF8Decode throw UTF8Error`     | 空输入 End，否则首个 Scalar(`char`, `usize`) |
+| `encode_utf8(character: char) -> UTF8Encoded`                | 四字节数组 bytes 与有效 width                |
+| `char_from_u32(value: u32) -> char throw UnicodeScalarError` | 检查标量范围                                 |
+| `char_to_u32(value: char) -> u32`                            | 标量编号                                     |
+| `UTF8Validator::create() -> UTF8Validator`                   | 新验证状态                                   |
+| `state.push(byte: u8) throw UTF8Error`                       | 接受一个字节                                 |
+| `state.feed(bytes: [u8]) throw UTF8Error`                    | 接受一个块；块末尾不是 EOF                   |
+| `state.finish() throw UTF8Error`                             | 声明逻辑 EOF                                 |
+| `state.processed_bytes() -> usize`                           | 已接受的字节数                               |
+| `state.is_complete() -> bool`                                | 是否没有未完成的标量                         |
 
 数组可隐式转字节切片，也可显式 as_slice；文本 `.bytes` 提供切片。from_utf8 的结果借用输入，必须保持 backing 存活且不变；to_string 的结果独立，可从局部数组安全返回。
 
@@ -55,7 +55,7 @@ UTF8Error 包含 kind、offset、sequence_start。偏移均是逻辑流中的零
 
 `UTF8Validator` 是一个[类](/zh/reference/aggregates/#普通值类)：用 `UTF8Validator::create()` 创建，通过 Write 操作 `push` 和 `feed` 修改。它的私有字段记录字节位置与待完成序列，不保存输入；在类外访问 `state.offset` 报告 `CV-ACCESS-CLASS-PRIVATE`。`finish`、`processed_bytes` 和 `is_complete` 使用 Read 访问，检查 EOF 不会消耗验证器。push 拒绝时状态不变；feed 拒绝时保留之前已接受字节的进度。发生错误后结束当前验证尝试，改字节重试对应另一个流。
 
-块末尾不等于 EOF。未完成序列可跨块保留，只有 finish 才报告截断。逻辑流总长度须能放入 usize。
+块末尾不等于 EOF。未完成序列可跨块保留，只有 finish 才报告截断。逻辑流总长度须能放入 `usize`。
 
 ```carven
 import std::utf.validation using { UTF8Error, UTF8Validator };

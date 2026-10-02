@@ -29,7 +29,7 @@ let advance = [&count]() {
 println(advance(), advance(), count);
 ```
 
-The output is `1 2 2`. A Write capture requires a writable source and holds an alias to that same storage. Declaring the closure owner with let does not revoke the captured Write permission. Captures cannot Take; there is no `[&&count]`.
+The output is `1 2 2`. A Write capture requires a writable source and holds an alias to that same storage. Declaring the closure owner with `let` does not revoke the captured Write permission. Captures cannot Take; there is no `[&&count]`.
 
 ## Pass behavior to a function
 
@@ -41,7 +41,7 @@ let scale = [factor](item: i32) => item * factor;
 println(apply(scale, 21));
 ```
 
-The output is `42`. The parameter type `fn(i32) -> i32` describes a callable taking i32 and returning i32. Passing scale here creates a non-owning callable view: apply invokes the original closure while that closure remains alive for the call.
+The output is `42`. The parameter type `fn(i32) -> i32` describes a callable taking `i32` and returning `i32`. Passing scale here creates a non-owning callable view: apply invokes the original closure while that closure remains alive for the call.
 
 ## Owning closures and views
 

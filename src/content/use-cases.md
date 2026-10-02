@@ -5,7 +5,7 @@ section: use-cases
 source: README.md
 ---
 
-Carven translates `.cv` source files into C++ for a native toolchain to compile and link. Start with a small module whose boundaries are easy to verify, and explore how the language expresses that logic.
+Carven translates `.cv` source files into C++ for a native toolchain to compile and link. Start with a module that has one clear responsibility and is easy to test, then try implementing it in Carven.
 
 The following scenarios draw on examples already present in the repository. They are starting points for understanding and trying current capabilities. Carven is under active development; language and toolchain changes may be incompatible.
 
@@ -57,11 +57,11 @@ Private functions can infer failures introduced by composition. Published bounda
 
 **A useful starting point:** configuration validation, composed rules, recoverable parsing workflows, and callback interfaces with explicit failure boundaries.
 
-Each example has a defined scope. The quote example does not actually deduct stock or initiate payment; the configuration example does not read files or environment variables. They focus on how contracts flow between functions.
+Each example has a defined scope. The quote example does not actually deduct stock or initiate payment; the configuration example does not read files or environment variables. They show how functions declare possible failures and how callers handle or propagate them.
 
 ## Reduce C++ interface maintenance
 
-A class keeps a small piece of state behind its own operations. Only the class body can read its fields or construct it, and it stays a plain value: no heap allocation, inheritance, or virtual dispatch.
+A class groups state with the methods that provide access to it. Only the class body can read its fields or construct it, and it stays a plain value: no heap allocation, inheritance, or virtual dispatch.
 
 ```carven
 class Cart {
@@ -89,7 +89,7 @@ For logic involving several types and mutually calling functions, maintain their
 
 ## Choose a scope you can verify
 
-Carven currently fits learning, language exploration, and controlled integration experiments. For an evaluation, use the same revision of the compiler, support headers, documentation, and examples, and verify the capabilities your target project actually needs. `carven check` runs semantic analysis and compile-time tests without generating C++, which makes it a quick first gate.
+Carven currently fits learning, language exploration, and controlled integration experiments. For an evaluation, use the same revision of the compiler, support headers, documentation, and examples, and verify the capabilities your target project actually needs. `carven check` runs semantic analysis and compile-time tests without generating C++, which makes it a quick way to check the code before a full build.
 
 Carven has no thread or synchronization operations, and its Read/Write/Take rules do not establish cross-thread safety. If C++ calls generated code from several threads, the C++ side owns synchronization and shared data.
 

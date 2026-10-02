@@ -43,13 +43,13 @@ carven: tests: 2 passed; 0 failed
 carven interpret --tests totals.cv
 ```
 
-解释器输出同样的汇总。每条测试使用独立存储和执行预算；执行到原生 C++ 操作的测试需改用原生模式。要先检查而不运行普通测试，使用 `carven check totals.cv`；const test 仍会在检查时执行。
+解释器输出同样的汇总。每条测试使用独立存储和执行预算；执行到原生 C++ 操作的测试需改用原生模式。要先检查而不运行普通测试，使用 `carven check totals.cv`；`const test` 仍会在检查时执行。
 
-需要将测试接入自己的 C++ 构建时，用 `carven compile --tests -o generated totals.cv` 生成默认测试入口，或选择 `--tests=external` 接入已有入口和 reporter。源码收集与入口选择规则见[命令行 Reference](/zh/reference/cli/)。
+需要将测试接入自己的 C++ 构建时，用 `carven compile --tests -o generated totals.cv` 生成默认测试入口，或选择 `--tests=external` 接入已有入口和 reporter。源码收集与入口选择规则见[命令行参考](/zh/reference/cli/)。
 
 ## check、require 与 fail
 
-check 失败报告后继续，适合一组独立断言。require 失败停止当前整个测试，适合后续代码依赖的条件。fail 无条件停止当前测试。消息是 str 或 String，条件必须 bool。
+check 失败报告后继续，适合一组独立断言。require 失败停止当前整个测试，适合后续代码依赖的条件。fail 无条件停止当前测试。消息是 `str` 或 `String`，条件必须 `bool`。
 
 check 与 require 的消息只在条件为 false 时求值，因此可以放心构造 `f"quantity {quantity} gives no total"` 这样的详细说明，成功时没有额外开销。fail 总会求值消息。测试停止会穿过同步调用的 Carven 辅助函数和可调用视图，并清理局部值；try 无法捕获测试停止。
 
@@ -101,7 +101,7 @@ stock.cv:2:5: error: assertion failed
 
 原生进程直接中止，不做普通的栈清理，所以 `not reached` 不会输出，退出状态非零。assert 始终启用，不受构建配置和 `NDEBUG` 影响，也不需要测试上下文；消息只在失败时求值。断言不是 typed failure，try 无法捕获。在 `carven interpret` 下，断言失败会停止整个执行；在编译期执行中则产生 `CV-ASSERT`。测试中的断言失败会在报告中附带 `test:` 上下文，整次运行中止，不输出汇总。
 
-求值顺序与完整报告字段见[入口与测试 Reference](/zh/reference/entry-testing/)。
+求值顺序与完整报告字段见[入口与测试参考](/zh/reference/entry-testing/)。
 
 ## 测试可恢复失败
 
@@ -142,4 +142,4 @@ test "reject zero" {
 
 ## 练习
 
-为 positive 增加一条输入为 3 的匿名成功测试，再把输入改成 -1 并阅读报告。比较 check(false) 与 require(false) 后面一条 println 是否执行。把 stock.cv 的第二次调用改成 `remaining(2, 2)`，确认三行都会输出。这里用运行时 test；纯编译期算法可以另加 const test。
+为 positive 增加一条输入为 3 的匿名成功测试，再把输入改成 -1 并阅读报告。比较 check(false) 与 require(false) 后面一条 `println` 是否执行。把 stock.cv 的第二次调用改成 `remaining(2, 2)`，确认三行都会输出。这里用运行时 test；纯编译期算法可以另加 `const test`。

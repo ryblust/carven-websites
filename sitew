@@ -5,17 +5,17 @@ set -euo pipefail
 SITE_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SITE_DIRECTORY"
 
-SITE_NODE="$(command -v node || true)"
-if [[ -z "$SITE_NODE" ]]; then
-  SITE_NODE="$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
+SITE_NODE="$SITE_DIRECTORY/node_modules/.bin/node"
+if [[ ! -x "$SITE_NODE" ]]; then
+  SITE_NODE="$(command -v node || true)"
 fi
 if [[ ! -x "$SITE_NODE" ]]; then
-  echo "请先安装 Node.js 24 或更新版本。"
+  echo "请先安装 Node.js 26 或更新版本。"
   exit 1
 fi
 export PATH="$(dirname "$SITE_NODE"):$PATH"
-if ! "$SITE_NODE" -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)'; then
-  echo "此项目需要 Node.js 24 或更新版本。"
+if ! "$SITE_NODE" -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 26 ? 0 : 1)'; then
+  echo "此项目需要 Node.js 26 或更新版本。"
   exit 1
 fi
 

@@ -10,7 +10,7 @@ source: docs/semantics.md
 
 A compilation batch has at most one program entry: either a function named main or a file containing top-level executable statements. Multiple entries are diagnosed at their source locations. C++ generation may have no entry, but program execution requires one.
 
-Top-level statements form an implicit entry in order, with declarations allowed among them. Top-level const bindings remain module constants; constant blocks execute during analysis and do not form an entry; let/var are entry locals that module functions cannot capture. An implicit entry has no source callable name, parameters, or declared failure set; it infers outward failures from its body, like a private function without a throw clause. It follows ordinary function-body inference, access, cleanup, and failure-handling rules, so top-level statements may propagate with `?`:
+Top-level statements form an implicit entry in order, with declarations allowed among them. Top-level `const` bindings remain module constants; constant blocks execute during analysis and do not form an entry; `let`/`var` are entry locals that module functions cannot capture. An implicit entry has no source callable name, parameters, or declared failure set; it infers outward failures from its body, like a private function without a throw clause. It follows ordinary function-body inference, access, cleanup, and failure-handling rules, so top-level statements may propagate with `?`:
 
 ```carven
 struct Missing {}
@@ -60,7 +60,7 @@ fail();
 fail(message);
 ```
 
-A condition must be bool; an optional message is str or String. For check/require/fail, argument count, condition type, and message type errors use `CV-TEST-ARGUMENT-COUNT`, `CV-TEST-CONDITION-TYPE`, and `CV-TEST-MESSAGE-TYPE`. For assert, they use `CV-TYPE-CALL-ARITY`, `CV-TYPE-CONDITION-BOOL`, and `CV-TYPE-MISMATCH`.
+A condition must be `bool`; an optional message is `str` or `String`. For check/require/fail, argument count, condition type, and message type errors use `CV-TEST-ARGUMENT-COUNT`, `CV-TEST-CONDITION-TYPE`, and `CV-TEST-MESSAGE-TYPE`. For assert, they use `CV-TYPE-CALL-ARITY`, `CV-TYPE-CONDITION-BOOL`, and `CV-TYPE-MISMATCH`.
 
 Direct assert, check, and require calls evaluate their condition exactly once. Only a false condition evaluates the optional message, once and after the condition. fail always evaluates its message. Skipped messages are still type-checked. A builtin bound to a callable value keeps ordinary eager argument evaluation at the indirect call site.
 
@@ -145,7 +145,7 @@ A direct assert/check/require whose outer condition is a Carven comparison repor
 
 Collection reuses the original evaluation without repeating operands or invoking formatters, preserving order, snapshots, short circuiting, propagation, and cleanup. Failed values render before the optional message expression, so its mutations cannot change the explanation; successful conditions do not render values. A runtime reporter receives a borrowed explanation string valid only during the synchronous callback. Static-test diagnostics include the same explanation.
 
-## const test
+## `const test`
 
 ```carven
 const fn square(value: i32) -> i32 => value * value;
@@ -156,8 +156,8 @@ const test "square at compile time" {
 }
 ```
 
-`const test` and anonymous `const test { ... }` execute once after the body is built during semantic analysis, independently of test-artifact options. The body uses the constant-execution subset, including direct const fn calls, calls through local bindings of named const fn, printing, and test operations. Unsupported operations are diagnosed when executed. Each test has independent storage and budgets. Execution follows batch module order and source order within modules. Passing const tests produce no runtime test functions or runner entries.
+`const test` and anonymous `const test { ... }` execute once after the body is built during semantic analysis, independently of test-artifact options. The body uses the constant-execution subset, including direct `const fn` calls, calls through local bindings of named `const fn`, printing, and test operations. Unsupported operations are diagnosed when executed. Each test has independent storage and budgets. Execution follows batch module order and source order within modules. Passing `const` tests produce no runtime test functions or runner entries.
 
-A failed check is a compile error but continues the current test. A failed require/fail, execution error, or exhausted budget stops that test; subsequent const tests still run. Failure message text counts toward cumulative text work. An ordinary required constant initializer has no active test, so executing test operations there is rejected.
+A failed check is a compile error but continues the current test. A failed require/fail, execution error, or exhausted budget stops that test; subsequent `const` tests still run. Failure message text counts toward cumulative text work. An ordinary required constant initializer has no active test, so executing test operations there is rejected.
 
 Constant tests validate compile-time execution. Runtime tests execute either as generated native code or within the interpreter subset. Use native execution to cover C++ integration; interpretation does not validate generated C++ or native linking.

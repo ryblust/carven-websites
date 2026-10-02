@@ -26,7 +26,7 @@ source: docs/cli.md
 
 要逐步观察执行过程，可以用 `carven interpret main.cv` 运行[整数分类示例](/zh/learn/control/)，再加上 `--trace` 查看执行到的语句。学习完整语言和接入 C++ 库时，使用原生运行模式。
 
-直接运行需要原生 C++ 工具链与匹配的 Crafts，不依赖 Xmake。`check`、`compile`、`interpret` 和直接运行都会收集工具链的 `crafts/carven/` 和项目可选的 `crafts/`；其他应用文件仍须显式列出，文件名主干必须是合法标识符。安装布局、临时文件和工具链选择见[命令行 Reference](/zh/reference/cli/)。
+直接运行需要原生 C++ 工具链与匹配的 Crafts，不依赖 Xmake。`check`、`compile`、`interpret` 和直接运行都会收集工具链的 `crafts/carven/` 和项目可选的 `crafts/`；其他应用文件仍须显式列出，文件名主干必须是合法标识符。安装布局、临时文件和工具链选择见[命令行参考](/zh/reference/cli/)。
 
 ## 先检查，再运行
 
@@ -71,7 +71,7 @@ Graver 是独立的 `.cv` 源码格式化工具。在 Carven 仓库根目录构�
 
 第一条运行命令把格式化结果写到 stdout，不修改文件。`check` 列出需要调整的路径，有差异时返回 1，适合用于 CI；`write` 原地更新有变化的文件。Windows 使用 `.\xmakew.ps1`。直接调用已构建的可执行文件时，用 `graver` 替代 `./xmakew run graver`。
 
-Graver 使用固定的四空格缩进和 100 字节目标行宽。它检查词法与语法，不解析模块依赖、不做类型检查，也不执行 const fn 或 const test；格式检查通过后仍需构建和测试。命令与文件选择规则见[命令行 Reference](/zh/reference/cli/#graver)。
+Graver 使用固定的四空格缩进和 100 字节目标行宽。它检查词法与语法，不解析模块依赖、不做类型检查，也不执行 `const fn` 或 `const test`；格式检查通过后仍需构建和测试。命令与文件选择规则见[命令行参考](/zh/reference/cli/#graver)。
 
 ## 阅读格式化后的源码
 
@@ -90,7 +90,7 @@ import <vector> using std::{ vector, allocator };
 
 ## 测试放在哪一层
 
-编译期算法使用 const test，运行时行为使用 test；两者都可以省略名字，失败时以文件、行和列标识测试。原生互操作在 C++ 构建中测试，同时覆盖链接、析构和异常边界。
+编译期算法使用 `const test`，运行时行为使用 test；两者都可以省略名字，失败时以文件、行和列标识测试。原生互操作在 C++ 构建中测试，同时覆盖链接、析构和异常边界。
 
 Carven 仓库使用 ./xmakew，相关组有 internal、language、crafts、interop、cli、examples。使用 Carven 的项目定义自己的 Xmake 目标，不把编译器内部测试目标当成应用 API。
 
@@ -99,7 +99,7 @@ Carven 仓库使用 ./xmakew，相关组有 internal、language、crafts、inter
 1. 找不到名字：核对输入批次、模块规范路径、using 和可见性。
 2. 类型不匹配：核对字面量上下文、显式 as、精确参数访问与成功结果。
 3. owner 不可用：找之前的 Take，以及所有正常继续路径是否已恢复。
-4. 借用冲突：查找仍在作用域中的 str、切片、可调用视图，以及仍持有 Write 捕获的值。
+4. 借用冲突：查找仍在作用域中的 `str`、切片、可调用视图，以及仍持有 Write 捕获的值。
 5. 失败未处理：检查调用契约、?、处理分支未覆盖的失败集合和外围契约。
 6. 原生错误：核对头文件、C++ 签名、构造与链接输入。
 

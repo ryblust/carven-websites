@@ -1,6 +1,6 @@
 ---
 title: "Own text and borrow sequences"
-description: "Choose String or str, work with UTF-8, and understand when views prevent mutation."
+description: "Choose `String` or `str`, work with UTF-8, and understand when views prevent mutation."
 section: learn
 lesson: 6
 source: docs/semantics.md
@@ -18,9 +18,9 @@ println(snapshot);
 println(title);
 ```
 
-This prints `Carven language` and `Carven language!` on separate lines. A String copy owns independent bytes. A literal in a String annotation context constructs an owning value; an ordinary literal defaults to non-owning str.
+This prints `Carven language` and `Carven language!` on separate lines. A `String` copy owns independent bytes. A literal in a `String` annotation context constructs an owning value; an ordinary literal defaults to non-owning `str`.
 
-Convert an existing str into an independent String with `text as String` or `String::from_str(text)`. A String can be borrowed in a str parameter context or explicitly with `.as_str()`.
+Convert an existing `str` into an independent `String` with `text as String` or `String::from_str(text)`. A `String` can be borrowed in a `str` parameter context or explicitly with `.as_str()`.
 
 ## A borrow protects its source storage
 
@@ -33,7 +33,7 @@ text.append("!");
 println(view);
 ```
 
-view points to text's backing and prevents text from being modified while the view lives. Even moving println earlier does not end a named view's borrow: it lasts until the scope ends, rather than ending automatically at the last use. Put the view in a smaller branch scope or copy it into an owning String.
+view points to text's backing and prevents text from being modified while the view lives. Even moving `println` earlier does not end a named view's borrow: it lasts until the scope ends, rather than ending automatically at the last use. Put the view in a smaller branch scope or copy it into an owning `String`.
 
 Self-append, `text.append(text.as_str())`, also conflicts. First write `let copy = text;`, then `text.append(copy);` so the input has independent storage.
 
@@ -65,7 +65,7 @@ A
 3 145
 ```
 
-len counts UTF-8 bytes and returns usize; chars decodes Unicode scalars; bytes is a read-only `[u8]` view of the same storage. The range `0..text.len()` takes its type from the length, so it is `range<usize>` and indexes the byte view without a cast or a `0usize` suffix. String has no direct indexing or direct iteration: select bytes or chars explicitly. str/String can contain interior NUL; NUL does not determine text length.
+len counts UTF-8 bytes and returns `usize`; chars decodes Unicode scalars; bytes is a read-only `[u8]` view of the same storage. The range `0..text.len()` takes its type from the length, so it is `range<usize>` and indexes the byte view without a cast or a `0usize` suffix. `String` has no direct indexing or direct iteration: select bytes or chars explicitly. `str`/`String` can contain interior NUL; NUL does not determine text length.
 
 ## Array slices
 
@@ -85,7 +85,7 @@ let middle = values.as_slice().slice(1, 3);
 println(sum(values), sum(middle));
 ```
 
-The output is `12 10`. Arrays borrow automatically in slice argument context without copying elements. The half-open slice bounds are usize; unsuffixed literals such as `1` and `3` take that type from the parameter. The view is read-only and protects the whole backing. A view of a local array cannot be returned because it would escape its source lifetime.
+The output is `12 10`. Arrays borrow automatically in slice argument context without copying elements. The half-open slice bounds are `usize`; unsuffixed literals such as `1` and `3` take that type from the parameter. The view is read-only and protects the whole backing. A view of a local array cannot be returned because it would escape its source lifetime.
 
 A byte view is an ordinary slice, so the same operations apply to text: `text.bytes.slice(1, text.len())` selects the three bytes of 我 from `"A我"`, and `for byte in text.bytes` visits each byte.
 

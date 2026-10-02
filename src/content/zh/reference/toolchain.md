@@ -10,7 +10,7 @@ source: docs/toolchain.md
 
 Carven 编译器使用 C++26，关闭异常与 RTTI。当前验证的宿主工具链为 LLVM 23（LLVM/Clang 与 libc++ 23.1.0）。生成程序和安装 Crafts 的最低标准为 C++20；使用 Carven 的项目选择标准，运行时通过特性检测使用可用设施。宿主要求不提高目标最低标准。
 
-原生调用方根据提供者需求配置异常支持；包含 C++ throw/try/catch 的 cpp 片段需要其翻译单元开启异常。宿主和目标的 isize/usize 数据模型必须相同，f32/f64 要求 IEEE binary32/64，原生选项须保留相等和求值语义。
+原生调用方根据提供者需求配置异常支持；包含 C++ throw/try/catch 的 cpp 片段需要其翻译单元开启异常。宿主和目标的 `isize`/`usize` 数据模型必须相同，`f32`/`f64` 要求 IEEE binary32/64，原生选项须保留相等和求值语义。
 
 ## 构建责任
 
@@ -67,6 +67,6 @@ export(cpp) 的声明写入可独立包含的 `carven/api` 头文件，位于 `c
 
 安装布局是 bin 旁的 crafts。生成代码按需 include passing、numeric、array、range、slice、text、utf、string、format、writer、print、display、entry、deferred、outcome、callable、unreachable、testing 等 runtime 叶头；runtime.hpp 为直接使用者汇总 runtime 叶头。
 
-编译器与支持头文件必须匹配。生成的私有名字、辅助函数的选择和数据表示布局属于实现细节。一般插值需要 C++20 format 支持；受支持的内建格式化（包括混合整数、浮点、bool、char 和文本字段）使用 writer.hpp，结构化打印使用 display.hpp；print 可按特性检测使用 C++23 实现而不改变调用方选择的 C++ 标准。
+编译器与支持头文件必须匹配。生成的私有名字、辅助函数的选择和数据表示布局属于实现细节。一般插值需要 C++20 format 支持；受支持的内建格式化（包括混合整数、浮点、`bool`、`char` 和文本字段）使用 writer.hpp，结构化打印使用 display.hpp；print 可按特性检测使用 C++23 实现而不改变调用方选择的 C++ 标准。
 
-原生直接调用 String::from_str/append 要求合法 UTF-8，push 要求合法标量；from_utf8 检查字节并在非法时终止。这些原生 runtime API 与标准库返回 typed failure 的验证 API 分别遵守各自契约。
+原生直接调用 `String`::from_str/append 要求合法 UTF-8，push 要求合法标量；from_utf8 检查字节并在非法时终止。这些原生 runtime API 与标准库返回 typed failure 的验证 API 分别遵守各自契约。

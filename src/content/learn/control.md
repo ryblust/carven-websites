@@ -62,7 +62,7 @@ for index in positions {
 }
 ```
 
-This prints `0..4`, then 0 through 3 on separate lines. `code.len()` returns a usize byte count, so the literal 0 is also checked as usize and positions has type `range<usize>`. No cast or suffixed zero is needed. Two unsuffixed bounds still default to i32, and an explicit `range<i32>` annotation here is rejected because the bounds cannot share that type. Existing bindings keep their types: an i32 variable and a usize length cannot form one range.
+This prints `0..4`, then 0 through 3 on separate lines. `code.len()` returns a `usize` byte count, so the literal 0 is also checked as `usize` and positions has type `range<usize>`. No cast or suffixed zero is needed. Two unsuffixed bounds still default to `i32`, and an explicit `range<i32>` annotation here is rejected because the bounds cannot share that type. Existing bindings keep their types: an `i32` variable and a `usize` length cannot form one range.
 
 ## Choose a result by interval
 

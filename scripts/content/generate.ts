@@ -36,25 +36,23 @@ export const generateContent = Effect.fn('generateContent')(function* (root: str
     }
     paths.add(article.path);
   }
-  // Once bilingual authoring is present, publish only complete matching pairs.
-  if (articles.some((article) => article.path.startsWith('/zh/'))) {
-    for (const article of articles) {
-      const counterpart = article.path.startsWith('/zh/')
-        ? article.path.slice(3)
-        : `/zh${article.path}`;
-      const translated = articles.find((item) => item.path === counterpart);
-      if (
-        !translated ||
-        translated.section !== article.section ||
-        translated.source !== article.source ||
-        ('lesson' in article && (!('lesson' in translated) || translated.lesson !== article.lesson))
-      ) {
-        return yield* new ContentError({
-          file: article.file,
-          operation: 'metadata',
-          cause: `Missing or mismatched translation: ${counterpart}`,
-        });
-      }
+  // Every article must have a matching translation.
+  for (const article of articles) {
+    const counterpart = article.path.startsWith('/zh/')
+      ? article.path.slice(3)
+      : `/zh${article.path}`;
+    const translated = articles.find((item) => item.path === counterpart);
+    if (
+      !translated ||
+      translated.section !== article.section ||
+      translated.source !== article.source ||
+      ('lesson' in article && (!('lesson' in translated) || translated.lesson !== article.lesson))
+    ) {
+      return yield* new ContentError({
+        file: article.file,
+        operation: 'metadata',
+        cause: `Missing or mismatched translation: ${counterpart}`,
+      });
     }
   }
   for (const prefix of ['', '/zh'] as const) {

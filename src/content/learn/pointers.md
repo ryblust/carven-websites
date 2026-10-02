@@ -29,9 +29,9 @@ restock(addressof(&stock), 2);
 println(stock, level(addressof(stock)));
 ```
 
-Run `./xmakew run carven address.cv`. The output is `9 9`. The `&` inside `addressof(&stock)` requests Write access, just like a Write argument, so stock must be a var; with `let stock` it reports `CV-ACCESS-IMMUTABLE`. The place must be a named binding, field, or element: a temporary such as `addressof(1 + 2)` is rejected, and there is no `addressof(&&stock)`.
+Run `./xmakew run carven address.cv`. The output is `9 9`. The `&` inside `addressof(&stock)` requests Write access, just like a Write argument, so stock must be a `var`; with `let stock` it reports `CV-ACCESS-IMMUTABLE`. The place must be a named binding, field, or element: a temporary such as `addressof(1 + 2)` is rejected, and there is no `addressof(&&stock)`.
 
-A new address is non-null, so `*addressof(stock)` needs no check where it is created. The helpers receive ordinary pointer parameters that callers could set to nullptr, so each helper checks before dereferencing.
+A new address is non-null, so `*addressof(stock)` needs no check where it is created. The helpers receive ordinary pointer parameters that callers could set to `nullptr`, so each helper checks before dereferencing.
 
 ## Addresses come from native boundaries
 
@@ -55,11 +55,11 @@ if pointer != nullptr {
 }
 ```
 
-This standalone program prints 8. The native static object supplies the target lifetime. `ptr<&i32>` permits writes to the target. The pointer owner is let, so it cannot be rebound, but that does not revoke target Write access.
+This standalone program prints 8. The native static object supplies the target lifetime. `ptr<&i32>` permits writes to the target. The pointer owner is `let`, so it cannot be rebound, but that does not revoke target Write access.
 
 ## Non-null proofs are local
 
-Before dereferencing, establish a non-null fact directly in the current function. Direct nullptr comparisons and early return can establish it. A bool-returning helper, native success code, or require does not supply the same proof. Each closure needs its own proof too. Without a proof, the dereference reports `CV-PTR-NONNULL`.
+Before dereferencing, establish a non-null fact directly in the current function. Direct `nullptr` comparisons and early return can establish it. A `bool`-returning helper, native success code, or require does not supply the same proof. Each closure needs its own proof too. Without a proof, the dereference reports `CV-PTR-NONNULL`.
 
 A Write call may change an address slot and clears related facts. Save a pointer obtained through a dynamic index or native member in a local handle, then check that handle, so the proof is tied to one evaluation result.
 
@@ -71,4 +71,4 @@ addressof does not extend its target's life either. Carven does not reject a fun
 
 ## Exercise
 
-In address.cv, remove the nullptr check from level and expect `CV-PTR-NONNULL`. Change `var stock` to `let stock` and expect `CV-ACCESS-IMMUTABLE` at `addressof(&stock)`. In the native program, change the target type to ptr<i32>: the read still works, but the write reports an access error.
+In address.cv, remove the `nullptr` check from level and expect `CV-PTR-NONNULL`. Change `var stock` to `let stock` and expect `CV-ACCESS-IMMUTABLE` at `addressof(&stock)`. In the native program, change the target type to ptr<`i32`>: the read still works, but the write reports an access error.

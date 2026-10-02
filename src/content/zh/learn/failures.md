@@ -47,7 +47,7 @@ println("Total:", total);
 
 前面的模块章节介绍了私有辅助函数和公开接口。private 非入口函数可以省略 throw 子句，由编译器推断函数体可能向外传播的失败。顶层语句构成隐式入口，也以同样方式推断向外失败。下一章介绍的闭包同样可以推断失败。
 
-把 quantity.cv 中的 try 表达式和最后的 println 换成两次直接调用：
+把 quantity.cv 中的 try 表达式和最后的 `println` 换成两次直接调用：
 
 ```carven
 println("Total:", line_total(12, 3)?);

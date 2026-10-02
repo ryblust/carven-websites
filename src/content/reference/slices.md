@@ -24,13 +24,13 @@ fn main() {
 
 ## Operations
 
-| Operation             | Result                                |
-| --------------------- | ------------------------------------- |
-| `s.len()`             | Element count as usize                |
-| `s.is_empty()`        | bool                                  |
-| `s[index]`            | Read element access; integer index    |
-| `s.slice(start, end)` | Half-open range; both arguments usize |
-| `for item in s`       | Read iteration                        |
+| Operation             | Result                                  |
+| --------------------- | --------------------------------------- |
+| `s.len()`             | Element count as `usize`                |
+| `s.is_empty()`        | `bool`                                  |
+| `s[index]`            | Read element access; integer index      |
+| `s.slice(start, end)` | Half-open range; both arguments `usize` |
+| `for item in s`       | Read iteration                          |
 
 Empty ranges such as `slice(len, len)` are valid. Invalid dynamic indices or ranges terminate. Slices have no element writes, Write iteration, pointer extraction, or equality. Reading an element still applies that element type's Read/value rules.
 
@@ -54,7 +54,7 @@ fn table_view() -> [i32] => table;
 
 This element storage has static lifetime and may be copied, stored, and returned. The constant declaration does not gain source-level address identity. Native code cannot depend on uses or artifacts sharing the same address.
 
-Supported elements include integers, bool, char, str, and recursively eligible fixed arrays and structs. Nominal types, field types, and nested array lengths are preserved. Internal arrays do not recursively become slices, nor do String fields become str. Empty slices retain their element type. Constant indexing and subranges are checked during evaluation.
+Supported elements include integers, `bool`, `char`, `str`, and recursively eligible fixed arrays and structs. Nominal types, field types, and nested array lengths are preserved. Internal arrays do not recursively become slices, nor do `String` fields become `str`. Empty slices retain their element type. Constant indexing and subranges are checked during evaluation.
 
 Retaining arrays and constructing constant subslices count element references toward the initializer's 524,288-element work budget. The original array remains subject to per-value size and nesting limits.
 

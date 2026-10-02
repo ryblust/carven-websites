@@ -1,5 +1,5 @@
 import { join, relative, resolve, dirname } from 'node:path';
-import { Cause, Context, Effect, FileSystem, Layer, Schema } from 'effect';
+import { Context, Effect, FileSystem, Layer, Schema } from 'effect';
 import type { ArticleDocument } from '../../src/content/schema.ts';
 import { ContentError } from './model.ts';
 
@@ -130,87 +130,39 @@ export class ContentRepository extends Context.Service<
 
         yield* Effect.scoped(
           Effect.gen(function* () {
-            let retainBackups = false;
-            const staging = yield* Effect.acquireRelease(
-              fs.makeTempDirectory({
-                directory: resolve(root, 'src'),
-                prefix: '.content-',
-              }),
-              (directory) =>
-                retainBackups
-                  ? Effect.void
-                  : fs.remove(directory, { recursive: true }).pipe(Effect.orDie),
-            );
-            const changes: Array<{ target: string; staged?: string; backup?: string }> = [];
+            const staging = yield* fs.makeTempDirectoryScoped({
+              directory: resolve(root, 'src'),
+              prefix: '.content-',
+            });
+            const changes: Array<{ target: string; staged: string }> = [];
+            // Prepare every changed module before replacing published files.
             for (const [name, text] of modules) {
               const target = join(output, name);
-              const exists = yield* fs.exists(target);
-              if (exists && (yield* fs.readFileString(target)) === text) continue;
-              const staged = join(staging, 'next', name);
+              if ((yield* fs.exists(target)) && (yield* fs.readFileString(target)) === text)
+                continue;
+              const staged = join(staging, name);
               yield* fs.makeDirectory(dirname(staged), { recursive: true });
               yield* fs.writeFileString(staged, text);
-              yield* fs.makeDirectory(dirname(target), { recursive: true });
-              changes.push({
-                target,
-                staged,
-                backup: exists ? join(staging, 'previous', name) : undefined,
-              });
+              changes.push({ target, staged });
             }
-            // Prepare removals and backups before changing any published file.
-            const existing = yield* fs.readDirectory(output, { recursive: true });
-            for (const name of existing) {
+            // Generated output is disposable; a failed publication is rebuilt on the next run.
+            for (const { target, staged } of changes) {
+              yield* fs.makeDirectory(dirname(target), { recursive: true });
+              yield* fs.rename(staged, target);
+            }
+            for (const name of yield* fs.readDirectory(output, { recursive: true })) {
               const target = join(output, name);
               if (
                 !modules.has(name.replaceAll('\\', '/')) &&
                 (yield* fs.stat(target)).type === 'File'
               ) {
-                changes.push({ target, backup: join(staging, 'previous', name) });
+                yield* fs.remove(target);
               }
             }
-            for (const { target, backup } of changes) {
-              if (!backup) continue;
-              yield* fs.makeDirectory(dirname(backup), { recursive: true });
-              yield* fs.copyFile(target, backup);
-            }
-
-            const committed: typeof changes = [];
-            yield* Effect.gen(function* () {
-              for (const change of changes) {
-                if (change.staged) yield* fs.rename(change.staged, change.target);
-                else yield* fs.remove(change.target);
-                committed.push(change);
-              }
-            }).pipe(
-              Effect.onError(() =>
-                Effect.gen(function* () {
-                  retainBackups = true;
-                  for (const { target, backup } of [...committed].reverse()) {
-                    if (backup) yield* fs.rename(backup, target);
-                    else yield* fs.remove(target);
-                  }
-                  retainBackups = false;
-                }).pipe(
-                  Effect.catch((cause) =>
-                    Effect.die(
-                      new Error(`Content rollback failed; backups retained at ${staging}`, {
-                        cause,
-                      }),
-                    ),
-                  ),
-                ),
-              ),
-              // Shutdown may cancel preparation, but must wait for commit or rollback.
-              Effect.uninterruptible,
-            );
           }),
         ).pipe(
-          Effect.catchCause((cause) =>
-            Effect.failCause(
-              Cause.map(
-                cause,
-                (error) => new ContentError({ file: output, operation: 'publish', cause: error }),
-              ),
-            ),
+          Effect.mapError(
+            (cause) => new ContentError({ file: output, operation: 'publish', cause }),
           ),
         );
       });

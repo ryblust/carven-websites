@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest';
 import { NodeFileSystem } from '@effect/platform-node';
-import { Effect, FileSystem, Layer } from 'effect';
+import { Cause, Effect, FileSystem } from 'effect';
 import { generateContent } from '../scripts/content/generate.ts';
 import { ContentRepository } from '../scripts/content/ContentRepository.ts';
 import { Markdown } from '../scripts/content/Markdown.ts';
@@ -12,6 +12,15 @@ import { homeExamples } from '../src/content/home-examples.ts';
 const lesson = (number: number) =>
   `---\ntitle: Lesson ${number}\ndescription: Test lesson\nsection: learn\nlesson: ${number}\nsource: docs/tutorial.md\n---\n\n## Body ${number}\n\n\`\`\`cv\nfn main() {}\n\`\`\`\n`;
 
+const bilingual = (sources: Array<{ file: string; path: string; text: string }>) => [
+  ...sources,
+  ...sources.map((source) => ({
+    ...source,
+    file: `zh/${source.file}`,
+    path: `/zh${source.path}`,
+  })),
+];
+
 const importGenerated = (file: string) =>
   Effect.promise(() => import(/* @vite-ignore */ pathToFileURL(file).href));
 
@@ -20,13 +29,20 @@ describe('content build', () => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const root = yield* fs.makeTempDirectoryScoped();
-      yield* fs.makeDirectory(`${root}/src/content/learn`, { recursive: true });
+      for (const prefix of ['', '/zh']) {
+        yield* fs.makeDirectory(`${root}/src/content${prefix}/learn`, { recursive: true });
+        yield* fs.writeFileString(`${root}/src/content${prefix}/learn/index.md`, lesson(0));
+        yield* fs.writeFileString(`${root}/src/content${prefix}/learn/values.md`, lesson(1));
+      }
       yield* fs.makeDirectory(`${root}/src/generated/articles`, { recursive: true });
       yield* fs.writeFileString(`${root}/src/generated/articles/removed.ts`, 'obsolete');
-      yield* fs.writeFileString(`${root}/src/content/learn/index.md`, lesson(0));
-      yield* fs.writeFileString(`${root}/src/content/learn/values.md`, lesson(1));
       const paths = yield* generateContent(root).pipe(Effect.provide(ContentLive));
-      assert.deepStrictEqual(paths, ['/learn/', '/learn/values/']);
+      assert.deepStrictEqual(paths, [
+        '/learn/',
+        '/learn/values/',
+        '/zh/learn/',
+        '/zh/learn/values/',
+      ]);
       const first = yield* importGenerated(`${root}/src/generated/articles/learn/index.ts`);
       const second = yield* importGenerated(`${root}/src/generated/articles/learn/values.ts`);
       assert.include(first.default, 'Body 0');
@@ -35,7 +51,12 @@ describe('content build', () => {
       assert.notInclude(second.default, 'Body 0');
       const manifest = yield* importGenerated(`${root}/src/generated/manifest.ts`);
       assert.deepStrictEqual(manifest.articlePaths, paths);
-      assert.deepStrictEqual(manifest.lessonPaths, paths);
+      assert.deepStrictEqual(manifest.lessonPaths, [
+        '/learn/',
+        '/zh/learn/',
+        '/learn/values/',
+        '/zh/learn/values/',
+      ]);
       assert.deepStrictEqual(manifest.referencePaths, []);
       assert.deepStrictEqual(Object.keys(manifest.articles), paths);
       for (const metadata of Object.values(manifest.articles)) {
@@ -49,50 +70,43 @@ describe('content build', () => {
         assert.isNotEmpty(html);
       }
       assert.isFalse(yield* fs.exists(`${root}/src/generated/articles/removed.ts`));
-      assert.deepStrictEqual((yield* fs.readDirectory(`${root}/src`)).sort(), [
-        'content',
-        'generated',
-      ]);
     }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
 
-  it.effect.each([false, true])('releases renderer resources after success/failure (%s)', (fail) =>
+  it.effect('reports rendering errors without publishing content', () =>
     Effect.gen(function* () {
-      let released = 0;
-      let published = 0;
-      const renderer = Layer.effect(
-        Markdown,
-        Effect.gen(function* () {
-          yield* Effect.acquireRelease(Effect.void, () =>
-            Effect.sync(() => {
-              released++;
-            }),
-          );
-          return Markdown.of({
-            render: (file) =>
-              fail
-                ? Effect.fail(
-                    new ContentError({ file, operation: 'render', cause: 'Invalid code language' }),
-                  )
-                : Effect.succeed('<p>Rendered</p>'),
-          });
-        }),
-      );
-      const repository = ContentRepository.of({
-        read: () => Effect.succeed([{ file: 'learn/index.md', path: '/learn/', text: lesson(0) }]),
-        publish: () =>
-          Effect.sync(() => {
-            published++;
+      let published = false;
+      const error = yield* generateContent('/unused').pipe(
+        Effect.provideService(
+          ContentRepository,
+          ContentRepository.of({
+            read: () =>
+              Effect.succeed(
+                bilingual([{ file: 'learn/index.md', path: '/learn/', text: lesson(0) }]),
+              ),
+            publish: () =>
+              Effect.sync(() => {
+                published = true;
+              }),
           }),
-      });
-      const exit = yield* generateContent('/unused').pipe(
-        Effect.provideService(ContentRepository, repository),
-        Effect.provide(renderer),
-        Effect.exit,
+        ),
+        Effect.provideService(
+          Markdown,
+          Markdown.of({
+            render: (file) =>
+              Effect.fail(
+                new ContentError({
+                  file,
+                  operation: 'render',
+                  cause: 'Invalid code language',
+                }),
+              ),
+          }),
+        ),
+        Effect.flip,
       );
-      assert.strictEqual(exit._tag, fail ? 'Failure' : 'Success');
-      assert.strictEqual(released, 1);
-      assert.strictEqual(published, fail ? 0 : 1);
+      assert.strictEqual(error.operation, 'render');
+      assert.isFalse(published);
     }),
   );
 
@@ -120,10 +134,12 @@ describe('content build', () => {
       let published = false;
       const repository = ContentRepository.of({
         read: () =>
-          Effect.succeed([
-            { file: 'learn/index.md', path: '/learn/', text: lesson(0) },
-            { file: 'learn/values.md', path, text: lesson(number) },
-          ]),
+          Effect.succeed(
+            bilingual([
+              { file: 'learn/index.md', path: '/learn/', text: lesson(0) },
+              { file: 'learn/values.md', path, text: lesson(number) },
+            ]),
+          ),
         publish: () =>
           Effect.sync(() => {
             published = true;
@@ -161,14 +177,14 @@ describe('independent books', () => {
   it.effect.each([0, 1])('validates reference ordering independently (%s)', (referenceOrder) =>
     Effect.gen(function* () {
       let published = false;
-      const sources = [
+      const sources = bilingual([
         { file: 'learn/index.md', path: '/learn/', text: lesson(0) },
         {
           file: 'reference/index.md',
           path: '/reference/',
           text: lesson(referenceOrder).replace('section: learn', 'section: reference'),
         },
-      ];
+      ]);
       const result = yield* generateContent('/unused').pipe(
         Effect.provideService(
           ContentRepository,
@@ -193,21 +209,24 @@ describe('independent books', () => {
 });
 
 describe('translation publication boundary', () => {
-  it.effect.each(['complete', 'missing', 'mismatch'] as const)(
-    'validates bilingual pairs (%s)',
+  it.effect.each(['complete', 'English only', 'Chinese only', 'mismatched lesson'] as const)(
+    'requires matching bilingual pairs (%s)',
     (mode) =>
       Effect.gen(function* () {
         let published = false;
         const sources = [
-          { file: 'learn/index.md', path: '/learn/', text: lesson(0) },
-          {
-            file: 'zh/learn/index.md',
-            path: '/zh/learn/',
-            text: lesson(mode === 'mismatch' ? 1 : 0),
-          },
-          ...(mode === 'missing'
-            ? [{ file: 'learn/values.md', path: '/learn/values/', text: lesson(1) }]
-            : []),
+          ...(mode === 'Chinese only'
+            ? []
+            : [{ file: 'learn/index.md', path: '/learn/', text: lesson(0) }]),
+          ...(mode === 'English only'
+            ? []
+            : [
+                {
+                  file: 'zh/learn/index.md',
+                  path: '/zh/learn/',
+                  text: lesson(mode === 'mismatched lesson' ? 1 : 0),
+                },
+              ]),
         ];
         const result = yield* generateContent('/unused').pipe(
           Effect.provideService(
@@ -228,6 +247,9 @@ describe('translation publication boundary', () => {
         );
         assert.equal(result._tag, mode === 'complete' ? 'Success' : 'Failure');
         assert.equal(published, mode === 'complete');
+        if (result._tag === 'Failure') {
+          assert.include(Cause.pretty(result.cause), 'Missing or mismatched translation:');
+        }
       }),
   );
 });

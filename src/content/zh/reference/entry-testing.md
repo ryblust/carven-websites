@@ -10,7 +10,7 @@ source: docs/semantics.md
 
 一个编译批次最多一个程序入口，可以是名为 main 的函数，也可以是一个包含顶层可执行语句的文件。多个入口在各源位置诊断。生成 C++ 可以没有入口，执行程序必须有入口。
 
-顶层语句按顺序组成隐式入口。声明可穿插其中；顶层 const 绑定仍是模块常量，常量块在分析时执行且不形成入口，let/var 是入口局部变量，模块函数不能捕获它们。隐式入口没有源码 callable 名字、参数或声明失败集合；它像没有 throw 子句的私有函数一样，从函数体推断向外失败。它使用普通函数体的推断、访问、清理和失败处理规则，因此顶层语句可以用 `?` 传播失败：
+顶层语句按顺序组成隐式入口。声明可穿插其中；顶层 `const` 绑定仍是模块常量，常量块在分析时执行且不形成入口，`let`/`var` 是入口局部变量，模块函数不能捕获它们。隐式入口没有源码 callable 名字、参数或声明失败集合；它像没有 throw 子句的私有函数一样，从函数体推断向外失败。它使用普通函数体的推断、访问、清理和失败处理规则，因此顶层语句可以用 `?` 传播失败：
 
 ```carven
 struct Missing {}
@@ -60,7 +60,7 @@ fail();
 fail(message);
 ```
 
-condition 必须是 bool；可选 message 是 str 或 String。check/require/fail 的实参个数、条件类型、消息类型错误分别用 `CV-TEST-ARGUMENT-COUNT`、`CV-TEST-CONDITION-TYPE`、`CV-TEST-MESSAGE-TYPE` 诊断；assert 对应使用 `CV-TYPE-CALL-ARITY`、`CV-TYPE-CONDITION-BOOL` 和 `CV-TYPE-MISMATCH`。
+condition 必须是 `bool`；可选 message 是 `str` 或 `String`。check/require/fail 的实参个数、条件类型、消息类型错误分别用 `CV-TEST-ARGUMENT-COUNT`、`CV-TEST-CONDITION-TYPE`、`CV-TEST-MESSAGE-TYPE` 诊断；assert 对应使用 `CV-TYPE-CALL-ARITY`、`CV-TYPE-CONDITION-BOOL` 和 `CV-TYPE-MISMATCH`。
 
 直接调用 assert、check 和 require 时，条件恰好求值一次。只有条件为假才求值可选消息，且只求值一次、在条件之后。fail 总会求值消息。被跳过的消息仍接受类型检查。把 builtin 绑定为 callable 值后，间接调用处仍按普通规则先求值全部实参。
 
@@ -145,7 +145,7 @@ carven: tests: 1 passed; 1 failed
 
 解释复用原求值，不重复执行操作数、不调用 formatter，并保留求值顺序、快照、短路、传播与清理。失败值在可选消息表达式执行前显示，因此消息中的修改不会改变解释；成功的条件不渲染值。运行时 reporter 接收只在同步回调期间有效的借用 explanation 字符串；静态测试诊断包含相同解释。
 
-## const test
+## `const test`
 
 ```carven
 const fn square(value: i32) -> i32 => value * value;
@@ -156,8 +156,8 @@ const test "square at compile time" {
 }
 ```
 
-`const test` 与匿名的 `const test { ... }` 在语义分析完成 body 构建后执行一次，与测试产物开关无关。body 使用常量执行子集，可直接调用 const fn、通过具名 const fn 的局部绑定调用、打印和使用测试操作；不支持的操作在执行到时诊断。每个测试拥有独立存储和预算，按输入批次模块顺序及模块内源码顺序执行。通过的 const test 不生成运行时测试函数或 runner 项。
+`const test` 与匿名的 `const test { ... }` 在语义分析完成 body 构建后执行一次，与测试产物开关无关。body 使用常量执行子集，可直接调用 `const fn`、通过具名 `const fn` 的局部绑定调用、打印和使用测试操作；不支持的操作在执行到时诊断。每个测试拥有独立存储和预算，按输入批次模块顺序及模块内源码顺序执行。通过的 `const test` 不生成运行时测试函数或 runner 项。
 
-失败 check 是编译错误但继续当前测试；失败 require/fail、执行错误或预算耗尽停止当前测试，后续 const test 仍执行。失败消息文本计入累计文本工作预算。普通必需常量初始化器没有活动测试，执行测试操作会被拒绝。
+失败 check 是编译错误但继续当前测试；失败 require/fail、执行错误或预算耗尽停止当前测试，后续 `const test` 仍执行。失败消息文本计入累计文本工作预算。普通必需常量初始化器没有活动测试，执行测试操作会被拒绝。
 
 常量测试验证编译期执行。运行时测试可通过生成的原生代码或解释器子集执行；C++ 集成须用原生模式覆盖，解释执行不验证生成 C++ 或原生链接。

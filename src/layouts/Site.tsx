@@ -1,6 +1,9 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Link, useLocation } from '@tanstack/react-router';
+import { ThemeToggle } from '../components/ThemeToggle';
+import { DocumentSearch } from '../components/DocumentSearch';
 import { Brand } from '../components/Brand';
+import { GitHubIcon } from '../components/GitHubIcon';
 import { pathWithoutBase, localeOf, localizedPath, translate } from '../lib/i18n';
 import { repository } from '../lib/site';
 
@@ -11,7 +14,7 @@ interface Props {
 const nav = [
   { label: '设计哲学', english: 'Philosophy', path: '/philosophy/', key: 'philosophy' },
   { label: '学习 Carven', english: 'Learn Carven', path: '/learn/', key: 'learn' },
-  { label: 'Reference', english: 'Reference', path: '/reference/', key: 'reference' },
+  { label: '语言参考', english: 'Reference', path: '/reference/', key: 'reference' },
 ] as const;
 
 const footer = [
@@ -29,15 +32,15 @@ const footer = [
     english: 'Capabilities',
     links: [
       { label: '失败契约', english: 'Failure contracts', path: '/features/failure-contracts/' },
-      { label: '编译期计算', english: 'Compile-time work', path: '/features/compile-time/' },
+      { label: '编译期计算', english: 'Compile-time computation', path: '/features/compile-time/' },
       { label: '生成 C++', english: 'C++ generation', path: '/features/cpp-generation/' },
     ],
   },
   {
-    label: 'Reference',
+    label: '参考',
     english: 'Reference',
     links: [
-      { label: '语言 Reference', english: 'Language reference', path: '/reference/' },
+      { label: '语言参考', english: 'Language reference', path: '/reference/' },
       { label: '编译器命令', english: 'Compiler commands', path: '/reference/cli/' },
       { label: '诊断代码', english: 'Diagnostic codes', path: '/reference/diagnostics/' },
     ],
@@ -66,6 +69,7 @@ export default function Site({ children }: Props) {
       <header className="site-header">
         <div className="container header-inner">
           <Brand locale={locale} />
+          <DocumentSearch key={locale} locale={locale} />
           <nav className="desktop-nav" aria-label={t('主导航', 'Main navigation')}>
             {nav.map((item) => (
               <Link key={item.key} to={localizedPath(item.path, locale)}>
@@ -73,18 +77,29 @@ export default function Site({ children }: Props) {
               </Link>
             ))}
           </nav>
-          <a className="github-link" href={repository} target="_blank" rel="noopener noreferrer">
-            GitHub <span aria-hidden="true">↗</span>
-          </a>
           <div className="header-actions">
+            <a
+              className="github-link"
+              href={repository}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={t('GitHub 仓库（新标签页）', 'GitHub repository (opens in a new tab)')}
+              title={t('在 GitHub 查看源代码', 'View source on GitHub')}
+            >
+              <GitHubIcon />
+            </a>
+            <ThemeToggle locale={locale} />
             <Link
-              className="language-switch"
+              className="language-switch icon-button"
               to={localizedPath(pathname, locale === 'en' ? 'zh' : 'en')}
               hrefLang={locale === 'en' ? 'zh-CN' : 'en'}
               lang={locale === 'en' ? 'zh-CN' : 'en'}
               aria-label={t('Read this page in English', '用中文阅读本页')}
+              title={t('切换到 English', 'Switch to 中文')}
             >
-              {locale === 'en' ? '中文' : 'EN'}
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M2.7 5.5q5 .3 10.4-.3M8 2.5l.2 2.7M5.3 8.2q2 5.6 7.5 8.1M11 5.5Q9.5 13 2.5 17.7M13.2 21q2.2-6.3 4.7-12l4.1 11.8m-7-3.5 5.5-.3" />
+              </svg>
             </Link>
             <details
               className="mobile-nav"

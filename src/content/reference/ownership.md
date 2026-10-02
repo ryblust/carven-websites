@@ -21,7 +21,7 @@ source: docs/semantics.md
 
 In declarations and calls, &/&& describe access rather than construct general reference types. The & in `ptr<&T>` specifies pointer-target access.
 
-Every binding requires an initializer. `_` creates no symbol, may repeat, and produces no unused warning. A discarded runtime initializer still evaluates; its value is retained until the enclosing scope ends. Local `const _` still requires a constant. Module const must have a name.
+Every binding requires an initializer. `_` creates no symbol, may repeat, and produces no unused warning. A discarded runtime initializer still evaluates; its value is retained until the enclosing scope ends. Local `const _` still requires a constant. Module `const` must have a name.
 
 A local name enters scope after its type, initializer, and required constant checks complete. A same-named reference in its initializer selects an existing outer binding, not the new binding being declared.
 
@@ -29,13 +29,13 @@ Arguments repeat declared access exactly: `read(x)`, `write(&x)`, `take(&&x)`. W
 
 ## Read values and aliases
 
-Carven arrays, String, closures, and aggregates containing those storage forms retain storage through const references. Other types, including native types, use const values when C++ copy construction and destruction are both trivial; otherwise they use const references. Declared import(cpp)/export(cpp) functions use the same ordinary Read policy.
+Carven arrays, `String`, closures, and aggregates containing those storage forms retain storage through `const` references. Other types, including native types, use `const` values when C++ copy construction and destruction are both trivial; otherwise they use `const` references. Declared import(cpp)/export(cpp) functions use the same ordinary Read policy.
 
 By-value Read saves a value during argument evaluation. By-reference Read retains selected storage, so later aliased writes affect reads. An explicit owner copy can establish an independent immediate value, while views inside the copy still reference original backing. Take-conflict checks are not omitted based on native Read representation.
 
 ## Take and availability
 
-A Take source must be a whole owner or temporary. Runtime let/var, ordinary pattern bindings, and Take parameters are owners. Read/Write parameters, range bindings, capture state, and const cannot be Taken. Taking a field or element of a still-available owner, as in `&&message.title` or `&&items[0]`, reports `CV-ACCESS-TAKE-OPERAND`; use [owning field projection](#owning-field-projection) to move a field out.
+A Take source must be a whole owner or temporary. Runtime `let`/`var`, ordinary pattern bindings, and Take parameters are owners. Read/Write parameters, range bindings, capture state, and `const` cannot be Taken. Taking a field or element of a still-available owner, as in `&&message.title` or `&&items[0]`, reports `CV-ACCESS-TAKE-OPERAND`; use [owning field projection](#owning-field-projection) to move a field out.
 
 ```carven
 fn relay(&&value: i32) -> i32 => value;
@@ -46,9 +46,9 @@ value = relay(&&moved);
 println(value); // 7
 ```
 
-Even for copyable i32, Take makes the original binding unavailable; the assignment from `relay(&&moved)` restores `value`. An && expression preserves the value type; it does not specify a fixed number or particular kind of C++ move operations.
+Even for copyable `i32`, Take makes the original binding unavailable; the assignment from `relay(&&moved)` restores `value`. An && expression preserves the value type; it does not specify a fixed number or particular kind of C++ move operations.
 
-Only an ordinary assignment to a whole var restores availability, after its right side completes normally. Partial assignments, compound assignments, and increment/decrement need the old value. `x = relay(&&x)` restores x on normal return; if the right side fails, x remains unavailable. `x = &&x`, including parenthesized forms, is invalid.
+Only an ordinary assignment to a whole `var` restores availability, after its right side completes normally. Partial assignments, compound assignments, and increment/decrement need the old value. `x = relay(&&x)` restores x on normal return; if the right side fails, x remains unavailable. `x = &&x`, including parenthesized forms, is invalid.
 
 At a control-flow merge, a binding is available only if it is available on all normally continuing paths. Loops include zero-iteration paths and back edges.
 
@@ -71,7 +71,7 @@ Afterwards `message` is unavailable; `message.body` reports `CV-ACCESS-UNAVAILAB
 
 ## Take and C++ move are different contracts
 
-`&&owner` is not an alias for std::move. C++ [std::move](https://timsong-cpp.github.io/cppwp/n4868/forward) changes an expression's value category so later operations can select move or other valid construction; it does not make the variable name unavailable in the language. Carven Take also changes the source binding's static availability, even for i32.
+`&&owner` is not an alias for std::move. C++ [std::move](https://timsong-cpp.github.io/cppwp/n4868/forward) changes an expression's value category so later operations can select move or other valid construction; it does not make the variable name unavailable in the language. Carven Take also changes the source binding's static availability, even for `i32`.
 
 Replacing Take with std::move in a C++ snippet may preserve successful output without providing the same later-use checks. Equivalent implementations must account separately for value delivery and which subsequent operations are allowed. C++ type design, library contracts, or additional analysis can provide their own constraints.
 

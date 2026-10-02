@@ -16,16 +16,16 @@ Start with one runnable file and grow toward an order program whose failures lea
 | [Access and ownership](/learn/ownership/), [text](/learn/text/), and [formatting](/learn/formatting/)                     | Distinguish reading, updating, transferring, and borrowing              |
 | [Modules](/learn/modules/), [failures](/learn/failures/), and [callbacks](/learn/closures/)                               | Separate interfaces, combine failure contracts, and recover selectively |
 | [Tests](/learn/testing/) and [compile-time computation](/learn/constants/)                                                | Verify behavior and construct static data before runtime                |
-| [C++ integration](/learn/interop/) and [pointers](/learn/pointers/)                                                       | Connect native providers with explicit lifetime responsibilities        |
+| [C++ integration](/learn/interop/) and [pointers](/learn/pointers/)                                                       | Call C++ code and identify who keeps external storage valid             |
 | [Order project](/learn/project/)                                                                                          | Combine validation, stock updates, recovery, and tests                  |
 
 The C++ integration chapters are an extension: you can move from compile-time computation directly to the order project if you are concentrating on Carven code.
 
-You should be comfortable using a terminal and editing text files. The first chapters do not require prior C++ knowledge. Native build responsibilities are introduced when we start using native libraries.
+You should be comfortable using a terminal and editing text files. The first chapters do not require prior C++ knowledge. We introduce headers, dependencies, and build requirements when we start using native libraries.
 
 ## Prepare the compiler
 
-Carven generates C++. Building the compiler requires Git, Xmake, and a toolchain supporting the project's C++26 modules. The repository's validated host toolchain is LLVM 23. Generated programs require at least C++20; host and target requirements are separate.
+Carven generates C++. Building the compiler requires Git, Xmake, and a toolchain supporting the project's C++26 modules. The repository's validated host toolchain is LLVM 23. Generated programs use C++20. Building Carven itself and building the programs it generates have separate toolchain requirements.
 
 ```sh
 git clone https://github.com/ryblust/carven.git
@@ -96,7 +96,7 @@ check runs the same semantic analysis as the other commands, including required 
 
 Unless stated otherwise, save each complete example as main.cv, replacing the preceding example, and run `./xmakew run carven main.cv`. If a chapter contains several complete programs, run them separately rather than joining them in one file or batch. File names must be valid identifiers: `main.cv` and `order_items.cv` work, `my-file.cv` does not.
 
-Local syntax fragments need the surrounding example context. Multi-file examples name their files and full input batch. Run ordinary tests with `carven --tests main.cv`, or `carven interpret --tests main.cv` for the supported subset; a plain program run does not execute them. const test executes during semantic analysis.
+Local syntax fragments need the surrounding example context. Multi-file examples name their files and full input batch. Run ordinary tests with `carven --tests main.cv`, or `carven interpret --tests main.cv` for the supported subset; a plain program run does not execute them. `const test` executes during semantic analysis.
 
 Later command tables use `carven` as shorthand for the executable. If it is not installed, use `./xmakew run carven` in the source repository. Native compilation commands still use clang++.
 
@@ -115,4 +115,4 @@ It prints the same output. `fn main()` declares the program entry; its braces co
 
 ## Exercise
 
-Change `20 + 22` to `20 + 2`; expect `Answer: 22`. Then remove the string from println; expect only `22`. Run `check`, `compile --stdout`, and direct execution, and confirm that only execution performs this print. Try the top-level and explicit-main versions as separate files, one at a time.
+Change `20 + 22` to `20 + 2`; expect `Answer: 22`. Then remove the string from `println`; expect only `22`. Run `check`, `compile --stdout`, and direct execution, and confirm that only execution performs this print. Try the top-level and explicit-main versions as separate files, one at a time.

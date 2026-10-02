@@ -21,7 +21,7 @@ source: docs/semantics.md
 
 `&/&&` 在声明和调用中描述访问，不构造一般引用类型。`ptr<&T>` 的 `&` 是指针的目标访问参数。
 
-每个绑定需要初始化器。`_` 不创建符号，可重复且不触发未使用警告；丢弃运行时初始化器仍求值，产生的值保留到外围作用域结束。局部 `const _` 仍要求常量。模块 const 必须有名字。
+每个绑定需要初始化器。`_` 不创建符号，可重复且不触发未使用警告；丢弃运行时初始化器仍求值，产生的值保留到外围作用域结束。局部 `const _` 仍要求常量。模块 `const` 必须有名字。
 
 局部名字在类型、初始化器和必需常量检查完成后才进入作用域。初始化器中的同名引用选择外层已有绑定，不引用正在声明的新绑定。
 
@@ -29,13 +29,13 @@ source: docs/semantics.md
 
 ## Read 值与别名
 
-Carven 数组、String、闭包，以及包含这些存储的聚合通过 const 引用保持存储。其他类型与原生类型：当 C++ 复制构造和析构均 trivial 时使用 const 值，否则 const 引用。声明式 import(cpp)/export(cpp) 函数沿用相同的普通 Read 策略。
+Carven 数组、`String`、闭包，以及包含这些存储的聚合通过 `const` 引用保持存储。其他类型与原生类型：当 C++ 复制构造和析构均 trivial 时使用 `const` 值，否则 `const` 引用。声明式 import(cpp)/export(cpp) 函数沿用相同的普通 Read 策略。
 
 按值 Read 在实参求值时保存值；按引用 Read 保持所选存储，后续别名写入会影响读取。显式 owner 副本可建立独立立即值，但副本内的视图仍指向原 backing。Take 冲突检查不因原生 Read 表示不同而省略。
 
 ## Take 与可用性
 
-Take 的源必须是完整 owner 或临时值。运行时 let/var、普通模式绑定和 Take 参数是 owner。Read/Write 参数、范围绑定、捕获状态和 const 不能被 Take。对仍可用 owner 的字段或元素做 Take，例如 `&&message.title` 或 `&&items[0]`，报告 `CV-ACCESS-TAKE-OPERAND`；要移出字段，使用[拥有字段投影](#拥有字段投影)。
+Take 的源必须是完整 owner 或临时值。运行时 `let`/`var`、普通模式绑定和 Take 参数是 owner。Read/Write 参数、范围绑定、捕获状态和 `const` 不能被 Take。对仍可用 owner 的字段或元素做 Take，例如 `&&message.title` 或 `&&items[0]`，报告 `CV-ACCESS-TAKE-OPERAND`；要移出字段，使用[拥有字段投影](#拥有字段投影)。
 
 ```carven
 fn relay(&&value: i32) -> i32 => value;
@@ -46,9 +46,9 @@ value = relay(&&moved);
 println(value); // 7
 ```
 
-即使 i32 可复制，Take 之后原绑定也不可用；由 `relay(&&moved)` 赋值后，`value` 恢复可用。`&&` 表达式保留值类型，不对应固定次数或特定 C++ move 操作。
+即使 `i32` 可复制，Take 之后原绑定也不可用；由 `relay(&&moved)` 赋值后，`value` 恢复可用。`&&` 表达式保留值类型，不对应固定次数或特定 C++ move 操作。
 
-只有对完整 var 的普通赋值能恢复可用性，而且必须等右侧正常完成。部分赋值、复合赋值、自增减都需要旧值。`x = relay(&&x)` 可在右侧正常返回后恢复 x；右侧失败则仍不可用。`x = &&x` 连同括号形式非法。
+只有对完整 `var` 的普通赋值能恢复可用性，而且必须等右侧正常完成。部分赋值、复合赋值、自增减都需要旧值。`x = relay(&&x)` 可在右侧正常返回后恢复 x；右侧失败则仍不可用。`x = &&x` 连同括号形式非法。
 
 控制流合流处，只有所有正常继续路径都可用，绑定才可用。循环包括零次迭代路径和回边。
 
@@ -71,7 +71,7 @@ println(title); // Hello
 
 ## Take 与 C++ move 的区别
 
-`&&owner` 不是 std::move 的语法别名。C++ 的 [std::move](https://timsong-cpp.github.io/cppwp/n4868/forward) 改变表达式的值类别，让后续操作选择移动或其他合法构造；它不会让变量名从语言层面变得不可使用。Carven Take 还会改变源绑定的静态可用性，甚至对 i32 也如此。
+`&&owner` 不是 std::move 的语法别名。C++ 的 [std::move](https://timsong-cpp.github.io/cppwp/n4868/forward) 改变表达式的值类别，让后续操作选择移动或其他合法构造；它不会让变量名从语言层面变得不可使用。Carven Take 还会改变源绑定的静态可用性，甚至对 `i32` 也如此。
 
 因此，一个只把 Take 替换为 std::move 的 C++ 片段可能保留正常路径的输出，却没有提供相同的后续使用检查。比较等价实现时，必须分别考察值如何交付，以及转移后允许哪些操作。C++ 的类型设计、库约定或额外分析可以提供自己的约束。
 

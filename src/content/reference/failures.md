@@ -111,6 +111,6 @@ Failures from guards or handlers go to the outer target and are not caught again
 
 rethrow is valid only inside a catch handler. It forwards that handler's selected original failure identity and accepts no replacement payload. To translate a failure, use `throw NewError { ... };`. A closure does not inherit an outer catch's control context.
 
-The original payload retains its borrows independently of copied catch bindings through selection, guards, and rethrow. Local cleanup must not destroy backing still referenced by a failure payload. A handler can copy borrowed text into an independent String before returning.
+The original payload retains its borrows independently of copied catch bindings through selection, guards, and rethrow. Local cleanup must not destroy backing still referenced by a failure payload. A handler can copy borrowed text into an independent `String` before returning.
 
 C++ exceptions are not members of failure sets, and try does not catch them. An exception escaping a generated noexcept boundary terminates according to C++ rules. A native adapter must handle exceptions before that boundary when recovery is required.

@@ -1,6 +1,6 @@
 ---
 title: "在编译期构造数据"
-description: 用 const fn 组织循环和文本构造，认识冻结和执行阶段。
+description: 用 `const fn` 组织循环和文本构造，认识冻结和执行阶段。
 section: learn
 lesson: 12
 source: docs/semantics.md
@@ -23,15 +23,15 @@ const test "heading" {
 println(heading);
 ```
 
-使用 `carven main.cv` 时，编译阶段输出 `Preparing title`，随后启动的程序输出 `Build 0042`。单独运行已生成的可执行文件只输出 `Build 0042`。heading 的最终类型是 str；String 在计算时拥有内容，在常量初始化完成时冻结为静态文本。
+使用 `carven main.cv` 时，编译阶段输出 `Preparing title`，随后启动的程序输出 `Build 0042`。单独运行已生成的可执行文件只输出 `Build 0042`。heading 的最终类型是 `str`；`String` 在计算时拥有内容，在常量初始化完成时冻结为静态文本。
 
-## const fn 不意味着每次编译期运行
+## `const fn` 不意味着每次编译期运行
 
-普通运行时表达式中的 `title(42)` 仍是普通函数调用。声明 const fn 只是让它具备必需常量执行资格；只有 const 初始化、数组长度、常量块、const test 等上下文要求编译期执行，而且这些上下文只能调用显式声明为 const fn 的函数。
+普通运行时表达式中的 `title(42)` 仍是普通函数调用。声明 `const fn` 只是让它具备必需常量执行资格；只有 `const` 初始化、数组长度、常量块、`const test` 等上下文要求编译期执行，而且这些上下文只能调用显式声明为 `const fn` 的函数。
 
-const fn 内可以写局部变量、循环、支持的数组、切片和结构体以及 String 操作；普通 const 初始化器不能直接用任意控制流表达式，复杂逻辑放进 const fn。
+`const fn` 内可以写局部变量、循环、支持的数组、切片和结构体以及 `String` 操作；普通 `const` 初始化器不能直接用任意控制流表达式，复杂逻辑放进 `const fn`。
 
-编译器会在定义处检查每个 const fn 是否具备编译期执行能力，即使还没有任何调用。它能调用到的函数也必须是 const fn。保存为 admission.cv：
+编译器会在定义处检查每个 `const fn` 是否具备编译期执行能力，即使还没有任何调用。它能调用到的函数也必须是 `const fn`。保存为 admission.cv：
 
 ```carven
 fn double(value: i32) -> i32 => value * 2;
@@ -63,9 +63,9 @@ const "prepare data" {
 println("Running");
 ```
 
-`carven check prepare.cv` 在检查阶段打印 `Preparing data`，不执行程序。`carven prepare.cv` 先打印同一行，再由程序打印 `Running`。const 后面的字符串是可选标签，用于诊断，可以重复。`var label: String = {};` 使用上下文构造：类型标注为 `{}` 提供了类型。常量块没有尾分号，局部值在块结束时销毁。
+`carven check prepare.cv` 在检查阶段打印 `Preparing data`，不执行程序。`carven prepare.cv` 先打印同一行，再由程序打印 `Running`。`const` 后面的字符串是可选标签，用于诊断，可以重复。`var label: String = {};` 使用上下文构造：类型标注为 `{}` 提供了类型。常量块没有尾分号，局部值在块结束时销毁。
 
-块也可以写在函数内，但仍在语义分析时执行一次，不随函数调用重复。它能读取可见常量，不能读取外围函数参数或运行时局部值。需要顺序的编译期操作放在同一块中；不同块的执行顺序未定义。要验证结果则使用 const test，常量块本身不创建测试上下文。
+块也可以写在函数内，但仍在语义分析时执行一次，不随函数调用重复。它能读取可见常量，不能读取外围函数参数或运行时局部值。需要顺序的编译期操作放在同一块中；不同块的执行顺序未定义。要验证结果则使用 `const test`，常量块本身不创建测试上下文。
 
 ## 浮点计算
 
@@ -87,7 +87,7 @@ const test "average at compile time" {
 println(result);
 ```
 
-这个程序在编译期计算出 `3.0`，在运行时打印。f32/f64 可以与调用、循环、数组和结构体组合。计算使用编译器宿主的原生浮点环境，不另建一套浮点算术规则。浮点数也可以在编译期格式化，例如 `const label = f"{result:.2f}";` 得到保留两位小数的文本。
+这个程序在编译期计算出 `3.0`，在运行时打印。`f32`/`f64` 可以与调用、循环、数组和结构体组合。计算使用编译器宿主的原生浮点环境，不另建一套浮点算术规则。浮点数也可以在编译期格式化，例如 `const label = f"{result:.2f}";` 得到保留两位小数的文本。
 
 ## 从构造文本到保留结果
 
@@ -114,7 +114,7 @@ const test "menu" {
 println(menu);
 ```
 
-运行 `carven menu.cv`，输出 `Home / Docs / About`。items 决定输入，join 决定拼接规则，const 决定执行阶段；无需另外声明结果的字符数或存储数组。
+运行 `carven menu.cv`，输出 `Home / Docs / About`。items 决定输入，join 决定拼接规则，`const` 决定执行阶段；无需另外声明结果的字符数或存储数组。
 
 ### 用 C++20 完成同一件事
 
@@ -158,17 +158,17 @@ int main() {
 }
 ```
 
-保存为 menu.cpp，用支持 C++20 constexpr string 的工具链运行 `c++ -std=c++20 menu.cpp -o menu`，再运行 `./menu`。输出相同，static_assert 与 const test 都在编译时检查结果。
+保存为 menu.cpp，用支持 C++20 `constexpr` string 的工具链运行 `c++ -std=c++20 menu.cpp -o menu`，再运行 `./menu`。输出相同，`static_assert` 与 `const test` 都在编译时检查结果。
 
 按源码顺序看，join 负责计算；freeze 先取得结果长度，用它确定 array 的类型，再写入字符；data 保留这些字符，menu 只提供视图。C++20 允许在常量求值期间临时分配内存，但不能把这次求值中仍未释放的动态分配直接保留为结果。这里的数组负责跨过这道存储边界。 参见 [C++20 常量表达式规则](https://timsong-cpp.github.io/cppwp/n4868/expr.const)。
 
-Carven 将这一步纳入常量初始化：计算中的 String 最终冻结为 str。C++ 项目也可以把 freeze 封装进静态字符串库；这份对照把封装内部需要完成的工作展开了，不代表唯一写法。
+Carven 将这一步纳入常量初始化：计算中的 `String` 最终冻结为 `str`。C++ 项目也可以把 freeze 封装进静态字符串库；这份对照把封装内部需要完成的工作展开了，不代表唯一写法。
 
 把两边的 About 改成 Getting started，并更新断言。结果长度改变，Carven 的源码仍只需关心文本内容；C++ 的 freeze 模板会重新确定数组长度。这个例子展示的是构造与存储的分工，不是运行速度比较。
 
 ## 在编译期传递区间
 
-控制流一章中的区间也是可在编译期使用的值。sum 接收区间，const 初始化决定这次调用在编译期执行。
+控制流一章中的区间也是可在编译期使用的值。sum 接收区间，`const` 初始化决定这次调用在编译期执行。
 
 ```carven
 const fn sum(values: range<i32>) -> i32 {
@@ -189,7 +189,7 @@ const test "range total" {
 println(total);
 ```
 
-程序输出 `10`。`..` 与 `..=` 的端点规则在编译期和运行时相同；区间模式也可用于 const fn 中的整数分类。
+程序输出 `10`。`..` 与 `..=` 的端点规则在编译期和运行时相同；区间模式也可用于 `const fn` 中的整数分类。
 
 ## 静态表格
 
@@ -204,7 +204,7 @@ println(middle.len(), middle[0]);
 
 ## 筛选路由表
 
-const fn 中也可以使用切片、Write 参数和字节迭代。保存为 routes.cv，它只保留已启用、以 `/` 开头且不含空格的路径：
+`const fn` 中也可以使用切片、Write 参数和字节迭代。保存为 routes.cv，它只保留已启用、以 `/` 开头且不含空格的路径：
 
 ```carven
 struct Route {
@@ -271,9 +271,9 @@ error [CV-CONST-TEST]: check failed
 
 ## 检查失败和预算
 
-const test 始终在语义分析时执行，不需要测试产物选项。check 失败使编译失败，但继续当前测试；require/fail 停止当前测试，后续静态测试继续。普通 test 则交给运行时 runner。编译期执行中的 assert 失败报告 `CV-ASSERT`。
+`const test` 始终在语义分析时执行，不需要测试产物选项。check 失败使编译失败，但继续当前测试；require/fail 停止当前测试，后续静态测试继续。普通 test 则交给运行时 runner。编译期执行中的 assert 失败报告 `CV-ASSERT`。
 
-整数算术在编译期与运行时完全一致，按类型宽度回绕：由 const fn 计算的 `2147483647 * 2` 在两个阶段都得到 `-2`。除零和非法移位量在运行时会终止程序，在编译期执行时则是编译错误。求值预算耗尽也会产生编译错误。可用操作与结果类型见[常量执行规则](/zh/reference/constants/)。
+整数算术在编译期与运行时完全一致，按类型宽度回绕：由 `const fn` 计算的 `2147483647 * 2` 在两个阶段都得到 `-2`。除零和非法移位量在运行时会终止程序，在编译期执行时则是编译错误。求值预算耗尽也会产生编译错误。可用操作与结果类型见[常量执行规则](/zh/reference/constants/)。
 
 ## 用相同的失败契约选择编译期配置
 

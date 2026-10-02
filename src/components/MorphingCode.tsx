@@ -57,7 +57,7 @@ export function MorphingCode({ html }: { html: string }) {
     const changed = current.current !== undefined;
     current.current = html;
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
-    if (!changed || preference.matches || !Element.prototype.animate) return;
+    if (!changed || preference.matches) return;
 
     const after = read();
     const matches = matchCodeTokens(
@@ -109,11 +109,13 @@ export function MorphingCode({ html }: { html: string }) {
       overlay.remove();
       preference.removeEventListener('change', cleanup);
       window.removeEventListener('resize', cleanup);
+      window.removeEventListener('carven-theme-change', cleanup);
       host.removeEventListener('scroll', cleanup, true);
     };
     stop.current = cleanup;
     preference.addEventListener('change', cleanup);
     window.addEventListener('resize', cleanup);
+    window.addEventListener('carven-theme-change', cleanup);
     host.addEventListener('scroll', cleanup, true);
     void Promise.all(animations.map((animation) => animation.finished)).then(cleanup, () => {});
   }, [html]);

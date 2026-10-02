@@ -1,3 +1,4 @@
+import { plainInlineText } from './inline-code';
 import { absoluteHref } from './site';
 import { localizedPath } from './i18n';
 const siteTitle = 'Carven — The power of C++, in the palm of your hand.';
@@ -18,7 +19,7 @@ export function pageHead(title?: string, description = siteDescription, path?: s
         : [],
     meta: [
       { title: title ? `${title} · Carven` : siteTitle },
-      { name: 'description', content: description },
+      { name: 'description', content: plainInlineText(description) },
     ],
   };
 }

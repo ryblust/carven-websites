@@ -3,6 +3,7 @@ import { Marked } from 'marked';
 import GithubSlugger from 'github-slugger';
 import { createHighlighter } from 'shiki';
 import carven from '../../src/lib/carven-grammar.ts';
+import paper from './paper.ts';
 import vesperBlack from './vesper-black.ts';
 import { ContentError } from './model.ts';
 
@@ -30,7 +31,10 @@ export class Markdown extends Context.Service<
       const highlighter = yield* Effect.acquireRelease(
         Effect.tryPromise({
           try: () =>
-            createHighlighter({ themes: [vesperBlack], langs: [carven, 'shellscript', 'cpp'] }),
+            createHighlighter({
+              themes: [paper, vesperBlack],
+              langs: [carven, 'shellscript', 'cpp'],
+            }),
           catch: (cause) => new ContentError({ file: 'syntax', operation: 'render', cause }),
         }),
         (highlighter) => Effect.sync(() => highlighter.dispose()),
@@ -48,7 +52,8 @@ export class Markdown extends Context.Service<
               const language = lang || 'text';
               const highlighted = highlighter.codeToHtml(text, {
                 lang: language,
-                theme: vesperBlack.name,
+                themes: { light: paper.name, dark: vesperBlack.name },
+                defaultColor: false,
                 transformers: [
                   {
                     pre(node) {

@@ -10,7 +10,7 @@ source: docs/toolchain.md
 
 The Carven compiler uses C++26 with exceptions and RTTI disabled. The currently validated host toolchain is LLVM 23 (LLVM/Clang with libc++ 23.1.0). Generated programs and installed Crafts require at least C++20. The consumer project selects its standard, and runtime feature detection uses available facilities. Host requirements do not raise the target minimum.
 
-Native consumers select exception support according to provider requirements. A cpp fragment containing C++ throw/try/catch requires exceptions in its translation unit. Host and target must use the same isize/usize data model; f32/f64 require IEEE binary32/64. Native options must preserve equality and evaluation semantics.
+Native consumers select exception support according to provider requirements. A cpp fragment containing C++ throw/try/catch requires exceptions in its translation unit. Host and target must use the same `isize`/`usize` data model; `f32`/`f64` require IEEE binary32/64. Native options must preserve equality and evaluation semantics.
 
 ## Build responsibilities
 
@@ -67,6 +67,6 @@ Default test output includes the runner and main; external mode includes only th
 
 The installed layout places crafts beside bin. Generated code includes runtime leaf headers as needed: passing, numeric, array, range, slice, text, utf, string, format, writer, print, display, entry, deferred, outcome, callable, unreachable, and testing. runtime.hpp aggregates runtime leaves for direct consumers.
 
-The compiler and support headers must match. Private generated names, helper selection, and representation layout are implementation details. General interpolation requires C++20 format support. Supported builtin formatting, including mixed integer, floating, bool, char, and text fields, uses writer.hpp; structural printing uses display.hpp. Printing may use a C++23 implementation through feature detection without changing the consumer's selected standard.
+The compiler and support headers must match. Private generated names, helper selection, and representation layout are implementation details. General interpolation requires C++20 format support. Supported builtin formatting, including mixed integer, floating, `bool`, `char`, and text fields, uses writer.hpp; structural printing uses display.hpp. Printing may use a C++23 implementation through feature detection without changing the consumer's selected standard.
 
-Direct native calls to String::from_str/append require valid UTF-8; push requires a valid scalar. from_utf8 checks bytes and terminates on invalid input. These native runtime APIs have separate contracts from standard-library validation APIs that return typed failures.
+Direct native calls to `String`::from_str/append require valid UTF-8; push requires a valid scalar. from_utf8 checks bytes and terminates on invalid input. These native runtime APIs have separate contracts from standard-library validation APIs that return typed failures.

@@ -9,7 +9,7 @@ source: docs/backend.md
 
 Carven is a programming language and compiler targeting C++. Source describes modules, types, access, ownership, and failure. The compiler checks those relationships and organizes the resulting semantics into a C++20 program.
 
-**Source declares modules, access, and failure contracts; the compiler uses them to generate C++ interfaces and implementations.** The native compiler continues to handle C++ type requirements, object layout, optimization, and machine-code generation.
+The generated C++ contains the corresponding interfaces and implementations. The C++ compiler then checks native type requirements, determines object layout, optimizes the program, and generates machine code.
 
 ## One source for interface and implementation
 
@@ -46,7 +46,7 @@ export(cpp) fn answer() -> i32 => helper();
 private fn helper() -> i32 => 42;
 ```
 
-The compiler establishes declaration identities before arranging definition dependencies. helper can appear after its use; the public entry and private implementation go into the appropriate artifacts. The C++ above illustrates handwritten organization. Saved as `answer.cv`, the Carven version generates this public API header (excerpt of `carven compile --stdout answer.cv`):
+The compiler identifies declarations before ordering their definitions by dependency. This lets `helper` appear after the function that calls it; the public entry and private implementation go into the appropriate generated files. The C++ above illustrates handwritten organization. Saved as `answer.cv`, the Carven version generates this public API header (excerpt of `carven compile --stdout answer.cv`):
 
 ```cpp
 // carven/api/answer.hpp
@@ -75,9 +75,9 @@ Handwritten C++ requires temporaries, branches, and scopes to be arranged around
 
 For example, an earlier aggregate component may already be constructed when a later component fails. The compiler must preserve the earlier value and end its lifetime on the failure path. When a successful result has a known destination, generation arranges direct construction without introducing an unnecessary default-construction requirement.
 
-Generated local storage follows the accesses retained in the native program. Field and array projections carry their consumer's access back to the owner: reading a projection can keep const access, while writes and ownership transfers can require mutable storage. Source access rules remain enforced independently of the chosen C++ storage.
+Generated local storage follows the accesses retained in the native program. Field and array projections carry their consumer's access back to the owner: reading a projection can keep `const` access, while writes and ownership transfers can require mutable storage. Source access rules remain enforced independently of the chosen C++ storage.
 
-Classes follow the same approach. A Carven `class` is an encapsulated value with no hidden heap allocation, inheritance, or virtual dispatch. Generated C++ represents it as a struct holding its fields, and its operations as ordinary functions: a `&self` receiver becomes a mutable reference parameter, and `self` becomes a const value parameter.
+Classes follow the same approach. A Carven `class` is an encapsulated value with no hidden heap allocation, inheritance, or virtual dispatch. Generated C++ represents it as a struct holding its fields, and its operations as ordinary functions: a `&self` receiver becomes a mutable reference parameter, and `self` becomes a `const` value parameter.
 
 C++ can still reject an immovable native component that must first be saved and then transferred into an aggregate. Direct construction in the final destination has different requirements from intermediate storage across a failure boundary.
 

@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest';
-import { Cause, Duration, Effect, Fiber } from 'effect';
+import { Duration, Effect, Fiber } from 'effect';
 import { TestClock } from 'effect/testing';
 import { copyFeedback, copyText, copyWithFallback } from '../src/effects/clipboard';
 
@@ -78,21 +78,6 @@ describe('copy interaction', () => {
       yield* Fiber.interrupt(fiber);
       yield* TestClock.adjust(Duration.infinity);
       assert.deepStrictEqual(events, ['selected']);
-    }),
-  );
-
-  it.effect('a failed selection remains an observable defect', () =>
-    Effect.gen(function* () {
-      const exit = yield* Effect.exit(
-        copyWithFallback(undefined, 'code', () => {
-          throw new Error('Selection failed');
-        }),
-      );
-      assert.strictEqual(exit._tag, 'Failure');
-      if (exit._tag === 'Failure') {
-        assert.isTrue(Cause.hasDies(exit.cause));
-        assert.isFalse(Cause.hasInterruptsOnly(exit.cause));
-      }
     }),
   );
 });

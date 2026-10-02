@@ -41,9 +41,9 @@ endpoints becomes the following text during compilation, with a newline after ea
 /users
 ```
 
-While the function executes, String can grow, be copied, and be transferred. At the end of constant initialization, the result freezes into str backed by static storage. The running program does not need to repeat this construction loop.
+While the function executes, `String` can grow, be copied, and be transferred. At the end of constant initialization, the result freezes into `str` backed by static storage. The running program does not need to repeat this construction loop.
 
-**Construction can be mutable while the delivered data is static.** Fixed arrays and supported structures can also be built incrementally. Array results can become read-only slices with static backing at the constant-initialization boundary.
+Fixed arrays and supported structures can also be built incrementally. When constant initialization completes, an array result can become a read-only slice whose elements are held in static storage.
 
 Save the code above as `routes.cv` and append a top-level statement that prints the list:
 
@@ -51,11 +51,11 @@ Save the code above as `routes.cv` and append a top-level statement that prints 
 println(endpoints);
 ```
 
-Run `carven routes.cv` to see the list. The program reads the generated static text without traversing the configuration or joining strings again. Printing is the consumer here; an application can also pass this str to an interface that accepts text.
+Run `carven routes.cv` to see the list. The program reads the generated static text without traversing the configuration or joining strings again. You can also pass this `str` to any interface that accepts it as text.
 
 ## Connect the construction process to a static result
 
-C++ constexpr, consteval, and templates also express compile-time work. The handwritten C++20 comparison below is not compiler output. It keeps the same inputs and loop, then retains the text in an array behind a `string_view`:
+C++ `constexpr`, `consteval`, and templates also express compile-time work. The handwritten C++20 comparison below is not compiler output. It keeps the same inputs and loop, then retains the text in an array behind a `string_view`:
 
 ```cpp
 #include <array>
@@ -98,7 +98,7 @@ static_assert(endpoints == "/health\n/users\n");
 
 The extra template exists because of one C++20 rule: a `std::string` may allocate during constant evaluation, but that allocation must be released before the evaluation ends. A `constexpr std::string` variable therefore cannot hold the result into runtime. `freeze` runs the construction once in `build().size()` to learn the length for the array type, then runs it again to copy the characters into that sized array. A static-string library can encapsulate these steps, and C++26 facilities may ease them.
 
-Carven evaluates supported source operations itself and freezes the working String into str when initialization completes. This happens before C++ generation, so the corresponding runtime text functions do not need to perform the same computation in C++ constant evaluation.
+Carven evaluates supported source operations itself and freezes the working `String` into `str` when initialization completes. This happens before C++ generation, so the corresponding runtime text functions do not need to perform the same computation in C++ constant evaluation.
 
 The [tutorial](/learn/constants/) teaches construction and freezing step by step, with a complete C++20 comparison.
 
@@ -139,12 +139,12 @@ For this integer format, Carven analyzes fixed segments and conversion requireme
 
 ## Combine values, control flow, and failure contracts
 
-Required constant execution supports integers, f32/f64, booleans, characters, text and its byte views, C strings, supported fixed arrays, slices, structures, and enums. A `const fn` can use the corresponding control flow, Read and Write parameters, pointers to live locals, and calls to `const fn`, including through local bindings of a named `const fn`. Native operations, text character iteration, classes, and callable values without a Carven body remain outside this subset. Execution steps, recursion depth, text work, and aggregate work are bounded.
+Required constant execution supports integers, `f32`/`f64`, booleans, characters, text and its byte views, C strings, supported fixed arrays, slices, structures, and enums. A `const fn` can use the corresponding control flow, Read and Write parameters, pointers to live locals, and calls to `const fn`, including through local bindings of a named `const fn`. Native operations, text character iteration, classes, and callable values without a Carven body remain outside this subset. Execution steps, recursion depth, text work, and aggregate work are bounded.
 
 Arithmetic means the same thing at both stages: integer operations wrap exactly as they do at runtime. Division by zero and invalid shifts produce diagnostics when they execute during compilation.
 
-const fn also executes typed failure creation, propagation, matching, recovery, and rethrow. The same validation logic can serve compile-time configuration and runtime input; see the [failure contract example](/learn/constants/#select-compile-time-configuration-with-the-same-failure-contracts). Floating arithmetic follows the compiler host's native environment; floating printing and formatting reuse native standard-library rules. See [constant execution rules](/reference/constants/) for accepted operations, result types, and resource limits.
+`const fn` also executes typed failure creation, propagation, matching, recovery, and rethrow. The same validation logic can serve compile-time configuration and runtime input; see the [failure contract example](/learn/constants/#select-compile-time-configuration-with-the-same-failure-contracts). Floating arithmetic follows the compiler host's native environment; floating printing and formatting reuse native standard-library rules. See [constant execution rules](/reference/constants/) for accepted operations, result types, and resource limits.
 
 ## Compile-time work without a retained result
 
-`const { ... }` executes supported statements during semantic analysis, for example preparing text and printing information, without emitting runtime code. An optional label, as in `const "prepare table" { ... }`, identifies the block in diagnostics. Use a const binding to retain a value and const test to assert a result. All three participate in `carven check` before any C++ generation. Control flow and local values in a constant block still follow the same type, access, and execution-budget rules.
+`const { ... }` executes supported statements during semantic analysis, for example preparing text and printing information, without emitting runtime code. An optional label, as in `const "prepare table" { ... }`, identifies the block in diagnostics. Use a `const` binding to retain a value and `const test` to assert a result. All three participate in `carven check` before any C++ generation. Control flow and local values in a constant block still follow the same type, access, and execution-budget rules.

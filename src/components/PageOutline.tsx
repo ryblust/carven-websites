@@ -51,11 +51,20 @@ export function PageOutline({
           {headings.map((heading) => (
             <a
               key={heading.id}
-              className={heading.level === 3 ? 'outline-nested' : undefined}
               href={`#${heading.id}`}
               aria-current={active === heading.id ? 'location' : undefined}
             >
-              {heading.title}
+              <span className="outline-title">
+                {heading.title}
+                <svg
+                  className="outline-underline"
+                  viewBox="0 0 100 9"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                >
+                  <path d="M2 6 C18 2.5 30 8 48 5.2 S77 2.8 98 4.2" />
+                </svg>
+              </span>
             </a>
           ))}
         </nav>

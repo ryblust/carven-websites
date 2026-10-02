@@ -36,7 +36,7 @@ fn number(flag: bool) -> i64 {
 }
 ```
 
-The explicit i64 supplies context to both literals here. Specify a result type when C++ must judge external result compatibility. Distinct Carven identities of native expressions do not merge automatically.
+The explicit `i64` supplies context to both literals here. Specify a result type when C++ must judge external result compatibility. Distinct Carven identities of native expressions do not merge automatically.
 
 An expression body is equivalent to returning that expression, with the same evaluation, access, lifetime, and failure-consumption rules. Its result is inferred from the expression when omitted; the expression may be a value `if`, `match`, or `try`, or a [contextual construction](/reference/aggregates/#contextual-construction) when the result type is written. A void expression can be an expression body or appear as `return action();`. A fallible expression requires explicit ?, as in `return action()?;`.
 

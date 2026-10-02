@@ -14,7 +14,7 @@ println();
 eprintln("status", "ready");
 ```
 
-println separates adjacent arguments with spaces and adds a newline; eprintln writes to stderr. print/eprint do not add a newline. Text is not a format string: `println("{count}", 3)` prints the braces literally.
+`println` separates adjacent arguments with spaces and adds a newline; eprintln writes to stderr. print/eprint do not add a newline. Text is not a format string: `println("{count}", 3)` prints the braces literally.
 
 ## Control formatting with interpolation
 
@@ -25,9 +25,9 @@ let message = f"Order {id:04}: {amount:.2f}";
 println(message);
 ```
 
-The output is `Order 0042: 12.50`. Interpolation produces an independent String, and numeric holes can contain ordinary calculations. `:04` specifies width and zero padding; `:.2f` formats a floating value with two decimal places. Write literal braces as `{{` and `}}`.
+The output is `Order 0042: 12.50`. Interpolation produces an independent `String`, and numeric holes can contain ordinary calculations. `:04` specifies width and zero padding; `:.2f` formats a floating value with two decimal places. Write literal braces as `{{` and `}}`.
 
-## Append to an existing String
+## Append to an existing `String`
 
 ```carven
 var report: String = {};
@@ -39,14 +39,14 @@ for index in 0..3 {
 println(report);
 ```
 
-The output is `[0][1][2]`. `{}` constructs an empty String from the annotated type. append_format takes an f literal directly and can avoid an intermediate source-level String. Passing an existing String variable does not satisfy this method's syntax; use append for ordinary text.
+The output is `[0][1][2]`. `{}` constructs an empty `String` from the annotated type. append_format takes an f literal directly and can avoid an intermediate source-level `String`. Passing an existing `String` variable does not satisfy this method's syntax; use append for ordinary text.
 
 ## Evaluation order affects observations
 
-Holes are evaluated once each, left to right, before formatting. Scalar values are saved at their hole positions. A String Read retains its owner, so formatting reads its contents after every hole has been evaluated. Avoid hiding mutations of one object across several holes: use statements to make copies and mutation order explicit.
+Holes are evaluated once each, left to right, before formatting. Scalar values are saved at their hole positions. A `String` Read retains its owner, so formatting reads its contents after every hole has been evaluated. Avoid hiding mutations of one object across several holes: use statements to make copies and mutation order explicit.
 
-append_format inputs cannot borrow the append target itself. A length query returns an independent usize, so `report.append_format(f"{report.len()}")` is valid. `report.append_format(f"{report}")` conflicts with the target borrow.
+append_format inputs cannot borrow the append target itself. A length query returns an independent `usize`, so `report.append_format(f"{report.len()}")` is valid. `report.append_format(f"{report}")` conflicts with the target borrow.
 
 ## Exercise
 
-Format each report integer as two hexadecimal digits, such as `[00][01][02]`. Print text containing NUL with println. A terminal may not display the NUL, but it remains part of the text and its length.
+Format each report integer as two hexadecimal digits, such as `[00][01][02]`. Print text containing NUL with `println`. A terminal may not display the NUL, but it remains part of the text and its length.

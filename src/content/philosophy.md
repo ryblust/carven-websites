@@ -9,19 +9,19 @@ source: docs/principles.md
 
 C++ provides objects, templates, containers, algorithms, and a mature toolchain. Carven builds on those capabilities with a common set of source rules for access, ownership, evaluation, and failure. The compiler then arranges the corresponding native implementation.
 
-**Higher-level expression still has concrete runtime behavior.** A language construct needs to define which programs it permits, which guarantees it provides, and which storage, calls, and cleanup it requires.
+Each language construct must define which programs are valid, what the compiler guarantees, and what storage, calls, and cleanup the running program needs.
 
 ## Describe the computation. Let the compiler arrange storage.
 
 Building a list of enabled routes at compile time needs inputs, a loop, an order, and a choice of when to compute it. Those decisions belong in source. The resulting byte count and its static storage can be determined from the result.
 
-The [compile-time feature page](/features/compile-time/) puts both implementations side by side. In C++20, a `constexpr std::string` allocation cannot survive into runtime, so the handwritten version runs the construction once to learn the size and again to copy the text into a sized array. Carven uses the same loop and freezes String into str when const initialization completes.
+The [compile-time feature page](/features/compile-time/) puts both implementations side by side. In C++20, a `constexpr std::string` allocation cannot survive into runtime, so the handwritten version runs the construction once to learn the size and again to copy the text into a sized array. Carven uses the same loop and freezes `String` into `str` when `const` initialization completes.
 
-Changing the input can change the result length without changing the algorithm. Carven includes the storage step in its language rules, so each result needs no separately arranged storage code. A C++ library can encapsulate this work too; Carven makes it available directly for supported constant construction.
+Changing the input can change the result length without changing the algorithm. Carven’s language rules define how the result is stored, so programmers do not need to write storage code for each result. A C++ library can encapsulate this work too; Carven makes it available directly for supported constant construction.
 
 ## Keep meaningful decisions in the source
 
-Reading, modifying, and transferring ownership express different intentions. Carven names them Read, Write, and Take, checking the corresponding permissions at declarations and uses. Inference supplies information the compiler can determine; explicit operations express choices about access, captures, and propagation.
+Reading, modifying, and transferring ownership express different intentions. Carven names them Read, Write, and Take, checking the corresponding permissions at declarations and uses. The compiler infers what it can determine. Source forms make choices about access, captures, and failure propagation explicit.
 
 In C++, the permitted uses of an object after a move depend on the type and operation contracts. Carven's Take also changes the source owner's static availability: the compiler checks subsequent uses and restoration. The same rule participates in calls, closures, and control-flow joins.
 
@@ -33,11 +33,11 @@ Known borrowing relationships constrain the lifetime of backing storage. Provide
 
 As functions and callbacks form a business workflow, failures retain their types and payloads. Private implementations infer the combined set, shared interfaces declare its upper bound, and recovery removes failures it handles completely.
 
-Modules can retain their own failure types while callers handle the remaining failures declared by the interface. Evaluation order, local cleanup, and the original failure identity are preserved together. The application defines its recovery policy.
+Modules can retain their own failure types while callers handle the remaining failures declared by the interface. Combining these operations preserves their evaluation order, local cleanup, and original failure types. The application decides how to recover.
 
 The [failure-contract tutorial](/learn/failures/) shows the same division of responsibility. Choosing a default for a missing price is a programmer's decision; determining which failures remain is something the compiler can derive and check. C++23 expected and variant can express the same results, with code or libraries arranging error-set composition, conversions, and branches.
 
-The rules also apply after edits. Removing a recovery branch may invalidate the existing public contract; Carven rejects that implementation. The example demonstrates checks that continue to apply as the program changes, beyond its initial output.
+The rules also apply after edits. Removing a recovery branch may invalidate the existing public contract; Carven rejects that implementation. The compiler keeps checking that the implementation satisfies the interface as the code changes.
 
 ## Use known facts to reduce work
 
@@ -65,4 +65,4 @@ Generated C++ is directly inspectable, and native tools can measure its performa
 
 Source modules and visibility determine interface organization. Semantic access and failure contracts determine calls and storage. Known values and structure determine which work can be prepared. Later compilation stages reuse these checks, reducing the information programmers must declare again.
 
-**Carven aims to turn higher-level expression into native programs whose implementation can be examined.** C++ libraries and tools provide the foundation; the language and compiler organize it into a consistent, checkable programming experience.
+Carven aims to let you state what a program should do, check those commitments, and generate C++ you can read, debug, and profile. Your existing libraries and tools remain part of that workflow.

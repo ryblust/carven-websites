@@ -115,10 +115,10 @@ The following preserves registered codes, default severities, and English defaul
 | `CV-EFFECT-CATCH-ALTERNATIVE-UNREACHABLE` | Warning          | Unreachable catch alternative.                                              |
 | `CV-EFFECT-RETHROW-CONTEXT`               | Error            | Rethrow outside a catch handler.                                            |
 | `CV-TEST-ARGUMENT-COUNT`                  | Error            | Invalid inline-test operation arguments.                                    |
-| `CV-TEST-CONDITION-TYPE`                  | Error            | Inline-test condition must have type bool.                                  |
+| `CV-TEST-CONDITION-TYPE`                  | Error            | Inline-test condition must have type `bool`.                                |
 | `CV-TEST-DUPLICATE-NAME`                  | Error            | Duplicate test name.                                                        |
 | `CV-TEST-MAIN-NAME`                       | Error            | Reserved test-main name.                                                    |
-| `CV-TEST-MESSAGE-TYPE`                    | Error            | Inline-test message must have type str.                                     |
+| `CV-TEST-MESSAGE-TYPE`                    | Error            | Inline-test message must have type `str`.                                   |
 | `CV-TYPE-ARRAY-ELEMENT`                   | Error            | Incompatible array element type.                                            |
 | `CV-TYPE-ASSIGNMENT-INTEGER`              | Error            | Integer assignment required.                                                |
 | `CV-TYPE-ASSIGNMENT-NUMERIC`              | Error            | Numeric assignment required.                                                |

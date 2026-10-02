@@ -61,6 +61,12 @@ export function MobileChapters({
         id={dialogId}
         className="chapter-drawer"
         aria-label={`${label} · ${title}`}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            dialog.current?.close();
+          }
+        }}
         onClose={() => setOpen(false)}
         onClick={(event) => {
           if (event.target === event.currentTarget) dialog.current?.close();

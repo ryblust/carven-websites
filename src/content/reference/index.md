@@ -10,7 +10,7 @@ source: docs/semantics.md
 
 This manual describes current Carven source-language rules. Each chapter defines terms and supported forms, then covers evaluation, access, failures, lifetimes, and diagnostic boundaries. “Compile error” means Carven should reject the program. “Termination” means runtime execution ends without producing a catchable typed failure.
 
-The tutorial teaches programming in learning order. The Reference establishes whether a particular program is valid and what happens when it executes. Read fragments in their stated function, variable, or type context. Complete programs specify input files and execution commands.
+The tutorial walks you through writing programs. Use this reference to check whether a construct is valid and what it does when executed. Read code fragments alongside the function, variable, or type definitions given in the text. Complete programs include file names and run commands.
 
 ## Basic model
 

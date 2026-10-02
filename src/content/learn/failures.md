@@ -47,7 +47,7 @@ Applying ? to an expression that cannot fail is a compile error. When a private 
 
 The preceding module chapter introduced private helpers and published interfaces. A private non-entry function may omit its throw clause: the compiler infers the failures its body can propagate. Top-level statements, which form the implicit entry, infer their outward failures the same way. Closures, introduced next, can also infer their failures.
 
-Replace the try expression and final println in quantity.cv with two direct calls:
+Replace the try expression and final `println` in quantity.cv with two direct calls:
 
 ```carven
 println("Total:", line_total(12, 3)?);

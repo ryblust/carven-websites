@@ -9,3 +9,6 @@ src/.content-*/
 .DS_Store
 *.log
 .vscode/
+
+# Local compiler-to-website synchronization notes
+/docs/content-sync.md

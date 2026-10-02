@@ -71,7 +71,7 @@ println(total({ price: 5, quantity: 2 }));
 
 先输出 `0 36`，再输出 `10`。sample 的结果类型、empty 的注解和 total 的参数都提供了 Item。赋值目标、结构体字段和已知类型的数组元素同样适用。这种花括号与写出类型名的形式规则相同：`{}` 默认初始化，命名字段必须写全。
 
-没有期望类型时，`let item = { price: 12, quantity: 3 };` 以 `CV-TYPE-CONSTRUCT-CONTEXT` 被拒绝；Carven 不会按字段名去找匹配的结构体。位置形式仍要写出类型。match 分支开头的 `{}` 是空块，空构造要写成 `({})`。哪些位置提供类型，见[聚合类型 Reference](/zh/reference/aggregates/)。
+没有期望类型时，`let item = { price: 12, quantity: 3 };` 以 `CV-TYPE-CONSTRUCT-CONTEXT` 被拒绝；Carven 不会按字段名去找匹配的结构体。位置形式仍要写出类型。match 分支开头的 `{}` 是空块，空构造要写成 `({})`。哪些位置提供类型，见[聚合类型参考](/zh/reference/aggregates/)。
 
 ## 数组与迭代
 

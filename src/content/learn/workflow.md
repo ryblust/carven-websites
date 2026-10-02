@@ -71,7 +71,7 @@ Graver is a separate formatter for `.cv` source. Build it from the Carven reposi
 
 The first run prints formatted source to stdout without changing the file. `check` lists paths needing changes and returns 1 when differences exist, making it suitable for CI. `write` updates changed files in place. On Windows, use `.\xmakew.ps1`. When calling the built executable directly, replace `./xmakew run graver` with `graver`.
 
-Graver uses a fixed style with four-space indentation and a target width of 100 bytes. It checks lexical and syntactic validity without resolving imports, checking types, or executing const fn or const test. Continue to build and test after formatting. See the [command-line Reference](/reference/cli/#graver) for commands and file selection.
+Graver uses a fixed style with four-space indentation and a target width of 100 bytes. It checks lexical and syntactic validity without resolving imports, checking types, or executing `const fn` or `const test`. Continue to build and test after formatting. See the [command-line Reference](/reference/cli/#graver) for commands and file selection.
 
 ## Read the formatted source
 
@@ -90,7 +90,7 @@ Adjacent top-level single-line declarations of the same category can stay togeth
 
 ## Put tests at the appropriate layer
 
-Use const test for compile-time algorithms and test for runtime behavior; both may omit the name, and failures then identify the test by file, line, and column. Exercise native interop in a C++ build so the tests also cover linking, destruction, and exception boundaries.
+Use `const test` for compile-time algorithms and test for runtime behavior; both may omit the name, and failures then identify the test by file, line, and column. Exercise native interop in a C++ build so the tests also cover linking, destruction, and exception boundaries.
 
 The Carven repository uses ./xmakew with groups including internal, language, crafts, interop, cli, and examples. Consumer projects use their own Xmake targets, not compiler-internal test targets as application APIs.
 
@@ -99,7 +99,7 @@ The Carven repository uses ./xmakew with groups including internal, language, cr
 1. Missing name: check the input batch, canonical module path, using, and visibility.
 2. Type mismatch: check literal context, explicit as, exact parameter access, and success results.
 3. Unavailable owner: find the earlier Take and check restoration on every normally continuing path.
-4. Borrow conflict: find live str, slices, views, and holders of Write captures.
+4. Borrow conflict: find live `str`, slices, views, and holders of Write captures.
 5. Unhandled failure: inspect the call contract, ?, handler residual set, and outer contract.
 6. Native error: check headers, C++ signatures, construction, and link inputs.
 

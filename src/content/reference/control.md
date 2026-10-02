@@ -8,9 +8,9 @@ source: docs/semantics.md
 
 ## Operator domains
 
-! requires bool; numeric negation requires a number; ~ requires an integer. Arithmetic and ordering require the same numeric type. Remainder, bitwise operations, and shifts require integers. Logical &&/|| require bool and short-circuit left to right. External C++ operands follow native operation rules.
+! requires `bool`; numeric negation requires a number; ~ requires an integer. Arithmetic and ordering require the same numeric type. Remainder, bitwise operations, and shifts require integers. Logical &&/|| require `bool` and short-circuit left to right. External C++ operands follow native operation rules.
 
-Equality supports bool, char, integers, floating point, str, String, memberwise comparable arrays/structs/enums, and pointers with the same target type. Classes have no implicit equality; a class, or a struct, array, or enum containing one, reports `CV-TYPE-EQUALITY-UNSUPPORTED`. Callables, entry arguments, slices, integer ranges, and chars ranges do not support equality. Floating equality follows IEEE and != is its negation. `0.0` and `-0.0` are the same literal pattern.
+Equality supports `bool`, `char`, integers, floating point, `str`, `String`, memberwise comparable arrays/structs/enums, and pointers with the same target type. Classes have no implicit equality; a class, or a struct, array, or enum containing one, reports `CV-TYPE-EQUALITY-UNSUPPORTED`. Callables, entry arguments, slices, integer ranges, and chars ranges do not support equality. Floating equality follows IEEE and != is its negation. `0.0` and `-0.0` are the same literal pattern.
 
 ## Order and inactive code
 
@@ -35,7 +35,7 @@ This prints 1 through 4. An expected `range<T>` supplies T to both bounds. Witho
 
 ## if and loops
 
-if conditions, while conditions, and guards require bool. A value-producing if needs else and compatible normally completing branch results. Value branches of if, match, and try receive the surrounding expected type, so a branch result may be a [contextual construction](/reference/aggregates/#contextual-construction); in match and catch arms, write `({})` for an empty one. Statement forms produce no value.
+if conditions, while conditions, and guards require `bool`. A value-producing if needs else and compatible normally completing branch results. Value branches of if, match, and try receive the surrounding expected type, so a branch result may be a [contextual construction](/reference/aggregates/#contextual-construction); in match and catch arms, write `({})` for an empty one. Statement forms produce no value.
 
 ```carven
 let amount = if true { 10 } else { 20 };
@@ -95,4 +95,4 @@ Here low and high are runtime bounds, so `_` supplies the remaining coverage. On
 
 Bounds execute left to right, once each, only when their pattern is attempted and before containment is tested. A rejected enum case, an earlier rejected payload, or a successful earlier or-pattern alternative skips later bounds. A bound failure propagates out of matching; it does not simply reject the arm. Bounds cannot obtain Write/Take access to the subject or refer to bindings introduced by the same pattern. Recursive range patterns also work in catch payloads.
 
-For example, `..0`, `0..=100`, and `101..` cover all i32 values without a wildcard. Removing the last interval makes that match incomplete; guards do not fill the gap.
+For example, `..0`, `0..=100`, and `101..` cover all `i32` values without a wildcard. Removing the last interval makes that match incomplete; guards do not fill the gap.

@@ -222,4 +222,4 @@ The first report shows the entire receipt on each side: quote now sees the reduc
 
 Add DeliveryError and a delivery-fee function, combining the fee with quote's success price. Decide whether delivery failure should occur before or after stock reduction, then order calls accordingly. Add a test proving that choice. If failure occurs after reduction, the business code needs compensation; widening the throw contract does not restore stock.
 
-Amount multiplication still follows i32 wrapping rules. A real order system also needs amount limits and a separately designed amount-overflow failure.
+Amount multiplication still follows `i32` wrapping rules. A real order system also needs amount limits and a separately designed amount-overflow failure.

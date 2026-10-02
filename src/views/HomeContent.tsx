@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { MorphingCode } from '../components/MorphingCode';
 import { Link } from '@tanstack/react-router';
 import { localizedPath, translate, type Locale } from '../lib/i18n';
-import { href, repository } from '../lib/site';
+import { Wordmark } from '../components/Brand';
+import { Sketch } from '../components/Sketch';
+import { repository } from '../lib/site';
 import { homeExamples } from '../generated/home-examples';
 import '../styles/home.css';
 
@@ -12,7 +14,7 @@ export default function HomeContent({ locale }: { locale: Locale }) {
   const [language, setLanguage] = useState<'carven' | 'cpp'>('carven');
   const examples = [
     {
-      label: t('打印任意值', 'Print any value'),
+      label: t('结构化打印', 'Print structured values'),
       title: t(
         '编译器知道字段名，你不用再写一遍。',
         'The compiler knows the fields. So does println.',
@@ -33,7 +35,7 @@ export default function HomeContent({ locale }: { locale: Locale }) {
     },
     {
       label: t('编译期生成', 'Build at compile time'),
-      title: t('构造时可以修改，运行时只剩结果。', 'Mutable while building. Static when shipped.'),
+      title: t('编译时构造，运行时直接使用。', 'Build at compile time. Use the result at runtime.'),
       detail: t(
         '从配置生成启用的接口清单，照常写循环、判断和文本追加。Carven 在编译期完成构造，将结果保存为静态文本，const test 在编译时就检查它。',
         'Build a list of enabled endpoints from configuration with ordinary loops, conditions, and text operations. Carven runs the construction at compile time, keeps the result as static text, and checks it with a const test during compilation.',
@@ -75,8 +77,8 @@ export default function HomeContent({ locale }: { locale: Locale }) {
       label: t('调用 C++', 'Use C++ libraries'),
       title: t('现成的 C++ 库，直接用。', 'Use the C++ library you already have.'),
       detail: t(
-        '导入 nlohmann/json，解析配置，调用对象方法。这个调用无需另写绑定，现成的 C++ 库继续为你工作。',
-        'Import nlohmann/json, parse the config, and call its object methods. No binding is needed for this call; the C++ library you already use keeps doing the work.',
+        '导入 nlohmann/json，解析配置，再调用返回对象的方法。这个示例直接使用库提供的接口，无需另写绑定。',
+        'Import nlohmann/json, parse the config, and call methods on the returned object. This example uses the library’s own API without a separate binding.',
       ),
       html: homeExamples.native,
       cpp: homeExamples.nativeCpp,
@@ -122,17 +124,14 @@ export default function HomeContent({ locale }: { locale: Locale }) {
   return (
     <div className="home-page">
       <section className="home-intro" aria-labelledby="home-heading">
-        <img
-          className="home-art"
-          src={href('brand/carven-light-hero.webp')}
-          width={1672}
-          height={941}
-          alt=""
-          fetchPriority="high"
-          decoding="async"
-        />
         <div className="home-hero-copy">
-          <h1 id="home-heading">Carven</h1>
+          <p className="eyebrow">
+            {t('原生的力量 · 清晰的表达', 'Native power · Clear expression')}
+          </p>
+          <h1 id="home-heading">
+            <span className="sr-only">Carven</span>
+            <Wordmark priority />
+          </h1>
           <p className="home-tagline">
             The power of C++,
             <br />
@@ -140,8 +139,8 @@ export default function HomeContent({ locale }: { locale: Locale }) {
           </p>
           <p className="home-lead">
             {t(
-              '一门编译为 C++ 的语言，沿用你的原生库与工具链。',
-              'A language that compiles to C++, with your native libraries and toolchain.',
+              '一门编译为 C++ 的语言，让你继续使用熟悉的库和工具链。',
+              'A language that compiles to C++ and works with your existing libraries and toolchain.',
             )}
           </p>
           <div className="home-actions">
@@ -149,10 +148,11 @@ export default function HomeContent({ locale }: { locale: Locale }) {
               {t('开始学习', 'Start learning')} <span aria-hidden="true">→</span>
             </Link>
             <Link className="button button-secondary" to={localizedPath('/reference/', locale)}>
-              Reference
+              {t('语言参考', 'Reference')}
             </Link>
           </div>
         </div>
+        <Sketch />
       </section>
 
       <section id="why-carven" className="home-section showcase" aria-labelledby="showcase-heading">
@@ -164,8 +164,8 @@ export default function HomeContent({ locale }: { locale: Locale }) {
           </h2>
           <p>
             {t(
-              '编译器已经知道的字段、常量和失败类型，不需要再靠技巧取回。切换代码，对比同一任务的两种写法。',
-              'What the compiler already knows about fields, constants, and failures stays available without workarounds. Switch code to compare two ways to express the same task.',
+              '直接打印结构体、在编译期构造文本、处理不同类型的失败，或调用现有 C++ 库。选择一个示例，切换 Carven 与 C++，看看同一任务怎样实现。',
+              'Print a struct, build text at compile time, handle typed failures, or call an existing C++ library. Choose an example, then switch between Carven and C++ to compare implementations.',
             )}
           </p>
         </header>
@@ -193,7 +193,7 @@ export default function HomeContent({ locale }: { locale: Locale }) {
             <h3>{example.title}</h3>
             <p>{example.detail}</p>
             <Link className="text-link" to={localizedPath(example.path, locale)}>
-              {t('探索这项能力', 'Explore this feature')} <span aria-hidden="true">→</span>
+              {t('查看示例讲解', 'Walk through the example')} <span aria-hidden="true">→</span>
             </Link>
           </div>
           <div className="code-window showcase-code">
@@ -230,7 +230,7 @@ export default function HomeContent({ locale }: { locale: Locale }) {
               <p>{example.result}</p>
             </div>
             <details className="showcase-details" key={selected}>
-              <summary>{t('对照条件与边界', 'Comparison scope and limits')}</summary>
+              <summary>{t('示例说明与限制', 'Example details and limits')}</summary>
               <p>{example.comparison}</p>
             </details>
           </div>
@@ -241,12 +241,12 @@ export default function HomeContent({ locale }: { locale: Locale }) {
         <header className="section-head">
           <p className="eyebrow">{t('继续使用你的 C++ 工具链', 'Native integration')}</p>
           <h2 id="native-heading">
-            {t('更高阶的表达，扎根原生能力。', 'Higher-level expression. Native foundations.')}
+            {t('写 Carven，用 C++ 工具链构建。', 'Write Carven. Build with your C++ tools.')}
           </h2>
           <p>
             {t(
-              '产物是可检查、可编译的 C++。Carven 检查访问、所有权与失败契约；C++ 工具链负责原生编译、链接和优化。',
-              'The output is inspectable, compilable C++. Carven checks access, ownership, and failure contracts; your C++ toolchain handles native compilation, linking, and optimization.',
+              'Carven 检查访问、所有权和失败契约，生成可直接阅读的 C++ 源码。接下来，由你的 C++ 工具链完成编译、链接和优化。',
+              'Carven checks access, ownership, and failure contracts, then generates C++ source you can inspect. Your C++ toolchain compiles, links, and optimizes it.',
             )}
           </p>
         </header>

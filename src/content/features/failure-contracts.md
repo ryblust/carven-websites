@@ -83,7 +83,7 @@ For obligations involving storage lifetime, see the [borrowing comparison in the
 
 ## A natural success path with a visible propagation point
 
-Reading a port takes two steps: read the config text, then parse it as a port number. These excerpts assume read returns str and declares Missing + Denied, while parse takes str, returns i32, and declares BadPort.
+Reading a port takes two steps: read the config text, then parse it as a port number. These excerpts assume read returns `str` and declares Missing + Denied, while parse takes `str`, returns `i32`, and declares BadPort.
 
 ```carven
 private fn load() -> i32 => parse(read()?)?;
@@ -115,7 +115,7 @@ The remaining set is derived, not assumed. If port declares only `throw Denied`,
 error [CV-EFFECT-SIGNATURE-BOUND]: callable body exceeds its declared failure contract
 ```
 
-The obligation also follows the call. A caller that recovers only Denied leaves BadPort unhandled:
+Callers must also handle the remaining failures or declare that they can propagate. The caller below handles only `Denied`, leaving `BadPort` unhandled:
 
 ```carven
 fn report() {
@@ -169,4 +169,4 @@ Success paths, failure payloads, local cleanup, and evaluation order jointly det
 
 ## Use the same contracts during compilation
 
-const fn can execute throw, propagation, recovery, and rethrow during compilation while retaining ordinary static contract checks. A validator can serve constant configuration and runtime input; the [compile-time tutorial](/learn/constants/#select-compile-time-configuration-with-the-same-failure-contracts) includes a runnable example.
+`const fn` can execute throw, propagation, recovery, and rethrow during compilation while retaining ordinary static contract checks. A validator can serve constant configuration and runtime input; the [compile-time tutorial](/learn/constants/#select-compile-time-configuration-with-the-same-failure-contracts) includes a runnable example.

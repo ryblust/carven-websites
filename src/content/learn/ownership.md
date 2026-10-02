@@ -32,11 +32,11 @@ println(snapshot, sent, stock);
 
 From the Carven repository root, run `./xmakew run carven access.cv`. The output is `7 9 1`. Read permits reading, Write borrows writable storage, and Take transfers a whole owner. Repeat the parameter access markers at the call site.
 
-stock becomes unavailable after dispatch. A complete ordinary assignment restores a var. Even for copyable i32, Take changes source availability. A let cannot be restored by assignment because it is not writable.
+stock becomes unavailable after dispatch. A complete ordinary assignment restores a `var`. Even for copyable `i32`, Take changes source availability. A `let` cannot be restored by assignment because it is not writable.
 
 ## Copying is not transferring
 
-`let copy = owner;` copies the immediate value by default and leaves the source available. `let moved = &&owner;` transfers it and makes the source unavailable. A String copy owns independent bytes; a copied view still refers to its original backing.
+`let copy = owner;` copies the immediate value by default and leaves the source available. `let moved = &&owner;` transfers it and makes the source unavailable. A `String` copy owns independent bytes; a copied view still refers to its original backing.
 
 Take always starts from a complete owner. `&&order.label` is rejected with `CV-ACCESS-TAKE-OPERAND` because it would take one field and leave the rest of order in place. To keep only one field, consume the owner and then select the field:
 
@@ -51,7 +51,7 @@ let label = (&&order).label;
 println(label);
 ```
 
-This prints `bolts`. `(&&order)` makes order unavailable; label receives the String and the remaining quantity field is cleaned up normally. Plain `order.label` is still an ordinary Read and leaves order available. Read/Write parameters, range bindings, captures, and constants are not Take sources.
+This prints `bolts`. `(&&order)` makes order unavailable; label receives the `String` and the remaining quantity field is cleaned up normally. Plain `order.label` is still an ordinary Read and leaves order available. Read/Write parameters, range bindings, captures, and constants are not Take sources.
 
 ## Write may alias
 
@@ -70,7 +70,7 @@ The output is `9`: both parameters refer to stock, so the second update sees the
 
 Multiple Write parameters can refer to the same mutable storage. Updates occur in body order. Write is not an exclusive reference. At the same time, an active read-only text or slice borrow still prevents an actual write.
 
-Read i32 saves the argument value. Read arrays and String retain the selected storage; later aliased writes can affect what a subsequent read observes. To keep an independent text snapshot, copy the String owner first.
+Read `i32` saves the argument value. Read arrays and `String` retain the selected storage; later aliased writes can affect what a subsequent read observes. To keep an independent text snapshot, copy the `String` owner first.
 
 ## Conflicts during evaluation
 
@@ -128,7 +128,7 @@ Carven
 Carven + C++
 ```
 
-Now move append into the inner scope, before println(view). Carven reports `CV-ACCESS-BORROW-CONFLICT`: view still holds a read-only borrow, so its owner cannot be modified. Restore the original scope order to fix it; copying view does not release the original borrow.
+Now move append into the inner scope, before `println`(view). Carven reports `CV-ACCESS-BORROW-CONFLICT`: view still holds a read-only borrow, so its owner cannot be modified. Restore the original scope order to fix it; copying view does not release the original borrow.
 
 C++ string_view also provides a lightweight non-owning view, but the type itself does not enforce these borrowing rules. Appending can invalidate its backing storage; do not run the modified C++ version to decide whether it is safe. Projects can also constrain such use through API design, static analysis, or other abstractions.
 
@@ -167,7 +167,7 @@ Stock 9
 9
 ```
 
-Only code inside the class body can read `units` or construct a Stock, so other code goes through `Stock::create`, an associated operation without a receiver. `self` reads the receiver, `&self` writes it, and `&&self` takes it. The call spells no marker for the receiver, but the rules still apply: `stock.restock(2)` needs a var, and after `stock.dispatch()` stock is unavailable until a complete assignment such as `stock = Stock::create(1);` restores it.
+Only code inside the class body can read `units` or construct a Stock, so other code goes through `Stock::create`, an associated operation without a receiver. `self` reads the receiver, `&self` writes it, and `&&self` takes it. The call spells no marker for the receiver, but the rules still apply: `stock.restock(2)` needs a `var`, and after `stock.dispatch()` stock is unavailable until a complete assignment such as `stock = Stock::create(1);` restores it.
 
 A class is still a plain value: no heap allocation, inheritance, or virtual calls. Copying and cleanup follow its field types. Printing shows only the class name, and there is no implicit `==`; define an operation when a comparison is needed. See the [aggregate Reference](/reference/aggregates/) for the full class rules.
 
