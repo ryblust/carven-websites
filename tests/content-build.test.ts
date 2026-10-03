@@ -7,6 +7,7 @@ import { Markdown } from '../scripts/content/Markdown.ts';
 import { ContentError } from '../scripts/content/model.ts';
 import { ContentLive } from '../scripts/content/live.ts';
 import { pathToFileURL } from 'node:url';
+import { resolve } from 'node:path';
 import { homeExamples } from '../src/content/home-examples.ts';
 
 const lesson = (number: number) =>
@@ -59,6 +60,12 @@ describe('content build', () => {
       ]);
       assert.deepStrictEqual(manifest.referencePaths, []);
       assert.deepStrictEqual(Object.keys(manifest.articles), paths);
+      assert.deepStrictEqual((yield* fs.readDirectory(`${root}/src/generated/routes`)).sort(), [
+        'learn.index.tsx',
+        'learn.values.tsx',
+        'zh.learn.index.tsx',
+        'zh.learn.values.tsx',
+      ]);
       for (const metadata of Object.values(manifest.articles)) {
         assert.notProperty(metadata, 'html');
         assert.notProperty(metadata, 'file');
@@ -70,6 +77,46 @@ describe('content build', () => {
         assert.isNotEmpty(html);
       }
       assert.isFalse(yield* fs.exists(`${root}/src/generated/articles/removed.ts`));
+    }).pipe(Effect.provide(NodeFileSystem.layer)),
+  );
+
+  it.effect('publishes literal article URLs as independent routes', () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const root = yield* fs.makeTempDirectoryScoped();
+      // URL hierarchy and router token names must not imply layout or lazy modules.
+      const files = ['guide.md', 'guide/route.md', 'guide/route/child.md', 'guide/lazy.md'];
+      for (const prefix of ['', '/zh']) {
+        yield* fs.makeDirectory(`${root}/src/content${prefix}/guide/route`, { recursive: true });
+        for (const file of files) {
+          yield* fs.writeFileString(
+            `${root}/src/content${prefix}/${file}`,
+            '---\ntitle: Guide\ndescription: A guide\nsection: philosophy\nsource: docs/guide.md\n---\n\nGuide body.\n',
+          );
+        }
+      }
+      yield* generateContent(root).pipe(Effect.provide(ContentLive));
+      const { articleRoutes } = yield* importGenerated(`${root}/src/generated/article-routes.ts`);
+      assert.deepStrictEqual(
+        articleRoutes.map(({ type, path }: { type: string; path: string }) => ({ type, path })),
+        [
+          { type: 'route', path: '/guide' },
+          { type: 'route', path: '/guide/lazy' },
+          { type: 'route', path: '/guide/route' },
+          { type: 'route', path: '/guide/route/child' },
+          { type: 'route', path: '/zh/guide' },
+          { type: 'route', path: '/zh/guide/lazy' },
+          { type: 'route', path: '/zh/guide/route' },
+          { type: 'route', path: '/zh/guide/route/child' },
+        ],
+      );
+      const modules = new Set<string>();
+      for (const route of articleRoutes) {
+        assert.notProperty(route, 'children');
+        assert.isTrue(yield* fs.exists(resolve(root, 'src/routes', route.file)));
+        modules.add(route.file);
+      }
+      assert.strictEqual(modules.size, articleRoutes.length);
     }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
 

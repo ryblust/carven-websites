@@ -10,7 +10,7 @@
 ## Implementation boundaries
 
 - Follow the existing React, TanStack Start/Router, Vite and TypeScript structure. Keep Markdown rendering and Shiki highlighting in the build pipeline, with article HTML loaded through its own route. Keep browser-only APIs out of server rendering.
-- Author content in `src/content/` and routes in `src/routes/`. Regenerate `src/generated/` and `src/routeTree.gen.ts`; do not hand-edit or commit them.
+- Author articles in `src/content/`; the content pipeline generates their individual route modules and explicit flat route definitions in `src/generated/`. Keep only custom pages and the root shell in `src/routes/`; Vite combines both through TanStack's virtual route configuration. Regenerate `src/generated/` and `src/routeTree.gen.ts`; do not hand-edit or commit them.
 - Use the existing Effect services and scoped lifetimes for content I/O and rendering. Release resources on failure and interruption; clean up React effects and DOM listeners on unmount.
 - Preserve the paper-and-ink design, readable typography, keyboard access and both color themes. Reuse the shared locale and URL helpers so static HTML and client navigation honor the same deployment prefix.
 

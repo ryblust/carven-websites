@@ -3,8 +3,8 @@ import { Effect } from 'effect';
 import { Markdown } from '../scripts/content/Markdown.ts';
 import { createHighlighterCore } from 'shiki/core';
 import { createOnigurumaEngine } from 'shiki/engine/oniguruma';
-import carven from '../src/lib/carven-grammar.ts';
-import paper from '../scripts/content/paper.ts';
+import carven from '../scripts/content/syntax/carven.ts';
+import paper from '../scripts/content/syntax/paper.ts';
 import { afterAll, beforeAll } from 'vitest';
 
 describe('Carven string token boundaries', () => {

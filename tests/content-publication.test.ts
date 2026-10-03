@@ -60,6 +60,10 @@ describe('generated content publication', () => {
       assert.notProperty(files, 'articles/removed.ts');
       assert.include(files['manifest.ts'], '"/added/"');
       assert.notInclude(files['manifest.ts'], '"/removed/"');
+      assert.deepStrictEqual(
+        Object.keys(files).filter((file) => file.startsWith('routes/')),
+        ['routes/added.tsx', 'routes/first.tsx', 'routes/unchanged.tsx'],
+      );
       yield* assertClean(root, fs);
     }).pipe(Effect.provide(NodeFileSystem.layer)),
   );

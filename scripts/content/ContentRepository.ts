@@ -2,6 +2,7 @@ import { join, relative, resolve, dirname } from 'node:path';
 import { Context, Effect, FileSystem, Layer, Schema } from 'effect';
 import type { ArticleDocument } from '../../src/content/schema.ts';
 import { ContentError } from './model.ts';
+import { articleRouteModule } from './routes.ts';
 
 interface Source {
   readonly file: string;
@@ -109,6 +110,18 @@ export class ContentRepository extends Context.Service<
             `articles/${article.file.replace(/\.md$/, '.ts')}`,
             `// Generated from src/content/${article.file}.\nexport default ${JSON.stringify(article.html)};\n`,
           ]),
+        );
+        const routes = articles.map(articleRouteModule);
+        for (const route of routes) {
+          modules.set(route.file, route.source);
+        }
+        modules.set(
+          'article-routes.ts',
+          `// Generated from src/content. Do not edit.\nexport const articleRoutes = ${JSON.stringify(
+            routes.map((route) => route.definition),
+            null,
+            2,
+          )} as const;\n`,
         );
         modules.set(
           'home-examples.ts',

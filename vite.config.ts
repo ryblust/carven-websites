@@ -3,6 +3,7 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import react from '@vitejs/plugin-react';
 import { contentPlugin } from './scripts/content/vite.ts';
 import { articles } from './src/generated/manifest.ts';
+import { articleRoutes } from './src/generated/article-routes.ts';
 import { siteUrl } from './src/lib/site-url.ts';
 
 const basePath = `/${(process.env.BASE_PATH || '').replace(/^\/+|\/+$/g, '')}/`.replace('//', '/');
@@ -17,6 +18,13 @@ export default defineConfig({
   plugins: [
     contentPlugin(),
     tanstackStart({
+      router: {
+        virtualRouteConfig: {
+          type: 'root',
+          file: '__root.tsx',
+          children: [{ type: 'physical', directory: '.', pathPrefix: '' }, ...articleRoutes],
+        },
+      },
       pages: ['/', '/zh/', '/404/', '/zh/404/', ...Object.keys(articles)].map((path) => ({
         path,
         sitemap: {

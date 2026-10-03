@@ -66,7 +66,7 @@ export(cpp) 的声明写入可独立包含的 `carven/api` 头文件，位于 `c
 
 ## 运行时支持
 
-安装布局把 crafts 放在 bin 旁。生成代码按需包含独立运行时头：passing、trap、numeric、array、range、slice、text、utf、string、format、writer、print、display/display、entry、deferred、outcome、callable、unreachable 和 testing；runtime.hpp 为直接消费者汇总这些头。SIMD 与运行时 UTF 块操作使用 `carven/runtime/simd/simd.hpp`。使用 SIMD 或运行时文本的各翻译单元须选择[一致后端](/zh/reference/simd/#类型与后端)。trap.hpp 为运行时检查提供带源位置的终止报告。
+安装布局把 crafts 放在 bin 旁。生成代码按需包含独立运行时头：passing、trap、numeric、array、range、slice、text、utf、string、format、writer、print、display/display、entry、deferred、outcome、callable、stateless、unreachable 和 testing；runtime.hpp 为直接消费者汇总这些头。SIMD 与运行时 UTF 块操作使用 `carven/runtime/simd/simd.hpp`。使用 SIMD 或运行时文本的各翻译单元须选择[一致后端](/zh/reference/simd/#类型与后端)。trap.hpp 为运行时检查提供带源位置的终止报告。
 
 编译器与支持头文件必须匹配。生成的私有名字、辅助函数的选择和数据表示布局属于实现细节。一般插值需要 C++20 format 支持；受支持的内建格式化（包括混合整数、浮点、`bool`、`char` 和文本字段）使用 writer.hpp，结构化打印使用 display/display.hpp；print 可按特性检测使用 C++23 实现而不改变调用方选择的 C++ 标准。
 

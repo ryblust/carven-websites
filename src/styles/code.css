@@ -1,0 +1,182 @@
+/* Shared code blocks, inline code, syntax colors, and authored comparisons. */
+pre {
+  margin: 0;
+  padding: 20px var(--space-5);
+  font-family: var(--mono);
+  font-weight: var(--code-weight);
+  font-variant-ligatures: none;
+  font-size: var(--code-size);
+  line-height: var(--code-leading);
+  overflow-x: auto;
+  max-width: 100%;
+  tab-size: 4;
+}
+pre.shiki {
+  background: transparent !important;
+}
+pre code {
+  font-family: inherit;
+}
+.code-wrap {
+  position: relative;
+  min-width: 0;
+}
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: 45px;
+  padding: var(--space-1) 6px var(--space-1) var(--space-4);
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--quiet);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+}
+.copy-button {
+  min-height: 36px;
+  min-width: 44px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  transition:
+    color 0.18s,
+    border-color 0.18s,
+    background 0.18s;
+}
+.copy-button:hover {
+  color: var(--text);
+  background: var(--bg-soft);
+  border-color: var(--line-soft);
+}
+/* Inline and fenced code in article and search content. */
+.prose code:not(pre code),
+.article-header > p code,
+.search-results code {
+  color: var(--prose);
+  background: var(--bg-soft);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+  font-family: var(--mono);
+  font-size: 0.85em;
+  overflow-wrap: anywhere;
+}
+.prose pre,
+.prose .code-wrap {
+  background: var(--surface) !important;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  margin-block: var(--space-5);
+}
+.prose .code-wrap {
+  overflow: hidden;
+}
+.prose .code-wrap pre {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent !important;
+}
+/* Authored comparisons remain readable before JavaScript loads. */
+.code-comparison {
+  margin-block: var(--space-6);
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  min-width: 0;
+}
+.comparison-switch {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: 20px;
+}
+.comparison-switch button {
+  min-height: 44px;
+  padding: var(--space-2) 18px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--muted);
+}
+.comparison-switch button:hover {
+  color: var(--text);
+}
+.comparison-switch button[aria-pressed='true'] {
+  color: var(--text);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+.code-comparison pre {
+  height: 22.5rem;
+  overflow: auto;
+}
+.code-comparison [data-code-choice] > p {
+  color: var(--muted);
+  font-size: var(--text-base);
+}
+@media (max-width: 800px) {
+  pre {
+    padding-inline: var(--space-4);
+  }
+  .code-comparison {
+    padding: var(--space-3);
+  }
+}
+.prose .code-wrap,
+.prose pre {
+  border-color: var(--line);
+}
+.prose .code-wrap {
+  box-shadow: 2px 2px 0 var(--shadow);
+}
+.code-head {
+  background: var(--bg-soft);
+  color: var(--prose);
+}
+.code-head > span {
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+  letter-spacing: 0;
+}
+.copy-button::before {
+  content: '⧉';
+  margin-right: 6px;
+  font-size: 1rem;
+}
+/* Theme colors are supplied by the build-time highlighter. */
+.shiki,
+.shiki span[style] {
+  color: light-dark(var(--shiki-light), var(--shiki-dark)) !important;
+}
+.prose pre code {
+  counter-reset: code-line;
+}
+.prose pre .line::before {
+  counter-increment: code-line;
+  content: counter(code-line) / '';
+  display: inline-block;
+  width: 2ch;
+  margin-right: 2.5ch;
+  text-align: right;
+  color: var(--quiet);
+  opacity: 0.8;
+  user-select: none;
+}
+@media (max-width: 800px) {
+  .prose pre .line::before {
+    margin-right: 1.5ch;
+  }
+}
+@media (forced-colors: active) {
+  .shiki,
+  .shiki span[style] {
+    color: CanvasText !important;
+  }
+}

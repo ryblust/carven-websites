@@ -2,9 +2,9 @@ import { Context, Effect, Layer } from 'effect';
 import { Marked } from 'marked';
 import GithubSlugger from 'github-slugger';
 import { createHighlighter } from 'shiki';
-import carven from '../../src/lib/carven-grammar.ts';
-import paper from './paper.ts';
-import vesperBlack from './vesper-black.ts';
+import carven from './syntax/carven.ts';
+import paper from './syntax/paper.ts';
+import vesperBlack from './syntax/vesper-black.ts';
 import { ContentError } from './model.ts';
 
 const languageLabels: Record<string, string> = {
