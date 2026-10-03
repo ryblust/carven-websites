@@ -137,6 +137,10 @@ def build(root, work, sdk, std, jobs):
     excluded = {'src/carven.cpp', 'src/driver/process.cpp', 'src/driver/run.cpp', 'src/driver/cli.cpp'}
     files = sorted(root.glob('src/**/*.cppm')) + sorted(root.glob('src/**/*.cpp'))
     files = [p for p in files if p.relative_to(root).as_posix() not in excluded]
+    for component in ('source', 'layout', 'format'):
+        directory = root / 'tools/graver/src' / component
+        files.extend(sorted(directory.glob('*.cppm')))
+        files.extend(sorted(directory.glob('*.cpp')))
     files.append(HERE / 'browser-main.cpp')
     # libc++'s WASI ABI uses a wrapped std::array iterator. Preserve its type.
     original = root / 'src/semantic/analysis/types/types.cpp'
@@ -212,6 +216,7 @@ def publish(root, wasm, destination):
 
     manifest = {'compilerRevision': REVISION, 'wasm': descriptor('carven.wasm'),
                 'crafts': descriptor('crafts.json'), 'supportedLibraries': ['Carven standard library'],
+                'formatter': 'graver',
                 'build': {'wasiSdk': SDK_VERSION, 'llvmRevision': LOCK['commit'],
                           'portabilityOverlay': 'preserve std::array iterator type'}}
     (destination / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
@@ -233,7 +238,8 @@ def main():
     args.cache.mkdir(parents=True, exist_ok=True)
     sdk = toolchain(args.cache.resolve(), args.sdk)
     std = standard_module(args.cache.resolve(), args.llvm_module_dir, args.jobs)
-    with tempfile.TemporaryDirectory(prefix='carven-browser-') as temporary:
+    (SITE / '.site').mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='carven-browser-', dir=SITE / '.site') as temporary:
         work = pathlib.Path(temporary)
         root = sources(work, args.cache.resolve(), args.compiler_repo)
         wasm = build(root, work, sdk, std, args.jobs)

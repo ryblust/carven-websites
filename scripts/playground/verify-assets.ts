@@ -21,7 +21,7 @@ try {
   console.log(`Verified browser compiler ${manifest.compilerRevision.slice(0, 8)}.`);
 } catch (error) {
   throw new Error(
-    'Browser compiler assets are missing or invalid. Run ./sitew playground:build before building the website.',
+    'Browser compiler assets are missing or invalid. Run pnpm playground:build before building the website.',
     { cause: error },
   );
 }

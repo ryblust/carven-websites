@@ -5,28 +5,37 @@ Pages serves the website, compiler WASM, and packaged Crafts as static files. No
 execution server, credentials, or user-code upload is involved. Native C++ calls
 are outside the interpreter; generated C++ can still be inspected.
 
+The single-file editor loads CodeMirror 6 on demand, with its own undo history,
+indentation, selection, and line-number handling. Carven highlighting is a small
+presentation lexer; compiler diagnostics remain authoritative. The editor is
+independent of the execution worker, so a future language-service connection can
+be added without changing the execution protocol. No LSP service is bundled yet.
+
 ## Build
 
 Use Python 3 on Linux x86_64/arm64 or macOS arm64, alongside the website's Node
 dependencies:
 
 ```sh
-./sitew playground:build --jobs 2
-./sitew build
-./sitew test
-./sitew check:links
+pnpm playground:build
+pnpm build
+pnpm test
+pnpm check:links
 ```
+
+Build concurrency is selected from the CPU count (up to eight workers). Use
+`--jobs N` only when the build environment needs an explicit resource limit.
 
 The compiler build downloads the pinned Carven source, WASI SDK 34, and LLVM
 standard-module exports. Downloads are cached under `.site/playground-wasi-cache`.
-Alternatively, `./sitew playground:build --compiler-repo ../carven` reads the exact
+Alternatively, `pnpm playground:build --compiler-repo ../carven` reads the exact
 Git object from a local repository. It never reads uncommitted compiler changes
 or modifies that repository's build state. The build uses temporary directories
 and publishes generated assets under `public/playground-assets/`, which is ignored
-by Git. `./sitew build` verifies the packaged asset sizes and hashes before
+by Git. `pnpm build` verifies the packaged asset sizes and hashes before
 publishing. CI builds these assets before the website.
 
-The website adapter supports only `check`, `interpret`, and `compile`. It excludes
+The website adapter supports `check`, `interpret`, `compile`, and Graver `format`. It excludes
 native process launching. A narrow build overlay changes a `std::array` iterator
 declaration from `const auto*` to `const auto` for the WASI libc++ ABI; it does not
 change the language implementation. `llvm-module-lock.json` records the exact
@@ -36,6 +45,12 @@ compiler baseline, toolchain, and overlay. Notices ship with the generated asset
 ## Execution contract
 
 - `run` invokes the actual Carven interpreter with a 100,000-step budget.
+- `format` invokes Graver from the same pinned source revision and WASM module.
+  It parses source syntax without requiring successful semantic analysis. Only a
+  successful, complete result exposes `formattedSource`; diagnostics, cancellation,
+  timeout, and truncated output leave the editor source intact. Formatting output
+  uses the 64 KiB source budget. The asset manifest requires the Graver capability
+  marker so older compiler packages are rejected before execution.
 - Each request owns one worker, WASI instance, and in-memory filesystem. Editing,
   switching scenes, stopping, or leaving the page terminates the active worker.
 - The host allows 120 seconds to load assets and 30 seconds to execute. The WASM

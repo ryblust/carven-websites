@@ -13,8 +13,6 @@ const sitemapHost = siteUrl('', basePath, siteOrigin)?.replace(/\/$/, '');
 export default defineConfig({
   base: basePath,
   define: { 'import.meta.env.SITE_ORIGIN': JSON.stringify(siteOrigin ?? '') },
-  server: { host: '127.0.0.1', port: 4321, strictPort: true },
-  preview: { host: '127.0.0.1', port: 4322, strictPort: true },
   plugins: [
     contentPlugin(),
     tanstackStart({

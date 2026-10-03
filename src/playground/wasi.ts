@@ -23,6 +23,7 @@ export interface AssetDescriptor {
   bytes: number;
 }
 export interface CompilerManifest {
+  formatter: 'graver';
   compilerRevision: string;
   wasm: AssetDescriptor;
   crafts: AssetDescriptor;
@@ -41,6 +42,7 @@ export function parseManifest(value: unknown): CompilerManifest {
   if (
     !record(value) ||
     value.compilerRevision !== expectedCompilerRevision ||
+    value.formatter !== 'graver' ||
     !Array.isArray(value.supportedLibraries) ||
     !value.supportedLibraries.every((library) => typeof library === 'string')
   ) {
@@ -62,6 +64,7 @@ export function parseManifest(value: unknown): CompilerManifest {
     return { path, sha256: entry.sha256, bytes: entry.bytes };
   };
   return {
+    formatter: 'graver',
     compilerRevision: expectedCompilerRevision,
     wasm: asset(value.wasm, 'carven.wasm', maxWasmBytes),
     crafts: asset(value.crafts, 'crafts.json', maxCraftsBytes),
@@ -171,7 +174,7 @@ export function validateInput(
   ) {
     throw new Error('Source must be a UTF-8 string of at most 64 KiB without NUL characters.');
   }
-  if (action !== 'run' && action !== 'check' && action !== 'compile')
+  if (action !== 'run' && action !== 'check' && action !== 'compile' && action !== 'format')
     throw new Error('Unknown compiler action.');
   return { source, action };
 }
@@ -266,13 +269,15 @@ export async function executeWasi(
 ): Promise<ExecutionResult> {
   validateInput(source, action);
   const started = performance.now();
-  const output = new CapturedOutput(outputLimit);
+  const output = new CapturedOutput(
+    action === 'format' ? Math.min(outputLimit, maxSourceBytes) : outputLimit,
+  );
   const args =
     action === 'run'
       ? ['carven', 'interpret', '--max-steps', '100000', 'main.cv']
       : action === 'compile'
         ? ['carven', 'compile', '-o', 'generated', 'main.cv']
-        : ['carven', 'check', 'main.cv'];
+        : ['carven', action, 'main.cv'];
   const root = filesystem(source, assets.files);
   const wasi = new WASI(
     args,
@@ -340,6 +345,9 @@ export async function executeWasi(
     stderr: output.text('stderr'),
     exitCode,
     artifacts: action === 'compile' && exitCode === 0 ? generatedArtifacts(root) : [],
+    ...(action === 'format' && exitCode === 0 && !output.truncated
+      ? { formattedSource: stdout }
+      : {}),
     version: assets.version,
     durationMs: Math.round(performance.now() - started),
     truncated: output.truncated,

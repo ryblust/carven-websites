@@ -131,34 +131,6 @@
 .footer-columns a[aria-current] {
   color: var(--text);
 }
-.footer-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-  padding-block: 20px 28px;
-  border-top: 1px solid var(--line-soft);
-  font-size: 0.8125rem;
-  color: var(--muted);
-}
-.footer-bottom a {
-  padding-block: var(--space-2);
-  transition: color 0.18s;
-}
-.footer-bottom a:hover {
-  color: var(--text);
-}
-.footer-languages {
-  display: flex;
-  gap: var(--space-4);
-}
-.footer-languages a[aria-current] {
-  color: var(--text);
-  text-decoration: underline;
-  text-decoration-color: var(--accent);
-  text-underline-offset: 6px;
-}
 /* Error pages use the same site shell. */
 .error-page {
   padding-block: 120px;

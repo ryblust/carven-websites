@@ -77,7 +77,14 @@ export class ExecutionSession {
         ) {
           progress(data.phase);
           timeout(data.phase === 'loading' ? 120000 : 30000);
-        } else if (data.type === 'result' && 'result' in data && isExecutionResult(data.result)) {
+        } else if (
+          data.type === 'result' &&
+          'result' in data &&
+          isExecutionResult(data.result) &&
+          (action !== 'format' ||
+            data.result.exitCode !== 0 ||
+            typeof data.result.formattedSource === 'string')
+        ) {
           finish(data.result);
         } else {
           finish(

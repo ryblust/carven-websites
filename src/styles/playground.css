@@ -1,27 +1,22 @@
 .playground {
   width: min(1440px, calc(100% - 72px));
-  padding-block: 56px 64px;
+  --playground-pane-height: clamp(320px, calc(100dvh - 400px), 800px);
+  padding-block: 24px 32px;
 }
 .playground-intro {
   display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 32px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-bottom: 20px;
 }
 .playground-intro h1 {
-  font: 600 clamp(1.8rem, 3vw, 2.6rem)/1.25 var(--heading);
+  font: 600 clamp(1.5rem, 2.3vw, 1.9rem)/1.25 var(--heading);
   letter-spacing: var(--heading-tracking);
 }
-.playground-intro p:not(.intro-label) {
+.playground-intro p {
   color: var(--muted);
-  margin-top: 14px;
-}
-.playground-intro .intro-label {
-  margin-bottom: 12px;
-}
-.playground-intro > a {
-  flex-shrink: 0;
+  font-size: var(--text-sm);
 }
 .playground-toolbar {
   display: flex;
@@ -29,6 +24,7 @@
   justify-content: space-between;
   gap: 20px;
   flex-wrap: wrap;
+  margin-bottom: 12px;
 }
 .playground-example {
   display: grid;
@@ -66,7 +62,7 @@
 .playground-description {
   color: var(--muted);
   font-size: var(--text-sm);
-  margin-block: 14px 20px;
+  margin-block: 0 12px;
 }
 .playground-connection {
   display: flex;
@@ -86,7 +82,7 @@
 }
 .playground-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, var(--playground-split, 55%)) 9px minmax(0, 1fr);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
@@ -98,8 +94,39 @@
   display: flex;
   flex-direction: column;
 }
-.playground-results {
-  border-left: 1px solid var(--line);
+.playground-divider {
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+  background: var(--bg-soft);
+  border-inline: 1px solid var(--line);
+}
+.playground-divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  right: 2px;
+  height: 32px;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  background: var(--quiet);
+  opacity: 0.45;
+}
+.playground-divider:hover::after,
+.playground-divider:focus-visible::after,
+.playground-workspace[data-dragging] .playground-divider::after {
+  background: var(--accent);
+  opacity: 1;
+}
+.playground-divider:focus-visible {
+  outline-offset: -2px;
+  z-index: 1;
+}
+.playground-workspace[data-dragging],
+.playground-workspace[data-dragging] * {
+  cursor: col-resize;
+  user-select: none;
 }
 .playground-pane-header {
   display: flex;
@@ -112,7 +139,7 @@
   background: var(--bg-soft);
   font: 400 var(--text-sm)/1.5 var(--mono);
 }
-.playground-pane-header label {
+.playground-file-label {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -136,40 +163,79 @@
 }
 .playground-editor {
   display: flex;
-  height: 520px;
+  height: var(--playground-pane-height);
   min-height: 320px;
 }
-.playground-lines,
-.playground-editor textarea {
-  font: 400 13px/1.8 var(--mono);
-  tab-size: 4;
-  padding-block: 20px;
-}
-.playground-lines {
-  width: 48px;
-  flex-shrink: 0;
-  overflow: hidden;
-  text-align: right;
-  padding-right: 12px;
-  color: var(--quiet);
-  user-select: none;
-}
-.playground-editor textarea {
-  display: block;
-  flex: 1;
+.playground-code-editor {
   width: 100%;
   min-width: 0;
-  resize: none;
-  border: 0;
-  margin: 0;
-  padding-inline: 8px 20px;
-  color: var(--code-text);
-  caret-color: var(--accent);
-  background: transparent;
-  border-radius: 0;
 }
-.playground-editor textarea:focus-visible {
-  outline-offset: -3px;
+.playground-code-editor .cm-editor {
+  height: 100%;
+  color: var(--code-text);
+  background: transparent;
+}
+.playground-code-editor .cm-scroller {
+  overflow: auto;
+  font: 400 13px/1.8 var(--mono);
+}
+.playground-code-editor .cm-content {
+  padding: 20px 0;
+  caret-color: var(--accent);
+}
+.playground-code-editor .cm-line {
+  padding-inline: 8px 20px;
+}
+.playground-code-editor .cm-gutters {
+  background: transparent;
+  color: var(--quiet);
+  border: 0;
+}
+.playground-code-editor .cm-lineNumbers .cm-gutterElement {
+  min-width: 40px;
+  padding-inline: 10px 8px;
+}
+.playground-code-editor .cm-activeLine,
+.playground-code-editor .cm-activeLineGutter {
+  background: var(--bg-soft);
+}
+.playground-code-editor .cm-editor.cm-focused {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.playground-code-editor .cm-cursor {
+  border-left-color: var(--accent);
+}
+.playground-code-editor .cm-selectionBackground,
+.playground-code-editor .cm-editor.cm-focused .cm-selectionBackground {
+  background: var(--accent-soft);
+}
+.playground-code-editor .cm-matchingBracket {
+  background: var(--accent-soft);
+  outline: 1px solid var(--accent-line);
+}
+.playground-code-editor .cv-keyword {
+  color: var(--accent);
+}
+.playground-code-editor .cv-string {
+  color: light-dark(#376a4b, #a4c6aa);
+}
+.playground-code-editor .cv-comment {
+  color: var(--quiet);
+  font-style: italic;
+}
+.playground-code-editor .cv-literal {
+  color: light-dark(#805829, #d4b080);
+}
+.playground-code-editor .cv-type {
+  color: light-dark(#586093, #b3b7df);
+}
+.playground-editor-placeholder {
+  margin: 0;
+  padding: 20px;
+  overflow: auto;
+  color: var(--code-text);
+  font: 400 13px/1.8 var(--mono);
 }
 .playground-pane-footer {
   display: flex;
@@ -201,14 +267,9 @@
 .playground-result-body {
   display: flex;
   flex-direction: column;
-  height: 520px;
+  height: var(--playground-pane-height);
   min-height: 320px;
   overflow: hidden;
-}
-.playground-result-body select {
-  margin: 12px 16px 0;
-  flex-shrink: 0;
-  font: 12px var(--mono);
 }
 .playground-result-body pre {
   flex: 1;
@@ -218,6 +279,19 @@
   color: var(--code-text);
   white-space: pre;
   font: 400 13px/1.8 var(--mono);
+}
+.playground-diagnostic-location {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.playground-diagnostic-location:hover {
+  background: var(--accent-soft);
 }
 .playground-notice {
   margin-top: 16px;
@@ -239,18 +313,15 @@
 @media (max-width: 900px) {
   .playground {
     width: calc(100% - 40px);
-    padding-top: 32px;
-  }
-  .playground-intro {
-    align-items: start;
-    flex-direction: column;
-    gap: 12px;
+    padding-top: 20px;
   }
   .playground-workspace {
     grid-template-columns: minmax(0, 1fr);
   }
+  .playground-divider {
+    display: none;
+  }
   .playground-results {
-    border-left: 0;
     border-top: 1px solid var(--line);
   }
   .playground-editor {

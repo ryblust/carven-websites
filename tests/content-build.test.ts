@@ -174,9 +174,11 @@ describe('content build', () => {
     ['duplicate article route', '/learn/', 1],
     ['reserved home route', '/', 1],
     ['reserved error route', '/404/', 1],
+    ['reserved playground route', '/playground/', 1],
     ['reserved translated home route', '/zh/', 1],
     ['reserved translated error route', '/zh/404/', 1],
-  ] as const)('rejects %s before publication', ([, path, number]) =>
+    ['reserved translated playground route', '/zh/playground/', 1],
+  ] as const)('rejects %s before publication', ([rule, path, number]) =>
     Effect.gen(function* () {
       let published = false;
       const repository = ContentRepository.of({
@@ -198,6 +200,9 @@ describe('content build', () => {
         Effect.flip,
       );
       assert.strictEqual(error.operation, 'metadata');
+      if (rule.startsWith('reserved')) {
+        assert.strictEqual(error.cause, `Reserved route: ${path}`);
+      }
       assert.isFalse(published);
     }),
   );

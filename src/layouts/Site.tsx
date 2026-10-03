@@ -163,29 +163,6 @@ export default function Site({ children }: Props) {
             ))}
           </nav>
         </div>
-        <div className="container footer-bottom">
-          <a href={repository} target="_blank" rel="noopener noreferrer">
-            {t('源代码', 'Source code')} <span aria-hidden="true">↗</span>
-          </a>
-          <div className="footer-languages" aria-label={t('语言', 'Language')} role="group">
-            <Link
-              to={localizedPath(pathname, 'en')}
-              activeOptions={{ exact: true }}
-              hrefLang="en"
-              lang="en"
-            >
-              English
-            </Link>
-            <Link
-              to={localizedPath(pathname, 'zh')}
-              activeOptions={{ exact: true }}
-              hrefLang="zh-CN"
-              lang="zh-CN"
-            >
-              中文
-            </Link>
-          </div>
-        </div>
       </footer>
     </>
   );

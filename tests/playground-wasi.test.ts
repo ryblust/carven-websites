@@ -15,6 +15,7 @@ import {
 } from '../src/playground/wasi';
 
 const manifest = {
+  formatter: 'graver',
   compilerRevision: expectedCompilerRevision,
   wasm: { path: 'carven.wasm', sha256: 'a'.repeat(64), bytes: 1024 },
   crafts: { path: 'crafts.json', sha256: 'b'.repeat(64), bytes: 512 },
@@ -24,7 +25,7 @@ const manifest = {
 describe('browser compiler input boundary', () => {
   it('preserves Unicode and exact source bytes for accepted commands', () => {
     const source = '\nentry task() { println("你好"); }\n';
-    for (const action of ['run', 'check', 'compile'] as const) {
+    for (const action of ['run', 'check', 'compile', 'format'] as const) {
       expect(validateInput(source, action)).toEqual({ source, action });
     }
   });
@@ -42,6 +43,7 @@ describe('browser compiler input boundary', () => {
 describe('browser compiler asset boundary', () => {
   it('accepts the pinned revision and rejects different revisions or alternate asset URLs', () => {
     expect(parseManifest(manifest)).toEqual(manifest);
+    expect(() => parseManifest({ ...manifest, formatter: undefined })).toThrow('invalid');
     expect(() => parseManifest({ ...manifest, compilerRevision: '0'.repeat(40) })).toThrow(
       'another revision',
     );
@@ -177,6 +179,34 @@ describe('packaged Carven compiler through the browser WASI host', () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toBe('');
     expect(result.stderr).toContain('check passed');
+  });
+
+  it('formats source with Graver while preserving comments, literals, and syntax-only names', async () => {
+    const source = '// 保留注释\nlet   value=missing(  "你好  世界" ,2);\nprintln( value );';
+    const result = await executeWasi(assets, source, 'format');
+    expect(result.exitCode).toBe(0);
+    expect(result.formattedSource).toBe(
+      '// 保留注释\nlet value = missing("你好  世界", 2);\nprintln(value);\n',
+    );
+    expect(result.stderr).toBe('');
+    expect(result.artifacts).toEqual([]);
+    const again = await executeWasi(assets, result.formattedSource!, 'format');
+    expect(again.formattedSource).toBe(result.formattedSource);
+  });
+
+  it('returns no replacement source when Graver rejects malformed syntax', async () => {
+    const result = await executeWasi(assets, 'let value = ;', 'format');
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain('CV-SYNTAX');
+    expect(result.formattedSource).toBeUndefined();
+    expect(result.stdout).toBe('');
+  });
+
+  it('returns no replacement source when formatted output is truncated', async () => {
+    const result = await executeWasi(assets, 'let   value=1;', 'format', 8);
+    expect(result.exitCode).toBe(125);
+    expect(result.truncated).toBe(true);
+    expect(result.formattedSource).toBeUndefined();
   });
 
   it('returns actual generated C++ files separately from compile-time stdout', async () => {

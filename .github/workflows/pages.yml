@@ -20,23 +20,23 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: '26'
+          node-version-file: package.json
       - uses: pnpm/action-setup@v6
       - run: pnpm install --frozen-lockfile
       - name: Read Pages configuration
         id: pages
         uses: actions/configure-pages@v6
       - name: Build pinned browser compiler
-        run: ./sitew playground:build --jobs 2
-      - run: ./sitew format:check
+        run: pnpm playground:build
+      - run: pnpm format:check
       - name: Build and verify
         env:
           BASE_PATH: ${{ steps.pages.outputs.base_path }}
           SITE_URL: ${{ steps.pages.outputs.origin }}
         run: |
-          ./sitew build
-          ./sitew test
-          ./sitew check:links
+          pnpm build
+          pnpm test
+          pnpm check:links
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist/client

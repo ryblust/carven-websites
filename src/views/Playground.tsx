@@ -1,10 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from '@tanstack/react-router';
+import PlaygroundWorkspace from '../components/PlaygroundWorkspace';
+import PlaygroundDiagnostics from '../components/PlaygroundDiagnostics';
+import type { PlaygroundEditorHandle } from '../components/PlaygroundEditor';
 import { translate, type Locale } from '../lib/i18n';
 import { playgroundExamples as examples } from '../playground/examples';
 import { ExecutionSession, PlaygroundError, type Progress } from '../playground/client';
 import { href } from '../lib/site';
 import type { Action, ExecutionResult, Version } from '../playground/protocol';
 import '../styles/playground.css';
+
+const PlaygroundEditor = lazy(() => import('../components/PlaygroundEditor'));
 
 const assetsBase = href('/playground-assets/');
 const initialExample =
@@ -42,14 +48,21 @@ export default function Playground({ locale }: { locale: Locale }) {
   const [message, setMessage] = useState('');
   const [saved, setSaved] = useState(true);
   const [tab, setTab] = useState<'output' | 'diagnostics' | 'cpp'>('output');
-  const [artifactPath, setArtifactPath] = useState('');
   const session = useRef(new ExecutionSession());
-  const editor = useRef<HTMLTextAreaElement>(null);
-  const gutter = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<PlaygroundEditorHandle>(null);
+  const hash = useLocation({ select: (location) => location.hash });
+  const navigate = useNavigate();
+  const activeExample = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     setSupported(typeof Worker !== 'undefined' && typeof WebAssembly !== 'undefined');
-    let id = new URLSearchParams(window.location.hash.slice(1)).get('example');
+    return () => session.current.cancel();
+  }, []);
+
+  useEffect(() => {
+    let id = new URLSearchParams(hash.replace(/^#/, '')).get('example');
+    // Section anchors and a removed hash should not discard the current draft.
+    if (!id && activeExample.current) return;
     if (!id) {
       try {
         id = localStorage.getItem(activeExampleKey);
@@ -57,16 +70,9 @@ export default function Playground({ locale }: { locale: Locale }) {
         /* Storage is optional. */
       }
     }
-    const selected = examples.find((item) => item.id === id) ?? initialExample;
-    setExampleId(selected.id);
-    try {
-      localStorage.setItem(activeExampleKey, selected.id);
-    } catch {
-      setSaved(false);
-    }
-    setSource(readDraft(selected.id, selected.source));
-    return () => session.current.cancel();
-  }, []);
+    const next = examples.find((item) => item.id === id) ?? initialExample;
+    if (activeExample.current !== next.id) activateExample(next.id);
+  }, [hash]);
 
   function persist(id: string, text: string) {
     try {
@@ -82,7 +88,6 @@ export default function Playground({ locale }: { locale: Locale }) {
     setBusy(false);
     setResult(undefined);
     setMessage('');
-    setArtifactPath('');
   }
 
   function edit(text: string) {
@@ -91,9 +96,10 @@ export default function Playground({ locale }: { locale: Locale }) {
     persist(exampleId, text);
   }
 
-  function loadExample(id: string) {
+  function activateExample(id: string) {
     const next = examples.find((item) => item.id === id);
     if (!next) return;
+    activeExample.current = id;
     invalidate();
     setExampleId(id);
     try {
@@ -102,10 +108,15 @@ export default function Playground({ locale }: { locale: Locale }) {
       setSaved(false);
     }
     setSource(readDraft(id, next.source));
-    const url = new URL(window.location.href);
-    url.hash = new URLSearchParams({ example: id }).toString();
-    window.history.replaceState(window.history.state, '', url);
-    if (editor.current) editor.current.scrollTop = 0;
+  }
+
+  function loadExample(id: string) {
+    activateExample(id);
+    void navigate({
+      hash: new URLSearchParams({ example: id }).toString(),
+      replace: true,
+      resetScroll: false,
+    });
   }
 
   async function run(action: Action) {
@@ -114,11 +125,14 @@ export default function Playground({ locale }: { locale: Locale }) {
     setProgress('loading');
     setResult(undefined);
     setMessage('');
-    setArtifactPath('');
-    setTab(action === 'compile' ? 'cpp' : action === 'check' ? 'diagnostics' : 'output');
+    setTab(action === 'compile' ? 'cpp' : action === 'run' ? 'output' : 'diagnostics');
     try {
       const next = await session.current.run(assetsBase, source, action, setProgress);
       if (!next) return;
+      if (action === 'format' && next.formattedSource !== undefined) {
+        setSource(next.formattedSource);
+        persist(exampleId, next.formattedSource);
+      }
       setResult(next);
       setVersion(next.version);
       setBusy(false);
@@ -149,13 +163,10 @@ export default function Playground({ locale }: { locale: Locale }) {
     }
   }
 
-  const artifact =
-    result?.artifacts.find((file) => file.path === artifactPath) ??
-    result?.artifacts.find((file) => file.path === 'main.cpp') ??
-    result?.artifacts[0];
+  const artifact = result?.artifacts.find((file) => file.path === 'main.cpp');
   const status = busy
     ? progress === 'loading'
-      ? t('正在加载编译器…', 'Loading compiler…')
+      ? t('正在加载运行环境…', 'Loading runtime…')
       : t('正在执行…', 'Executing…')
     : result?.timedOut
       ? t('已达到时间限制', 'Time limit reached')
@@ -170,21 +181,16 @@ export default function Playground({ locale }: { locale: Locale }) {
   return (
     <section className="playground container" aria-labelledby="playground-title">
       <div className="playground-intro">
-        <div>
-          <p className="intro-label">CARVEN / PLAYGROUND</p>
-          <h1 id="playground-title">{t('写一点，运行看看。', 'A little code. A real result.')}</h1>
-          <p>
-            {t(
-              '选个例子，改一改，在浏览器里运行一个 Carven 文件。',
-              'Pick an example, make it yours, and run one Carven file in your browser.',
-            )}
-          </p>
-        </div>
-        <a className="text-link" href="#playground-notes">
-          {t('运行环境', 'Execution environment')} <span aria-hidden="true">↓</span>
-        </a>
+        <h1 id="playground-title">{t('写一点，运行看看。', 'A little code. A real result.')}</h1>
+        <p>
+          {t(
+            '选个例子，改一改，在浏览器里运行一个 Carven 文件。',
+            'Pick an example, make it yours, and run one Carven file in your browser.',
+          )}
+        </p>
       </div>
 
+      <p className="playground-description">{example.description[locale]}</p>
       <div className="playground-toolbar">
         <div className="playground-example">
           <label htmlFor="playground-example">{t('加载场景', 'Load an example')}</label>
@@ -239,7 +245,6 @@ export default function Playground({ locale }: { locale: Locale }) {
           )}
         </div>
       </div>
-      <p className="playground-description">{example.description[locale]}</p>
 
       {supported === false && (
         <div className="playground-connection" role="status">
@@ -252,128 +257,127 @@ export default function Playground({ locale }: { locale: Locale }) {
         </div>
       )}
 
-      <div className="playground-workspace">
-        <div className="playground-pane">
-          <div className="playground-pane-header">
-            <label htmlFor="playground-source">
-              <span className="playground-file-dot" aria-hidden="true" />
-              main.cv
-            </label>
-            <div>
-              <button onClick={() => edit(example.source)} disabled={source === example.source}>
-                {t('重置示例', 'Reset example')}
-              </button>
-              <button onClick={() => download(source)}>{t('下载', 'Download')}</button>
+      <PlaygroundWorkspace
+        locale={locale}
+        editor={
+          <div className="playground-pane" id="playground-source-pane">
+            <div className="playground-pane-header">
+              <span className="playground-file-label">
+                <span className="playground-file-dot" aria-hidden="true" />
+                main.cv
+              </span>
+              <div>
+                <button
+                  disabled={busy || !supported || !source.trim()}
+                  onClick={() => void run('format')}
+                  title={t('使用 Graver 格式化源码', 'Format source with Graver')}
+                >
+                  {t('格式化', 'Format')}
+                </button>
+                <button onClick={() => edit(example.source)} disabled={source === example.source}>
+                  {t('重置示例', 'Reset example')}
+                </button>
+                <button onClick={() => download(source)}>{t('下载', 'Download')}</button>
+              </div>
+            </div>
+            <div className="playground-editor">
+              <Suspense fallback={<pre className="playground-editor-placeholder">{source}</pre>}>
+                {supported === undefined ? (
+                  <pre className="playground-editor-placeholder">{source}</pre>
+                ) : (
+                  <PlaygroundEditor
+                    key={exampleId}
+                    ref={editorRef}
+                    source={source}
+                    locale={locale}
+                    onChange={edit}
+                    onRun={() => void run('run')}
+                  />
+                )}
+              </Suspense>
+            </div>
+            <div className="playground-pane-footer" id="playground-editor-help">
+              <span>
+                {saved
+                  ? t('按场景在此浏览器保存草稿', 'Drafts saved per example in this browser')
+                  : t(
+                      '浏览器无法保存草稿，请下载源码',
+                      'Browser storage unavailable; download to keep your source',
+                    )}
+              </span>
+              <span>
+                {t('Tab 缩进 · Esc 后 Tab 离开', 'Tab to indent · Esc then Tab to leave')} · ⌘ /
+                Ctrl + Enter
+              </span>
             </div>
           </div>
-          <div className="playground-editor">
-            <div ref={gutter} className="playground-lines" aria-hidden="true">
-              {source.split('\n').map((_, index) => (
-                <div key={index}>{index + 1}</div>
+        }
+        results={
+          <div
+            className="playground-pane playground-results"
+            id="playground-results-pane"
+            aria-busy={busy}
+          >
+            <div
+              className="playground-pane-header playground-tabs"
+              role="group"
+              aria-label={t('结果视图', 'Result view')}
+            >
+              {(['output', 'diagnostics', 'cpp'] as const).map((key) => (
+                <button key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>
+                  {key === 'output'
+                    ? t('输出', 'Output')
+                    : key === 'diagnostics'
+                      ? t('诊断', 'Diagnostics')
+                      : 'main.cpp'}
+                </button>
               ))}
             </div>
-            <textarea
-              id="playground-source"
-              ref={editor}
-              value={source}
-              spellCheck={false}
-              autoCapitalize="off"
-              autoCorrect="off"
-              wrap="off"
-              aria-label={t('main.cv 源码编辑器', 'main.cv source editor')}
-              aria-describedby="playground-editor-help"
-              onChange={(event) => edit(event.target.value)}
-              onScroll={(event) => {
-                if (gutter.current) gutter.current.scrollTop = event.currentTarget.scrollTop;
-              }}
-              onKeyDown={(event) => {
-                if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-                  event.preventDefault();
-                  void run('run');
-                }
-              }}
-            />
-          </div>
-          <div className="playground-pane-footer" id="playground-editor-help">
-            <span>
-              {saved
-                ? t('按场景在此浏览器保存草稿', 'Drafts saved per example in this browser')
-                : t(
-                    '浏览器无法保存草稿，请下载源码',
-                    'Browser storage unavailable; download to keep your source',
-                  )}
-            </span>
-            <span>⌘ / Ctrl + Enter</span>
-          </div>
-        </div>
-
-        <div className="playground-pane playground-results" aria-busy={busy}>
-          <div
-            className="playground-pane-header playground-tabs"
-            role="group"
-            aria-label={t('结果视图', 'Result view')}
-          >
-            {(['output', 'diagnostics', 'cpp'] as const).map((key) => (
-              <button key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>
-                {key === 'output'
-                  ? t('输出', 'Output')
-                  : key === 'diagnostics'
-                    ? t('诊断', 'Diagnostics')
-                    : 'C++'}
-              </button>
-            ))}
-          </div>
-          <div className="playground-result-body">
-            {tab === 'cpp' && result?.artifacts.length ? (
-              <>
-                <label className="sr-only" htmlFor="playground-artifact">
-                  {t('生成的文件', 'Generated file')}
-                </label>
-                <select
-                  id="playground-artifact"
-                  value={artifact?.path}
-                  onChange={(event) => setArtifactPath(event.target.value)}
-                >
-                  {result.artifacts.map((file) => (
-                    <option key={file.path} value={file.path}>
-                      {file.path}
-                    </option>
-                  ))}
-                </select>
-                <pre tabIndex={0}>{artifact?.content}</pre>
-              </>
-            ) : (
-              <pre tabIndex={0}>
-                {tab === 'output'
-                  ? result?.stdout ||
-                    (result
-                      ? t('程序没有标准输出。', 'The program produced no standard output.')
-                      : t(
-                          '运行程序，输出会出现在这里。',
-                          'Run your program to see its output here.',
-                        ))
-                  : tab === 'diagnostics'
-                    ? result?.stderr ||
+            <div className="playground-result-body">
+              {tab === 'cpp' && artifact ? (
+                <pre tabIndex={0} aria-label="main.cpp">
+                  {artifact.content}
+                </pre>
+              ) : tab === 'diagnostics' && result?.stderr ? (
+                <PlaygroundDiagnostics
+                  text={result.stderr}
+                  source={source}
+                  locale={locale}
+                  onSelect={(location) => editorRef.current?.reveal(location)}
+                />
+              ) : (
+                <pre tabIndex={0}>
+                  {tab === 'output'
+                    ? result?.stdout ||
                       (result
-                        ? t('没有诊断信息。', 'No diagnostics.')
-                        : t('编译器诊断会出现在这里。', 'Compiler diagnostics will appear here.'))
-                    : t(
-                        '点击“生成 C++”，查看当前源码实际生成的文件。',
-                        'Choose “Generate C++” to inspect the files emitted from your current source.',
-                      )}
-              </pre>
-            )}
+                        ? t('程序没有标准输出。', 'The program produced no standard output.')
+                        : t(
+                            '运行程序，输出会出现在这里。',
+                            'Run your program to see its output here.',
+                          ))
+                    : tab === 'diagnostics'
+                      ? result?.stderr ||
+                        (result
+                          ? t('没有诊断信息。', 'No diagnostics.')
+                          : t('编译器诊断会出现在这里。', 'Compiler diagnostics will appear here.'))
+                      : t(
+                          '点击“生成 C++”，查看当前源码生成的 main.cpp。',
+                          'Choose “Generate C++” to inspect main.cpp generated from your current source.',
+                        )}
+                </pre>
+              )}
+            </div>
+            <div className="playground-pane-footer" role="status">
+              <span>{status}</span>
+              {result && (
+                <span>
+                  {t('退出码', 'Exit')} {result.exitCode} · {(result.durationMs / 1000).toFixed(2)}s
+                </span>
+              )}
+            </div>
           </div>
-          <div className="playground-pane-footer" role="status">
-            <span>{status}</span>
-            {result && (
-              <span>
-                {t('退出码', 'Exit')} {result.exitCode} · {(result.durationMs / 1000).toFixed(2)}s
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
+        }
+      />
       {message && (
         <p className="playground-notice" role="status">
           {message}
@@ -408,8 +412,8 @@ export default function Playground({ locale }: { locale: Locale }) {
             </>
           ) : (
             t(
-              '首次运行会下载编译器。执行时长和输出大小均有限制，可随时停止。',
-              'The compiler downloads on first use. Execution time and output are limited; you can stop at any time.',
+              '首次运行会自动加载运行环境，无需安装。代码在浏览器内执行，有时长与输出限制，可随时停止。',
+              'The runtime loads automatically on first use; no installation is needed. Code runs in your browser with time and output limits, and you can stop at any time.',
             )
           )}
         </p>

@@ -1,4 +1,4 @@
-export type Action = 'run' | 'check' | 'compile';
+export type Action = 'run' | 'check' | 'compile' | 'format';
 
 export interface Version {
   compilerRevision: string;
@@ -16,6 +16,7 @@ export interface ExecutionResult {
   durationMs: number;
   truncated: boolean;
   timedOut: boolean;
+  formattedSource?: string;
 }
 
 const record = (value: unknown): value is Record<string, unknown> =>
@@ -44,6 +45,13 @@ export function isExecutionResult(value: unknown): value is ExecutionResult {
     value.durationMs >= 0 &&
     typeof value.truncated === 'boolean' &&
     typeof value.timedOut === 'boolean' &&
+    (value.formattedSource === undefined ||
+      (typeof value.formattedSource === 'string' &&
+        !value.formattedSource.includes('\0') &&
+        new TextEncoder().encode(value.formattedSource).byteLength <= 64 * 1024 &&
+        value.exitCode === 0 &&
+        value.truncated === false &&
+        value.timedOut === false)) &&
     isVersion(value.version) &&
     Array.isArray(value.artifacts) &&
     value.artifacts.every(

@@ -77,6 +77,37 @@ describe('browser execution ownership', () => {
     expect(worker.terminated).toBe(true);
   });
 
+  it('publishes only a complete successful formatter replacement', async () => {
+    const worker = new WorkerDouble();
+    const session = new ExecutionSession(() => worker);
+    const running = session.run('/assets/', 'let   value=1;', 'format');
+    const formatted = { ...result, formattedSource: 'let value = 1;\n' };
+    expect(worker.sent[0]?.action).toBe('format');
+    worker.reply({ id: worker.sent[0]!.id, type: 'result', result: formatted });
+    expect((await running)?.formattedSource).toBe('let value = 1;\n');
+    expect(worker.terminated).toBe(true);
+  });
+
+  it('rejects formatter responses that cannot safely replace source', async () => {
+    const formatted = { ...result, formattedSource: 'let value = 1;\n' };
+    for (const invalid of [
+      result,
+      { ...formatted, exitCode: 2 },
+      { ...formatted, truncated: true },
+      { ...formatted, timedOut: true },
+      { ...formatted, formattedSource: '\0' },
+      { ...formatted, formattedSource: '界'.repeat(22000) },
+    ]) {
+      const worker = new WorkerDouble();
+      const session = new ExecutionSession(() => worker);
+      const running = session.run('/assets/', 'let   value=1;', 'format');
+      const failure = expect(running).rejects.toMatchObject({ code: 'execution' });
+      worker.reply({ id: worker.sent[0]!.id, type: 'result', result: invalid });
+      await failure;
+      expect(worker.terminated).toBe(true);
+    }
+  });
+
   it('enforces the wall-clock limit even when synchronous execution sends no more events', async () => {
     vi.useFakeTimers();
     const worker = new WorkerDouble();
