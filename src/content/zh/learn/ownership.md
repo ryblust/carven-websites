@@ -3,7 +3,7 @@ title: "读取、修改与转移值"
 description: 用一个库存例子理解 Read、非独占 Write、显式 Take、恢复和类的接收者。
 section: learn
 lesson: 5
-source: docs/semantics.md
+source: docs/language/ownership.md
 ---
 
 ## 三种访问分别写出来
@@ -36,7 +36,7 @@ stock 在 dispatch 后不可用，普通完整赋值恢复 `var`。即使 `i32` 
 
 ## 复制不是转移
 
-`let copy = owner;` 默认复制立即值，源仍可用。`let moved = &&owner;` 转移，使源不可用。`String` 副本拥有独立字节；如果复制的是视图，副本仍指向原 backing。
+`let copy = owner;` 默认复制立即值，源仍可用。`let moved = &&owner;` 转移，使源不可用。`String` 副本拥有独立字节；如果复制的是视图，副本仍指向原 backing。返回命名 owner 也会复制；要转移则写 `return &&owner;`。`CV-LINT-RETURN-COPY` 会提醒满足条件的 Carven 自有文本返回。Take 改变源码中值的可用状态，不承诺某个原生移动构造函数或固定构造次数。
 
 Take 总是从完整 owner 开始。`&&order.label` 会以 `CV-ACCESS-TAKE-OPERAND` 被拒绝，因为它只取走一个字段，却把 order 的其余部分留在原处。只想保留一个字段时，先消耗 owner，再选择字段：
 

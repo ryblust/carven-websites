@@ -2,7 +2,7 @@
 title: "Compose operations and their failures"
 description: "Preserve each failure type and its data, let recovery narrow contracts, and make interface commitments explicit."
 section: failure-contracts
-source: docs/semantics.md
+source: docs/language/failures.md
 ---
 
 ## Keep failures clear as business logic grows

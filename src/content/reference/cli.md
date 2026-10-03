@@ -2,8 +2,8 @@
 title: "Compiler commands and Graver"
 description: "Native execution, interpretation, generated artifacts, and Graver source formatting."
 section: reference
-lesson: 18
-source: docs/cli.md
+lesson: 19
+source: docs/toolchain/cli.md
 ---
 
 ## Commands
@@ -69,13 +69,13 @@ Every run creates a separate `carven-run-*` directory under the system temporary
 
 Source paths, `--tests`, and `--timings` are accepted before `--`. Subsequent arguments are passed without a shell, including empty arguments, spaces, quotes, and backslashes. Program mode requires an entry; Carven diagnoses multiple entries first. Native compilation failures and program status are passed through; POSIX signal termination maps to `128 + signal`. External build systems handle complex native dependencies and incremental builds.
 
-`carven --tests main.cv` runs ordinary runtime tests instead of the program entry and requires at least one runtime test. Static tests still run during analysis. Assertion failures produce a nonzero status; later tests continue. Top-level statements and `main` are not executed in test mode.
+`carven --tests main.cv` runs ordinary runtime tests instead of the program entry and requires at least one runtime test. Static tests still execute during analysis. Failed checks accumulate; require/fail stop the current test and later tests continue. Assertions and runtime traps abort the process. Any test failure produces nonzero status. Top-level statements and main are not executed in test mode.
 
 ## Interpretation
 
 Interpretation executes supported source operations directly with ordinary Carven semantics. Use native compilation for the full language and C++ integration. The interpreter subset does not restrict language-required compile-time evaluation, which calls only explicit `const fn` functions and their `const fn` dependencies.
 
-interpret uses the same source collection as check, compile, and native execution. Required constant initializers, `const {}` blocks, and `const test` execute during analysis. The interpreter then executes the published semantic operations and checks each operation's support when its operands complete and execution reaches it. It supports numeric, `bool`, `char`, `str`, and `String` locals; supported structs, enums, fixed arrays, and slices; byte views and iteration; typed failures and recovery; direct calls and calls through local bindings of named Carven functions; local mutation, local pointers, and Write parameters; branches, loops, matching, printing, and formatting. Retained C string values support text printing and default text formatting.
+interpret uses the same source collection as check, compile, and native execution. Required constant initializers, `const {}` blocks, and `const test` execute during analysis. The interpreter then executes the published semantic operations and checks each operation's support when its operands complete and execution reaches it. It supports numeric, `bool`, `char`, `str`, and `String` locals; supported structs, enums, fixed arrays, slices, SIMD vectors and masks; byte views and iteration; typed failures and recovery; direct calls and calls through local bindings of named Carven functions; local mutation, local pointers, and Write parameters; branches, loops, matching, printing, and formatting. Retained C string values support text printing and default text formatting.
 
 Program execution requires an entry supplied by top-level executable statements or `main`. Use `check` for declaration-only, empty, or static-test-only files.
 
@@ -83,7 +83,7 @@ Typed failures use the shared executor: throw, propagation, typed catches, guard
 
 The driver rejects collected `.cpp` files, and native source fragments are rejected in every collected module, including unimported modules. C++ header imports are permitted. Reached native operations and callable values without an executable Carven body report `CV-INTERPRET-ADMISSION`; unreached ones do not. Unused functions still receive ordinary language checks but need not fit the interpreter subset unless declared `const fn`, which has its own capability check. The entry must be parameterless; arguments after `--` are ignored, as for a parameterless native entry.
 
-Admission failures use `CV-INTERPRET-ADMISSION`, without falling back to native execution. Execution failures use `CV-INTERPRET-EXECUTION`; budget failures use `CV-INTERPRET-LIMIT`. Errors return 1 and normal completion returns 0. Completed output remains visible.
+Admission failures use `CV-INTERPRET-ADMISSION`, without native fallback. Other execution failures use `CV-INTERPRET-EXECUTION`; budget failures use `CV-INTERPRET-LIMIT`. Invocation, admission, and execution errors return 1; normal completion follows the entry-result convention. Completed output remains visible. Assertions and runtime traps use source-positioned reports and abort the whole interpreted run.
 
 `--trace` writes interpreted statement locations, calls, and successful returns to stderr, indented by call depth. It does not trace preceding constant execution or every expression value. Program stderr shares that stream.
 
@@ -91,7 +91,7 @@ Admission failures use `CV-INTERPRET-ADMISSION`, without falling back to native 
 
 Integer arithmetic uses the same wrapping rules in required constant execution and runtime interpretation. Interpretation writes no C++ artifacts or native executable. Floating arithmetic uses the host native environment; floating printing and formatting follow native standard-library format rules.
 
-`interpret --tests` requires at least one runtime test and skips the program entry. Tests execute in canonical module order, then source order, each with fresh storage and an independent `--max-steps` budget. Failed check operations accumulate; require/fail stop the current test through helper calls and cannot be caught as typed failures. Later tests continue after check/require/fail failures, execution errors, or exhausted budgets; a failed `assert` stops the whole run. Failure reports and the `carven: tests: N passed; M failed` summary go to stderr; any failed test returns 1. See [reported locations](/reference/entry-testing/#reported-locations) for the report layout.
+`interpret --tests` requires at least one runtime test and skips the program entry. Tests execute in canonical module order, then source order, each with fresh storage and an independent max-steps budget. Failed checks accumulate; require/fail stop the current test through helpers and cannot be caught as typed failures. Later tests continue after recoverable test stops, unsupported operations, other execution errors, or budget exhaustion. A failed assert or runtime trap aborts execution, skips remaining tests, and prints no completion summary. Otherwise reports and `carven: tests: N passed; M failed` go to stderr; any failed test returns 1. See [reported locations](/reference/entry-testing/#reported-locations).
 
 ## Input paths
 
@@ -125,6 +125,8 @@ Invocation, reading, source, or writing failures report to stderr and return non
 
 Required constant execution sends print/`println` to stdout and eprint/eprintln to stderr. With `compile --stdout`, all compile-time program output goes to stderr, leaving stdout for artifacts. Later compilation failures do not undo output. An incremental build reusing artifacts does not rerun or replay compile-time output.
 
+Source diagnostics appear in source order within each file. Each function, test, and const block reports its first error, allowing independent body errors in one run. A body depending on failed inferred results or failures stays silent until that dependency is fixed. Failure contracts, ownership, and static tests run only after all bodies are accepted. Reports name expected/actual types, undeclared failure types, or a nearby spelling; same-line labels share the line, while note and help lines supply context and a contract-specific source change.
+
 ## Graver
 
 Graver is a separate source formatter, not a `carven` subcommand. Build it with `./xmakew build graver` from the Carven repository root; the commands below can also be invoked through `./xmakew run graver`.
@@ -143,7 +145,7 @@ Directory inputs recursively select `.cv` files, skipping nested hidden/build di
 
 Exit status is 0 for success, 1 for check differences, and 2 for an error. Diagnostics use stderr. All selected sources pass lexical and syntax validation before changes are reported or written. Each changed file is staged beside its destination, retains permission bits, and is compared against its original bytes before replacement. A later I/O failure can leave earlier files updated; the byte comparison does not lock files. Unchanged files are not rewritten.
 
-The fixed style uses four-space indentation and a target width of 100 bytes. UTF-8 text may wrap early; indivisible tokens, comments, C++ fragments, and type-argument lists may exceed the target. Token and literal spelling, punctuation other than import-list trailing commas, comment text and token-gap position (allowing insertion or removal of those commas), interpolation text and specifications, and fenced C++ content are preserved; expressions inside interpolation holes are formatted. Authored blank-line counts remain, spaces on blank lines are removed, ordinary line endings become LF, and nonempty output ends in a newline. Output is re-lexed, compared with the input, and parsed before being returned.
+The fixed style uses four-space indentation and a target width of 100 bytes. UTF-8 may wrap early; indivisible tokens, comments, C++ fragments, and type arguments may exceed it. Token/literal spelling, punctuation except import trailing commas, comment text and token-gap placement, interpolation text/specifications, and fenced C++ bytes are preserved. Expressions inside interpolation holes are formatted. Multiline string token bytes retain their semantic layout. Constant blocks and static control use the same block/header style as ordinary forms. Authored blank-line counts remain; blank-line spaces are removed outside preserved tokens, ordinary line endings become LF, and nonempty output ends in a newline. Output is re-lexed, compared, and parsed before return.
 
 Single-line import selections use one space inside each brace and omit the trailing comma, as in `using { Point, length }` and `using std::{ vector, allocator }`. Multiline selections put one name per line and include a trailing comma; an existing trailing comma alone does not force wrapping. The opening brace stays attached to `::`. These are formatting rules; the parser still accepts an optional trailing comma.
 

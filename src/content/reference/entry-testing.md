@@ -3,7 +3,7 @@ title: "Entries, runtime tests, and compile-time tests"
 description: "Entry selection, process status, assert, check/require/fail, test reports, and test-stop propagation."
 section: reference
 lesson: 14
-source: docs/semantics.md
+source: docs/language/execution.md
 ---
 
 ## Entries
@@ -27,11 +27,11 @@ println(load(false)?);
 println("not reached");
 ```
 
-Native execution prints `42` and exits with status 1 when the second failure escapes. `carven interpret` prints `42`, then reports `CV-INTERPRET-EXECUTION` for the escaped failure.
+Native execution prints `42`, then reports the escaped failure type and structural payload on stderr and exits with `EXIT_FAILURE`. `carven interpret` prints `42`, then reports the same payload under `CV-INTERPRET-EXECUTION` at the throw location with its call path.
 
 An explicit main is selected regardless of module path, craft, or visibility. It may have no parameters or one unannotated Read command-line parameter. That parameter is an entry-specific opaque value, not an indexable or iterable sequence. Ordinary function parameters still require types.
 
-An explicit main with outward failures still requires a throw clause, including private main; omitting it reports `CV-EFFECT-THROW-PUBLISHED`. Normal completion produces process status zero; a Carven return value, even an integer, is not the status. A typed failure escaping either kind of entry produces C++ EXIT_FAILURE without automatically printing its payload or becoming a C++ exception. Ordinary local, result, and payload cleanup still occurs. Catching the failure and completing normally gives zero.
+An explicit main with outward failures requires a throw clause, including private main; omission reports `CV-EFFECT-THROW-PUBLISHED`. Normal completion produces process status zero; a Carven return value is not the status. A typed failure escaping either entry produces C++ `EXIT_FAILURE` and one stderr report containing its type and structural payload. Ordinary local cleanup completes first; the wrapper retains the payload through reporting and destroys it before exit. Native reports point to the entry declaration because failure values carry no source location. Catching the failure and completing normally gives zero and no failure report.
 
 ## Test declarations
 
@@ -131,7 +131,6 @@ main.cv:9:5: error: check failed
   condition: total == 5
   operands:
     total: 4
-    5: 5
   message: total mismatch
 
 carven: tests: 1 passed; 1 failed
@@ -141,9 +140,13 @@ Reports appear when the operation fails. Successful cases have no individual rep
 
 ## Assertion explanations
 
-A direct assert/check/require whose outer condition is a Carven comparison reports both operand spellings and structural values on failure. An outer `&&` / `||` reports its two Boolean subexpressions, marking a skipped operand `<not evaluated>`. Parentheses preserve this behavior; indirect calls and other conditions retain condition/message reporting. Explanations do not recursively trace operations or find the first differing field.
+A direct assert/check/require whose outer condition is a Carven comparison reports operand spellings and structural values on failure. An outer `&&` / `||` reports its Boolean subexpressions, marking skipped operands `<not evaluated>`. Operands whose displayed values repeat their source spelling, such as literals, are omitted; if none remain, there is no operands field. Parentheses preserve this behavior; indirect calls and other conditions retain condition/message reporting. Explanations do not recursively trace operations or find the first differing field.
 
 Collection reuses the original evaluation without repeating operands or invoking formatters, preserving order, snapshots, short circuiting, propagation, and cleanup. Failed values render before the optional message expression, so its mutations cannot change the explanation; successful conditions do not render values. A runtime reporter receives a borrowed explanation string valid only during the synchronous callback. Static-test diagnostics include the same explanation.
+
+## Runtime traps
+
+Integer division or remainder by zero, invalid shift counts, out-of-bounds indexing, and invalid checked scalar conversion report the operation’s source position, active test context, and `note: execution aborted`. Index traps also show index and length. Generated and interpreted checks use the Carven location; direct native support calls use the C++ position provided by their API. A trap aborts the whole interpreted run, including remaining tests, with no completion summary. Traps and assertions are distinct from recoverable test stops and typed failures.
 
 ## `const test`
 

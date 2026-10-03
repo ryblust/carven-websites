@@ -3,7 +3,7 @@ title: "Call C++ and export an interface"
 description: "Move from `printf` to declared function contracts, with explicit native types, exceptions, and build responsibilities."
 section: learn
 lesson: 13
-source: docs/semantics.md
+source: docs/language/interop.md
 ---
 
 ## Your first native call
@@ -149,11 +149,12 @@ int main() {
 }
 ```
 
-Compile it with the generated implementations, including the bundled UTF Craft sources that `compile` writes under `generated/crafts/`:
+Compile it with the generated implementations, including the bundled UTF and SIMD Craft sources that `compile` writes under `generated/crafts/`:
 
 ```sh
 clang++ -std=c++20 -Igenerated -I/path/to/carven/crafts \
     consumer.cpp generated/labels.cpp generated/crafts/carven/std/utf/*.cpp \
+    generated/crafts/carven/std/simd/*.cpp \
     -o consumer
 ./consumer
 ```

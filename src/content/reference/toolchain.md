@@ -2,8 +2,8 @@
 title: "Builds, artifacts, and native integration"
 description: "Host requirements, C++20 targets, Xmake batches, generated interfaces, and runtime support."
 section: reference
-lesson: 19
-source: docs/toolchain.md
+lesson: 20
+source: docs/toolchain/artifacts.md
 ---
 
 ## Host and target
@@ -16,12 +16,13 @@ Native consumers select exception support according to provider requirements. A 
 
 Delivery requires Carven analysis, C++ compilation, and linking. The build system supplies explicit application inputs, native include paths, providers, libraries, and compiler options. The CLI combines application inputs with the fixed Crafts roots. `carven compile` writes artifacts; direct source execution additionally performs local native compilation and execution.
 
-`compile` also writes generated implementations for every collected Crafts module, but it does not compile or copy collected `.cpp` sources. A manual C++ build must compile the generated implementations for the collected Crafts together with the application's, including the bundled UTF Craft:
+`compile` also writes generated implementations for every collected Crafts module, but it does not compile or copy collected `.cpp` sources. A manual C++ build must compile the generated implementations for the collected Crafts together with the application's, including the bundled UTF and SIMD modules:
 
 ```sh
 carven compile -o out main.cv
 clang++ -std=c++20 -Iout -I/path/to/carven/crafts \
-    out/main.cpp out/crafts/carven/std/utf/*.cpp -o out/app
+    out/main.cpp out/crafts/carven/std/utf/*.cpp \
+    out/crafts/carven/std/simd/*.cpp -o out/app
 ./out/app
 ```
 
@@ -57,7 +58,7 @@ carven/generated/carven-test-runner.hpp
 carven/generated/carven-test-main.cpp
 ```
 
-Declarations connected by complete-definition dependencies form interface components. The anchor is the first canonical module name in the component; a module without a published surface owns no component header. Implementations use canonical module paths. Logical artifact paths are relative to the output root.
+Declarations connected by complete-definition dependencies form interface components. The anchor is the first canonical module name; a module without a published surface has no component header. Implementations use canonical module paths. An implementation realizes static instances called by its module as inline functions in the provider namespace. Imported staged bodies contribute to the caller implementation: calling with new static values changes the caller’s artifacts while the provider’s artifacts remain independent of callers. Logical paths are relative to the output root.
 
 export(cpp) appears in self-contained `carven/api` headers under `carven::api`, followed by encoded module namespaces. The corresponding façade is in the implementation. C++ header imports enter required artifacts in their original module order. External interface types need the complete header environment of their context module. Delimiters and repeated includes are preserved; cross-module ordering is stable, without reproducing arbitrary macro-configuration order. cpp fragments appear after implementation includes and before the generated namespace.
 
@@ -65,8 +66,8 @@ Default test output includes the runner and main; external mode includes only th
 
 ## Runtime support
 
-The installed layout places crafts beside bin. Generated code includes runtime leaf headers as needed: passing, numeric, array, range, slice, text, utf, string, format, writer, print, display, entry, deferred, outcome, callable, unreachable, and testing. runtime.hpp aggregates runtime leaves for direct consumers.
+The installed layout places crafts beside bin. Generated code includes self-contained runtime leaves as needed: passing, trap, numeric, array, range, slice, text, utf, string, format, writer, print, display/display, entry, deferred, outcome, callable, unreachable and testing. runtime.hpp aggregates these leaves for direct consumers. SIMD and runtime UTF block operations use `carven/runtime/simd/simd.hpp`; every translation unit using SIMD or runtime text must select a [consistent backend](/reference/simd/#types-and-backends). trap.hpp supplies source-positioned termination for runtime checks.
 
-The compiler and support headers must match. Private generated names, helper selection, and representation layout are implementation details. General interpolation requires C++20 format support. Supported builtin formatting, including mixed integer, floating, `bool`, `char`, and text fields, uses writer.hpp; structural printing uses display.hpp. Printing may use a C++23 implementation through feature detection without changing the consumer's selected standard.
+The compiler and support headers must match. Private generated names, helper selection, and representation layout are implementation details. General interpolation requires C++20 format support. Supported builtin formatting, including mixed integer, floating, `bool`, `char`, and text fields, uses writer.hpp; structural printing uses display/display.hpp. Printing may use a C++23 implementation through feature detection without changing the consumer's selected standard.
 
 Direct native calls to `String`::from_str/append require valid UTF-8; push requires a valid scalar. from_utf8 checks bytes and terminates on invalid input. These native runtime APIs have separate contracts from standard-library validation APIs that return typed failures.

@@ -3,7 +3,7 @@ title: "运行第一个程序"
 description: 准备工具链，运行 .cv 文件，区分原生运行、解释执行和生成 C++。
 section: learn
 lesson: 0
-source: docs/cli.md
+source: docs/language/tutorial.md
 ---
 
 ## 你将学会什么

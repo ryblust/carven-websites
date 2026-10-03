@@ -3,7 +3,7 @@ title: "组合失败与缩小契约"
 description: 定义带数据的失败，在调用处传播，在有业务上下文的位置恢复。
 section: learn
 lesson: 9
-source: docs/semantics.md
+source: docs/language/failures.md
 ---
 
 ## 从一个校验函数开始
@@ -54,7 +54,7 @@ println("Total:", line_total(12, 3)?);
 println("Total:", line_total(12, 0)?);
 ```
 
-这段代码依赖上面的结构体和 line_total。程序先输出 `Total: 36`，第二次调用的 InvalidQuantity 随后离开隐式入口；进程以失败状态退出，不打印载荷。顶层语句不需要 throw 子句。
+这段代码依赖上面的结构体和 line_total。程序先输出 `Total: 36`，第二次调用的 InvalidQuantity 随后离开隐式入口；局部清理结束后，入口包装器在 stderr 报告失败类型和结构化载荷，并以 `EXIT_FAILURE` 退出。顶层语句不需要 throw 子句。
 
 普通裸函数、export 函数和显式 main 若有向外失败，必须显式声明，private main 也不例外。把同样两行放进没有 `throw InvalidQuantity` 的 `fn main() { ... }`，会报告 `CV-EFFECT-THROW-PUBLISHED`。
 
@@ -223,7 +223,7 @@ C++ 的组合器或结果库也能封装这些分支。这里保留显式写法�
 
 失败不回滚已经完成的修改。局部值按控制流清理；失败载荷包含借用时，借用的底层存储必须保持存活。C++ 异常、动态越界和除零等终止行为不是这里的类型化失败。
 
-失败逃出隐式入口或显式 main 时产生失败进程状态，不自动打印载荷；需要用户可读消息时自行 catch 并打印。正常 return 的整数不是退出码。
+失败逃出隐式入口或显式 main 时，入口包装器先完成普通局部清理，再在 stderr 报告类型与结构化载荷，最后返回 `EXIT_FAILURE`。需要应用自己的消息或恢复时使用 catch。正常 return 的整数不是退出码。
 
 ## 练习
 

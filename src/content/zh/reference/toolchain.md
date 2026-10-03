@@ -2,8 +2,8 @@
 title: 构建、产物与原生集成
 description: 宿主要求、目标 C++20、Xmake 批次、生成接口和运行时支持。
 section: reference
-lesson: 19
-source: docs/toolchain.md
+lesson: 20
+source: docs/toolchain/artifacts.md
 ---
 
 ## 宿主与目标
@@ -16,12 +16,13 @@ Carven 编译器使用 C++26，关闭异常与 RTTI。当前验证的宿主工�
 
 成功构建需要完成 Carven 分析、C++ 编译和链接。构建系统提供显式应用输入、原生头文件搜索路径、提供者、库和编译选项；CLI 将应用输入与固定 Crafts 根合并。`carven compile` 写出产物，直接源码运行模式另外完成本地原生编译与执行。
 
-`compile` 也为每个收集到的 Crafts 模块写出生成实现，但不编译也不复制收集到的 `.cpp` 源码。手动 C++ 构建必须把收集到的 Crafts 的生成实现与应用的一起编译，包括内置的 UTF Craft：
+`compile` 也为每个收集到的 Crafts 模块写出生成实现，但不编译也不复制收集到的 `.cpp` 源码。手动 C++ 构建必须把收集到的 Crafts 的生成实现与应用的一起编译，包括内置的 UTF 与 SIMD 模块：
 
 ```sh
 carven compile -o out main.cv
 clang++ -std=c++20 -Iout -I/path/to/carven/crafts \
-    out/main.cpp out/crafts/carven/std/utf/*.cpp -o out/app
+    out/main.cpp out/crafts/carven/std/utf/*.cpp \
+    out/crafts/carven/std/simd/*.cpp -o out/app
 ./out/app
 ```
 
@@ -57,7 +58,7 @@ carven/generated/carven-test-runner.hpp
 carven/generated/carven-test-main.cpp
 ```
 
-完整定义依赖连接的声明形成接口组件，anchor 是其中首个规范模块名；没有发布表面的模块不拥有组件头。实现使用规范模块路径。逻辑产物路径相对于输出根。
+完整定义依赖连接的声明组成接口组件，anchor 是组件的第一个规范模块名；没有已发布表面的模块不拥有组件头。实现使用规范模块路径。模块实现将自身调用的静态实例生成为提供者命名空间中的 inline 函数。导入的分阶段函数体进入调用方实现：新的静态值调用改变调用方产物，提供者产物仍不依赖调用者。逻辑路径相对于输出根。
 
 export(cpp) 的声明写入可独立包含的 `carven/api` 头文件，位于 `carven::api` 及其下按编码后的模块路径嵌套的命名空间中；对应的包装函数定义位于实现文件。C++ 头导入按模块原次序进入所需产物；外部接口类型需要其上下文模块的完整头文件环境。保留分隔符和重复 include，跨模块使用稳定模块顺序，不复刻任意宏配置顺序。cpp 片段位于实现的 include 后、生成 namespace 前。
 
@@ -65,8 +66,8 @@ export(cpp) 的声明写入可独立包含的 `carven/api` 头文件，位于 `c
 
 ## 运行时支持
 
-安装布局是 bin 旁的 crafts。生成代码按需 include passing、numeric、array、range、slice、text、utf、string、format、writer、print、display、entry、deferred、outcome、callable、unreachable、testing 等 runtime 叶头；runtime.hpp 为直接使用者汇总 runtime 叶头。
+安装布局把 crafts 放在 bin 旁。生成代码按需包含独立运行时头：passing、trap、numeric、array、range、slice、text、utf、string、format、writer、print、display/display、entry、deferred、outcome、callable、unreachable 和 testing；runtime.hpp 为直接消费者汇总这些头。SIMD 与运行时 UTF 块操作使用 `carven/runtime/simd/simd.hpp`。使用 SIMD 或运行时文本的各翻译单元须选择[一致后端](/zh/reference/simd/#类型与后端)。trap.hpp 为运行时检查提供带源位置的终止报告。
 
-编译器与支持头文件必须匹配。生成的私有名字、辅助函数的选择和数据表示布局属于实现细节。一般插值需要 C++20 format 支持；受支持的内建格式化（包括混合整数、浮点、`bool`、`char` 和文本字段）使用 writer.hpp，结构化打印使用 display.hpp；print 可按特性检测使用 C++23 实现而不改变调用方选择的 C++ 标准。
+编译器与支持头文件必须匹配。生成的私有名字、辅助函数的选择和数据表示布局属于实现细节。一般插值需要 C++20 format 支持；受支持的内建格式化（包括混合整数、浮点、`bool`、`char` 和文本字段）使用 writer.hpp，结构化打印使用 display/display.hpp；print 可按特性检测使用 C++23 实现而不改变调用方选择的 C++ 标准。
 
 原生直接调用 `String`::from_str/append 要求合法 UTF-8，push 要求合法标量；from_utf8 检查字节并在非法时终止。这些原生 runtime API 与标准库返回 typed failure 的验证 API 分别遵守各自契约。

@@ -2,7 +2,7 @@
 title: "Let the compiler carry intent into implementation"
 description: "Higher-level expression, checkable semantics, and native execution through the C++ toolchain."
 section: philosophy
-source: docs/principles.md
+source: docs/development/principles.md
 ---
 
 ## Consistent semantics on a native foundation
@@ -15,7 +15,7 @@ Each language construct must define which programs are valid, what the compiler 
 
 Building a list of enabled routes at compile time needs inputs, a loop, an order, and a choice of when to compute it. Those decisions belong in source. The resulting byte count and its static storage can be determined from the result.
 
-The [compile-time feature page](/features/compile-time/) puts both implementations side by side. In C++20, a `constexpr std::string` allocation cannot survive into runtime, so the handwritten version runs the construction once to learn the size and again to copy the text into a sized array. Carven uses the same loop and freezes `String` into `str` when `const` initialization completes.
+The [compile-time feature page](/features/compile-time/) puts both implementations side by side. The handwritten C++20 version constructs the text once to determine its length, then again to copy it into a sized array. This handles varying result lengths without relying on a standard library’s short-string representation: dynamic allocation from constant evaluation cannot survive into runtime. Carven uses the same loop and freezes `String` into `str` when `const` initialization completes.
 
 Changing the input can change the result length without changing the algorithm. Carven’s language rules define how the result is stored, so programmers do not need to write storage code for each result. A C++ library can encapsulate this work too; Carven makes it available directly for supported constant construction.
 
@@ -42,6 +42,8 @@ The rules also apply after edits. Removing a recovery branch may invalidate the 
 ## Use known facts to reduce work
 
 Constant functions can construct data using loops and mutable locals. Required constant contexts determine when they execute and which results can be frozen. Compile-time tests check those results before the target program is generated.
+
+Static parameters can fix configuration while other arguments remain runtime inputs. Explicit `const if` and `const for` select specialized work, with the same type, ownership, and failure contract checked across all source arms. SIMD operations can use those fixed controls without exposing native register layout.
 
 Dynamic operations can still have known structure. Fixed text, integer formats, and capacity bounds can be prepared ahead of time and consumed by specialized runtime operations. A known result and permission to omit execution are separate decisions: side effects and object lifetimes remain part of the program.
 

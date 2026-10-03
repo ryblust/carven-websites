@@ -3,7 +3,7 @@ title: "Use native addresses and non-null checks"
 description: "Take addresses with addressof, store native addresses, establish local non-null facts, and keep resource owners alive."
 section: learn
 lesson: 14
-source: docs/semantics.md
+source: docs/language/pointers.md
 ---
 
 ## Take the address of a place

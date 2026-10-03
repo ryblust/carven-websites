@@ -2,7 +2,7 @@
 title: 让语义决定 C++ 的组织
 description: 写下模块、访问与失败契约，Carven 据此安排原生接口、求值、存储和清理。
 section: cpp-generation
-source: docs/backend.md
+source: docs/compiler/backend/README.md
 ---
 
 ## 从程序的含义，生成原生实现
@@ -77,9 +77,15 @@ auto answer() noexcept -> ::std::int32_t;
 
 生成的局部存储根据原生程序中保留的访问需求选择。字段和数组投影把使用方的访问需求传回 owner：读取投影可以保留 `const` 访问，写入与所有权转移则可能要求可变存储。源码访问规则独立于具体 C++ 存储选择，仍由语义分析检查。
 
-类也遵循同样的思路。Carven 的 `class` 是封装的值，不带隐藏的堆分配、继承或虚派发。生成的 C++ 用一个保存字段的 struct 表示它，并把它的操作表示为普通函数：`&self` 接收者成为可变引用参数，`self` 成为 `const` 值参数。
+类也遵循同样的思路。Carven 的 `class` 是封装的值，不带隐藏的堆分配、继承或虚派发。生成的 C++ 用一个保存字段的 struct 表示它，并把它的操作表示为普通函数：`&self` 接收者成为可变引用参数。Read `self` 与其他 Read 参数遵循相同策略：包含 Carven 数组、`String` 或闭包的类通过 const 引用保留存储；纯标量类可按 const 值传递。包含原生值组件时，根据 C++ 复制与析构 trait 选择表示。
 
 某些原生不可移动组件如果必须先保存，再转入聚合，仍可能无法通过 C++ 编译。在最终位置直接构造，与先保存中间值以处理后续失败，对类型的构造能力有不同要求。
+
+普通赋值使用目标的 C++ 赋值操作，保留目标生命周期。Take 改变 Carven 源码中的可用状态；原生值交付可使用平凡复制或右值，由 C++ 选择构造函数。返回命名 owner 默认复制，显式 Take 才请求转移。这些规则保留必要效果，同时避免仅为转交值而增加一个 owner。
+
+已知标量值还能在原生花括号构造中保留常量表达式窄化规则，但操作数的必要效果仍会执行。C 字符串字面量以 `const char*` 进入原生调用，让 C++ 重载解析与模板推导看到该指针类型。
+
+只有原生入口及其依赖请求的私有函数和闭包才生成原生定义；仅用于静态执行的函数未必出现在运行时产物中。静态参数调用把共享 inline 实例放入调用方实现，使用提供方命名空间；新增静态输入改变调用方产物，不让提供方产物依赖调用者。
 
 ## 已知信息继续服务于运行时
 
@@ -94,6 +100,10 @@ auto answer() noexcept -> ::std::int32_t;
 | 已证明的文本编码               | 为对应格式化路径选择无需重复 UTF-8 扫描的入口 |
 
 **静态信息不仅用于拒绝错误，也用于选择实现。** 每条路径保留必要的求值、副作用、所有权和失败行为，剩余原生优化交给 C++ 工具链。
+
+标量绑定如果不会变化，也不会暴露可写存储，就可以直接读取，省去额外的操作数快照。可写地址、Write 捕获、赋值与 Take 都会阻止这种假设。即使切片描述符稳定，读取元素仍要观察底层存储。
+
+模式覆盖可以省去已由前面无 guard 分支证明的选择测试，但仍保留动态边界求值、guard，以及选择不同绑定来源所需的测试。只有一个失败交付点时，如果载荷快照、清理与循环边界允许，就可以直接进入处理分支。多个失败路径或可观察清理仍需保留汇合这些路径的存储。原生载荷的复制、移动、地址与析构效果仍然可观察。
 
 ## 接回现有的 C++ 工程
 
@@ -114,11 +124,12 @@ int main() {
 ```sh
 carven compile -o out answer.cv
 clang++ -std=c++20 -Iout -I/path/to/carven/crafts \
-    host.cpp out/answer.cpp out/crafts/carven/std/utf/*.cpp -o host
+    host.cpp out/answer.cpp out/crafts/carven/std/utf/*.cpp \
+    out/crafts/carven/std/simd/*.cpp -o host
 ./host
 ```
 
-程序输出 `42`。所有命令都会收集内置 Crafts，因此输出目录中还有 UTF Craft 的生成实现，位于 `out/crafts/carven/std/utf/`；手动构建时要与应用源码一起编译。把 `/path/to/carven/crafts` 换成工具链旁安装的 `crafts/` 目录。也可以交给 Xmake 规则完成这些步骤，见[工具链参考](/zh/reference/toolchain/)。
+程序输出 `42`。所有命令都会收集内置 Crafts，因此输出目录中还有 UTF 与 SIMD Craft 的生成实现，位于 `out/crafts/carven/std/utf/` 和 `out/crafts/carven/std/simd/`；手动构建时要与应用源码一起编译。把 `/path/to/carven/crafts` 换成工具链旁安装的 `crafts/` 目录。也可以交给 Xmake 规则完成这些步骤，见[工具链参考](/zh/reference/toolchain/)。
 
 Carven 不需要为工程提供者重新实现一套对象布局或机器码后端。它在原生构建之前完成语义检查和源码生成，支持运行时头文件随工具链提供。
 

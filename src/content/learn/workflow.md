@@ -3,7 +3,7 @@ title: "Run, format, and diagnose"
 description: "Select execution stages, organize validation, and locate problems at their boundaries."
 section: learn
 lesson: 16
-source: docs/cli.md
+source: docs/toolchain/cli.md
 ---
 
 ## Choose the command for the task
@@ -46,7 +46,7 @@ Run:
 carven check prices.cv
 ```
 
-The command prints `carven: check passed` on stderr. The file has no program entry, and check does not need one: it analyzes the batch, runs required compile-time evaluation and `const test`, then stops without invoking the native compiler. `carven prices.cv` would instead report that running a program requires a runtime entry point. Change 36 to 35 and check again: the static test fails with `CV-CONST-TEST`, showing the condition and both operand values, and check returns 1.
+The command prints `carven: check passed` on stderr. The file has no program entry, and check does not need one: it analyzes the batch, runs required compile-time evaluation and `const test`, then stops without invoking the native compiler. `carven prices.cv` would instead report that running a program requires a runtime entry point. Change 36 to 35 and check again: the static test fails with `CV-CONST-TEST`, showing the condition and the computed call result, and check returns 1.
 
 Compile-time calls must select a `const fn`. Remove `const` from line_total and check reports `CV-CONST-ADMISSION` at the call inside the test.
 

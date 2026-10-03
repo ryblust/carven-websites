@@ -3,7 +3,7 @@ title: "Format and print results"
 description: "Build readable output with interpolation, format specifications, and in-place append."
 section: learn
 lesson: 7
-source: docs/semantics.md
+source: docs/language/text.md
 ---
 
 ## Print values directly

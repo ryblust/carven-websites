@@ -2,7 +2,7 @@
 title: 组合操作，也组合失败
 description: 保留每一种失败的类型与数据，让恢复缩小契约，让接口明确承诺。
 section: failure-contracts
-source: docs/semantics.md
+source: docs/language/failures.md
 ---
 
 ## 业务组合起来，失败仍然清楚

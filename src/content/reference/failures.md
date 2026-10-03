@@ -3,7 +3,7 @@ title: "Typed failure contracts"
 description: "Failure sets, explicit upper bounds, inference, propagation targets, partial catches, guards, and rethrow."
 section: reference
 lesson: 8
-source: docs/semantics.md
+source: docs/language/failures.md
 ---
 
 ## Failure types and interfaces

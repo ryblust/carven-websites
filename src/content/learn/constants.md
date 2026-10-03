@@ -3,7 +3,7 @@ title: "Build data at compile time"
 description: "Organize loops and text construction with `const fn`, and understand freezing and execution stages."
 section: learn
 lesson: 12
-source: docs/semantics.md
+source: docs/language/constants.md
 ---
 
 ## Prepare a static heading
@@ -27,7 +27,7 @@ With `carven main.cv`, the compilation stage prints Preparing title, then the la
 
 ## `const fn` does not always run at compile time
 
-In an ordinary runtime expression, `title(42)` remains an ordinary function call. A `const fn` declaration makes it eligible for required constant execution; `const` initializers, array lengths, constant blocks, `const test`, and similar contexts require that execution. Those contexts call only functions explicitly declared `const fn`.
+In an ordinary runtime expression, `title(42)` remains an ordinary function call. A `const fn` declaration makes it eligible for static execution; `const` initializers, array lengths, constant blocks, `const test`, and similar contexts require that execution. Those contexts call only functions explicitly declared `const fn`.
 
 A `const fn` can use mutable locals, loops, supported arrays, slices and structs, and `String` operations. An ordinary `const` initializer cannot directly contain arbitrary control-flow expressions. Put complex logic in a `const fn`.
 
@@ -65,7 +65,7 @@ println("Running");
 
 `carven check prepare.cv` prints `Preparing data` during checking and does not execute the program. `carven prepare.cv` prints that line first, then the program prints `Running`. The string after `const` is an optional label used in diagnostics; labels need not be unique. `var label: String = {};` uses contextual construction: the annotation supplies the type for `{}`. A constant block has no trailing semicolon; its local values end with the block.
 
-A block may appear inside a function but still executes once during semantic analysis, independently of calls. It can read visible constants, not enclosing function parameters or runtime locals. Put compile-time operations that need a sequence in one block; order across blocks is unspecified. Use `const test` for assertions: a constant block does not create a test context.
+A module-scope block executes once. In a function body, a block executes once per selected instance or expanded `const for` occurrence; an unselected `const if` arm does not execute it. Ordinary runtime control does not select static work. The block can read enclosing constants, `const` parameters, and `const for` indices, but not runtime parameters or locals. Static operations in one body execute in source order; order between bodies and module-scope blocks is unspecified. Use `const test` for assertions outside a test body.
 
 ## Floating computation
 
@@ -102,7 +102,7 @@ const fn join(items: [str; 3]) -> String {
         }
         text.append(item);
     }
-    return text;
+    return &&text;
 }
 
 const menu = join(["Home", "Docs", "About"]);
@@ -236,7 +236,7 @@ const fn route_list(routes: [Route]) -> String {
             add_route(&text, route.path);
         }
     }
-    return text;
+    return &&text;
 }
 
 const routes: [Route] = [
@@ -264,10 +264,84 @@ error [CV-CONST-TEST]: check failed
   condition: endpoints == "/health\n/users\n"
   operands:
     endpoints: "/health\n/users\n/debug\n"
-    "/health\n/users\n": "/health\n/users\n"
 ```
 
 The diagnostic continues with a source excerpt pointing at the check. Restore `enabled: false` before continuing.
+
+## Specialize runtime functions
+
+A `const` parameter fixes an input during compilation while leaving other inputs and the body at runtime. Save this separate program as specialize.cv:
+
+```carven
+fn adjust(value: i32, const enabled: bool, const count: i32) -> i32 {
+    const if enabled {
+        var result = value;
+        const for index in 0..count {
+            result += index;
+        }
+        return result;
+    } else {
+        return value;
+    }
+}
+
+println(adjust(10, true, 4), adjust(10, false, 4));
+```
+
+It prints `16 10`. `const if` selects the generated arm for each distinct static input list. `const for` expands the integer range and makes each index a static binding. All source arms still undergo type, ownership, and failure checking; selection cannot repair an invalid contract. An ordinary runtime `let`, parameter, or `for` index cannot supply a static argument. Wrappers forwarding one must repeat `const` in their parameter declaration.
+
+`const fn` permits execution in the static stage; a `const` parameter specifies a static input. They are independent. Static arguments execute during specialization before residual runtime arguments. Equal typed static values can share an instance whose C++ signature contains only runtime parameters. Functions with static parameters require direct calls and cannot use `import(cpp)` or `export(cpp)`. Expansion has finite budgets and never silently falls back to a runtime loop. See [function Reference](/reference/functions/#static-parameters).
+
+## Validate Unicode during compilation
+
+Use the same checked UTF algorithms for constant input and ordinary runtime calls. Save this as unicode.cv:
+
+```carven
+import std::utf.codec using encode_utf8;
+import std::utf.validation using validate_utf8;
+
+const encoded = encode_utf8('😀');
+const bytes: [u8] = encoded.bytes;
+const { validate_utf8(bytes.slice(0, encoded.width))?; }
+
+const test "UTF-8 encoding" {
+    check(encoded.width == 4);
+    check(bytes[0] == 0xf0);
+}
+
+println(encoded.width, bytes[0]);
+```
+
+The program prints `4 240`. `encode_utf8` always returns a four-byte array; only `width` bytes belong to the encoded scalar. Slice to that width before validation so padding does not become extra NUL characters. Checked scalar conversion, prefix decoding, and whole-buffer validation are also `const fn`; their typed failures need explicit `?`.
+
+`from_utf8` and `to_string` currently require runtime execution because unchecked borrowed text construction is excluded from the executor. The incremental `UTF8Validator` also requires runtime execution because it is a class. Freezing preserves struct field and array element types, so a struct containing owning `String` cannot become a constant by turning that field into `str`. See [UTF Reference](/reference/utf/).
+
+## Count bytes in SIMD blocks
+
+The `std::simd.bytes` Craft traverses fixed 32-byte logical blocks. Save this as blocks.cv:
+
+```carven
+import std::simd.bytes using { block_count, load_block };
+
+const fn count_byte(bytes: [u8], needle: u8) -> usize {
+    var count: usize = 0;
+    for index in 0..block_count(bytes) {
+        let block = load_block(bytes, index * 32);
+        count += ((block.value == needle) & block.active).count();
+    }
+    return count;
+}
+
+const zeros = count_byte("A\0B".bytes, 0);
+const test { check(zeros == 1); }
+
+let text: String = "A\0B";
+println(zeros, count_byte(text.bytes, 0));
+```
+
+It prints `1 1`: one count executes during compilation and the other at runtime. `block.value == needle` returns a per-lane mask. The final block is zero-filled, so `& block.active` excludes padding that would otherwise match the zero byte. Partial loads read only the supplied slice; no alignment or padding is required.
+
+Builtin vectors also include `u8x16`, `f32x4`, and `f32x8`, with corresponding masks. Native execution selects portable lanes, AArch64 NEON, or consumer-enabled x86 AVX2 at compilation; there is no runtime dispatch. Logical width does not promise one hardware register or a speedup. Translation units using SIMD or runtime text support must agree on backend flags. Static execution uses the same lane contracts independently of the host instruction set. See [SIMD Reference](/reference/simd/) for bounds, static controls, and floating limits.
 
 ## Failures and budgets
 

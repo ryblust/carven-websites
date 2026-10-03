@@ -3,7 +3,7 @@ title: "调用 C++ 与导出接口"
 description: 从 `printf` 到声明式函数契约，了解原生类型、异常与构建要求。
 section: learn
 lesson: 13
-source: docs/semantics.md
+source: docs/language/interop.md
 ---
 
 ## 第一个原生调用
@@ -149,11 +149,12 @@ int main() {
 }
 ```
 
-编译时加入生成的实现，包括 `compile` 写到 `generated/crafts/` 下的内置 UTF Craft 源文件：
+编译时加入生成的实现，包括 `compile` 写到 `generated/crafts/` 下的内置 UTF 与 SIMD Craft 源文件：
 
 ```sh
 clang++ -std=c++20 -Igenerated -I/path/to/carven/crafts \
     consumer.cpp generated/labels.cpp generated/crafts/carven/std/utf/*.cpp \
+    generated/crafts/carven/std/simd/*.cpp \
     -o consumer
 ./consumer
 ```

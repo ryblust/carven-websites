@@ -2,8 +2,8 @@
 title: 形式语法与优先级
 description: 完整 EBNF 产生式、结合性、分隔规则和控制头部消歧。
 section: reference
-lesson: 20
-source: docs/grammar.md
+lesson: 21
+source: docs/language/grammar.md
 ---
 
 ## 记法与适用方式
@@ -27,6 +27,8 @@ source: docs/grammar.md
 模块 import 是连续前缀。顶层 `const` 绑定是模块常量，`const { ... }` 或 `const "label" { ... }` 引入常量块；可选标签只用于诊断中标识该块，不要求唯一。测试名可省略；显式名字在模块内唯一，匿名测试在报告中以源位置标识。顶层可执行语句形成隐式入口。没有 namespace block、泛型声明、默认参数或可变参数语法。区间表达式 `a..b` 和 `a..=b` 不可连续结合，且必须提供两个整数端点。只有区间模式可以省略端点；不支持步长和隐式反向遍历。类型位置的非限定名 `range<T>` 表示整数区间。模式端点使用移位表达式，括号内可使用完整表达式；未加括号的 `|` 分隔模式分支。裸标识符绑定值，不表示检查一个已保存区间的成员关系。
 
 `class` 是保留关键字。类体中字段与操作可以交错，字段后接逗号，最后一个字段可省略逗号。实例操作的第一个参数是不带类型的 `self`、`&self` 或 `&&self`；这个拼写只在该位置有特殊含义，不是关键字。没有 receiver 的操作是关联操作，不需要 `static` 关键字。其他参数必须注明类型。类体中不允许类形式、嵌套声明、`const fn` 和 C++ 边界操作。顶层 `fn` 前可选的 `const` 声明编译期调用能力：必需常量执行只调用这类函数，`const fn` 也只能调用其他 `const fn`。
+
+原始与多行字符串的边界遵循[文本布局](/zh/reference/text/#字符串字面量与多行布局)。SIMD 类型拼写属于内建类型名。具名函数可声明 `const name: T` 静态参数，lambda 与 callable view 不可。`const if` 和 Read 整数区间 `const for` 显式选择静态特化。无条件 while 写作 `while { ... }`，C 风格 for 的条件必需。const 块具有转移边界，return 不能离开它。
 
 ## 01 · 记法
 
@@ -113,17 +115,20 @@ CHAR_LITERAL = "'",
                ( character-scalar | simple-escape | unicode-escape ),
                "'";
 
-C_STRING_LITERAL = "c", STRING_LITERAL;  (* adjacent prefix; decoded NUL forbidden *)
+C_STRING_LITERAL = "c", single-line-string;  (* adjacent prefix; decoded NUL forbidden *)
 
-STRING_LITERAL = "\"",
+single-line-string = "\"",
                  { string-scalar | simple-escape | unicode-escape },
                  "\"";
+
+STRING_LITERAL = single-line-string | multiline-string | raw-string;
 ```
 
 ## 06 · 文本字面量
 
 ```text
-interpolated-string = 'f"', { interpolation-text | interpolation-hole }, '"';
+interpolated-string = 'f"', { interpolation-text | interpolation-hole }, '"'
+                    | 'f"""', multiline-interpolation-body, '"""';
 interpolation-hole = "{", expression, [ ":", format-specification ], "}";
 format-specification = { format-text | interpolation-hole };
 ```
@@ -166,7 +171,7 @@ top-level-item = module-item
                | statement;
 
 (* A top-level const binding is a module constant declaration;
-   const test introduces a test and const { introduces a constant block. *)
+   const test introduces a test and const { introduces a const block. *)
 module-item = [ visibility-modifier ], module-declaration;
 
 visibility-modifier = "private" | "export";
@@ -260,7 +265,8 @@ class-member = struct-field, ","
 class-operation = "fn", IDENTIFIER,
                   "(", [ class-parameter-list ], ")",
                   [ "->", function-result-type ], [ throw-clause ], function-body;
-class-parameter-list = receiver, [ ",", parameter-list ] | parameter-list;
+class-parameter-list = receiver, [ ",", function-parameter-list ]
+                     | function-parameter-list;
 receiver = [ "&" | "&&" ], "self";
 ```
 
@@ -270,11 +276,15 @@ function-definition = function-head, function-body;
 function-body = ordinary-block | "=>", expression, ";";
 
 function-head = [ "const" ], "fn", IDENTIFIER,
-                "(", [ parameter-list ], ")",
+                "(", [ function-parameter-list ], ")",
                 [ "->", function-result-type ],
                 [ throw-clause ];
 
-parameter-list = parameter, { ",", parameter }, [ "," ];
+function-parameter-list = function-parameter,
+                          { ",", function-parameter }, [ "," ];
+
+function-parameter = parameter
+                   | "const", binding-target, [ ":", type ];
 
 parameter = [ access-marker ], binding-target, [ ":", type ];
 
@@ -335,7 +345,7 @@ ordinary-block = "{", { statement }, "}";
 
 ```text
 statement = variable-declaration
-          | constant-block
+          | const-block
           | return-statement
           | throw-statement
           | rethrow-statement
@@ -356,7 +366,7 @@ expression-statement = expression, ";";
 
 control-flow-statement = if-form | match-form | try-form;
 
-constant-block = "const", [ STRING_LITERAL ], ordinary-block;
+const-block = "const", [ STRING_LITERAL ], ordinary-block;
 ```
 
 ## 18 · 赋值与更新
@@ -403,13 +413,14 @@ continue-statement = "continue", ";";
 ## 21 · while
 
 ```text
-while-statement = "while", expression, ordinary-block;
+while-statement = "while", [ expression ], ordinary-block;
 ```
 
 ## 22 · for
 
 ```text
-for-statement = "for", for-header, ordinary-block;
+for-statement = "const", "for", range-for-header, ordinary-block
+              | "for", for-header, ordinary-block;
 
 for-header = range-for-header | c-style-for-header;
 
@@ -420,7 +431,7 @@ range-for-source = expression;
 for-binding = [ "&" ], binding-target, [ ":", type ];
 
 c-style-for-header = [ for-initializer ], ";",
-                         [ expression ], ";",
+                         expression, ";",
                          [ for-step-list ];
 
 for-initializer = variable-declaration-head
@@ -579,7 +590,7 @@ lambda-parameter-list = parameter, { ",", parameter }, [ "," ];
 ## 28 · 条件形式
 
 ```text
-if-form = "if", expression, branch-block,
+if-form = [ "const" ], "if", expression, branch-block,
           { "else", "if", expression, branch-block },
           [ "else", branch-block ];
 ```

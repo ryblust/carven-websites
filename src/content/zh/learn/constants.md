@@ -3,7 +3,7 @@ title: "在编译期构造数据"
 description: 用 `const fn` 组织循环和文本构造，认识冻结和执行阶段。
 section: learn
 lesson: 12
-source: docs/semantics.md
+source: docs/language/constants.md
 ---
 
 ## 准备一个静态标题
@@ -27,7 +27,7 @@ println(heading);
 
 ## `const fn` 不意味着每次编译期运行
 
-普通运行时表达式中的 `title(42)` 仍是普通函数调用。声明 `const fn` 只是让它具备必需常量执行资格；只有 `const` 初始化、数组长度、常量块、`const test` 等上下文要求编译期执行，而且这些上下文只能调用显式声明为 `const fn` 的函数。
+普通运行时表达式中的 `title(42)` 仍是普通函数调用。声明 `const fn` 只是让它具备静态执行能力；只有 `const` 初始化、数组长度、常量块、`const test` 等上下文要求编译期执行，而且这些上下文只能调用显式声明为 `const fn` 的函数。
 
 `const fn` 内可以写局部变量、循环、支持的数组、切片和结构体以及 `String` 操作；普通 `const` 初始化器不能直接用任意控制流表达式，复杂逻辑放进 `const fn`。
 
@@ -65,7 +65,7 @@ println("Running");
 
 `carven check prepare.cv` 在检查阶段打印 `Preparing data`，不执行程序。`carven prepare.cv` 先打印同一行，再由程序打印 `Running`。`const` 后面的字符串是可选标签，用于诊断，可以重复。`var label: String = {};` 使用上下文构造：类型标注为 `{}` 提供了类型。常量块没有尾分号，局部值在块结束时销毁。
 
-块也可以写在函数内，但仍在语义分析时执行一次，不随函数调用重复。它能读取可见常量，不能读取外围函数参数或运行时局部值。需要顺序的编译期操作放在同一块中；不同块的执行顺序未定义。要验证结果则使用 `const test`，常量块本身不创建测试上下文。
+模块作用域的块执行一次。函数体中的块对每个选定实例或展开的 `const for` 出现位置执行一次；未选中的 `const if` 分支不执行它。普通运行时控制流不选择静态工作。块可以读取外围常量、`const` 参数和 `const for` 索引，不能读取运行时参数或局部值。同一函数体中的静态操作按源码顺序执行；不同函数体与模块作用域块之间的顺序未定义。在测试体外需要断言时使用 `const test`。
 
 ## 浮点计算
 
@@ -102,7 +102,7 @@ const fn join(items: [str; 3]) -> String {
         }
         text.append(item);
     }
-    return text;
+    return &&text;
 }
 
 const menu = join(["Home", "Docs", "About"]);
@@ -236,7 +236,7 @@ const fn route_list(routes: [Route]) -> String {
             add_route(&text, route.path);
         }
     }
-    return text;
+    return &&text;
 }
 
 const routes: [Route] = [
@@ -264,10 +264,84 @@ error [CV-CONST-TEST]: check failed
   condition: endpoints == "/health\n/users\n"
   operands:
     endpoints: "/health\n/users\n/debug\n"
-    "/health\n/users\n": "/health\n/users\n"
 ```
 
 诊断随后给出指向该 check 的源码片段。继续之前把它恢复为 `enabled: false`。
+
+## 特化运行时函数
+
+`const` 参数在编译时固定一个输入，其他输入与函数体仍可在运行时执行。将这个独立程序保存为 specialize.cv：
+
+```carven
+fn adjust(value: i32, const enabled: bool, const count: i32) -> i32 {
+    const if enabled {
+        var result = value;
+        const for index in 0..count {
+            result += index;
+        }
+        return result;
+    } else {
+        return value;
+    }
+}
+
+println(adjust(10, true, 4), adjust(10, false, 4));
+```
+
+输出 `16 10`。`const if` 为每组不同的静态输入选择生成的分支；`const for` 展开整数区间，每个索引都是静态绑定。所有源码分支仍要检查类型、所有权与失败契约；选择分支不能修复无效契约。普通运行时 `let`、参数或 `for` 索引不能提供静态实参。转发静态输入的包装函数必须在参数声明中保留 `const`。
+
+`const fn` 允许静态阶段执行，`const` 参数规定静态输入，两者相互独立。静态实参在特化阶段执行，随后才求值剩余运行时实参。类型与值相同的静态输入可以共享实例，其 C++ 签名只含运行时参数。带静态参数的函数只允许直接调用，不能使用 `import(cpp)` 或 `export(cpp)`。展开有有限预算，不会默默退回运行时循环。见[函数参考](/zh/reference/functions/#静态参数)。
+
+## 在编译期验证 Unicode
+
+常量输入与普通运行时调用使用同一套受检查 UTF 算法。保存为 unicode.cv：
+
+```carven
+import std::utf.codec using encode_utf8;
+import std::utf.validation using validate_utf8;
+
+const encoded = encode_utf8('😀');
+const bytes: [u8] = encoded.bytes;
+const { validate_utf8(bytes.slice(0, encoded.width))?; }
+
+const test "UTF-8 encoding" {
+    check(encoded.width == 4);
+    check(bytes[0] == 0xf0);
+}
+
+println(encoded.width, bytes[0]);
+```
+
+程序输出 `4 240`。`encode_utf8` 总是返回四字节数组，但只有 `width` 个字节属于该标量编码。验证前切到这个宽度，避免把填充算成额外 NUL 字符。受检查标量转换、前缀解码与整块验证也是 `const fn`，其带类型失败需要显式 `?`。
+
+`from_utf8` 与 `to_string` 当前需要运行时执行，因为执行器尚不支持未经检查的借用文本构造。增量 `UTF8Validator` 是类，也需要运行时执行。冻结保留结构体字段与数组元素类型，不会把含自有 `String` 的结构体字段改成 `str` 来存为常量。见 [UTF 参考](/zh/reference/utf/)。
+
+## 用 SIMD 块统计字节
+
+`std::simd.bytes` Craft 按固定的 32 字节逻辑块遍历。保存为 blocks.cv：
+
+```carven
+import std::simd.bytes using { block_count, load_block };
+
+const fn count_byte(bytes: [u8], needle: u8) -> usize {
+    var count: usize = 0;
+    for index in 0..block_count(bytes) {
+        let block = load_block(bytes, index * 32);
+        count += ((block.value == needle) & block.active).count();
+    }
+    return count;
+}
+
+const zeros = count_byte("A\0B".bytes, 0);
+const test { check(zeros == 1); }
+
+let text: String = "A\0B";
+println(zeros, count_byte(text.bytes, 0));
+```
+
+输出 `1 1`：一次统计在编译期执行，另一次在运行时执行。`block.value == needle` 返回逐通道（lane）掩码。最后一块以零填充，因此必须用 `& block.active` 排除同样可能匹配零字节的填充。部分加载只读取所给切片，无需对齐或额外填充。
+
+内建向量还包括 `u8x16`、`f32x4`、`f32x8` 及对应掩码。原生执行在编译时选择可移植通道实现、AArch64 NEON 或由使用方启用的 x86 AVX2，不做运行时派发。逻辑宽度不承诺单个硬件寄存器或性能提升。使用 SIMD 或运行时文本支持的翻译单元必须采用一致的后端选项。静态执行遵循相同通道契约，不依赖宿主指令集。边界、静态控制与浮点限制见 [SIMD 参考](/zh/reference/simd/)。
 
 ## 检查失败和预算
 

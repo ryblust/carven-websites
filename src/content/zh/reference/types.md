@@ -3,12 +3,12 @@ title: 类型、上下文与转换
 description: 内建类型、名义身份、上下文推断及数值转换的完整边界。
 section: reference
 lesson: 3
-source: docs/semantics.md
+source: docs/language/types.md
 ---
 
 ## 类型身份
 
-内建类型为 `bool`、`char`、`str`、`String`、`void`，有符号整数 `i8/i16/i32/i64/isize`，无符号整数 `u8/u16/u32/u64/usize`，以及 `f32/f64`。
+内建类型为 `bool`、`char`、`str`、`String`、`void`，有符号整数 `i8/i16/i32/i64/isize`，无符号整数 `u8/u16/u32/u64/usize`，以及 `f32/f64`。固定逻辑 [SIMD 类型](/zh/reference/simd/)为 `u8x16`、`mask16`、`f32x4`、`mask4`、`u8x32`、`mask32`、`f32x8`、`mask8`。内建类型名保留，模块声明不能复用。
 
 结构体、类和枚举由声明身份决定类型；相同字段不意味着兼容。类是字段私有的普通值类型，见[普通值类](/zh/reference/aggregates/#普通值类)。数组类型同时包含元素类型和长度；切片包含元素类型。`range<T>` 的元素类型须为内建整数；半开区间与闭区间具有同一类型，是否包含上端点属于值的一部分。callable view 类型包含参数访问、参数类型、成功结果和失败集合。指针的每一层包含目标类型和 Read/Write 目标权限。
 

@@ -2,7 +2,7 @@
 title: "Do known work ahead of time"
 description: "Build constants with ordinary control flow, verify them during compilation, and carry known structure into native code."
 section: compile-time
-source: docs/semantics.md
+source: docs/language/constants.md
 ---
 
 ## Build incrementally during compilation
@@ -20,7 +20,7 @@ const fn route_list(routes: [Route; 3]) -> String {
             text.append("\n");
         }
     }
-    return text;
+    return &&text;
 }
 
 const endpoints = route_list([
@@ -96,7 +96,7 @@ constexpr std::string_view endpoints{data.data(), data.size()};
 static_assert(endpoints == "/health\n/users\n");
 ```
 
-The extra template exists because of one C++20 rule: a `std::string` may allocate during constant evaluation, but that allocation must be released before the evaluation ends. A `constexpr std::string` variable therefore cannot hold the result into runtime. `freeze` runs the construction once in `build().size()` to learn the length for the array type, then runs it again to copy the characters into that sized array. A static-string library can encapsulate these steps, and C++26 facilities may ease them.
+The `freeze` helper supplies static storage for results of varying lengths. In C++20, a `std::string` may allocate during constant evaluation, but that allocation must be released before evaluation ends. Short strings may avoid allocation, so some standard-library implementations can retain this particular result directly as a `constexpr std::string`. The array approach also handles longer results: `freeze` runs the construction once in `build().size()` to determine the array type, then again to copy the characters into it. A static-string library can encapsulate these steps.
 
 Carven evaluates supported source operations itself and freezes the working `String` into `str` when initialization completes. This happens before C++ generation, so the corresponding runtime text functions do not need to perform the same computation in C++ constant evaluation.
 
@@ -104,20 +104,25 @@ The [tutorial](/learn/constants/) teaches construction and freezing step by step
 
 ## One algorithm, an explicit execution stage
 
-Required constant contexts, such as constant initializers, array extents, constant blocks, and `const test`, can call only functions declared `const fn`. The compiler checks each `const fn` definition for compile-time capability: every reachable operation must be supported by the executor, and every function it calls must also be a `const fn`. A violation produces `CV-CONST-ADMISSION` at the definition, before anything calls it.
+Static execution contexts, such as constant initializers, array extents, constant blocks, and `const test`, can call only functions declared `const fn`. The compiler checks each `const fn` definition for compile-time capability: every reachable operation must be supported by the executor, and every function it calls must also be a `const fn`. A violation produces `CV-CONST-ADMISSION` at the definition, before anything calls it.
 
-A `const fn` is still an ordinary function. A runtime call remains a runtime call, even when its arguments happen to be literals, so route_list can also build text from route configuration that is only known when the program runs. A required constant computation that cannot complete produces a diagnostic rather than falling back to runtime.
+A `const fn` is still an ordinary function. A runtime call remains a runtime call, even when its arguments happen to be literals, so route_list can also build text from route configuration that is only known when the program runs. Static execution that cannot complete produces a diagnostic rather than falling back to runtime.
+
+## Fix selected inputs while keeping runtime work
+
+A function can declare `const` parameters to specialize on configuration while processing runtime data. `const if` selects an arm per instance; `const for` expands a static integer range. The full function contract remains checked in every source arm, and an ordinary runtime variable cannot supply the static input.
+
+This also supplies fixed controls to SIMD operations such as extraction and byte shifts. The [tutorial](/learn/constants/#specialize-runtime-functions) shows a complete runtime specialization example; the [SIMD Reference](/reference/simd/) defines lane operations and native backend selection. Extraction offsets and shift counts are fixed at compilation and become generated C++ template arguments; the remaining data can still be processed at runtime.
 
 ## Verify before the program runs
 
-The `const test` in the example runs during semantic analysis, independently of runtime test-artifact options. Change `/debug` to `enabled: true` and run `carven check routes.cv`: checking fails and reports the condition and both operands.
+The `const test` in the example runs during semantic analysis, independently of runtime test-artifact options. Change `/debug` to `enabled: true` and run `carven check routes.cv`: checking fails and reports the condition and the computed endpoint value.
 
 ```text
 error [CV-CONST-TEST]: check failed
   condition: endpoints == "/health\n/users\n"
   operands:
     endpoints: "/health\n/users\n/debug\n"
-    "/health\n/users\n": "/health\n/users\n"
  --> routes.cv:21:5
 ```
 
@@ -139,11 +144,15 @@ For this integer format, Carven analyzes fixed segments and conversion requireme
 
 ## Combine values, control flow, and failure contracts
 
-Required constant execution supports integers, `f32`/`f64`, booleans, characters, text and its byte views, C strings, supported fixed arrays, slices, structures, and enums. A `const fn` can use the corresponding control flow, Read and Write parameters, pointers to live locals, and calls to `const fn`, including through local bindings of a named `const fn`. Native operations, text character iteration, classes, and callable values without a Carven body remain outside this subset. Execution steps, recursion depth, text work, and aggregate work are bounded.
+Static execution supports integers, `f32`/`f64`, booleans, characters, text and its byte views, C strings, SIMD vectors and masks, supported fixed arrays, slices, structures, and enums. A `const fn` can use the corresponding control flow, Read and Write parameters, pointers to live locals, and calls to `const fn`, including through local bindings of a named `const fn`. Native operations, text character iteration, classes, and callable values without a Carven body remain outside this subset. Execution steps, recursion depth, text work, and aggregate work are bounded.
 
-Arithmetic means the same thing at both stages: integer operations wrap exactly as they do at runtime. Division by zero and invalid shifts produce diagnostics when they execute during compilation.
+Integer operations wrap to their type width at both stages. Division by zero and invalid shifts produce diagnostics when they execute during compilation.
 
 `const fn` also executes typed failure creation, propagation, matching, recovery, and rethrow. The same validation logic can serve compile-time configuration and runtime input; see the [failure contract example](/learn/constants/#select-compile-time-configuration-with-the-same-failure-contracts). Floating arithmetic follows the compiler host's native environment; floating printing and formatting reuse native standard-library rules. See [constant execution rules](/reference/constants/) for accepted operations, result types, and resource limits.
+
+Checked Unicode scalar conversion, UTF-8 encoding, prefix decoding, and whole-buffer validation use library `const fn` implementations. They can validate fixed data before native compilation using the same typed failures as runtime calls. Borrowed/owning text factories and the incremental validator currently require runtime execution; see the [Unicode example](/learn/constants/#validate-unicode-during-compilation).
+
+Freezing preserves field and element types. It does not turn owning `String` fields inside a struct or array into `str`; completed aggregate constants must already have freezable components.
 
 ## Compile-time work without a retained result
 

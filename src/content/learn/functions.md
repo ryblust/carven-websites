@@ -3,7 +3,7 @@ title: "Organize calculations with functions"
 description: "Name calculations, declare parameter types, and make return paths explicit."
 section: learn
 lesson: 3
-source: docs/semantics.md
+source: docs/language/functions.md
 ---
 
 ## Give a computation a name

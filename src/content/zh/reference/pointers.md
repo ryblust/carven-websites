@@ -3,7 +3,7 @@ title: 指针与外部地址
 description: 可空地址、addressof、目标权限、非空证明、存活检查和原生资源责任。
 section: reference
 lesson: 16
-source: docs/semantics.md
+source: docs/language/pointers.md
 ---
 
 ## 地址值与目标访问

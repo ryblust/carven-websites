@@ -3,7 +3,7 @@ title: "拥有文本与借用序列"
 description: 选择 `String` 或 `str`，处理 UTF-8，并理解视图何时阻止修改。
 section: learn
 lesson: 6
-source: docs/semantics.md
+source: docs/language/text.md
 ---
 
 ## 拥有内容还是借用内容
@@ -21,6 +21,46 @@ println(title);
 输出两行 `Carven language` 和 `Carven language!`。`String` 拷贝拥有独立字节，字面量在 `String` 注解上下文中构造拥有值。普通字面量默认是非拥有 `str`。
 
 已有 `str` 变成独立 `String` 要写 `text as String` 或 `String::from_str(text)`。`String` 在 `str` 参数上下文可借用，或显式 `.as_str()`。
+
+## 写字面文本与多行文本
+
+将这个独立程序保存为 literals.cv：
+
+```carven
+let path = r"C:\tools\bin\";
+let quoted = r#"{"name": "{name}"}"#;
+let message = """
+    Hello
+      Carven
+    World
+""";
+let build = 42;
+let summary = f"""
+    Build {build:04}
+    Ready
+""";
+
+println(path);
+println(quoted);
+println(message);
+println(summary);
+```
+
+输出：
+
+```text
+C:\tools\bin\
+{"name": "{name}"}
+Hello
+  Carven
+World
+Build 0042
+Ready
+```
+
+原始字符串 `r"..."` 原样保留反斜杠与花括号。配对的 `#` 定界符让内容可以包含引号。三引号把文本写在多行源码中：开定界符后必须换行，闭定界符另起一行，前面只能有空格或制表符，后面可接 `;` 等标点。Carven 移除非空正文行共有的空格/制表符前缀，排除开头与结尾的换行，并把物理 CRLF 规范化为 LF。闭定界符所在行的缩进不决定内容缩进。
+
+普通与原始字面量产生 `str`，在 `String` 上下文中则构造自有文本。`f"""..."""` 与 `f"..."` 一样插值为独立 `String`；插入值保留自身空白。不支持原始插值或 `rf` 等组合前缀。空白行、制表符与定界符细节见[文本参考](/zh/reference/text/)。
 
 ## 借用保护原存储
 

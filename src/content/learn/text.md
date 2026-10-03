@@ -3,7 +3,7 @@ title: "Own text and borrow sequences"
 description: "Choose `String` or `str`, work with UTF-8, and understand when views prevent mutation."
 section: learn
 lesson: 6
-source: docs/semantics.md
+source: docs/language/text.md
 ---
 
 ## Own the contents or borrow them
@@ -21,6 +21,46 @@ println(title);
 This prints `Carven language` and `Carven language!` on separate lines. A `String` copy owns independent bytes. A literal in a `String` annotation context constructs an owning value; an ordinary literal defaults to non-owning `str`.
 
 Convert an existing `str` into an independent `String` with `text as String` or `String::from_str(text)`. A `String` can be borrowed in a `str` parameter context or explicitly with `.as_str()`.
+
+## Write literal text and multiple lines
+
+Save this separate program as literals.cv:
+
+```carven
+let path = r"C:\tools\bin\";
+let quoted = r#"{"name": "{name}"}"#;
+let message = """
+    Hello
+      Carven
+    World
+""";
+let build = 42;
+let summary = f"""
+    Build {build:04}
+    Ready
+""";
+
+println(path);
+println(quoted);
+println(message);
+println(summary);
+```
+
+The output is:
+
+```text
+C:\tools\bin\
+{"name": "{name}"}
+Hello
+  Carven
+World
+Build 0042
+Ready
+```
+
+Raw `r"..."` preserves backslashes and braces. Matching `#` delimiters let raw text contain quotes. Triple quotes put text on several source lines: the opening delimiter requires a line ending, and the closing delimiter starts a separate line with only spaces or tabs before it; punctuation such as `;` can follow it. Carven removes the common space/tab prefix of nonblank body lines, excludes the opening and final line endings, and normalizes physical CRLF to LF. The closing line's indentation does not set the text indentation.
+
+Ordinary and raw literals produce `str`, or owning text in a `String` context. `f"""..."""` interpolates into an independent `String`, just as `f"..."` does. Inserted values keep their whitespace. Raw interpolation and combined prefixes such as `rf` are unsupported. See [text Reference](/reference/text/) for blank lines, tabs, and delimiter details.
 
 ## A borrow protects its source storage
 

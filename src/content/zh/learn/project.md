@@ -3,7 +3,7 @@ title: "实践：成功后才扣减库存"
 description: 组合校验、Write 更新、选择性恢复的类型化失败、断言和测试，完成一个可运行程序。
 section: learn
 lesson: 15
-source: docs/semantics.md
+source: docs/language/tutorial.md
 ---
 
 ## 任务与规则
@@ -125,7 +125,8 @@ test "purchase reduces stock" {
         _ => ({}),
     };
 
-    check(receipt == Receipt { quantity: 2, amount: 2400 });
+    check(receipt.quantity == 2);
+    check(receipt.amount == 2400);
     check(item.stock == 1);
 }
 
@@ -166,7 +167,7 @@ Backorder: 1 requested, 0 available
 carven: tests: 3 passed; 0 failed
 ```
 
-测试模式跳过顶层语句。前两条测试直接调用 purchase，第三条匿名测试检查 reserve 的恢复。结构体按字段比较，所以 `receipt == Receipt { ... }` 检查整张收据。同样的测试也可以用 `carven interpret --tests orders.cv` 运行。
+测试模式跳过顶层语句。前两条测试直接调用 purchase，第三条匿名测试检查 reserve 的恢复。结构体没有隐式相等，因此成功测试分别检查数量与金额。同样的测试也可以用 `carven interpret --tests orders.cv` 运行。
 
 ## 读失败报告
 
@@ -184,39 +185,38 @@ orders.cv:71:5: error: check failed
   test:
     module: orders
     name: purchase reduces stock
-  condition: receipt == Receipt { quantity: 2, amount: 2400 }
+  condition: receipt.quantity == 2
   operands:
-    receipt: Receipt {
-        quantity: 0,
-        amount: 0,
-    }
-    Receipt { quantity: 2, amount: 2400 }: Receipt {
-        quantity: 2,
-        amount: 2400,
-    }
+    receipt.quantity: 0
 
-orders.cv:85:5: error: check failed
+orders.cv:72:5: error: check failed
+  test:
+    module: orders
+    name: purchase reduces stock
+  condition: receipt.amount == 2400
+  operands:
+    receipt.amount: 0
+
+orders.cv:86:5: error: check failed
   test:
     module: orders
     name: failed purchase preserves stock
   condition: available == 1
   operands:
     available: -1
-    1: 1
 
-orders.cv:86:5: error: check failed
+orders.cv:87:5: error: check failed
   test:
     module: orders
     name: failed purchase preserves stock
   condition: item.stock == 1
   operands:
     item.stock: -1
-    1: 1
 
 carven: tests: 1 passed; 2 failed
 ```
 
-第一份报告完整显示两侧的收据：quote 看到的是已扣减的库存，拒绝了请求，purchase 因此落入恢复分支。后两份报告来自同一条测试，只计为一个失败用例。尽管调用失败，扣减已经发生，语言不会撤销它。继续之前恢复原来的顺序。
+前两份报告显示数量与金额都是零：quote 看到的是已扣减的库存，拒绝了请求，purchase 因此落入恢复分支。两次检查属于同一条失败测试，后两份报告属于另一条失败测试。尽管调用失败，扣减已经发生，语言不会撤销它。继续之前恢复原来的顺序。
 
 ## 独立完成的扩展
 

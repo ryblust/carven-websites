@@ -3,7 +3,7 @@ title: "用函数组织计算"
 description: 拆分计算，声明参数类型，明确每条路径的返回值。
 section: learn
 lesson: 3
-source: docs/semantics.md
+source: docs/language/functions.md
 ---
 
 ## 把计算命名

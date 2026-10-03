@@ -3,7 +3,7 @@ title: "Modules, declarations, and visibility"
 description: "Compilation batches, craft domains, import resolution, name lookup, and interface visibility."
 section: reference
 lesson: 2
-source: docs/semantics.md
+source: docs/language/modules.md
 ---
 
 ## Batches and canonical module names
@@ -48,7 +48,7 @@ Declaration identities are collected across the batch. Valid forward calls, mutu
 
 Unprefixed lookup starts in the innermost lexical scope, then proceeds through outer scopes, module declarations, and imports. Names cannot repeat within one lexical scope; inner scopes may shadow outer ones. A local name becomes visible after its type, initializer, and constant proof are complete, so an initializer may refer to an outer binding of the same name.
 
-A lambda is a capture boundary. Outer runtime bindings need explicit capture; module declarations and compile-time constants remain directly accessible.
+A lambda is a capture boundary. Outer runtime bindings require explicit capture. Module declarations remain directly accessible; a visible local constant may cross only when its value is determinable while constructing the lambda body, independently of unbound enclosing static parameters.
 
 ## Visibility
 

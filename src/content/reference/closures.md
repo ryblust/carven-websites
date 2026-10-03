@@ -3,12 +3,12 @@ title: "Closures, captures, and callable views"
 description: "Closure identity, value and Write captures, view adaptation, and call snapshots."
 section: reference
 lesson: 9
-source: docs/semantics.md
+source: docs/language/functions.md
 ---
 
 ## Creation and capture
 
-A lambda must have a capture list; use [] when empty. Its body is a block or `=> expression`, as in `[factor](item: i32) => item * factor`; an expression body implicitly returns under the same rules as named functions. Creating a closure does not run its body. Captures are established in list order, with each name appearing once. Only runtime bindings visible at creation may be captured. Module declarations and compile-time constants are not explicitly captured.
+A lambda requires a capture list, including [] when empty. Its body is a block or `=> expression`; expression bodies return under named-function rules. Creation does not run its body. Captures are established in list order, each name once, from visible runtime bindings. Module declarations and constants cannot be explicit captures. A visible local constant is usable without capture only if its value can be determined while constructing the lambda body; one depending on an unbound enclosing static parameter cannot cross this boundary. A runtime let initialized from that value can be explicitly captured.
 
 | Form        | Captured content                   | Body access   |
 | ----------- | ---------------------------------- | ------------- |

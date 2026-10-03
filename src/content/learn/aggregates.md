@@ -3,7 +3,7 @@ title: "Model data with structs, arrays, and enums"
 description: "Group related data and express states with exhaustive patterns."
 section: learn
 lesson: 4
-source: docs/semantics.md
+source: docs/language/aggregates.md
 ---
 
 ## A struct represents a record
@@ -55,7 +55,7 @@ Item {
 
 Empty braces default-initialize the whole Item, so both integers are zero. Once you specify fields, provide all of them: `Item { price: 12 }` does not fill in quantity automatically.
 
-Defaults can represent an empty state; assign meaningful business values explicitly. Enums have no default case, so choose a state explicitly.
+Defaults can represent an empty state; assign meaningful business values explicitly. Integers and floats default to zero, `bool` to false, text to empty, pointers to null, and slices to empty. Fixed arrays and structs recursively default their contents; an empty array needs no element default. Enums, callables, and classes have no automatic default, so a containing struct or nonempty array must be constructed explicitly too. An empty class can be constructed only inside its own body. `i32 {}` and `String {}` also request their defaults; nonempty `String { ... }` is invalid.
 
 ## Let the expected type name the struct
 

@@ -3,7 +3,7 @@ title: "Test success and failure paths"
 description: "Make successful paths, boundaries, and failure recovery repeatable."
 section: learn
 lesson: 11
-source: docs/semantics.md
+source: docs/language/execution.md
 ---
 
 ## Write a runtime test
@@ -63,14 +63,13 @@ totals.cv:4:5: error: check failed
   condition: total(12, 3) == 35
   operands:
     total(12, 3): 36
-    35: 35
 
 carven: tests: 1 passed; 1 failed
 ```
 
-The first line gives the source location of the failed check. `test` names the module and test; an anonymous test shows its location instead, such as `name: totals.cv:8:1`. `condition` is the source text, and `operands` shows both sides of the outer comparison with their values. A `message:` line follows when a failed operation has a message; a failed require adds `note: test stopped`. `interpret --tests` prints the same layout. Restore 36 before continuing.
+The first line gives the source location of the failed check. `test` names the module and test; an anonymous test shows its location instead, such as `name: totals.cv:8:1`. `condition` is the source text, and `operands` shows retained outer operands with their values; an operand whose value repeats its source spelling, such as `35`, is omitted. A `message:` line follows when a failed operation has a message; a failed require adds `note: test stopped`. `interpret --tests` prints the same layout. Restore 36 before continuing.
 
-Explanations do not reevaluate operands; a side skipped by `&&` or `||` appears as `<not evaluated>`. Struct values compare field by field and appear structurally in operands. Classes have no implicit equality: comparing two class values with `==` reports `CV-TYPE-EQUALITY-UNSUPPORTED`, so compare values returned by their operations instead.
+Explanations do not reevaluate operands; a side skipped by `&&` or `||` appears as `<not evaluated>`. Structs and classes have no implicit equality: comparing two such values with `==` reports `CV-TYPE-EQUALITY-UNSUPPORTED`. Compare struct fields explicitly or define a class operation that compares the values it exposes. Structural display remains available for struct operands.
 
 ## Assert program invariants
 

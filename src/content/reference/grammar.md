@@ -2,8 +2,8 @@
 title: "Formal grammar and precedence"
 description: "Complete EBNF productions, associativity, delimiters, and control-header disambiguation."
 section: reference
-lesson: 20
-source: docs/grammar.md
+lesson: 21
+source: docs/language/grammar.md
 ---
 
 ## Notation and use
@@ -27,6 +27,8 @@ Explicit comma lists accept one trailing comma only where their productions perm
 Module imports form a contiguous prefix. Top-level `const` bindings declare module constants, while `const { ... }` or `const "label" { ... }` introduces a constant block; the optional label only names the block in diagnostics and need not be unique. A test name is optional; explicit names are unique within a module, and anonymous tests are identified by source location in reports. Top-level executable statements form an implicit entry. There is no namespace block, generic declaration, default parameter, or variadic parameter syntax. Range expressions `a..b` and `a..=b` are non-associative and require both integer bounds. Omitted bounds are permitted only in range patterns; step and implicit-reverse forms are unsupported. Unqualified `range<T>` denotes an integer range type. Pattern bounds use shift expressions; parentheses allow the full expression grammar. An unparenthesized `|` separates alternatives. A bare identifier binds a value; it does not test membership in a stored range.
 
 `class` is a reserved keyword. A class body interleaves fields, each followed by a comma except optionally the last, and operations. An instance operation's first parameter is untyped `self`, `&self`, or `&&self`; this spelling is contextual, not a keyword. An operation without a receiver is associated, with no `static` keyword. Other parameters need type annotations. Class forms, nested declarations, `const fn`, and C++ boundary operations are not admitted in class bodies. The optional `const` before a top-level `fn` declares compile-time call capability: required constant execution calls only such functions, and a `const fn` may call only other `const fn` dependencies.
+
+Raw and multiline string boundaries follow [text layout](/reference/text/#string-literals-and-multiline-layout). SIMD type spellings are builtin type names. Named functions may use `const name: T` static parameters; lambdas and callable views may not. `const if` and Read integer-range `const for` explicitly select static specialization. Conditionless while is `while { ... }`; the C-style for condition is required. A const block is a transfer boundary, so return cannot leave it.
 
 ## 01 · Notation
 
@@ -113,17 +115,20 @@ CHAR_LITERAL = "'",
                ( character-scalar | simple-escape | unicode-escape ),
                "'";
 
-C_STRING_LITERAL = "c", STRING_LITERAL;  (* adjacent prefix; decoded NUL forbidden *)
+C_STRING_LITERAL = "c", single-line-string;  (* adjacent prefix; decoded NUL forbidden *)
 
-STRING_LITERAL = "\"",
+single-line-string = "\"",
                  { string-scalar | simple-escape | unicode-escape },
                  "\"";
+
+STRING_LITERAL = single-line-string | multiline-string | raw-string;
 ```
 
 ## 06 · Interpolated text
 
 ```text
-interpolated-string = 'f"', { interpolation-text | interpolation-hole }, '"';
+interpolated-string = 'f"', { interpolation-text | interpolation-hole }, '"'
+                    | 'f"""', multiline-interpolation-body, '"""';
 interpolation-hole = "{", expression, [ ":", format-specification ], "}";
 format-specification = { format-text | interpolation-hole };
 ```
@@ -166,7 +171,7 @@ top-level-item = module-item
                | statement;
 
 (* A top-level const binding is a module constant declaration;
-   const test introduces a test and const { introduces a constant block. *)
+   const test introduces a test and const { introduces a const block. *)
 module-item = [ visibility-modifier ], module-declaration;
 
 visibility-modifier = "private" | "export";
@@ -260,7 +265,8 @@ class-member = struct-field, ","
 class-operation = "fn", IDENTIFIER,
                   "(", [ class-parameter-list ], ")",
                   [ "->", function-result-type ], [ throw-clause ], function-body;
-class-parameter-list = receiver, [ ",", parameter-list ] | parameter-list;
+class-parameter-list = receiver, [ ",", function-parameter-list ]
+                     | function-parameter-list;
 receiver = [ "&" | "&&" ], "self";
 ```
 
@@ -270,11 +276,15 @@ function-definition = function-head, function-body;
 function-body = ordinary-block | "=>", expression, ";";
 
 function-head = [ "const" ], "fn", IDENTIFIER,
-                "(", [ parameter-list ], ")",
+                "(", [ function-parameter-list ], ")",
                 [ "->", function-result-type ],
                 [ throw-clause ];
 
-parameter-list = parameter, { ",", parameter }, [ "," ];
+function-parameter-list = function-parameter,
+                          { ",", function-parameter }, [ "," ];
+
+function-parameter = parameter
+                   | "const", binding-target, [ ":", type ];
 
 parameter = [ access-marker ], binding-target, [ ":", type ];
 
@@ -335,7 +345,7 @@ ordinary-block = "{", { statement }, "}";
 
 ```text
 statement = variable-declaration
-          | constant-block
+          | const-block
           | return-statement
           | throw-statement
           | rethrow-statement
@@ -356,7 +366,7 @@ expression-statement = expression, ";";
 
 control-flow-statement = if-form | match-form | try-form;
 
-constant-block = "const", [ STRING_LITERAL ], ordinary-block;
+const-block = "const", [ STRING_LITERAL ], ordinary-block;
 ```
 
 ## 18 · Assignment and updates
@@ -403,13 +413,14 @@ continue-statement = "continue", ";";
 ## 21 · while
 
 ```text
-while-statement = "while", expression, ordinary-block;
+while-statement = "while", [ expression ], ordinary-block;
 ```
 
 ## 22 · for
 
 ```text
-for-statement = "for", for-header, ordinary-block;
+for-statement = "const", "for", range-for-header, ordinary-block
+              | "for", for-header, ordinary-block;
 
 for-header = range-for-header | c-style-for-header;
 
@@ -420,7 +431,7 @@ range-for-source = expression;
 for-binding = [ "&" ], binding-target, [ ":", type ];
 
 c-style-for-header = [ for-initializer ], ";",
-                         [ expression ], ";",
+                         expression, ";",
                          [ for-step-list ];
 
 for-initializer = variable-declaration-head
@@ -579,7 +590,7 @@ lambda-parameter-list = parameter, { ",", parameter }, [ "," ];
 ## 28 · Conditional forms
 
 ```text
-if-form = "if", expression, branch-block,
+if-form = [ "const" ], "if", expression, branch-block,
           { "else", "if", expression, branch-block },
           [ "else", branch-block ];
 ```

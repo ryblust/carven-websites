@@ -3,7 +3,7 @@ title: "测试成功与失败路径"
 description: 让正常路径、边界与失败恢复得到可重复验证。
 section: learn
 lesson: 11
-source: docs/semantics.md
+source: docs/language/execution.md
 ---
 
 ## 写一条运行时测试
@@ -63,14 +63,13 @@ totals.cv:4:5: error: check failed
   condition: total(12, 3) == 35
   operands:
     total(12, 3): 36
-    35: 35
 
 carven: tests: 1 passed; 1 failed
 ```
 
-第一行给出失败断言的源码位置。`test` 列出模块和测试名；匿名测试改为显示位置，例如 `name: totals.cv:8:1`。`condition` 是条件源码，`operands` 列出外层比较两侧的表达式和值。失败操作带消息时追加 `message:` 行；require 失败还会追加 `note: test stopped`。`interpret --tests` 使用同样的格式。继续之前把 35 改回 36。
+第一行给出失败断言的源码位置。`test` 列出模块和测试名；匿名测试改为显示位置，例如 `name: totals.cv:8:1`。`condition` 是条件源码，`operands` 列出保留的外层操作数及其值；像 `35` 这样值与源码拼写重复的操作数会省略。失败操作带消息时追加 `message:` 行；require 失败还会追加 `note: test stopped`。`interpret --tests` 使用同样的格式。继续之前把 35 改回 36。
 
-解释不会重新执行比较操作数；`&&` 或 `||` 短路跳过的一侧标记为 `<not evaluated>`。结构体按字段比较，在 operands 中按结构显示。class 没有隐式相等：用 `==` 比较两个 class 值会报告 `CV-TYPE-EQUALITY-UNSUPPORTED`，应改为比较其操作返回的值。
+解释不会重新执行比较操作数；`&&` 或 `||` 短路跳过的一侧标记为 `<not evaluated>`。struct 与 class 都没有隐式相等：用 `==` 比较两个这样的值会报告 `CV-TYPE-EQUALITY-UNSUPPORTED`。应显式比较结构体字段，或定义类操作来比较它所公开的值。结构体操作数仍可按结构显示。
 
 ## 用 assert 检查程序不变量
 

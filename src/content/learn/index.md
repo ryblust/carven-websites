@@ -3,7 +3,7 @@ title: "Run your first program"
 description: "Set up the toolchain, run a .cv file, and distinguish native execution, interpretation, and C++ generation."
 section: learn
 lesson: 0
-source: docs/cli.md
+source: docs/language/tutorial.md
 ---
 
 ## What you will learn

@@ -3,7 +3,7 @@ title: 语言参考
 description: 按主题查阅当前 Carven 的语法、有效性、求值行为和工具链边界。
 section: reference
 lesson: 0
-source: docs/semantics.md
+source: docs/language/README.md
 ---
 
 ## 阅读范围
@@ -42,7 +42,7 @@ Carven 分析封闭的 `.cv` 文件批次，生成 C++ 头文件和实现。CLI 
 | 函数体与调用         | [控制流](/zh/reference/control/)、[失败契约](/zh/reference/failures/)、[闭包](/zh/reference/closures/)                                                  |
 | 文本与借用序列       | [文本](/zh/reference/text/)、[切片](/zh/reference/slices/)、[格式化](/zh/reference/formatting/)                                                         |
 | 编译期工作与程序执行 | [常量](/zh/reference/constants/)、[入口、断言与测试](/zh/reference/entry-testing/)                                                                      |
-| 外部代码与库         | [C++ 互操作](/zh/reference/interop/)、[指针](/zh/reference/pointers/)、[UTF 库](/zh/reference/utf/)                                                     |
+| 外部代码与库         | [C++ 互操作](/zh/reference/interop/)、[指针](/zh/reference/pointers/)、[UTF 库](/zh/reference/utf/)、[SIMD](/zh/reference/simd/)                        |
 | 调用编译器与接入构建 | [CLI 与 Graver](/zh/reference/cli/)、[构建与产物](/zh/reference/toolchain/)                                                                             |
 
 [形式语法附录](/zh/reference/grammar/)保留完整 EBNF 产生式；[诊断目录](/zh/reference/diagnostics/)列出当前编译器代码。这里的声明顺序是阅读路线，并不限制函数引用写在后面的声明。

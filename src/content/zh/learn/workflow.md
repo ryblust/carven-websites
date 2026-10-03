@@ -3,7 +3,7 @@ title: "运行、格式化与排错"
 description: 选择执行阶段，组织项目验证，并用明确边界定位问题。
 section: learn
 lesson: 16
-source: docs/cli.md
+source: docs/toolchain/cli.md
 ---
 
 ## 按任务选择工具
@@ -46,7 +46,7 @@ const test {
 carven check prices.cv
 ```
 
-命令在 stderr 输出 `carven: check passed`。这个文件没有程序入口，check 也不需要：它分析输入批次，执行必需的编译期求值和 `const test`，然后停止，不调用原生编译器。改用 `carven prices.cv` 则会报告运行程序需要运行时入口。把 36 改成 35 再检查：静态测试以 `CV-CONST-TEST` 失败，显示条件和两个操作数的值，check 返回 1。
+命令在 stderr 输出 `carven: check passed`。这个文件没有程序入口，check 也不需要：它分析输入批次，执行必需的编译期求值和 `const test`，然后停止，不调用原生编译器。改用 `carven prices.cv` 则会报告运行程序需要运行时入口。把 36 改成 35 再检查：静态测试以 `CV-CONST-TEST` 失败，显示条件和计算得到的调用结果，check 返回 1。
 
 编译期调用只能选择 `const fn`。去掉 line_total 的 `const` 后，check 会在测试中的调用处报告 `CV-CONST-ADMISSION`。
 

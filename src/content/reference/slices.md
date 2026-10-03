@@ -3,7 +3,7 @@ title: "Slices and static backing"
 description: "Construction, borrowing, subranges, returns, and freezing read-only slices."
 section: reference
 lesson: 11
-source: docs/semantics.md
+source: docs/language/types.md
 ---
 
 ## Meaning of `[T]`

@@ -3,7 +3,7 @@ title: C++ 名字、操作与边界
 description: 头文件、原生类型、源片段、函数契约、异常和返回借用责任。
 section: reference
 lesson: 15
-source: docs/semantics.md
+source: docs/language/interop.md
 ---
 
 ## 头文件和外部名字
@@ -102,6 +102,8 @@ export(cpp) 是有体、对全批次可见并进入生成 API 的 Carven 函数�
 直接、无失败的导入 `char` 结果及导出 Read/Take `char` 参数会校验 Unicode 标量，无效时终止；这不是对聚合、指针、可变引用或 Outcome 的递归校验。
 
 提供者名不能是 main/std/carven。前导下划线的 C++ 保留规则由作者负责。export API 中安全名字保持拼写；不安全名字或以 `cv_escaped_` 开头的名字用该前缀加原 UTF-8 字节小写十六进制编码。排除 C++ 关键字、双下划线和 `_` 加大写首字母。函数/namespace 前缀冲突非法。
+
+分阶段函数体通过头文件导入或 import(cpp) 声明使用原生名字。只在 cpp 片段中定义的名字仍仅属于实现。有静态参数的函数不能跨声明式 C++ 边界。
 
 ## noexcept
 

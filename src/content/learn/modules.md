@@ -3,7 +3,7 @@ title: "Split a program into modules"
 description: "Split source files and understand explicit batches, import paths, and visibility."
 section: learn
 lesson: 8
-source: docs/semantics.md
+source: docs/language/modules.md
 ---
 
 ## Split the program into two files
@@ -38,7 +38,7 @@ To inspect the generated C++, run:
 ./xmakew run carven compile --stdout main.cv math.cv
 ```
 
-The output shows only artifacts that belong to the explicit inputs, headed `carven/generated/math.hpp`, `main.cpp`, and `math.cpp`. Automatically collected Crafts, such as the standard `std::utf` modules, still take part in analysis but are not displayed; any dependency of the shown files appears only as an include. Writing to a directory with `compile -o generated` also produces their C++ sources under `generated/crafts/carven/std/utf/`; a manual C++ build of the generated code must compile those too.
+The output shows only artifacts that belong to the explicit inputs, headed `carven/generated/math.hpp`, `main.cpp`, and `math.cpp`. Automatically collected Crafts, such as the standard `std::utf` and `std::simd` modules, still take part in analysis but are not displayed; any dependency of the shown files appears only as an include. Writing to a directory with `compile -o generated` also produces their C++ sources under `generated/crafts/carven/std/utf/` and `generated/crafts/carven/std/simd/`; a manual C++ build of the generated code must compile those too.
 
 ## Paths determine module names
 

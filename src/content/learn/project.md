@@ -3,7 +3,7 @@ title: "Project: update stock only after success"
 description: "Combine validation, Write updates, typed failures with selective recovery, assertions, and tests in a runnable program."
 section: learn
 lesson: 15
-source: docs/semantics.md
+source: docs/language/tutorial.md
 ---
 
 ## The task and its rules
@@ -125,7 +125,8 @@ test "purchase reduces stock" {
         _ => ({}),
     };
 
-    check(receipt == Receipt { quantity: 2, amount: 2400 });
+    check(receipt.quantity == 2);
+    check(receipt.amount == 2400);
     check(item.stock == 1);
 }
 
@@ -166,7 +167,7 @@ Backorder: 1 requested, 0 available
 carven: tests: 3 passed; 0 failed
 ```
 
-Test mode skips the top-level statements. The first two tests call purchase directly, and the anonymous third test checks reserve's recovery. Struct values compare field by field, so `receipt == Receipt { ... }` checks the whole receipt. The same tests also run with `carven interpret --tests orders.cv`.
+Test mode skips the top-level statements. The first two tests call purchase directly, and the anonymous third test checks reserve's recovery. Structs have no implicit equality, so the success test checks quantity and amount explicitly. The same tests also run with `carven interpret --tests orders.cv`.
 
 ## Read a failing report
 
@@ -184,39 +185,38 @@ orders.cv:71:5: error: check failed
   test:
     module: orders
     name: purchase reduces stock
-  condition: receipt == Receipt { quantity: 2, amount: 2400 }
+  condition: receipt.quantity == 2
   operands:
-    receipt: Receipt {
-        quantity: 0,
-        amount: 0,
-    }
-    Receipt { quantity: 2, amount: 2400 }: Receipt {
-        quantity: 2,
-        amount: 2400,
-    }
+    receipt.quantity: 0
 
-orders.cv:85:5: error: check failed
+orders.cv:72:5: error: check failed
+  test:
+    module: orders
+    name: purchase reduces stock
+  condition: receipt.amount == 2400
+  operands:
+    receipt.amount: 0
+
+orders.cv:86:5: error: check failed
   test:
     module: orders
     name: failed purchase preserves stock
   condition: available == 1
   operands:
     available: -1
-    1: 1
 
-orders.cv:86:5: error: check failed
+orders.cv:87:5: error: check failed
   test:
     module: orders
     name: failed purchase preserves stock
   condition: item.stock == 1
   operands:
     item.stock: -1
-    1: 1
 
 carven: tests: 1 passed; 2 failed
 ```
 
-The first report shows the entire receipt on each side: quote now sees the reduced stock and rejects the request, so purchase falls into the recovery arm. The next two reports come from the same test and count as one failed case. The reduction happened even though the call failed; the language does not undo it. Restore the original order before continuing.
+The first two reports show zero quantity and amount: quote now sees the reduced stock and rejects the request, so purchase falls into the recovery arm. Both checks belong to one failed test; the next two reports belong to the other failed test. The reduction happened even though the call failed; the language does not undo it. Restore the original order before continuing.
 
 ## Extend it yourself
 

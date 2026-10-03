@@ -3,7 +3,7 @@ title: "Read, update, and transfer values"
 description: "Use an inventory example to understand Read, nonexclusive Write, explicit Take, restoration, and class receivers."
 section: learn
 lesson: 5
-source: docs/semantics.md
+source: docs/language/ownership.md
 ---
 
 ## Spell out the three access modes
@@ -36,7 +36,7 @@ stock becomes unavailable after dispatch. A complete ordinary assignment restore
 
 ## Copying is not transferring
 
-`let copy = owner;` copies the immediate value by default and leaves the source available. `let moved = &&owner;` transfers it and makes the source unavailable. A `String` copy owns independent bytes; a copied view still refers to its original backing.
+`let copy = owner;` copies the immediate value by default and leaves the source available. `let moved = &&owner;` transfers it and makes the source unavailable. A `String` copy owns independent bytes; a copied view still refers to its original backing. Returning a named owner also copies it: write `return &&owner;` to request transfer. `CV-LINT-RETURN-COPY` warns about eligible returns of Carven-owned text. Take changes source availability; it does not promise a particular native move constructor or number of constructor calls.
 
 Take always starts from a complete owner. `&&order.label` is rejected with `CV-ACCESS-TAKE-OPERAND` because it would take one field and leave the rest of order in place. To keep only one field, consume the owner and then select the field:
 

@@ -44,6 +44,7 @@ const labels = {
   '/reference/toolchain/': ['构建与原生集成', 'Build integration'],
   '/reference/diagnostics/': ['诊断代码', 'Diagnostics'],
   '/reference/utf/': ['UTF 标准库', 'UTF library'],
+  '/reference/simd/': ['SIMD 向量与掩码', 'SIMD vectors and masks'],
 } satisfies Record<ChapterPath, readonly [string, string]>;
 
 export function chapterLabel(path: ArticlePath): string {

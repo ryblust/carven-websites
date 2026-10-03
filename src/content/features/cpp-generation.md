@@ -2,7 +2,7 @@
 title: "Let semantics shape the C++"
 description: "Declare modules, access, and failure contracts; Carven arranges native interfaces, evaluation, storage, and cleanup."
 section: cpp-generation
-source: docs/backend.md
+source: docs/compiler/backend/README.md
 ---
 
 ## From program meaning to native implementation
@@ -77,9 +77,15 @@ For example, an earlier aggregate component may already be constructed when a la
 
 Generated local storage follows the accesses retained in the native program. Field and array projections carry their consumer's access back to the owner: reading a projection can keep `const` access, while writes and ownership transfers can require mutable storage. Source access rules remain enforced independently of the chosen C++ storage.
 
-Classes follow the same approach. A Carven `class` is an encapsulated value with no hidden heap allocation, inheritance, or virtual dispatch. Generated C++ represents it as a struct holding its fields, and its operations as ordinary functions: a `&self` receiver becomes a mutable reference parameter, and `self` becomes a `const` value parameter.
+Classes follow the same approach. A Carven `class` is an encapsulated value with no hidden heap allocation, inheritance, or virtual dispatch. Generated C++ represents it as a struct holding its fields, and its operations as ordinary functions: a `&self` receiver becomes a mutable reference parameter. Read `self` follows the same policy as other Read parameters: classes containing Carven arrays, `String`, or closures preserve that storage through const references; a pure scalar class can pass by const value. Native value components use C++ copy and destruction traits to select the representation.
 
 C++ can still reject an immovable native component that must first be saved and then transferred into an aggregate. Direct construction in the final destination has different requirements from intermediate storage across a failure boundary.
+
+Plain assignment uses the destination's C++ assignment operation and preserves its lifetime. Take changes Carven source availability; native delivery can use a trivial copy or an rvalue, with C++ selecting the constructor. A returned named owner is copied unless source explicitly requests Take. These rules preserve effects while avoiding an extra owner merely to forward a value.
+
+Known scalar values can also preserve native constant-expression narrowing in braced construction. Required operand effects still execute. C string literals reach native calls as `const char*`, so C++ overload resolution and template deduction see that pointer type.
+
+Only private functions and closures requested by native entries and their dependencies receive native definitions. A function used solely during static execution need not have a runtime body in the artifacts. Static-parameter calls place shared inline instances in the caller's implementation under the provider's namespace; adding a new static input changes the caller's artifact without making provider output depend on its callers.
 
 ## Keep using known information at runtime
 
@@ -94,6 +100,10 @@ Generation continues to use checked facts:
 | Proven text encoding                               | A formatting path that needs no repeated UTF-8 scan                     |
 
 **Static information also helps select the implementation.** Every path preserves required evaluation, side effects, ownership, and failure behavior. The C++ toolchain handles the remaining native optimizations.
+
+A scalar binding that cannot change or expose writable storage can be read directly without another operand snapshot. Writable addresses, Write captures, assignment, and Take prevent that assumption. Slice elements still read their backing even when the slice descriptor is stable.
+
+Pattern coverage can remove a selection test already proved by earlier unguarded arms, while preserving dynamic bound evaluation, guards, and any tests needed to choose different binding sources. A single failure handoff can invoke its handler directly when payload snapshots, cleanup, and loop boundaries permit it. Multiple failure paths or observable cleanup retain the storage that joins those paths. Native payload copies, moves, addresses, and destruction remain observable.
 
 ## Connect to an existing C++ project
 
@@ -114,11 +124,12 @@ int main() {
 ```sh
 carven compile -o out answer.cv
 clang++ -std=c++20 -Iout -I/path/to/carven/crafts \
-    host.cpp out/answer.cpp out/crafts/carven/std/utf/*.cpp -o host
+    host.cpp out/answer.cpp out/crafts/carven/std/utf/*.cpp \
+    out/crafts/carven/std/simd/*.cpp -o host
 ./host
 ```
 
-The program prints `42`. Every command collects the bundled Crafts, so the output also contains generated implementations for the UTF Craft under `out/crafts/carven/std/utf/`; a manual build compiles them with the application sources. Replace `/path/to/carven/crafts` with the `crafts/` directory installed beside the toolchain. An Xmake rule can take over these steps; see the [toolchain reference](/reference/toolchain/).
+The program prints `42`. Every command collects the bundled Crafts, so the output also contains generated implementations for the UTF and SIMD Crafts under `out/crafts/carven/std/utf/` and `out/crafts/carven/std/simd/`; a manual build compiles them with the application sources. Replace `/path/to/carven/crafts` with the `crafts/` directory installed beside the toolchain. An Xmake rule can take over these steps; see the [toolchain reference](/reference/toolchain/).
 
 Carven does not require a separate object-layout or machine-code backend for project providers. It completes semantic checking and source generation before the native build, with runtime support headers supplied by the toolchain.
 

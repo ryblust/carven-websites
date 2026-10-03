@@ -3,7 +3,7 @@ title: "把程序拆成模块"
 description: 拆分源文件，理解显式批次、三种导入路径和可见性。
 section: learn
 lesson: 8
-source: docs/semantics.md
+source: docs/language/modules.md
 ---
 
 ## 拆成两个文件
@@ -38,7 +38,7 @@ println(add(20, 22));
 ./xmakew run carven compile --stdout main.cv math.cv
 ```
 
-输出只列出属于显式输入的产物，标题依次是 `carven/generated/math.hpp`、`main.cpp` 和 `math.cpp`。自动收集的 Crafts（例如标准库的 `std::utf` 模块）仍参与分析，但不会显示；所显示文件的依赖只以 include 的形式出现。换成 `compile -o generated` 写入目录时，还会生成 `generated/crafts/carven/std/utf/` 下的 C++ 源文件；手动构建生成的 C++ 时也要编译它们。
+输出只列出属于显式输入的产物，标题依次是 `carven/generated/math.hpp`、`main.cpp` 和 `math.cpp`。自动收集的 Crafts（例如标准库的 `std::utf` 与 `std::simd` 模块）仍参与分析，但不会显示；所显示文件的依赖只以 include 的形式出现。换成 `compile -o generated` 写入目录时，还会生成 `generated/crafts/carven/std/utf/` 和 `generated/crafts/carven/std/simd/` 下的 C++ 源文件；手动构建生成的 C++ 时也要编译它们。
 
 ## 路径决定模块名
 

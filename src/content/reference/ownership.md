@@ -3,7 +3,7 @@ title: "Bindings, access, ownership, and cleanup"
 description: "Read, Write, Take, copying, restoration, aliasing, temporaries, and scoped cleanup."
 section: reference
 lesson: 4
-source: docs/semantics.md
+source: docs/language/ownership.md
 ---
 
 ## Bindings and access
@@ -46,7 +46,9 @@ value = relay(&&moved);
 println(value); // 7
 ```
 
-Even for copyable `i32`, Take makes the original binding unavailable; the assignment from `relay(&&moved)` restores `value`. An && expression preserves the value type; it does not specify a fixed number or particular kind of C++ move operations.
+Even for copyable `i32`, Take makes the original binding unavailable; assignment from `relay(&&moved)` restores `value`. An && expression preserves the value type; it does not specify a fixed number or kind of C++ move operations.
+
+Returning a named owner copies it; reaching return does not imply Take. `CV-LINT-RETURN-COPY` warns when a returned owner can contain Carven `String` storage by value, has no native value component, and Take is admitted at that return in every analyzed call context. Zero-length array elements do not count as stored String. `return &&owner;` states the transfer and removes the warning.
 
 Only an ordinary assignment to a whole `var` restores availability, after its right side completes normally. Partial assignments, compound assignments, and increment/decrement need the old value. `x = relay(&&x)` restores x on normal return; if the right side fails, x remains unavailable. `x = &&x`, including parenthesized forms, is invalid.
 

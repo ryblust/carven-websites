@@ -3,7 +3,7 @@ title: 入口、运行时测试与编译期测试
 description: 入口选择、进程状态、assert、check/require/fail、测试报告和测试停止传播。
 section: reference
 lesson: 14
-source: docs/semantics.md
+source: docs/language/execution.md
 ---
 
 ## 入口
@@ -27,11 +27,11 @@ println(load(false)?);
 println("not reached");
 ```
 
-原生执行打印 `42`，第二个失败逃出后以状态 1 退出。`carven interpret` 打印 `42`，然后对逃逸的失败报告 `CV-INTERPRET-EXECUTION`。
+原生执行打印 `42`，然后在 stderr 报告逃逸失败的类型和结构化载荷，以 `EXIT_FAILURE` 退出。`carven interpret` 打印 `42`，然后在 throw 位置以 `CV-INTERPRET-EXECUTION` 报告同一载荷并附调用路径。
 
 显式 main 的模块路径、craft 与可见性不影响选择。它可无参，或有一个无类型注解的 Read 命令行参数。该参数是入口专用不透明值，不是可索引/迭代序列。普通函数参数仍要求类型。
 
-有向外失败的显式 main 仍必须写 throw 子句，包括 private main；省略时报告 `CV-EFFECT-THROW-PUBLISHED`。正常完成返回进程状态零；Carven 返回值即使是整数也不作为进程状态。typed failure 逃出任一种入口都产生 C++ EXIT_FAILURE，不自动打印载荷、不变成 C++ 异常，普通局部/返回值/载荷清理照常。捕获后正常完成返回零。
+有向外失败的显式 main 必须写 throw 子句，包括 private main；省略时报告 `CV-EFFECT-THROW-PUBLISHED`。正常完成返回进程状态零，Carven 返回值不作为状态。带类型的失败逃出任一种入口时产生 C++ `EXIT_FAILURE`，并在 stderr 输出一条包含类型和结构化载荷的报告。普通局部清理先完成，包装器将载荷保留到报告完成并在退出前销毁。失败值不携带源位置，所以原生报告指向入口声明。捕获后正常完成则返回零且没有失败报告。
 
 ## 测试声明
 
@@ -131,7 +131,6 @@ main.cv:9:5: error: check failed
   condition: total == 5
   operands:
     total: 4
-    5: 5
   message: total mismatch
 
 carven: tests: 1 passed; 1 failed
@@ -141,9 +140,13 @@ carven: tests: 1 passed; 1 failed
 
 ## 断言解释
 
-直接 assert/check/require 的最外层条件为 Carven 比较时，失败报告附带两侧源码与结构值；最外层 `&&` / `||` 显示两个布尔子表达式，短路跳过项标记 `<not evaluated>`。括号保留此行为；间接调用及其他条件形式仍只报告原条件和消息。不会递归跟踪内部运算或查找首个不同字段。
+直接 assert/check/require 的最外层条件若是 Carven 比较，失败时报告操作数源码和结构化值。最外层 `&&` / `||` 报告两个布尔子表达式，并把未执行项标为 `<not evaluated>`。值的显示与源码相同的操作数（例如字面量）会省略；没有剩余项时不显示 operands 字段。括号保留这一行为，间接调用和其他条件保留条件与消息报告。解释不递归追踪内部运算，也不寻找第一个不同字段。
 
 解释复用原求值，不重复执行操作数、不调用 formatter，并保留求值顺序、快照、短路、传播与清理。失败值在可选消息表达式执行前显示，因此消息中的修改不会改变解释；成功的条件不渲染值。运行时 reporter 接收只在同步回调期间有效的借用 explanation 字符串；静态测试诊断包含相同解释。
+
+## 运行时 trap
+
+整数除零或对零取余、非法移位数、越界索引和受检查标量转换的非法值，会报告操作源位置、当前测试上下文与 `note: execution aborted`。索引 trap 另显示 index 和 length。生成与解释检查使用 Carven 位置；直接原生支持调用使用 API 提供的 C++ 位置。trap 中止整个解释运行，包括剩余测试，不输出完成汇总。trap 与断言不同于可恢复的测试停止和带类型失败。
 
 ## `const test`
 

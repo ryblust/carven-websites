@@ -3,7 +3,7 @@ title: "Choose branches and repeat work"
 description: "Organize execution with conditions, integer ranges, pattern matching, and loop updates."
 section: learn
 lesson: 2
-source: docs/semantics.md
+source: docs/language/control-flow.md
 ---
 
 ## Produce a value with a condition
@@ -121,13 +121,15 @@ for var i = 0; i < 3; ++i {
 }
 ```
 
-This prints 0, 1, 2, 0, and 2 on separate lines. In a C-style for, continue executes the step before checking the condition. break exits immediately. while checks its condition before each execution of the body.
+This prints 0, 1, 2, 0, and 2 on separate lines. In a C-style for, continue executes the step before checking the condition. break exits immediately. while checks its condition before each execution of the body. Write `while { ... }` for a conditionless loop and use `break` to exit it; a C-style for always requires its condition.
 
 ## Evaluate only the selected path
 
-`&&` skips its right operand when the left is false; `||` skips it when the left is true. Only the chosen branch runs, but all source branches undergo semantic checks. Placing invalid code inside `if false` does not make it valid.
+`&&` skips its right operand when the left is false; `||` skips it when the left is true. Only the chosen branch runs, but all source branches undergo semantic checks. Placing invalid code inside `if false` does not make it valid. Literal and `const` conditions do not prune analysis: ordinary `if false`, `while true`, and short-circuit operands still contribute their possible paths to ownership, failure, and return checks. Only conditionless `while { ... }` has no implicit exit path. Static control explicitly selects generated work, while checking every source arm.
 
 Use a statement-form if, as in the loop above, for break or continue. Value-producing branches have additional control-transfer rules described in the [control-flow Reference](/reference/control/).
+
+Source after a terminal `return`, failure, or loop transfer is still type-checked, but contributes no runtime work or reachable ownership and failure paths.
 
 ## Exercise
 

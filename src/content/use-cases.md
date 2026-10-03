@@ -21,7 +21,7 @@ export(cpp) fn price_cents(quantity: i32) -> i32 {
 }
 ```
 
-The program entry remains in C++. The build generates a public header declaring `carven::api::pricing::price_cents` and an implementation; C++ includes the header and links the implementation together with the generated UTF Craft sources. A negative quantity is a caller bug here, so `assert` reports the condition and message to stderr and aborts the process, whatever the native build's `NDEBUG` setting. It is not a recoverable failure; a caller that needs to handle bad input should receive a typed failure instead. The calculation does not guard against integer overflow; large quantities wrap.
+The program entry remains in C++. The build generates a public header declaring `carven::api::pricing::price_cents` and an implementation; C++ includes the header and links the implementation together with the generated UTF and SIMD Craft sources. A negative quantity is a caller bug here, so `assert` reports the condition and message to stderr and aborts the process, whatever the native build's `NDEBUG` setting. It is not a recoverable failure; a caller that needs to handle bad input should receive a typed failure instead. The calculation does not guard against integer overflow; large quantities wrap.
 
 Explicit `import(cpp)` and `export(cpp)` boundaries use ordinary Carven types, Read/Write/Take access, and declared failure contracts. Scope and naming follow the native interoperation rules.
 
@@ -86,6 +86,14 @@ Run it with `carven cart.cv` to print `370`. Generated C++ holds the fields in a
 For logic involving several types and mutually calling functions, maintain their definitions in `.cv` source. The compiler generates interfaces and implementations from visibility and type dependencies, arranging forward declarations and definition order. Dependencies used only in function bodies do not merge interfaces.
 
 **A useful starting point:** modules that benefit from less manual synchronization of declarations and implementations, with a generated public interface for C++ consumers.
+
+## Validate fixed data and process byte blocks
+
+Compile-time UTF helpers can encode Unicode scalars and check a fixed byte buffer before a program runs. For byte processing at runtime, SIMD Crafts provide bounded block traversal, comparisons, masks, and byte search. A tail block carries an active-lane mask so padding cannot become input.
+
+The [compile-time tutorial](/learn/constants/) runs both tasks with complete examples. Static parameters let a function fix controls such as extraction offsets while retaining runtime data inputs. Native SIMD selects a portable, NEON, or consumer-enabled AVX2 backend during compilation, without runtime dispatch; all relevant translation units must agree on backend flags. Measure the target workload before assuming a speedup.
+
+**A useful starting point:** validating embedded UTF-8 data or counting and finding bytes in a buffer with explicit bounds.
 
 ## Choose a scope you can verify
 

@@ -11,7 +11,7 @@ import '../styles/home.css';
 export default function HomeContent({ locale }: { locale: Locale }) {
   const t = translate(locale);
   const [selected, setSelected] = useState(0);
-  const [language, setLanguage] = useState<'carven' | 'cpp'>('carven');
+  const [language, setLanguage] = useState<'carven' | 'cpp' | 'cpp26'>('carven');
   const examples = [
     {
       label: t('结构化打印', 'Print structured values'),
@@ -27,31 +27,66 @@ export default function HomeContent({ locale }: { locale: Locale }) {
       cpp: homeExamples.displayCpp,
       result: 'Order { id: 7, status: Status::Shipped(3), items: ["disk", "cable"] }',
       comparison: t(
-        'Carven 的实际输出按每个字段、元素一行排列，这里的结果压缩成了一行。C++20 版本需要为每个类型手写 operator<<，字段增删后要同步修改，输出也更简略；main 与标准输出省略。Boost.PFR、magic_enum 或 C++26 反射可以减少这部分代码。同样的结构化显示也用于测试失败时报告的操作数值。',
-        'Carven prints one field or element per line; the result is condensed here. The C++20 version writes an operator<< for each type, which must change when fields change, and prints a simpler layout; main and standard output are omitted. Boost.PFR, magic_enum, or C++26 reflection can reduce this code. The same structural display reports operand values when a test fails.',
+        '两边都是完整程序，按相同的多行布局打印这个订单；结果栏压缩成了一行。C++20 对照为这个数据结构手写输出，字段变化时需同步修改。示例商品名不含需要转义的字符，对照没有实现通用文本转义。Boost.PFR、magic_enum 或 C++26 反射可以减少类型专用的代码。Carven 的结构化显示也用于测试失败时报告操作数值。',
+        'Both are complete programs that print this order with the same multiline layout; the result is condensed here. The C++20 comparison writes a printer for this schema, which must change with its fields. Item names contain no characters needing escaping; the comparison does not implement general text escaping. Boost.PFR, magic_enum, or C++26 reflection can reduce type-specific code. Carven also uses structural display to report operands in failed tests.',
       ),
       standard: 'C++20',
       path: '/learn/aggregates/',
     },
     {
       label: t('编译期生成', 'Build at compile time'),
-      title: t('编译时构造，运行时直接使用。', 'Build at compile time. Use the result at runtime.'),
+      title: t('帮助文本，在程序运行前准备好。', 'Prepare the help text before the program runs.'),
       detail: t(
-        '从配置生成启用的接口清单，照常写循环、判断和文本追加。Carven 在编译期完成构造，将结果保存为静态文本，const test 在编译时就检查它。',
-        'Build a list of enabled endpoints from configuration with ordinary loops, conditions, and text operations. Carven runs the construction at compile time, keeps the result as static text, and checks it with a const test during compilation.',
+        '从命令定义生成帮助文本，只列出启用的命令。照常写循环、判断和插值；Carven 在编译期构造并检查结果，运行时直接使用静态文本。',
+        'Build help text from command definitions, listing only enabled commands. Use ordinary loops, conditions, and interpolation; Carven builds and checks the result at compile time, leaving static text ready for runtime use.',
       ),
       html: homeExamples.constants,
       cpp: homeExamples.constantsCpp,
-      result: t(
-        '编译期结果 · 静态 str\n/health\n/users',
-        'Compile-time result · Static str\n/health\n/users',
-      ),
+      result: 'Commands:\n  build: Compile the project\n  run: Run the program',
       comparison: t(
-        '两边筛选相同的路由配置，生成以换行分隔的路径文本；这里不创建 HTTP 路由器。C++20 中 constexpr std::string 的内存不能保留到运行时，所以 freeze 先执行一次构造得到长度，再执行一次把内容复制进固定大小的数组，供 string_view 引用。Carven 在常量初始化时直接把 String 冻结为静态 str。对照是手写等价实现；静态字符串库也可以封装这项存储工作。',
-        'Both filter the same route configuration into newline-separated path text; this does not create an HTTP router. In C++20, a constexpr std::string allocation cannot survive into runtime, so freeze runs the construction once for its length and again to copy it into a sized array behind a string_view. Carven freezes the String into a static str at constant initialization. The comparison is handwritten; a static-string library could encapsulate the storage work.',
+        '两边都在编译期筛选三个命令定义，生成相同的帮助文本；这里不解析参数或执行命令。C++20 对照用 constexpr 字符串操作构造文本，再用 freeze 确定长度并复制进数组，供 string_view 引用；静态字符串库也能封装这部分存储。Carven 在常量初始化时直接把 String 冻结为静态 str，用 const test 核对完整内容。命令配置变化后需要重新编译。',
+        'Both filter three command definitions at compile time and produce the same help text; neither parses arguments nor executes commands. The C++20 comparison builds text with constexpr string operations, then uses freeze to determine its length and copy it into an array behind a string_view. A static-string library can encapsulate that storage. Carven freezes the String into a static str at constant initialization and checks the full content with const test. Changing the command configuration requires recompilation.',
       ),
       standard: 'C++20',
       path: '/features/compile-time/',
+    },
+    {
+      label: t('静态特化', 'Specialize runtime code'),
+      title: t('格式提前确定，输入到来时直接检查。', 'Fix the format. Check the input.'),
+      detail: t(
+        '用 INV-DDDD 描述编号格式，D 表示一个 ASCII 数字。const for 展开每个位置，const if 选择数字检查或字面匹配。生成的函数只接收待检查的文本。',
+        'Describe an identifier with INV-DDDD, where D stands for one ASCII digit. const for expands each position; const if selects a digit check or a literal match. The generated function receives only the text to check.',
+      ),
+      html: homeExamples.specialization,
+      cpp: homeExamples.specializationCpp,
+      cpp26: homeExamples.specialization26Cpp,
+      result: 'INV-2048 → true\nINV-20x8 → false',
+      comparison: t(
+        '三份都是完整程序，依次输出 true、false。D 匹配一个 ASCII 数字，其余字节按字面匹配；先检查长度，再访问输入。这个小型模式没有转义、重复次数或捕获，CTRE 等 C++ 库提供更丰富的语法。C++20 用 index_sequence 和参数包展开位置，C++26 用 template for 展开同一索引序列，两版均以 if constexpr 选择检查。Carven 仍检查所有源分支的类型、所有权和失败契约，两种语言的分支检查规则不同。C++26 版已在支持枚举展开语句的 Clang 23 验证。',
+        'All three are complete programs that print true, then false. D matches one ASCII digit; other bytes match literally. Length is checked before accessing the input. This small pattern has no escapes, repetition counts, or captures; C++ libraries such as CTRE offer richer syntax. C++20 expands positions with index_sequence and a parameter pack; C++26 uses template for over the same index sequence. Both select checks with if constexpr. Carven still checks types, ownership, and failure contracts in every source branch; the two languages differ in how they check discarded branches. The C++26 version was verified with Clang 23’s enumerating expansion statements.',
+      ),
+      standard: 'C++20',
+      path: '/reference/functions/',
+    },
+    {
+      label: t('SIMD 字节扫描', 'Scan bytes with SIMD'),
+      title: t(
+        '按块统计字节，读到末尾也不越界。',
+        'Count bytes in blocks, without reading past the end.',
+      ),
+      detail: t(
+        '用向量比较 32 个字节，再用掩码统计匹配项。最后不足一块时，只读取实际数据，并用 active 排除补零的位置。',
+        'Compare 32 byte lanes, then count matching mask bits. A partial final block reads only available input and uses active to exclude zero-filled lanes.',
+      ),
+      html: homeExamples.simd,
+      cpp: homeExamples.simdCpp,
+      result: '2',
+      comparison: t(
+        '两边都是完整程序，统计指定字节出现的次数；这只是分隔符计数，不是 CSV 解析器。第二个静态测试保证零填充不会被计入。C++20 对照逐字节完成相同任务，未手写 SIMD；原生优化器可能将循环向量化。Carven 的逻辑向量由 NEON、显式启用的 AVX2 或可移植后端实现，没有运行时分派，也不承诺速度提升。',
+        'Both are complete programs that count occurrences of one byte; this is delimiter counting, not a CSV parser. The second static test ensures zero padding is excluded. The C++20 comparison performs the same task byte by byte, without handwritten SIMD; a native optimizer may vectorize that loop. Carven implements logical vectors with NEON, explicitly enabled AVX2, or a portable backend, with no runtime dispatch or promised speedup.',
+      ),
+      standard: 'C++20',
+      path: '/reference/simd/',
     },
     {
       label: t('失败处理', 'Handle failures'),
@@ -75,26 +110,28 @@ export default function HomeContent({ locale }: { locale: Locale }) {
     },
     {
       label: t('调用 C++', 'Use C++ libraries'),
-      title: t('现成的 C++ 库，直接用。', 'Use the C++ library you already have.'),
+      title: t(
+        '合并配置，继续用原来的库。',
+        'Merge configuration with the library you already use.',
+      ),
       detail: t(
-        '导入 nlohmann/json，解析配置，再调用返回对象的方法。这个示例直接使用库提供的接口，无需另写绑定。',
-        'Import nlohmann/json, parse the config, and call methods on the returned object. This example uses the library’s own API without a separate binding.',
+        '导入 nlohmann/json，解析默认配置和局部覆盖。库负责合并嵌套对象：保留 host，把 port 改成 9000。直接调用现有接口，无需另写绑定。',
+        'Import nlohmann/json and parse defaults plus an override. Let the library merge the nested objects: keep host and change port to 9000. Call its existing API without a separate binding.',
       ),
       html: homeExamples.native,
       cpp: homeExamples.nativeCpp,
-      result: t(
-        'nlohmann/json → 配置对象 → Port: 9000',
-        'nlohmann/json → config object → Port: 9000',
-      ),
+      result: '{"server":{"host":"localhost","port":9000}}',
       comparison: t(
-        '使用 nlohmann/json 3.12.0，两边读取相同的 JSON；port 缺失时返回 8080。示例输入是合法对象，port 存在时为范围内的整数。头文件需在 C++ 包含路径中，库的重载与模板仍由 C++ 编译器检查。原生异常不会变成 Carven failure；需要恢复时在 C++ 适配层处理。详情页提供运行步骤。',
-        'Uses nlohmann/json 3.12.0. Both read the same JSON and use 8080 when port is absent. Input is a valid object; an existing port is an in-range integer. Put the header on the C++ include path. The C++ compiler checks library overloads and templates. Native exceptions do not become Carven failures; handle them in a C++ adapter when recovery is needed. The linked tutorial includes run instructions.',
+        '使用 nlohmann/json 3.12.0，两边调用相同的 parse、merge_patch 和 dump，输出相同。示例的 JSON 输入合法；合并规则由库提供，包含 null 删除字段的语义。头文件需在 C++ 包含路径中，重载和模板仍由 C++ 编译器检查。插值负责格式化 dump 返回的原生 std::string。原生异常不会自动变成 Carven failure，需要恢复时在 C++ 适配层处理。详情页提供接入步骤。',
+        'Uses nlohmann/json 3.12.0. Both call the same parse, merge_patch, and dump APIs and print identical output. The sample JSON is valid; the library supplies merge semantics, including field removal with null. Put its header on the C++ include path; the C++ compiler still checks overloads and templates. Interpolation formats the native std::string returned by dump. Native exceptions do not automatically become Carven failures; handle them in a C++ adapter when recovery is needed. The linked tutorial covers integration.',
       ),
       standard: 'C++20',
       path: '/learn/interop/',
     },
   ] as const;
   const example = examples[selected]!;
+  const cpp26 = 'cpp26' in example ? example.cpp26 : undefined;
+  const codeLanguage = language === 'cpp26' && !cpp26 ? 'cpp' : language;
   const steps = [
     {
       title: t('编写 Carven', 'Write Carven'),
@@ -164,8 +201,8 @@ export default function HomeContent({ locale }: { locale: Locale }) {
           </h2>
           <p>
             {t(
-              '直接打印结构体、在编译期构造文本、处理不同类型的失败，或调用现有 C++ 库。选择一个示例，切换 Carven 与 C++，看看同一任务怎样实现。',
-              'Print a struct, build text at compile time, handle typed failures, or call an existing C++ library. Choose an example, then switch between Carven and C++ to compare implementations.',
+              '打印结构体、生成静态文本、按固定格式检查编号、按块扫描字节、恢复指定失败，或调用现有 C++ 库。选择一个任务，切换 Carven 与 C++，比较实现方式与适用范围。',
+              'Print a struct, build static text, check identifiers against a fixed format, scan byte blocks, recover from a selected failure, or call a C++ library. Choose a task, then switch between Carven and C++ to compare implementations and their scope.',
             )}
           </p>
         </header>
@@ -200,7 +237,7 @@ export default function HomeContent({ locale }: { locale: Locale }) {
                 <h3>{item.title}</h3>
                 <p>{item.detail}</p>
                 <Link className="text-link" to={localizedPath(item.path, locale)}>
-                  {t('查看示例讲解', 'Walk through the example')} <span aria-hidden="true">→</span>
+                  {t('了解相关用法', 'Explore this feature')} <span aria-hidden="true">→</span>
                 </Link>
               </div>
             ))}
@@ -214,26 +251,43 @@ export default function HomeContent({ locale }: { locale: Locale }) {
               >
                 <button
                   type="button"
-                  aria-pressed={language === 'carven'}
+                  aria-pressed={codeLanguage === 'carven'}
                   onClick={() => setLanguage('carven')}
                 >
                   Carven
                 </button>
                 <button
                   type="button"
-                  aria-pressed={language === 'cpp'}
+                  aria-pressed={codeLanguage === 'cpp'}
                   onClick={() => setLanguage('cpp')}
                 >
-                  C++
+                  {example.standard}
                 </button>
+                {cpp26 && (
+                  <button
+                    type="button"
+                    aria-pressed={codeLanguage === 'cpp26'}
+                    onClick={() => setLanguage('cpp26')}
+                  >
+                    C++26
+                  </button>
+                )}
               </div>
               <span>
-                {language === 'carven'
+                {codeLanguage === 'carven'
                   ? t('Carven 源码', 'Carven source')
-                  : `${example.standard} · ${t('手写等价示例', 'Handwritten equivalent')}`}
+                  : t('手写对照', 'Handwritten comparison')}
               </span>
             </div>
-            <MorphingCode html={language === 'carven' ? example.html : example.cpp} />
+            <MorphingCode
+              html={
+                codeLanguage === 'carven'
+                  ? example.html
+                  : codeLanguage === 'cpp26'
+                    ? cpp26!
+                    : example.cpp
+              }
+            />
             <div className="code-window-result">
               <span>{t('结果', 'Result')}</span>
               <p>{example.result}</p>

@@ -2,7 +2,7 @@
 title: 把已知的工作，提前完成
 description: 用普通控制流构造常量、在编译期验证结果，并把已知结构带入原生实现。
 section: compile-time
-source: docs/semantics.md
+source: docs/language/constants.md
 ---
 
 ## 编译期也能逐步构造
@@ -20,7 +20,7 @@ const fn route_list(routes: [Route; 3]) -> String {
             text.append("\n");
         }
     }
-    return text;
+    return &&text;
 }
 
 const endpoints = route_list([
@@ -96,7 +96,7 @@ constexpr std::string_view endpoints{data.data(), data.size()};
 static_assert(endpoints == "/health\n/users\n");
 ```
 
-多出的模板源于 C++20 的一条规则：`std::string` 可以在常量求值中分配内存，但这次分配必须在求值结束前释放。因此，`constexpr std::string` 变量无法把结果带到运行时。`freeze` 先在 `build().size()` 中执行一次构造，得到数组类型所需的长度；再执行一次，把字符复制进这个定长数组。静态字符串库可以封装这些步骤，C++26 的新设施也可能简化它们。
+`freeze` 为不同长度的结果提供静态存储。C++20 允许 `std::string` 在常量求值中分配内存，但这次分配必须在求值结束前释放。短字符串可能不分配内存，因此某些标准库实现可以直接用 `constexpr std::string` 保存这个例子的结果。数组方案也适用于更长的结果：`freeze` 先在 `build().size()` 中构造一次，确定数组类型，再执行一次，把字符复制进去。静态字符串库也可以封装这些步骤。
 
 Carven 为支持的源语言操作执行自己的常量计算，并在初始化完成处把工作用的 `String` 冻结为 `str`。这一步在生成 C++ 之前完成，不要求对应运行时文本函数也能完成同一次 C++ 常量求值。
 
@@ -104,20 +104,25 @@ Carven 为支持的源语言操作执行自己的常量计算，并在初始化�
 
 ## 一份算法，明确选择执行阶段
 
-常量初始化、数组长度、常量块和 `const test` 等必需常量上下文，只能调用声明为 `const fn` 的函数。编译器逐个检查 `const fn` 定义的编译期能力：可达的操作都必须受执行器支持，调用的函数也必须是 `const fn`。不满足时，在定义处报告 `CV-CONST-ADMISSION`，不必等到有人调用它。
+常量初始化、数组长度、常量块和 `const test` 等静态执行入口，只能调用声明为 `const fn` 的函数。编译器逐个检查 `const fn` 定义的编译期能力：可达的操作都必须受执行器支持，调用的函数也必须是 `const fn`。不满足时，在定义处报告 `CV-CONST-ADMISSION`，不必等到有人调用它。
 
-`const fn` 仍是普通函数。运行时调用仍是运行时函数调用，即使实参恰好是字面量；因此 route_list 也能根据程序运行时才知道的路由配置构造文本。必需的常量计算无法完成时会给出诊断，不会悄悄退回运行时。
+`const fn` 仍是普通函数。运行时调用仍是运行时函数调用，即使实参恰好是字面量；因此 route_list 也能根据程序运行时才知道的路由配置构造文本。静态执行无法完成时会给出诊断，不会悄悄退回运行时。
+
+## 固定部分输入，保留运行时工作
+
+函数可以用 `const` 参数按配置特化，同时处理运行时数据。`const if` 为每个实例选择分支，`const for` 展开静态整数区间。所有源码分支仍要检查完整函数契约，普通运行时变量不能提供静态输入。
+
+这套机制也为 SIMD 提取、字节移位等操作提供固定控制值。[教程](/zh/learn/constants/#特化运行时函数)给出完整的运行时特化例子，[SIMD 参考](/zh/reference/simd/)说明通道操作和原生后端选择。提取偏移和移位量在编译时确定，成为生成的 C++ 模板参数；其余数据仍可在运行时处理。
 
 ## 验证发生在程序运行之前
 
-示例中的 `const test` 在编译分析中执行，不依赖运行时测试产物开关。把 `/debug` 改为 `enabled: true`，再运行 `carven check routes.cv`：检查失败，并报告条件和两侧操作数。
+示例中的 `const test` 在编译分析中执行，不依赖运行时测试产物开关。把 `/debug` 改为 `enabled: true`，再运行 `carven check routes.cv`：检查失败，并报告条件和计算得到的端点值。
 
 ```text
 error [CV-CONST-TEST]: check failed
   condition: endpoints == "/health\n/users\n"
   operands:
     endpoints: "/health\n/users\n/debug\n"
-    "/health\n/users\n": "/health\n/users\n"
  --> routes.cv:21:5
 ```
 
@@ -139,11 +144,15 @@ fn print_order(id: i32) => println(f"Order {id:08x}");
 
 ## 组合值、控制流与失败契约
 
-必需常量执行支持整数、`f32`/`f64`、布尔、字符、文本及其字节视图、C 字符串、受支持的固定数组、切片、结构体与枚举。`const fn` 可以使用相应的控制流、Read 与 Write 参数、指向存活局部值的指针，以及对 `const fn` 的调用，包括通过绑定了具名 `const fn` 的局部变量调用。原生操作、文本字符迭代、类，以及没有 Carven 函数体的可调用值不在这个范围内。执行步骤、递归深度、文本与聚合工作量都有上限。
+静态执行支持整数、`f32`/`f64`、布尔、字符、文本及其字节视图、C 字符串、SIMD 向量与掩码、受支持的固定数组、切片、结构体与枚举。`const fn` 可以使用相应的控制流、Read 与 Write 参数、指向存活局部值的指针，以及对 `const fn` 的调用，包括通过绑定了具名 `const fn` 的局部变量调用。原生操作、文本字符迭代、类，以及没有 Carven 函数体的可调用值不在这个范围内。执行步骤、递归深度、文本与聚合工作量都有上限。
 
-算术在两个阶段含义相同：整数运算与运行时一样按位宽回绕。除以零和非法移位在编译期执行到时给出诊断。
+整数运算在两个阶段都按类型位宽回绕。除以零和非法移位在编译期执行到时给出诊断。
 
 `const fn` 也能执行 typed failure 的抛出、传播、匹配恢复和重抛；同一套校验逻辑可服务编译期配置与运行时输入。参见[失败契约示例](/zh/learn/constants/#用相同的失败契约选择编译期配置)。浮点算术遵循编译器宿主的原生环境，浮点打印与格式化复用原生标准库规则。可用操作、结果类型与资源限制见[常量执行规则](/zh/reference/constants/)。
+
+受检查 Unicode 标量转换、UTF-8 编码、前缀解码与整块验证使用库中的 `const fn` 实现，能够在原生编译前检查固定数据，并使用与运行时调用相同的带类型失败。借用/自有文本工厂与增量验证器目前需要运行时执行，见 [Unicode 示例](/zh/learn/constants/#在编译期验证-unicode)。
+
+冻结保留字段与元素类型，不会把结构体或数组中的自有 `String` 改成 `str`；完成的聚合常量必须已经具有可冻结的组件。
 
 ## 不保留结果的编译期工作
 

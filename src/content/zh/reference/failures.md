@@ -3,7 +3,7 @@ title: 类型化失败契约
 description: 失败集合、显式上界、推断、传播目标、部分捕获、守卫条件和重抛。
 section: reference
 lesson: 8
-source: docs/semantics.md
+source: docs/language/failures.md
 ---
 
 ## 失败类型与接口

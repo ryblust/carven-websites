@@ -3,7 +3,7 @@ title: "Language Reference"
 description: "Look up current Carven syntax, validity rules, evaluation behavior, and toolchain boundaries."
 section: reference
 lesson: 0
-source: docs/semantics.md
+source: docs/language/README.md
 ---
 
 ## Scope
@@ -42,7 +42,7 @@ The Reference follows a source file from imports and declarations into function 
 | Function bodies and calls               | [Control flow](/reference/control/), [failure contracts](/reference/failures/), [closures](/reference/closures/)                                                     |
 | Text and borrowed sequences             | [Text](/reference/text/), [slices](/reference/slices/), [formatting](/reference/formatting/)                                                                         |
 | Compile-time work and program execution | [Constants](/reference/constants/), [entries, assertions, and tests](/reference/entry-testing/)                                                                      |
-| External code and libraries             | [C++ interoperation](/reference/interop/), [pointers](/reference/pointers/), [UTF library](/reference/utf/)                                                          |
+| External code and libraries             | [C++ interoperation](/reference/interop/), [pointers](/reference/pointers/), [UTF library](/reference/utf/), [SIMD](/reference/simd/)                                |
 | Invoking and integrating the compiler   | [CLI and Graver](/reference/cli/), [builds and artifacts](/reference/toolchain/)                                                                                     |
 
 The [grammar appendix](/reference/grammar/) retains the complete EBNF productions; the [diagnostic catalog](/reference/diagnostics/) lists current compiler codes. Declaration order is a reading aid here: functions may refer to declarations written later.

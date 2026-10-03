@@ -3,7 +3,7 @@ title: "Structs, classes, arrays, and enums"
 description: "Construction order, value classes, contextual construction, bounds checks, enum payloads, and recursive storage."
 section: reference
 lesson: 5
-source: docs/semantics.md
+source: docs/language/aggregates.md
 ---
 
 ## Structs
@@ -23,23 +23,24 @@ fn sample() -> Point => Point { y: 2, x: 1 };
 
 Named construction maps to field declarations but evaluates initializers in written order. Repeated, missing, excess, unknown, or incompatible fields in nonempty construction are errors. Nonempty Carven `T { ... }` constructs structs, and classes only inside their own body; empty construction also accepts builtin types with a default. The type may be omitted when context supplies it; see [contextual construction](#contextual-construction). Enums and callables use their own expression forms. External C++ types have separate construction rules.
 
-A struct supports equality only when every field supports equality.
+Structures do not support `==` or `!=`; compare their fields explicitly. Arrays and enums support equality only when their elements or payloads support it.
 
 ## Default initialization
 
 `T {}` requests whole-value default initialization for types accepted by construction syntax, such as `i32 {}`, `String {}`, and a named struct. The table also describes defaults of nested fields and elements; it does not introduce array or slice construction syntax. Struct fields initialize in declaration order, recursively; a nonempty construction cannot omit fields to request partial defaults.
 
-| Type                | Default                                       |
-| ------------------- | --------------------------------------------- |
-| Integers and floats | Zero; floating zero is positive               |
-| `bool` / `char`     | false / U+0000                                |
-| `str` / `String`    | Empty text; `String` owns independent storage |
-| Pointers            | Null, subject to ordinary non-null checks     |
-| Slices              | Empty read-only view                          |
-| Integer ranges      | Empty exclusive range from zero to zero       |
-| Fixed arrays        | Each element initialized independently        |
-| Structs             | Every field initialized recursively           |
-| External C++ types  | Native value initialization, checked by C++   |
+| Type                              | Default                                        |
+| --------------------------------- | ---------------------------------------------- |
+| Integers and floats               | Zero; floating zero is positive                |
+| SIMD byte / float vectors / masks | Zero lanes / positive-zero lanes / false lanes |
+| `bool` / `char`                   | false / U+0000                                 |
+| `str` / `String`                  | Empty text; `String` owns independent storage  |
+| Pointers                          | Null, subject to ordinary non-null checks      |
+| Slices                            | Empty read-only view                           |
+| Integer ranges                    | Empty exclusive range from zero to zero        |
+| Fixed arrays                      | Each element initialized independently         |
+| Structs                           | Every field initialized recursively            |
+| External C++ types                | Native value initialization, checked by C++    |
 
 Ordinary classes, numeric and payload enums, callable values/views, void, and entry or iteration-only opaque types have no default. A struct or nonempty array containing them also has no default. A zero-length array needs no element default. Unsupported requests report `CV-TYPE-DEFAULT-INITIALIZATION`.
 

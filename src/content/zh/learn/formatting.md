@@ -3,7 +3,7 @@ title: "格式化与打印结果"
 description: 组织可读输出，使用插值、格式说明和原地追加。
 section: learn
 lesson: 7
-source: docs/semantics.md
+source: docs/language/text.md
 ---
 
 ## 直接打印值

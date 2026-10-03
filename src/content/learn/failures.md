@@ -3,7 +3,7 @@ title: "Combine failures and narrow contracts"
 description: "Define failures with data, propagate at calls, and recover where business context is available."
 section: learn
 lesson: 9
-source: docs/semantics.md
+source: docs/language/failures.md
 ---
 
 ## Start with validation
@@ -54,7 +54,7 @@ println("Total:", line_total(12, 3)?);
 println("Total:", line_total(12, 0)?);
 ```
 
-This fragment depends on the struct and line_total above. The program prints `Total: 36`, then the second call's InvalidQuantity leaves the implicit entry. The process exits with a failure status without printing the payload. No throw clause is needed on top-level statements.
+This fragment depends on the struct and line_total above. The program prints `Total: 36`, then the second call's InvalidQuantity leaves the implicit entry. After local cleanup, the entry wrapper prints the failure type and structural payload on stderr and exits with `EXIT_FAILURE`. No throw clause is needed on top-level statements.
 
 Ordinary bare functions, export functions, and an explicit main must declare escaping failures; private main is no exception. Moving the same two lines into `fn main() { ... }` without `throw InvalidQuantity` reports `CV-EFFECT-THROW-PUBLISHED`.
 
@@ -223,7 +223,7 @@ Keep total's interface limited to Offline: replace its Carven body with `=> quot
 
 Failure does not roll back completed mutations. Locals are cleaned up according to control flow, and borrowed data in a failure payload must retain valid backing. C++ exceptions, dynamic bounds violations, and division-by-zero termination are not typed failures.
 
-If a failure escapes an implicit entry or an explicit main, the process reports failure status without automatically printing its payload. Catch and print it yourself when a readable message is needed. An ordinary returned integer is not an exit code.
+If a failure escapes an implicit entry or explicit main, the entry wrapper reports its type and structural payload on stderr after ordinary local cleanup, then returns `EXIT_FAILURE`. Catch it to provide an application-specific message or recovery. An ordinary returned integer is not an exit code.
 
 ## Exercise
 

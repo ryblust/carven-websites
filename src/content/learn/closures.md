@@ -3,7 +3,7 @@ title: "Capture state and pass behavior"
 description: "Move from value captures to Write captures, and distinguish owning closures from non-owning views."
 section: learn
 lesson: 10
-source: docs/semantics.md
+source: docs/language/functions.md
 ---
 
 ## Capture a snapshot

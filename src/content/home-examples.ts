@@ -27,35 +27,83 @@ fn port() -> i32 throw Denied + BadPort => try {
 } catch {
     Missing(_) => 8080,
 };`,
-  constants: `struct Route { path: str, enabled: bool }
+  constants: `struct Command { name: str, summary: str, enabled: bool }
 
-const fn route_list(routes: [Route; 3]) -> String {
-    var text: String = {};
-    for route in routes {
-        if route.enabled {
-            text.append(route.path);
-            text.append("\\n");
+const fn help_text(commands: [Command; 3]) -> String {
+    var text = String {};
+    text.append("Commands:\\n");
+    for command in commands {
+        if command.enabled {
+            text.append(f"  {command.name}: {command.summary}\\n");
         }
     }
-    return text;
+    return &&text;
 }
 
-const endpoints = route_list([
-    { path: "/health", enabled: true },
-    { path: "/users", enabled: true },
-    { path: "/debug", enabled: false },
+const help = help_text([
+    { name: "build", summary: "Compile the project", enabled: true },
+    { name: "run", summary: "Run the program", enabled: true },
+    { name: "trace", summary: "Show debug traces", enabled: false },
 ]);
 
 const test {
-    check(endpoints == "/health\\n/users\\n");
-}`,
+    check(help == """
+        Commands:
+          build: Compile the project
+          run: Run the program
+
+        """);
+}
+
+println(help);`,
+  simd: `import std::simd.bytes using { block_count, load_block };
+
+const fn count_delimiters(bytes: [u8], delimiter: u8) -> usize {
+    var count: usize = 0;
+    for index in 0..block_count(bytes) {
+        let block = load_block(bytes, index * 32);
+        count += ((block.value == delimiter) & block.active).count();
+    }
+    return count;
+}
+
+const test {
+    check(count_delimiters("name,age,city".bytes, 0x2c) == 2);
+    check(count_delimiters("abc".bytes, 0) == 0);
+}
+
+let row = "name,age,city";
+println(count_delimiters(row.bytes, 0x2c));`,
+  specialization: `fn matches(text: str, const pattern: str) -> bool {
+    if text.len() != pattern.len() { return false; }
+    const for index in 0..pattern.len() {
+        const if pattern.bytes[index] == "D".bytes[0] {
+            let byte = text.bytes[index];
+            // ASCII digits: 0x30 ('0') through 0x39 ('9').
+            if byte < 0x30 || byte > 0x39 { return false; }
+        } else {
+            if text.bytes[index] != pattern.bytes[index] { return false; }
+        }
+    }
+    return true;
+}
+
+const id_format = "INV-DDDD";
+let invoice = "INV-2048";
+let wrong = "INV-20x8";
+println(matches(invoice, id_format), matches(wrong, id_format));`,
   native: `import <nlohmann/json.hpp> using nlohmann::json::parse;
 
-let config = parse(c"{\\"port\\":9000}");
-let port: i32 = config.value(c"port", 8080);
-println(f"Port: {port}");`,
+var config = parse(r"""
+    {"server":{"host":"localhost","port":8080}}
+    """);
+
+let patch = parse(r#"{"server":{"port":9000}}"#);
+config.merge_patch(patch);
+
+println(f"{config.dump()}");`,
   displayCpp: `#include <array>
-#include <ostream>
+#include <iostream>
 #include <string_view>
 #include <variant>
 
@@ -69,32 +117,41 @@ struct Order {
     std::array<std::string_view, 2> items;
 };
 
-std::ostream& operator<<(std::ostream& out, const Status& status) {
-    if (auto* shipped = std::get_if<Shipped>(&status)) {
-        return out << "Status::Shipped(" << shipped->boxes << ")";
-    }
-    return out << "Status::Pending";
-}
-
 std::ostream& operator<<(std::ostream& out, const Order& order) {
     out << "Order {\\n"
         << "    id: " << order.id << ",\\n"
-        << "    status: " << order.status << ",\\n"
-        << "    items: [";
-    for (auto item : order.items) {
-        out << '"' << item << "\\", ";
+        << "    status: ";
+
+    if (auto* shipped = std::get_if<Shipped>(&order.status)) {
+        out << "Status::Shipped(\\n"
+            << "        " << shipped->boxes << ",\\n    )";
+    } else {
+        out << "Status::Pending";
     }
-    return out << "],\\n}\\n";
+
+    out << ",\\n    items: [\\n";
+    for (auto item : order.items) {
+        out << "        \\"" << item << "\\",\\n";
+    }
+
+    return out << "    ],\\n}";
+}
+
+int main() {
+    const Order order{7, Shipped{3}, {"disk", "cable"}};
+    std::cout << order << '\\n';
 }`,
   failuresCpp: `#include <expected>
 #include <string_view>
 #include <variant>
 
-std::expected<std::string_view,
-    std::variant<Missing, Denied>> read();
+using ReadError = std::variant<Missing, Denied>;
+using PortError = std::variant<Denied, BadPort>;
+
+std::expected<std::string_view, ReadError> read();
 std::expected<int, BadPort> parse(std::string_view text);
 
-std::expected<int, std::variant<Denied, BadPort>> port() {
+std::expected<int, PortError> port() {
     auto text = read();
     if (!text) {
         if (std::holds_alternative<Missing>(text.error())) {
@@ -102,24 +159,30 @@ std::expected<int, std::variant<Denied, BadPort>> port() {
         }
         return std::unexpected(std::get<Denied>(text.error()));
     }
+
     auto value = parse(*text);
     if (!value) {
         return std::unexpected(value.error());
     }
     return *value;
 }`,
-  constantsCpp: `#include <array>
+  constantsCpp: `#include <algorithm>
+#include <array>
+#include <iostream>
 #include <string>
 #include <string_view>
 
-struct Route { std::string_view path; bool enabled; };
+struct Command { std::string_view name, summary; bool enabled; };
 
-constexpr std::string route_list(std::array<Route, 3> routes) {
-    std::string text;
-    for (auto route : routes) {
-        if (route.enabled) {
-            text.append(route.path);
-            text.append("\\n");
+constexpr std::string help_text(const std::array<Command, 3>& commands) {
+    std::string text = "Commands:\\n";
+    for (const auto& command : commands) {
+        if (command.enabled) {
+            text += "  ";
+            text += command.name;
+            text += ": ";
+            text += command.summary;
+            text += '\\n';
         }
     }
     return text;
@@ -127,29 +190,158 @@ constexpr std::string route_list(std::array<Route, 3> routes) {
 
 template <auto build>
 consteval auto freeze() {
-    std::array<char, build().size()> data{};
-    auto text = build();
-    for (std::size_t i = 0; i < data.size(); ++i) {
-        data[i] = text[i];
-    }
+    constexpr auto size = build().size();
+    std::array<char, size> data{};
+    const auto text = build();
+    std::copy(text.begin(), text.end(), data.begin());
     return data;
 }
 
 constexpr auto data = freeze<[] {
-    return route_list({{
-        {"/health", true},
-        {"/users", true},
-        {"/debug", false},
+    return help_text({{
+        {"build", "Compile the project", true},
+        {"run", "Run the program", true},
+        {"trace", "Show debug traces", false},
     }});
 }>();
-constexpr std::string_view endpoints{data.data(), data.size()};
-static_assert(endpoints == "/health\\n/users\\n");`,
+
+constexpr std::string_view help{data.data(), data.size()};
+
+static_assert(help == "Commands:\\n"
+    "  build: Compile the project\\n"
+    "  run: Run the program\\n");
+
+int main() {
+    std::cout << help << '\\n';
+}`,
+  simdCpp: `#include <cstddef>
+#include <cstdint>
+#include <iostream>
+#include <span>
+#include <string_view>
+
+using Byte = std::uint8_t;
+using ByteView = std::span<const Byte>;
+
+constexpr std::size_t count_delimiters(ByteView bytes, Byte delimiter) {
+    std::size_t count = 0;
+    for (auto byte : bytes) {
+        count += byte == delimiter;
+    }
+    return count;
+}
+
+constexpr Byte sample[]{
+    'n', 'a', 'm', 'e', ',',
+    'a', 'g', 'e', ',',
+    'c', 'i', 't', 'y',
+};
+constexpr Byte short_row[]{'a', 'b', 'c'};
+
+static_assert(count_delimiters(sample, 0x2c) == 2);
+static_assert(count_delimiters(short_row, 0) == 0);
+
+int main() {
+    const std::string_view row = "name,age,city";
+    const auto* bytes = reinterpret_cast<const Byte*>(row.data());
+
+    std::cout << count_delimiters({bytes, row.size()}, 0x2c) << '\\n';
+}`,
+  specializationCpp: `#include <cstddef>
+#include <iostream>
+#include <string_view>
+#include <utility>
+
+using Text = std::string_view;
+
+template <auto& pattern, std::size_t index>
+constexpr bool matches_byte(unsigned char byte) {
+    // D marks an ASCII digit; other bytes match literally.
+    if constexpr (pattern[index] == 'D') {
+        return byte >= '0' && byte <= '9';
+    } else {
+        return byte == static_cast<unsigned char>(pattern[index]);
+    }
+}
+
+template <auto& pattern, std::size_t... index>
+constexpr bool matches_impl(
+    Text text, std::index_sequence<index...>) {
+    // Expand checks and short-circuit at the first mismatch.
+    return (matches_byte<pattern, index>(text[index]) && ...);
+}
+
+template <auto& pattern>
+constexpr bool matches(Text text) {
+    constexpr auto length = sizeof(pattern) - 1;
+    using Indices = std::make_index_sequence<length>;
+    return text.size() == length
+        && matches_impl<pattern>(text, Indices{});
+}
+
+constexpr char id_format[] = "INV-DDDD";
+
+int main() {
+    const Text invoice = "INV-2048";
+    const Text wrong = "INV-20x8";
+    std::cout << std::boolalpha
+        << matches<id_format>(invoice) << ' '
+        << matches<id_format>(wrong) << '\\n';
+}`,
+  specialization26Cpp: `#include <cstddef>
+#include <iostream>
+#include <string_view>
+#include <utility>
+
+using Text = std::string_view;
+
+template <auto& pattern, std::size_t... index>
+constexpr bool matches_impl(
+    Text text, std::index_sequence<index...>) {
+    // Expand positions for any pattern length.
+    template for (constexpr std::size_t position : {index...}) {
+        const auto byte = static_cast<unsigned char>(text[position]);
+        // D marks an ASCII digit; other bytes match literally.
+        if constexpr (pattern[position] == 'D') {
+            if (byte < '0' || byte > '9') { return false; }
+        } else {
+            if (byte != static_cast<unsigned char>(pattern[position])) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+template <auto& pattern>
+constexpr bool matches(Text text) {
+    constexpr auto length = sizeof(pattern) - 1;
+    using Indices = std::make_index_sequence<length>;
+    return text.size() == length
+        && matches_impl<pattern>(text, Indices{});
+}
+
+constexpr char id_format[] = "INV-DDDD";
+
+int main() {
+    const Text invoice = "INV-2048";
+    const Text wrong = "INV-20x8";
+    std::cout << std::boolalpha
+        << matches<id_format>(invoice) << ' '
+        << matches<id_format>(wrong) << '\\n';
+}`,
   nativeCpp: `#include <iostream>
 #include <nlohmann/json.hpp>
 
 int main() {
-    const auto config = nlohmann::json::parse("{\\"port\\":9000}");
-    const int port = config.value("port", 8080);
-    std::cout << "Port: " << port << '\\n';
+    auto config = nlohmann::json::parse(
+        R"({"server":{"host":"localhost","port":8080}})");
+
+    const auto patch = nlohmann::json::parse(
+        R"({"server":{"port":9000}})");
+
+    config.merge_patch(patch);
+
+    std::cout << config.dump() << '\\n';
 }`,
 } as const;

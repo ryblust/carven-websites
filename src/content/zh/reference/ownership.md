@@ -3,7 +3,7 @@ title: 绑定、访问、所有权与清理
 description: Read、Write、Take 的规则，复制、恢复、别名、临时值和作用域清理。
 section: reference
 lesson: 4
-source: docs/semantics.md
+source: docs/language/ownership.md
 ---
 
 ## 绑定与访问
@@ -46,7 +46,9 @@ value = relay(&&moved);
 println(value); // 7
 ```
 
-即使 `i32` 可复制，Take 之后原绑定也不可用；由 `relay(&&moved)` 赋值后，`value` 恢复可用。`&&` 表达式保留值类型，不对应固定次数或特定 C++ move 操作。
+即使 `i32` 可复制，Take 之后原绑定也不可用；由 `relay(&&moved)` 赋值后 `value` 恢复可用。`&&` 表达式保留值类型，不对应固定次数或特定 C++ move 操作。
+
+返回具名 owner 会复制；return 并不隐含 Take。返回的 owner 可以按值包含 Carven `String`、不含原生值组成部分，而且每个分析过的调用上下文都允许在该 return 处 Take 时，`CV-LINT-RETURN-COPY` 发出警告。零长度数组的元素不计作存储的 String。`return &&owner;` 明确转移并移除警告。
 
 只有对完整 `var` 的普通赋值能恢复可用性，而且必须等右侧正常完成。部分赋值、复合赋值、自增减都需要旧值。`x = relay(&&x)` 可在右侧正常返回后恢复 x；右侧失败则仍不可用。`x = &&x` 连同括号形式非法。
 

@@ -3,20 +3,22 @@ title: "Evaluation, control flow, and patterns"
 description: "Operator domains, short-circuiting, loops, value branches, pattern bindings, and exhaustiveness."
 section: reference
 lesson: 7
-source: docs/semantics.md
+source: docs/language/control-flow.md
 ---
 
 ## Operator domains
 
 ! requires `bool`; numeric negation requires a number; ~ requires an integer. Arithmetic and ordering require the same numeric type. Remainder, bitwise operations, and shifts require integers. Logical &&/|| require `bool` and short-circuit left to right. External C++ operands follow native operation rules.
 
-Equality supports `bool`, `char`, integers, floating point, `str`, `String`, memberwise comparable arrays/structs/enums, and pointers with the same target type. Classes have no implicit equality; a class, or a struct, array, or enum containing one, reports `CV-TYPE-EQUALITY-UNSUPPORTED`. Callables, entry arguments, slices, integer ranges, and chars ranges do not support equality. Floating equality follows IEEE and != is its negation. `0.0` and `-0.0` are the same literal pattern.
+Equality supports `bool`, `char`, integers, floating point, `str`, `String`, arrays with comparable elements, numeric enums, payload enums with comparable payloads, and pointers with the same target type. Structures and classes do not support `==` or `!=`; unsupported comparison reports `CV-TYPE-EQUALITY-UNSUPPORTED`. Callables, entry arguments, slices, integer ranges, and chars ranges have no equality. Floating equality follows IEEE; `!=` is its negation. `0.0` and `-0.0` are the same literal pattern. [SIMD comparisons](/reference/simd/#operators-and-masks) produce masks.
 
 ## Order and inactive code
 
 The callee precedes arguments; the left operand precedes the right; the receiver precedes the index; the assignment target precedes its right side. Initializers follow written source order. Every operand on a selected evaluation path runs once. Failure immediately skips the rest of that path.
 
-All source branches, including code after terminating statements or branches proven inactive by constants, still undergo operation, result-compatibility, and failure-consumption checks. Proven inactive paths do not contribute escaping failures, ownership transfers, or reachable-use evidence. A nonreturning expression may appear where its type is known; a call must still establish a callable type and match must still establish a subject type.
+Every source operand and branch receives operation, result-compatibility, and failure-consumption checks, including after a terminal statement. Only source after a terminal statement contributes no runtime evaluation, outward failure, ownership transition, or reachable-use evidence. A nonreturning expression may appear where its type is known; a call still needs a callable type and match still needs a subject type.
+
+A condition’s value never changes analysis. Reachability, failures, ownership, pointer proofs, and returns consider every branch of ordinary `if`, `&&`, `||`, `match`, and conditional loops, whether a condition is a literal, a `const`, or a runtime value. `if false` and `while true` retain both analysis paths. Only a conditionless `while { ... }` is known not to end by itself; it exits through `break`. [Static control](/reference/functions/#static-control) explicitly selects specialization and generation while all source arms remain checked.
 
 ## Integer range values
 
@@ -41,7 +43,7 @@ if conditions, while conditions, and guards require `bool`. A value-producing if
 let amount = if true { 10 } else { 20 };
 ```
 
-while checks its condition before each body execution. A C-style for creates a loop scope, initializes once, checks its condition, executes the body, then executes steps in written order. An omitted condition is true. continue enters the step; break exits.
+while checks its condition before each iteration; `while { ... }` repeats until break. A C-style for creates a loop scope, initializes once, checks its required condition, executes the body, then executes steps in written order. continue enters the step; break exits.
 
 An integer-range loop snapshots its source once. Reassigning the source range or changing its original bounds during iteration does not change the sequence. Traversal is ascending: reversed ranges are empty, equal bounds produce zero elements for `..` and one for `..=`. Closed ranges can include the integer type maximum without overflowing. Integer range bindings cannot be Write. Arrays permit Read and, for mutable sources, Write iteration; slices and chars permit only Read.
 
@@ -49,7 +51,7 @@ Range bindings cannot be Taken, and their names are not visible in their own typ
 
 ## Transfer boundaries of value branches
 
-return targets the current function or lambda; break/continue target loops. Result branches of value-form if/match/try cannot return to an outer function or break/continue an outer loop. A loop created inside a branch may receive its own transfers. Violations produce `CV-FLOW-TRANSFER-VALUE-BRANCH`.
+return targets the current function or lambda; break/continue target loops. Result branches of value-form if/match/try cannot return to an outer function or break/continue an outer loop. A loop created inside a branch may receive its own transfers. A constant block has the same boundary. Violations produce `CV-FLOW-TRANSFER-BOUNDARY`.
 
 ## match and patterns
 

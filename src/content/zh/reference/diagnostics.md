@@ -2,7 +2,7 @@
 title: 诊断代码目录
 description: 按代码查找当前检查边界、默认严重性与定位方向。
 section: reference
-lesson: 21
+lesson: 22
 source: src/diagnostics/code.cpp
 ---
 
@@ -58,7 +58,7 @@ source: src/diagnostics/code.cpp
 | `CV-CONST-ENUM-RANGE`                     | Error    | Enum case constant is out of range.                                         |
 | `CV-CONST-EVALUATION`                     | Error    | Constant function evaluation failed.                                        |
 | `CV-CONST-EXPORTED-TYPE`                  | Error    | Exported constant is missing its declared type.                             |
-| `CV-CONST-ADMISSION`                      | Error    | Invalid constant execution contract.                                        |
+| `CV-CONST-ADMISSION`                      | Error    | Invalid compile-time execution contract.                                    |
 | `CV-CONST-INITIALIZER`                    | Error    | Invalid constant initializer.                                               |
 | `CV-CONST-INDEX-BOUNDS`                   | Error    | Constant array index is out of bounds.                                      |
 | `CV-CONST-LIMIT`                          | Error    | Constant evaluation resource limit exceeded.                                |
@@ -76,7 +76,7 @@ source: src/diagnostics/code.cpp
 | `CV-FLOW-BREAK-OUTSIDE-LOOP`              | Error    | Break outside a loop.                                                       |
 | `CV-FLOW-CONTINUE-OUTSIDE-LOOP`           | Error    | Continue outside a loop.                                                    |
 | `CV-FLOW-MISSING-RETURN`                  | Error    | Missing return path.                                                        |
-| `CV-FLOW-TRANSFER-VALUE-BRANCH`           | Error    | Control transfer crosses a value-expression boundary.                       |
+| `CV-FLOW-TRANSFER-BOUNDARY`               | Error    | Control transfer crosses a value-expression boundary.                       |
 | `CV-FLOW-UNREACHABLE`                     | Warning  | Unreachable statement.                                                      |
 | `CV-FLOW-UNREACHABLE-MATCH-ARM`           | Warning  | Unreachable match arm.                                                      |
 | `CV-FLOW-VALUE-BRANCH-RESULT`             | Error    | Value branch is missing a result expression.                                |
@@ -90,6 +90,7 @@ source: src/diagnostics/code.cpp
 | `CV-LINT-UNUSED-IMPORT`                   | Warning  | Unused import.                                                              |
 | `CV-LINT-UNUSED-LOCAL`                    | Warning  | Unused local binding.                                                       |
 | `CV-LINT-UNUSED-PARAMETER`                | Warning  | Unused function parameter.                                                  |
+| `CV-LINT-RETURN-COPY`                     | Warning  | Returned owner is copied where it could be transferred.                     |
 | `CV-MATCH-DUPLICATE-ALTERNATIVE`          | Error    | Duplicate match alternative.                                                |
 | `CV-MATCH-NON-EXHAUSTIVE`                 | Error    | Non-exhaustive value match.                                                 |
 | `CV-MATCH-BINDING-MISMATCH`               | Error    | Or-pattern bindings do not agree.                                           |
@@ -115,10 +116,10 @@ source: src/diagnostics/code.cpp
 | `CV-EFFECT-CATCH-ALTERNATIVE-UNREACHABLE` | Warning  | Unreachable catch alternative.                                              |
 | `CV-EFFECT-RETHROW-CONTEXT`               | Error    | Rethrow outside a catch handler.                                            |
 | `CV-TEST-ARGUMENT-COUNT`                  | Error    | Invalid inline-test operation arguments.                                    |
-| `CV-TEST-CONDITION-TYPE`                  | Error    | Inline-test condition must have type `bool`.                                |
+| `CV-TEST-CONDITION-TYPE`                  | Error    | Inline-test condition must have type bool.                                  |
 | `CV-TEST-DUPLICATE-NAME`                  | Error    | Duplicate test name.                                                        |
 | `CV-TEST-MAIN-NAME`                       | Error    | Reserved test-main name.                                                    |
-| `CV-TEST-MESSAGE-TYPE`                    | Error    | Inline-test message must have type `str`.                                   |
+| `CV-TEST-MESSAGE-TYPE`                    | Error    | Inline-test message must have type str.                                     |
 | `CV-TYPE-ARRAY-ELEMENT`                   | Error    | Incompatible array element type.                                            |
 | `CV-TYPE-ASSIGNMENT-INTEGER`              | Error    | Integer assignment required.                                                |
 | `CV-TYPE-ASSIGNMENT-NUMERIC`              | Error    | Numeric assignment required.                                                |

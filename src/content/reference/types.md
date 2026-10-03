@@ -3,12 +3,12 @@ title: "Types, context, and conversions"
 description: "Builtin types, nominal identity, contextual inference, and numeric conversion boundaries."
 section: reference
 lesson: 3
-source: docs/semantics.md
+source: docs/language/types.md
 ---
 
 ## Type identity
 
-Builtin types are `bool`, `char`, `str`, `String`, `void`, signed integers `i8/i16/i32/i64/isize`, unsigned integers `u8/u16/u32/u64/usize`, and `f32/f64`.
+Builtin types are `bool`, `char`, `str`, `String`, `void`, signed integers `i8/i16/i32/i64/isize`, unsigned integers `u8/u16/u32/u64/usize`, and `f32/f64`. Fixed logical [SIMD types](/reference/simd/) are `u8x16`, `mask16`, `f32x4`, `mask4`, `u8x32`, `mask32`, `f32x8`, and `mask8`. Builtin type names are reserved; module declarations cannot reuse them.
 
 Structs, classes, and enums have declaration identity; identical fields do not imply compatibility. A class is an ordinary value type with private fields; see [ordinary value classes](/reference/aggregates/#ordinary-value-classes). Array types include element type and length; slice types include element type. `range<T>` accepts a builtin integer element type. Half-open and closed intervals share that type; upper-bound inclusion is part of the value, not its type. Callable view types include parameter access, parameter types, success result, and failure set. Each pointer layer includes its target type and Read/Write target access.
 

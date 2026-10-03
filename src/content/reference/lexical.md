@@ -3,7 +3,7 @@ title: "Lexical syntax and literals"
 description: "Source encoding, identifiers, comments, numbers, text, C++ fragments, and syntactic disambiguation."
 section: reference
 lesson: 1
-source: docs/grammar.md
+source: docs/language/grammar.md
 ---
 
 ## Source text
@@ -41,7 +41,7 @@ Signs are prefix operators. Suffixes immediately follow the literal. Integer suf
 
 Character literals use single quotes and decode to exactly one Unicode scalar. Ordinary strings use double quotes. Escapes are `\'`, `\"`, `\\`, `\n`, `\t`, `\r`, `\0`, and `\u{...}`. Unicode escapes contain one to six hexadecimal digits, at most U+10FFFF, excluding surrogates U+D800..U+DFFF. There is no `\xNN`, `\uXXXX`, or `\UXXXXXXXX`.
 
-A literal ends on the line where it begins. No Unicode normalization occurs. Adjacent strings do not concatenate automatically.
+Character and single-line string literals end on their starting line. Ordinary strings also support multiline `"""..."""`; raw strings use `r"..."`, `r#"..."#`, or corresponding triple-quote forms. Raw bodies preserve backslashes and braces without escapes or interpolation. Matching hashes distinguish the closing delimiter from body text. No Unicode normalization or adjacent-literal concatenation occurs. The [multiline layout rules](/reference/text/#string-literals-and-multiline-layout) define boundaries, common indentation, and line-ending normalization.
 
 ```carven
 const scalar = '我';
@@ -49,9 +49,9 @@ const text = "第一行\n第二行";
 const nul = "a\0b";
 ```
 
-The c in `c"..."` must touch the quote. The result is native `const char*`; decoded interior NUL is invalid. `c "..."` is not one literal. There is no raw form.
+The c in `c"..."` must touch the quote. The result is native `const char*`; decoded interior NUL is invalid. C strings have only the single-line escaped form; `c "..."`, raw forms, multiline forms, and combined prefixes are not C string literals.
 
-`f"..."` is an interpolation expression producing `String`. `{{` and `}}` represent literal braces. Holes contain ordinary expressions and optional `:` format specifications; dynamic width and precision also use holes. Only a top-level hole colon not belonging to `::` begins a format specification. Holes may contain parentheses, strings, nested interpolation, and ordinary newlines. Empty holes are invalid. Decoded escapes are not rescanned as interpolation delimiters.
+`f"..."` and multiline `f"""..."""` produce an owning `String`. `{{` and `}}` represent literal braces. Holes contain ordinary expressions and optional `:` format specifications; dynamic width and precision also use holes. Only a top-level hole colon distinct from `::` begins a format specification. Holes may contain parentheses, strings, nested interpolation, and ordinary newlines. Empty holes are invalid. Decoded escapes are not rescanned as interpolation delimiters. Prefixes must be adjacent to delimiters; `r` and `f` are identifiers elsewhere, and `fr`, `rf`, or `cr` are not combined string forms.
 
 ## C++ headers and source fragments
 

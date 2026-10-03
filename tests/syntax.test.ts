@@ -1,6 +1,62 @@
 import { assert, describe, it } from '@effect/vitest';
 import { Effect } from 'effect';
 import { Markdown } from '../scripts/content/Markdown.ts';
+import { createHighlighterCore } from 'shiki/core';
+import { createOnigurumaEngine } from 'shiki/engine/oniguruma';
+import carven from '../src/lib/carven-grammar.ts';
+import paper from '../scripts/content/paper.ts';
+import { afterAll, beforeAll } from 'vitest';
+
+describe('Carven string token boundaries', () => {
+  let highlighter: Awaited<ReturnType<typeof createHighlighterCore>>;
+
+  beforeAll(async () => {
+    highlighter = await createHighlighterCore({
+      engine: createOnigurumaEngine(import('shiki/wasm')),
+      themes: [paper],
+      langs: [carven],
+    });
+  });
+
+  afterAll(() => highlighter?.dispose());
+
+  it.each([
+    ['raw trailing backslash', 'r"C:\\tools\\"'],
+    ['raw delimiter hashes', 'r##"a "# quote and \\n"##'],
+    ['raw multiline quotes', 'r#"""\n    A literal """ and \\n.\n"""#'],
+    ['multiline quotes', '"""\n    A "quoted" line.\n"""'],
+  ])('keeps %s inside the string and resumes highlighting after it', (_, literal) => {
+    const source = `let text = ${literal};\nconst done = true;`;
+    const tokens = highlighter.codeToTokensBase(source, {
+      lang: 'carven',
+      theme: paper.name,
+      includeExplanation: 'scopeName',
+    });
+    assert.strictEqual(
+      tokens.map((line) => line.map((token) => token.content).join('')).join('\n'),
+      source,
+    );
+    const stringText = tokens
+      .map((line) =>
+        line
+          .flatMap((token) => token.explanation ?? [])
+          .filter((part) => part.scopes.some((scope) => scope.scopeName.startsWith('string.')))
+          .map((part) => part.content)
+          .join(''),
+      )
+      .join('\n')
+      .trimEnd();
+    assert.strictEqual(stringText, literal);
+    const lastLine = tokens.at(-1)!.flatMap((token) => token.explanation ?? []);
+    assert.isTrue(
+      lastLine.some(
+        (part) =>
+          part.content === 'const' &&
+          part.scopes.some((scope) => scope.scopeName === 'keyword.control.carven'),
+      ),
+    );
+  });
+});
 
 describe('shared syntax rendering', () => {
   it.effect.each(['cv', 'carven', 'cpp', 'sh'])(

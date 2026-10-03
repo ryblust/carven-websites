@@ -3,7 +3,7 @@ title: "C++ names, operations, and boundaries"
 description: "Headers, native types, source fragments, function contracts, exceptions, and returned borrows."
 section: reference
 lesson: 15
-source: docs/semantics.md
+source: docs/language/interop.md
 ---
 
 ## Headers and external names
@@ -102,6 +102,8 @@ Native providers and callers own lifetime, retention, reentry, and value-validit
 Direct infallible imported `char` results and exported Read/Take `char` parameters check Unicode scalar validity and terminate on invalid values. This is not recursive validation of aggregates, pointers, mutable references, or Outcomes.
 
 Provider names cannot be main/std/carven. Authors are responsible for C++ leading-underscore reservation rules. Safe names retain their spelling in export APIs. Unsafe names and names beginning cv_escaped_ use that prefix followed by lowercase hexadecimal encoding of the original UTF-8 bytes. C++ keywords, double underscores, and underscore followed by uppercase are excluded. Function/namespace prefix conflicts are invalid.
+
+A staged body uses native names supplied by header imports or import(cpp) declarations. Names defined only in cpp fragments remain implementation-only. Functions with static parameters cannot cross declared C++ boundaries.
 
 ## noexcept
 

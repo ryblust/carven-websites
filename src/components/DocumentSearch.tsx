@@ -1,6 +1,6 @@
 import { InlineCode } from './InlineCode';
 import { plainInlineText } from '../lib/inline-code';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Link, useHydrated } from '@tanstack/react-router';
 import { articles, type ArticlePath } from '../generated/manifest';
 import { localeOf, translate, type Locale } from '../lib/i18n';
@@ -9,6 +9,8 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
   const t = translate(locale);
   const dialog = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
   const navigating = useRef(false);
   const id = useId();
   const [query, setQuery] = useState('');
@@ -24,12 +26,20 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
         .includes(query.trim().toLocaleLowerCase())
     );
   });
-  const open = () => {
-    navigating.current = false;
-    setQuery('');
-    setOpened(true);
-    dialog.current?.showModal();
-  };
+  const open = useCallback(
+    (focusInput = window.matchMedia('(hover: hover) and (pointer: fine)').matches) => {
+      if (!dialog.current || !input.current || !closeButton.current) return;
+      navigating.current = false;
+      setQuery('');
+      setOpened(true);
+      // Choose focus before showModal so touch devices never briefly focus the input.
+      input.current.autofocus = focusInput;
+      closeButton.current.autofocus = !focusInput;
+      dialog.current.showModal();
+      (focusInput ? input.current : closeButton.current).focus({ preventScroll: true });
+    },
+    [],
+  );
   const close = () => dialog.current?.close();
   useEffect(() => {
     setShortcut(/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ K' : 'Ctrl K');
@@ -37,19 +47,19 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         if (dialog.current?.open) dialog.current.close();
-        else open();
+        else open(true);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [open]);
   return (
     <>
       <button
         ref={trigger}
         className="search-trigger"
         type="button"
-        onClick={open}
+        onClick={() => open()}
         disabled={!ready}
         aria-haspopup="dialog"
         aria-label={t('搜索文档', 'Search documentation')}
@@ -85,6 +95,7 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
               {t('搜索文档', 'Search documentation')}
             </label>
             <button
+              ref={closeButton}
               className="icon-button"
               type="button"
               onClick={close}
@@ -94,9 +105,9 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
             </button>
           </div>
           <input
+            ref={input}
             id={`${id}-input`}
             type="search"
-            autoFocus
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('输入标题或主题，例如：类型', 'Title or topic, e.g. types')}
