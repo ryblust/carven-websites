@@ -12,3 +12,6 @@ src/.content-*/
 
 # Local compiler-to-website synchronization notes
 /docs/content-sync.md
+
+# Reproducible browser compiler and bundled Crafts
+/public/playground-assets/

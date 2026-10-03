@@ -26,6 +26,8 @@ jobs:
       - name: Read Pages configuration
         id: pages
         uses: actions/configure-pages@v6
+      - name: Build pinned browser compiler
+        run: ./sitew playground:build --jobs 2
       - run: ./sitew format:check
       - name: Build and verify
         env:

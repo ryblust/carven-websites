@@ -23,6 +23,9 @@ SITE_TASK="${1:-dev}"
 if [[ $# -gt 0 ]]; then shift; fi
 
 case "$SITE_TASK" in
+  playground:build)
+    exec "$SITE_NODE" --run playground:build -- "$@"
+    ;;
   dev|dev:foreground|build|preview|check:links|typecheck|format|format:check|test|content|stop|status)
     if [[ ! -d node_modules/vite ]]; then
       echo "请先在此目录运行 pnpm install。"
@@ -31,7 +34,7 @@ case "$SITE_TASK" in
     exec "$SITE_NODE" --run "$SITE_TASK" -- "$@"
     ;;
   *)
-    echo "用法：./sitew [dev|dev:foreground|build|preview|typecheck|format|format:check|test|content|check:links|stop|status]"
+    echo "用法：./sitew [playground:build|dev|dev:foreground|build|preview|typecheck|format|format:check|test|content|check:links|stop|status]"
     exit 1
     ;;
 esac

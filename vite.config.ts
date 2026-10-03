@@ -25,7 +25,15 @@ export default defineConfig({
           children: [{ type: 'physical', directory: '.', pathPrefix: '' }, ...articleRoutes],
         },
       },
-      pages: ['/', '/zh/', '/404/', '/zh/404/', ...Object.keys(articles)].map((path) => ({
+      pages: [
+        '/',
+        '/zh/',
+        '/404/',
+        '/zh/404/',
+        '/playground/',
+        '/zh/playground/',
+        ...Object.keys(articles),
+      ].map((path) => ({
         path,
         sitemap: {
           exclude: path === '/404/' || path === '/zh/404/',

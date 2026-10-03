@@ -12,6 +12,7 @@ interface Props {
 }
 
 const nav = [
+  { label: 'Playground', english: 'Playground', path: '/playground/', key: 'playground' },
   { label: '设计哲学', english: 'Philosophy', path: '/philosophy/', key: 'philosophy' },
   { label: '学习 Carven', english: 'Learn Carven', path: '/learn/', key: 'learn' },
   { label: '语言参考', english: 'Reference', path: '/reference/', key: 'reference' },

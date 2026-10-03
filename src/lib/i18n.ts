@@ -5,7 +5,15 @@ export const localeOf = (path: string): Locale =>
   path === '/zh' || path.startsWith('/zh/') ? 'zh' : 'en';
 export const unlocalizedPath = (path: string) =>
   localeOf(path) === 'zh' ? path.slice(3) || '/' : path;
-const destinations = ['/', '/zh/', '/404/', '/zh/404/', ...articlePaths] as const;
+const destinations = [
+  '/',
+  '/zh/',
+  '/404/',
+  '/zh/404/',
+  '/playground/',
+  '/zh/playground/',
+  ...articlePaths,
+] as const;
 export function localizedPath(path: string, locale: Locale) {
   const base = unlocalizedPath(path);
   const target = locale === 'zh' ? `/zh${base}` : base;

@@ -166,6 +166,9 @@ importers:
 
   .:
     dependencies:
+      '@bjorn3/browser_wasi_shim':
+        specifier: 0.4.2
+        version: 0.4.2
       '@tanstack/react-router':
         specifier: 1.170.41
         version: 1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -296,6 +299,9 @@ packages:
   '@babel/types@7.29.8':
     resolution: {integrity: sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg==}
     engines: {node: '>=6.9.0'}
+
+  '@bjorn3/browser_wasi_shim@0.4.2':
+    resolution: {integrity: sha512-/iHkCVUG3VbcbmEHn5iIUpIrh7a7WPiwZ3sHy4HZKZzBdSadwdddYDZAII2zBvQYV0Lfi8naZngPCN7WPHI/hA==}
 
   '@effect/platform-node-shared@4.0.0':
     resolution: {integrity: sha512-VBXHJU9UXVZPdQGGDRjGXpo+TpOzRwZuMrdKAtIxi1qwcRftmacZ1zTgIrzBa0Z2RA2KVkoOecQUsTlt/nJZhw==}
@@ -1694,6 +1700,8 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
+
+  '@bjorn3/browser_wasi_shim@0.4.2': {}
 
   '@effect/platform-node-shared@4.0.0(effect@4.0.0)':
     dependencies:

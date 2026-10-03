@@ -19,9 +19,11 @@
     "format:check": "prettier . --check",
     "test": "vitest run",
     "content": "node scripts/generate-content.ts",
-    "check:links": "node scripts/check-links.mjs"
+    "check:links": "node scripts/check-links.mjs",
+    "playground:build": "python3 scripts/playground/build-wasi.py"
   },
   "dependencies": {
+    "@bjorn3/browser_wasi_shim": "0.4.2",
     "@tanstack/react-router": "1.170.41",
     "@tanstack/react-start": "1.168.60",
     "effect": "4.0.0",

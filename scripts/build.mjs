@@ -7,6 +7,7 @@ const run = (...args) => {
   if (result.status !== 0) process.exit(result.status ?? 1);
 };
 
+run('scripts/playground/verify-assets.ts');
 await rm('dist', { recursive: true, force: true });
 run('scripts/generate-content.ts');
 run('node_modules/vite/bin/vite.js', 'build');

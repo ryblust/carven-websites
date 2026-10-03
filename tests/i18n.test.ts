@@ -15,8 +15,8 @@ describe('bilingual navigation', () => {
     }
   });
 
-  it('maps home and not-found pages in both directions', () => {
-    for (const path of ['/', '/404/']) {
+  it('maps custom pages in both directions', () => {
+    for (const path of ['/', '/404/', '/playground/']) {
       assert.equal(localizedPath(path, 'zh'), `/zh${path}`);
       assert.equal(localizedPath(`/zh${path}`, 'en'), path);
     }
