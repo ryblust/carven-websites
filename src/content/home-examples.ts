@@ -20,13 +20,46 @@ let order = Order {
 };
 
 println(order);`,
-  failures: `// read: str throw Missing + Denied
-// parse: i32 throw BadPort
-fn port() -> i32 throw Denied + BadPort => try {
-    parse(read()?)?
+  failures: `struct Missing { key: str }
+struct Denied { key: str }
+struct BadPort { text: str }
+
+// A small in-memory configuration store.
+fn read(key: str) -> str throw Missing + Denied {
+    if key == "denied" { throw Denied { key: key }; }
+    if key == "ok" { return "9000"; }
+    if key == "bad" { return "9x00"; }
+    throw Missing { key: key };
+}
+
+fn parse(text: str) -> i32 throw BadPort {
+    if text.len() == 0 { throw BadPort { text: text }; }
+    var value: i32 = 0;
+    for byte in text.bytes {
+        if byte < 0x30 || byte > 0x39 {
+            throw BadPort { text: text };
+        }
+        value = value * 10 + (byte as i32 - 0x30);
+        if value > 65535 { throw BadPort { text: text }; }
+    }
+    if value == 0 { throw BadPort { text: text }; }
+    return value;
+}
+
+fn port(key: str) -> i32 throw Denied + BadPort => try {
+    parse(read(key)?)?
 } catch {
     Missing(_) => 8080,
-};`,
+};
+
+for key in ["ok", "missing", "denied", "bad"] {
+    try {
+        println(key, port(key)?);
+    } catch {
+        Denied(error) => println("Denied:", error.key),
+        BadPort(error) => println("Bad port:", error.text),
+    }
+}`,
   constants: `struct Command { name: str, summary: str, enabled: bool }
 
 const fn help_text(commands: [Command; 3]) -> String {
@@ -94,11 +127,24 @@ let wrong = "INV-20x8";
 println(matches(invoice, id_format), matches(wrong, id_format));`,
   native: `import <nlohmann/json.hpp> using nlohmann::json::parse;
 
-var config = parse(r"""
-    {"server":{"host":"localhost","port":8080}}
+var config = parse("""
+    {
+        "server": {
+            "host": "localhost",
+            "port": 8080,
+            "debug": true
+        }
+    }
     """);
 
-let patch = parse(r#"{"server":{"port":9000}}"#);
+let patch = parse("""
+    {
+        "server": {
+            "port": 9000,
+            "debug": null
+        }
+    }
+    """);
 config.merge_patch(patch);
 
 println(f"{config.dump()}");`,
@@ -141,18 +187,44 @@ int main() {
     const Order order{7, Shipped{3}, {"disk", "cable"}};
     std::cout << order << '\\n';
 }`,
-  failuresCpp: `#include <expected>
+  failuresCpp: `#include <cstdint>
+#include <expected>
+#include <initializer_list>
+#include <iostream>
 #include <string_view>
 #include <variant>
+
+struct Missing { std::string_view key; };
+struct Denied { std::string_view key; };
+struct BadPort { std::string_view text; };
 
 using ReadError = std::variant<Missing, Denied>;
 using PortError = std::variant<Denied, BadPort>;
 
-std::expected<std::string_view, ReadError> read();
-std::expected<int, BadPort> parse(std::string_view text);
+// A small in-memory configuration store.
+std::expected<std::string_view, ReadError> read(std::string_view key) {
+    if (key == "denied") { return std::unexpected(Denied{key}); }
+    if (key == "ok") { return "9000"; }
+    if (key == "bad") { return "9x00"; }
+    return std::unexpected(Missing{key});
+}
 
-std::expected<int, PortError> port() {
-    auto text = read();
+std::expected<std::int32_t, BadPort> parse(std::string_view text) {
+    if (text.empty()) { return std::unexpected(BadPort{text}); }
+    std::int32_t value = 0;
+    for (unsigned char byte : text) {
+        if (byte < 0x30 || byte > 0x39) {
+            return std::unexpected(BadPort{text});
+        }
+        value = value * 10 + (byte - 0x30);
+        if (value > 65535) { return std::unexpected(BadPort{text}); }
+    }
+    if (value == 0) { return std::unexpected(BadPort{text}); }
+    return value;
+}
+
+std::expected<std::int32_t, PortError> port(std::string_view key) {
+    auto text = read(key);
     if (!text) {
         if (std::holds_alternative<Missing>(text.error())) {
             return 8080;
@@ -165,6 +237,20 @@ std::expected<int, PortError> port() {
         return std::unexpected(value.error());
     }
     return *value;
+}
+
+int main() {
+    for (std::string_view key : {"ok", "missing", "denied", "bad"}) {
+        auto value = port(key);
+        if (value) {
+            std::cout << key << ' ' << *value << '\\n';
+        } else if (auto* error = std::get_if<Denied>(&value.error())) {
+            std::cout << "Denied: " << error->key << '\\n';
+        } else {
+            std::cout << "Bad port: "
+                << std::get<BadPort>(value.error()).text << '\\n';
+        }
+    }
 }`,
   constantsCpp: `#include <algorithm>
 #include <array>
@@ -334,11 +420,24 @@ int main() {
 #include <nlohmann/json.hpp>
 
 int main() {
-    auto config = nlohmann::json::parse(
-        R"({"server":{"host":"localhost","port":8080}})");
+    auto config = nlohmann::json::parse(R"json(
+        {
+            "server": {
+                "host": "localhost",
+                "port": 8080,
+                "debug": true
+            }
+        }
+    )json");
 
-    const auto patch = nlohmann::json::parse(
-        R"({"server":{"port":9000}})");
+    const auto patch = nlohmann::json::parse(R"json(
+        {
+            "server": {
+                "port": 9000,
+                "debug": null
+            }
+        }
+    )json");
 
     config.merge_patch(patch);
 
