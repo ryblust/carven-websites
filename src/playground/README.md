@@ -1,4 +1,4 @@
-# Browser Playground
+# Playground
 
 The Playground runs the Carven compiler and Graver from one WASI module in a Web
 Worker. Each invocation receives `main.cv` and the packaged Crafts library in an
@@ -11,11 +11,11 @@ the compiler supplies diagnostics.
 ## Build
 
 CI shallow-checks out the compiler repository's latest default-branch commit into
-`.site/playground/compiler/`. It installs Xmake 3.1.1 and WASI SDK 34, then runs this
+`.deps/carven/`. It installs Xmake 3.1.1 and WASI SDK 34, then runs this
 command from the website repository root:
 
 ```sh
-.site/playground/compiler/xmakew build
+.deps/carven/xmakew build
 ```
 
 The checkout's `xmakew` applies the compiler repository's Clang module pipeline
@@ -24,17 +24,19 @@ LTO policy and built-in `wasi` toolchain. The policy enables ThinLTO for Clang.
 The `wasm` platform defaults to `wasm32`; SDK 34 targets WASI Preview 1. Xmake
 manages module dependencies, compilation and linking.
 
-For local builds, install the website dependencies, Xmake and WASI SDK, then
-prepare the checkout and SDK environment:
+For local builds, install the website dependencies and Xmake, extract WASI SDK 34
+into `.deps/wasi-sdk/`, then prepare the checkout and SDK environment:
 
 ```sh
-export WASI_SDK_PATH=/path/to/wasi-sdk
-git clone --depth 1 https://github.com/ryblust/carven.git .site/playground/compiler
+export WASI_SDK_PATH="$PWD/.deps/wasi-sdk"
+git clone --depth 1 https://github.com/ryblust/carven.git .deps/carven
 pnpm playground:build
 ```
 
 `pnpm playground:build` runs the same wrapper command against the local checkout.
 Xmake discovers the SDK through `WASI_SDK_PATH`, which CI's SDK setup action sets.
+`src/playground/carven-wasm.cpp` provides the WASM entry point. Browser execution
+and editor support live alongside it.
 
 The target adds the SDK's `std.cppm` explicitly because Xmake 3.1.1's WASI toolchain
 leaves the C++ runtime identity unspecified during standard-module discovery.

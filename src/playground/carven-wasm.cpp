@@ -1,4 +1,4 @@
-module carven:browser.main;
+module carven:wasm.main;
 
 import :driver.check;
 import :driver.compile;

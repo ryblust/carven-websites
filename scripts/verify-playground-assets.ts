@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { parseCrafts } from '../../src/playground/wasi.ts';
+import { parseCrafts } from '../src/playground/wasi.ts';
 
 const directory = resolve('public/playground-assets');
 try {
@@ -12,10 +12,10 @@ try {
   ]);
   await WebAssembly.compile(wasm);
   parseCrafts(JSON.parse(crafts));
-  console.log('Browser compiler assets ready.');
+  console.log('WASM compiler assets ready.');
 } catch (error) {
   throw new Error(
-    'Browser compiler assets are missing or invalid. Run pnpm playground:build before building the website.',
+    'WASM compiler assets are missing or invalid. Run pnpm playground:build before building the website.',
     { cause: error },
   );
 }

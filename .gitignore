@@ -1,7 +1,7 @@
 node_modules/
 dist/
 .tanstack/
-.site/
+.deps/
 src/generated/
 src/routeTree.gen.ts
 src/.content-*/
@@ -14,5 +14,5 @@ build/
 # Local compiler-to-website synchronization notes
 /docs/content-sync.md
 
-# Reproducible browser compiler and bundled Crafts
+# Reproducible WASM compiler and bundled Crafts
 /public/playground-assets/

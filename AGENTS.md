@@ -5,9 +5,10 @@
 - Work in this website repository. Use the neighboring compiler as a read-only reference for language behavior.
 - Use `pnpm install` and the scripts in `package.json`. Treat `package.json` and the lockfile as the dependency and runtime baseline.
 - Write articles in `src/content/` and custom pages in `src/routes/`. Regenerate article routes in `src/generated/` and `src/routeTree.gen.ts` through the content pipeline.
-- Keep README to the project introduction and links. Put repository rules here and subsystem procedures beside their scripts. Keep published documentation focused on website users.
+- Keep README to the project introduction and links. Put repository rules here and subsystem contracts beside their implementation. Keep published documentation focused on website users.
 - Describe current mechanisms, responsibilities and reasons for choices. Keep local maintenance records focused on current baselines, validation evidence and open work.
-- Sync compiler changes from the compiler repository's `main` branch. Consult `docs/content-sync.md` for the current baseline; keep this record local. Read `scripts/playground/README.md` for the browser compiler's build and execution contract.
+- Sync compiler changes from the compiler repository's `main` branch. Consult `docs/content-sync.md` for the current baseline; keep this record local. Read `src/playground/README.md` for the `carven-wasm` build and execution contract.
+- Keep local build dependencies in `.deps/`: compiler sources in `.deps/carven/` and WASI SDK in `.deps/wasi-sdk/`. Pass the SDK path through `WASI_SDK_PATH`. Xmake owns `build/` and `.xmake/`; generated Playground assets go to `public/playground-assets/`.
 
 ## Implementation
 

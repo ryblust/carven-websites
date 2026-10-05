@@ -13,7 +13,7 @@ import {
 
 const root = new URL('../public/playground-assets/', import.meta.url);
 
-describe('browser compiler input boundary', () => {
+describe('WASM compiler input boundary', () => {
   it('preserves Unicode and exact source bytes for accepted commands', () => {
     const source = '\nentry task() { println("你好"); }\n';
     for (const action of ['run', 'check', 'compile', 'format', 'ast', 'tokens'] as const) {
@@ -31,7 +31,7 @@ describe('browser compiler input boundary', () => {
   });
 });
 
-describe('browser compiler asset boundary', () => {
+describe('WASM compiler asset boundary', () => {
   it('limits packaged filesystem paths to Crafts and requires runtime discovery', () => {
     const files = {
       'crafts/carven/runtime/runtime.hpp': '',
@@ -72,7 +72,7 @@ describe('browser compiler asset boundary', () => {
   });
 });
 
-describe('browser compiler output boundary', () => {
+describe('WASM compiler output boundary', () => {
   it('preserves partial UTF-8 writes without requiring a newline', () => {
     const output = new CapturedOutput();
     const stdout = output.fd('stdout');

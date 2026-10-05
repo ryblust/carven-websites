@@ -8,16 +8,16 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "node scripts/generate-content.ts && vite",
+    "dev": "node scripts/content/main.ts && vite",
     "build": "node scripts/build.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "test": "vitest run",
-    "content": "node scripts/generate-content.ts",
+    "content": "node scripts/content/main.ts",
     "check:links": "node scripts/check-links.mjs",
-    "playground:build": ".site/playground/compiler/xmakew build"
+    "playground:build": ".deps/carven/xmakew build"
   },
   "dependencies": {
     "@bjorn3/browser_wasi_shim": "0.4.2",

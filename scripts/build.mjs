@@ -7,9 +7,9 @@ const run = (...args) => {
   if (result.status !== 0) process.exit(result.status ?? 1);
 };
 
-run('scripts/playground/verify-assets.ts');
+run('scripts/verify-playground-assets.ts');
 await rm('dist', { recursive: true, force: true });
-run('scripts/generate-content.ts');
+run('scripts/content/main.ts');
 run('node_modules/vite/bin/vite.js', 'build');
 run('node_modules/typescript/bin/tsc', '--noEmit');
 await copyFile('dist/client/404/index.html', 'dist/client/404.html');

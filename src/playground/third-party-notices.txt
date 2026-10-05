@@ -1,6 +1,6 @@
-Carven browser compiler runtime notices
+Third-party notices for carven-wasm
 
-The WebAssembly compiler includes LLVM libc++, libc++abi, compiler-rt and WASI libc.
+The carven-wasm module includes LLVM libc++, libc++abi, compiler-rt and WASI libc.
 LLVM revision: 895aa2c896ada719451be2e3673c83da8ddf1141
 WASI libc revision: 2e6fb9d8ee0cdf9e431fbcabe8af3115de000a13
 WASI SDK release: 34.0

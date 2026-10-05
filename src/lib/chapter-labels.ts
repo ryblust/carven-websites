@@ -1,5 +1,5 @@
 import { articles, type ArticlePath } from '../generated/manifest';
-import { localeOf, unlocalizedPath } from '../lib/i18n';
+import { localeOf, unlocalizedPath } from './i18n';
 
 type ChapterPath = Extract<ArticlePath, `/learn/${string}` | `/reference/${string}`>;
 

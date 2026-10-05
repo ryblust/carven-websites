@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { localeOf, translate } from '../lib/i18n';
 import { articles, lessonPaths, referencePaths, type ArticlePath } from '../generated/manifest';
-import { chapterLabel } from '../content/chapter-labels';
+import { chapterLabel } from '../lib/chapter-labels';
 
 export function ChapterNavigation({ path, reference }: { path: ArticlePath; reference: boolean }) {
   const locale = localeOf(path);
