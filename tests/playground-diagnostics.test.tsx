@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import PlaygroundDiagnostics from '../src/components/PlaygroundDiagnostics';
 import { diagnosticParts, diagnosticSelection } from '../src/playground/diagnostics';
-import { executeWasi, parseCrafts, parseManifest } from '../src/playground/wasi';
+import { executeWasi, parseCrafts } from '../src/playground/wasi';
 
 describe('playground source diagnostic navigation', () => {
   it('preserves stderr and links only main.cv source-frame anchors', () => {
@@ -81,24 +81,15 @@ describe('playground source diagnostic navigation', () => {
 
   it('resolves actual packaged compiler diagnostics to the offending source character', async () => {
     const root = new URL('../public/playground-assets/', import.meta.url);
-    const manifest = parseManifest(
-      JSON.parse(await readFile(new URL('manifest.json', root), 'utf8')),
-    );
     const [wasm, crafts] = await Promise.all([
-      readFile(new URL(manifest.wasm.path, root)),
-      readFile(new URL(manifest.crafts.path, root), 'utf8'),
+      readFile(new URL('carven.wasm', root)),
+      readFile(new URL('crafts.json', root), 'utf8'),
     ]);
     const source = 'let text = "中文😀"; let value: i32 = "oops";';
     const result = await executeWasi(
       {
         module: await WebAssembly.compile(wasm),
         files: parseCrafts(JSON.parse(crafts)),
-        version: {
-          compilerRevision: manifest.compilerRevision,
-          backend: 'browser-wasi',
-          revisionVerified: true,
-          supportedLibraries: manifest.supportedLibraries,
-        },
       },
       source,
       'check',

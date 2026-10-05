@@ -17,7 +17,7 @@
     "test": "vitest run",
     "content": "node scripts/generate-content.ts",
     "check:links": "node scripts/check-links.mjs",
-    "playground:build": "python3 scripts/playground/build-wasi.py"
+    "playground:build": ".site/playground/compiler/xmakew build"
   },
   "dependencies": {
     "@bjorn3/browser_wasi_shim": "0.4.2",

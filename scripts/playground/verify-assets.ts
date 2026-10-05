@@ -1,24 +1,18 @@
 import { readFile } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
-import { parseCrafts, parseManifest } from '../../src/playground/wasi.ts';
+import { parseCrafts } from '../../src/playground/wasi.ts';
 
 const directory = resolve('public/playground-assets');
 try {
-  const manifest = parseManifest(
-    JSON.parse(await readFile(resolve(directory, 'manifest.json'), 'utf8')),
-  );
-  for (const descriptor of [manifest.wasm, manifest.crafts]) {
-    const bytes = await readFile(resolve(directory, descriptor.path));
-    if (
-      bytes.length !== descriptor.bytes ||
-      createHash('sha256').update(bytes).digest('hex') !== descriptor.sha256
-    ) {
-      throw new Error(`${descriptor.path} does not match the compiler manifest.`);
-    }
-    if (descriptor === manifest.crafts) parseCrafts(JSON.parse(bytes.toString('utf8')));
-  }
-  console.log(`Verified browser compiler ${manifest.compilerRevision.slice(0, 8)}.`);
+  const [wasm, crafts] = await Promise.all([
+    readFile(resolve(directory, 'carven.wasm')),
+    readFile(resolve(directory, 'crafts.json'), 'utf8'),
+    readFile(resolve(directory, 'LICENSE.txt')),
+    readFile(resolve(directory, 'THIRD-PARTY-NOTICES.txt')),
+  ]);
+  await WebAssembly.compile(wasm);
+  parseCrafts(JSON.parse(crafts));
+  console.log('Browser compiler assets ready.');
 } catch (error) {
   throw new Error(
     'Browser compiler assets are missing or invalid. Run pnpm playground:build before building the website.',

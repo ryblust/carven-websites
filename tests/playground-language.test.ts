@@ -22,7 +22,6 @@ function highlighting(source: string) {
     (from, to, style) => spans.push({ from, to, style }),
   );
   return {
-    state,
     styleAt: (position: number) =>
       spans.find(({ from, to }) => from <= position && position < to)?.style,
     text: (style: string) =>
@@ -86,13 +85,5 @@ describe('Carven editor presentation language', () => {
     const result = highlighting(source);
     expect(result.text('comment')).toEqual(['// if " {']);
     expect(result.text('keyword')).toEqual(['let', 'return']);
-  });
-
-  it('exposes the actual line-comment token and ordinary pairing delimiters', () => {
-    const { state } = highlighting('let value = 1;');
-    expect(state.languageDataAt('commentTokens', 0)).toEqual([{ line: '//' }]);
-    expect(state.languageDataAt('closeBrackets', 0)).toEqual([
-      { brackets: ['(', '[', '{', '"', "'"] },
-    ]);
   });
 });

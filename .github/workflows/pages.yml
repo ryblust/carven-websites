@@ -18,17 +18,24 @@ jobs:
       pages: read
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - name: Checkout latest compiler
+        uses: actions/checkout@v7
         with:
-          node-version-file: package.json
-      - uses: pnpm/action-setup@v6
-      - run: pnpm install --frozen-lockfile
+          repository: ryblust/carven
+          path: .site/playground/compiler
+      - uses: pnpm/setup@v1
+      - run: pnpm format:check
+      - uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: '3.1.1'
+      - uses: bytecodealliance/setup-wasi-sdk-action@v1
+        with:
+          version: '34'
       - name: Read Pages configuration
         id: pages
         uses: actions/configure-pages@v6
-      - name: Build pinned browser compiler
-        run: pnpm playground:build
-      - run: pnpm format:check
+      - name: Build browser compiler
+        run: .site/playground/compiler/xmakew build
       - name: Build and verify
         env:
           BASE_PATH: ${{ steps.pages.outputs.base_path }}

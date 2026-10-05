@@ -1,4 +1,4 @@
-import { executeWasi, loadCompilerAssets, validateInput, type CompilerAssets } from './wasi';
+import { executeWasi, loadCompilerAssets, validateInput } from './wasi';
 
 interface WorkerScope {
   location: Location;
@@ -6,9 +6,6 @@ interface WorkerScope {
   onmessage: ((event: MessageEvent) => void) | null;
 }
 const scope = globalThis as unknown as WorkerScope;
-let assets: Promise<CompilerAssets> | undefined;
-let assetUrl: string | undefined;
-let busy = false;
 
 scope.onmessage = (event) => {
   void (async () => {
@@ -18,11 +15,8 @@ scope.onmessage = (event) => {
     const report = (type: string, data: Record<string, unknown>) =>
       scope.postMessage({ id, type, ...data });
     let stage: 'assets' | 'request' | 'execution' = 'request';
-    let acquired = false;
     try {
-      if (busy) throw new Error('Worker is already executing a request.');
-      const initializing = request.source === undefined && request.action === undefined;
-      const input = initializing ? undefined : validateInput(request.source, request.action);
+      const input = validateInput(request.source, request.action);
       const base = new URL(request.assetsBase, scope.location.href);
       if (
         base.origin !== scope.location.origin ||
@@ -32,22 +26,9 @@ scope.onmessage = (event) => {
       ) {
         throw new Error('Compiler assets must use a same-origin directory.');
       }
-      busy = true;
-      acquired = true;
       stage = 'assets';
       report('progress', { phase: 'loading' });
-      if (!assets || assetUrl !== base.href) {
-        assetUrl = base.href;
-        assets = loadCompilerAssets(base).catch((error: unknown) => {
-          assets = undefined;
-          throw error;
-        });
-      }
-      const compiler = await assets;
-      if (!input) {
-        report('version', { version: compiler.version });
-        return;
-      }
+      const compiler = await loadCompilerAssets(base);
       stage = 'execution';
       report('progress', { phase: 'running' });
       report('result', { result: await executeWasi(compiler, input.source, input.action) });
@@ -56,8 +37,6 @@ scope.onmessage = (event) => {
         code: stage,
         message: error instanceof Error ? error.message : 'Execution failed.',
       });
-    } finally {
-      if (acquired) busy = false;
     }
   })();
 };

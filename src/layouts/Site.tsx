@@ -141,8 +141,8 @@ export default function Site({ children }: Props) {
             <p>{t('C++ 的力量，从容表达。', 'The power of C++, clearly expressed.')}</p>
             <p className="footer-note">
               {t(
-                'Carven 仍在积极开发中，语言与工具可能发生不兼容的变化。',
-                'Carven is under active development; language and tooling changes may break existing code.',
+                'Carven 开发中，语言与工具可能有不兼容变更。',
+                'Carven is in development; breaking changes are possible.',
               )}
             </p>
           </div>

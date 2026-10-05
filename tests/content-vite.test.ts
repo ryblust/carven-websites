@@ -5,7 +5,6 @@ const state = vi.hoisted(() => ({
   acquired: vi.fn(),
   released: vi.fn(),
   entered: vi.fn(),
-  runs: 0,
 }));
 
 vi.mock('../scripts/content/live.ts', async () => {
@@ -22,20 +21,14 @@ vi.mock('../scripts/content/live.ts', async () => {
 vi.mock('../scripts/content/generate.ts', async () => {
   const { Effect } = await import('effect');
   return {
-    generateContent: () =>
-      Effect.suspend(() =>
-        ++state.runs === 1
-          ? Effect.void
-          : Effect.sync(() => state.entered()).pipe(Effect.andThen(Effect.never)),
-      ),
+    generateContent: () => Effect.sync(() => state.entered()).pipe(Effect.andThen(Effect.never)),
   };
 });
 
 import { contentPlugin } from '../scripts/content/vite.ts';
 
 describe('content development lifetime', () => {
-  it('releases resources and cancels queued generation when a middleware server closes', async () => {
-    state.runs = 0;
+  it('generates on change and releases resources and queued work when the server closes', async () => {
     state.acquired.mockClear();
     state.released.mockClear();
     state.entered.mockClear();
@@ -53,7 +46,8 @@ describe('content development lifetime', () => {
     const listenerCount = server.watcher.listenerCount('all');
     const errors = vi.spyOn(server.config.logger, 'error');
     try {
-      expect(state.runs).toBe(1);
+      expect(state.entered).not.toHaveBeenCalled();
+      expect(state.acquired).not.toHaveBeenCalled();
       server.watcher.emit('all', 'change', `${server.config.root}/src/content/example.md`);
       await started;
       server.watcher.emit('all', 'change', `${server.config.root}/src/content/another.md`);

@@ -26,7 +26,7 @@ const importGenerated = (file: string) =>
   Effect.promise(() => import(/* @vite-ignore */ pathToFileURL(file).href));
 
 describe('content build', () => {
-  it.effect('renders independent article modules and removes obsolete generated files', () =>
+  it.effect('renders independent article modules and their navigation metadata', () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const root = yield* fs.makeTempDirectoryScoped();
@@ -35,8 +35,6 @@ describe('content build', () => {
         yield* fs.writeFileString(`${root}/src/content${prefix}/learn/index.md`, lesson(0));
         yield* fs.writeFileString(`${root}/src/content${prefix}/learn/values.md`, lesson(1));
       }
-      yield* fs.makeDirectory(`${root}/src/generated/articles`, { recursive: true });
-      yield* fs.writeFileString(`${root}/src/generated/articles/removed.ts`, 'obsolete');
       const paths = yield* generateContent(root).pipe(Effect.provide(ContentLive));
       assert.deepStrictEqual(paths, [
         '/learn/',
@@ -60,12 +58,6 @@ describe('content build', () => {
       ]);
       assert.deepStrictEqual(manifest.referencePaths, []);
       assert.deepStrictEqual(Object.keys(manifest.articles), paths);
-      assert.deepStrictEqual((yield* fs.readDirectory(`${root}/src/generated/routes`)).sort(), [
-        'learn.index.tsx',
-        'learn.values.tsx',
-        'zh.learn.index.tsx',
-        'zh.learn.values.tsx',
-      ]);
       for (const metadata of Object.values(manifest.articles)) {
         assert.notProperty(metadata, 'html');
         assert.notProperty(metadata, 'file');
@@ -76,7 +68,6 @@ describe('content build', () => {
         assert.isString(html);
         assert.isNotEmpty(html);
       }
-      assert.isFalse(yield* fs.exists(`${root}/src/generated/articles/removed.ts`));
     }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
 

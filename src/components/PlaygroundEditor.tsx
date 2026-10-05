@@ -10,6 +10,7 @@ const externalSource = Annotation.define<boolean>();
 
 export interface PlaygroundEditorHandle {
   reveal: (location: DiagnosticLocation) => boolean;
+  selectAll: () => boolean;
 }
 
 export default function PlaygroundEditor({
@@ -35,6 +36,13 @@ export default function PlaygroundEditor({
   useImperativeHandle(
     ref,
     () => ({
+      selectAll() {
+        const instance = view.current;
+        if (!instance) return false;
+        instance.dispatch({ selection: { anchor: 0, head: instance.state.doc.length } });
+        instance.focus();
+        return true;
+      },
       reveal(location) {
         const instance = view.current;
         if (!instance) return false;

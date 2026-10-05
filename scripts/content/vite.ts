@@ -9,7 +9,7 @@ export function contentPlugin(): Plugin {
   return {
     name: 'carven-content',
     apply: 'serve',
-    async configureServer(server) {
+    configureServer(server) {
       const runtime = ManagedRuntime.make(ContentLive);
       const serial = Semaphore.makeUnsafe(1);
       const controller = new AbortController();
@@ -42,12 +42,6 @@ export function contentPlugin(): Plugin {
             }
           });
       };
-      try {
-        await runtime.runPromise(generateContent(server.config.root));
-      } catch (error) {
-        await runtime.dispose();
-        throw error;
-      }
       server.watcher.add(contentDirectory);
       server.watcher.on('all', changed);
       dispose = () => {

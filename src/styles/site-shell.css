@@ -17,6 +17,7 @@
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
+  cursor: pointer;
   line-height: 1;
   color: var(--text);
 }

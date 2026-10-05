@@ -1,30 +1,33 @@
 # Carven website
 
-## Scope and content
+## Project model
 
-- Make changes only in this website repository. The neighboring compiler may be read to verify claims; do not modify its source or build state.
-- Use the pnpm scripts in `package.json` for development, formatting, builds, tests and link checks. Dependency versions and supported runtimes are defined in `package.json` and the lockfile; do not add a parallel command wrapper.
-- Keep Chinese and English content, examples, routes and chapter ordering aligned. Verify substantive example changes against an identified compiler revision; website tests do not establish language correctness.
-- When syncing compiler changes, consult `docs/content-sync.md` if present. It is a local, ignored maintenance record and must not be force-added. Keep README focused on the website introduction; do not add implementation diaries or review logs to published documentation.
+- Work in this website repository. Use the neighboring compiler as a read-only reference for language behavior.
+- Use `pnpm install` and the scripts in `package.json`. Treat `package.json` and the lockfile as the dependency and runtime baseline.
+- Write articles in `src/content/` and custom pages in `src/routes/`. Regenerate article routes in `src/generated/` and `src/routeTree.gen.ts` through the content pipeline.
+- Keep README to the project introduction and links. Put repository rules here and subsystem procedures beside their scripts. Keep published documentation focused on website users.
+- Describe current mechanisms, responsibilities and reasons for choices. Keep maintenance history in local records.
+- Consult `docs/content-sync.md` when syncing compiler changes; keep this maintenance record local. Read `scripts/playground/README.md` for the browser compiler's build and execution contract.
 
-## Implementation boundaries
+## Implementation
 
-- Follow the existing React, TanStack Start/Router, Vite and TypeScript structure. Keep Markdown rendering and Shiki highlighting in the build pipeline, with article HTML loaded through its own route. Keep browser-only APIs out of server rendering.
-- Author articles in `src/content/`; the content pipeline generates their individual route modules and explicit flat route definitions in `src/generated/`. Keep only custom pages and the root shell in `src/routes/`; Vite combines both through TanStack's virtual route configuration. Regenerate `src/generated/` and `src/routeTree.gen.ts`; do not hand-edit or commit them.
-- Use the existing Effect services and scoped lifetimes for content I/O and rendering. Release resources on failure and interruption; clean up React effects and DOM listeners on unmount.
-- Preserve the paper-and-ink design, readable typography, keyboard access and both color themes. Reuse the shared locale and URL helpers so static HTML and client navigation honor the same deployment prefix.
-- Playground execution stays in a dedicated browser worker. Use the pinned compiler build in `scripts/playground/`; never substitute canned output or silently fall back to a server. Generated WASM and Crafts assets are ignored. Build them with `pnpm playground:build` before website validation; see `scripts/playground/README.md` for execution limits and the compiler update procedure.
+- Start from the smallest model that satisfies the task. Prefer fixed paths, existing conventions and built-in tool capabilities. Add configuration and abstractions when a concrete requirement calls for them.
+- Follow the existing React, TanStack, Vite and TypeScript structure. Render article Markdown and Shiki highlighting during the build. Access browser APIs from client lifecycles.
+- Use Effect services and scoped lifetimes for content I/O and rendering. Release resources on completion, failure and interruption; clean up React effects and DOM listeners on unmount.
+- Align Chinese and English content, examples, routes and chapter order. Verify substantive example changes with an identified compiler revision.
+- Preserve the paper-and-ink design, readable typography, keyboard access and both themes. Use shared locale and URL helpers for deployment prefixes.
+- Execute Playground commands with the packaged Carven compiler in a dedicated browser worker. CI checks out the compiler's latest default-branch commit. Build assets with `pnpm playground:build` when inputs change or assets are missing; reuse verified assets for page-only edits.
 
-## Tests and validation
+## Validation
 
-- Test current invariants and contracts: valid inputs produce the required result; invalid inputs are rejected at the responsible boundary. Each case must cover a distinct rule or boundary.
-- Do not add compatibility matrices, historical-output snapshots or regression cases solely to preserve previous behavior. Do not assert private implementation details or duplicate compiler semantic tests in the website suite.
-- Keep assertions on observable outcomes, such as exact source preservation, valid bilingual navigation, rejection before publication, and resource cleanup. Use the responsible layer rather than repeating the same contract at every layer.
-- During implementation, run the tests relevant to the change. Before release, run `pnpm format:check`, `pnpm build`, `pnpm test` and `pnpm check:links`; build includes TypeScript checking.
-- Asset or URL changes also require a build and link check with a non-root `BASE_PATH`, using the same value for both commands. This validates the deployment URL contract. For interaction changes, verify the affected keyboard, focus and responsive behavior; distinguish actual device checks from viewport emulation.
+- Test current invariants through accepted inputs and expected errors. Give each case a distinct contract at the responsible layer, including source preservation, navigation, publication and resource cleanup.
+- Run relevant tests during implementation. Before release, run `pnpm format:check`, `pnpm build`, `pnpm test` and `pnpm check:links`; build includes TypeScript checking.
+- For asset or URL changes, build and check links with the same non-root `BASE_PATH`.
+- For interaction changes, verify keyboard, focus and responsive behavior. Report device checks and viewport emulation accurately.
 
-## Cleanup and release
+## Delivery
 
-- Development and preview servers run in the foreground; stop their owning terminal with Ctrl+C before requested cleanup and verify the process has exited. Remove only identified, reproducible outputs and caches; preserve dependencies, user settings and local maintenance records. Do not broadly delete ignored files.
-- Remove authored assets only after checking their references. Retain licenses for assets still in use. Keep generated output, caches and screenshots out of Git.
-- Commit, push and deploy only when requested; authorization already given in the conversation remains valid. Use the existing `.github/workflows/pages.yml` workflow for GitHub Pages. Confirm that the workflow succeeded for the pushed commit before reporting deployment complete.
+- Run development and preview servers in the foreground. Stop them with Ctrl+C and verify exit before cleaning their outputs.
+- Clean identified, reproducible outputs and caches. Preserve dependencies, user settings and local maintenance records. Keep generated artifacts, caches and screenshots outside version control.
+- Check references before removing authored assets. Retain licenses for assets in use.
+- Follow the user's authorization for commits, pushes and deployment. Deploy through `.github/workflows/pages.yml` and verify workflow success for the pushed commit before reporting completion.

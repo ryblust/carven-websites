@@ -1,6 +1,6 @@
 export interface DiagnosticLocation {
   line: number;
-  /** One-based UTF-8 byte column, as reported by the pinned compiler. */
+  /** One-based UTF-8 byte column, as reported by the packaged compiler. */
   column: number;
 }
 

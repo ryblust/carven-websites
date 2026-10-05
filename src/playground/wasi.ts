@@ -9,68 +9,20 @@ import {
   wasi as wasiDefinitions,
   type Inode,
 } from '@bjorn3/browser_wasi_shim';
-import type { Action, ExecutionResult, Version } from './protocol';
+import type { Action, ExecutionResult } from './protocol';
 
-export const expectedCompilerRevision = '6d477cd14863f3d394196afde02b0dd9493a618e';
 export const maxSourceBytes = 64 * 1024;
 export const maxOutputBytes = 128 * 1024;
 const maxWasmBytes = 128 * 1024 * 1024;
 const maxCraftsBytes = 8 * 1024 * 1024;
 
-export interface AssetDescriptor {
-  path: string;
-  sha256: string;
-  bytes: number;
-}
-export interface CompilerManifest {
-  formatter: 'graver';
-  compilerRevision: string;
-  wasm: AssetDescriptor;
-  crafts: AssetDescriptor;
-  supportedLibraries: string[];
-}
 export interface CompilerAssets {
   module: WebAssembly.Module;
   files: Record<string, string>;
-  version: Version;
 }
 
 const record = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
-
-export function parseManifest(value: unknown): CompilerManifest {
-  if (
-    !record(value) ||
-    value.compilerRevision !== expectedCompilerRevision ||
-    value.formatter !== 'graver' ||
-    !Array.isArray(value.supportedLibraries) ||
-    !value.supportedLibraries.every((library) => typeof library === 'string')
-  ) {
-    throw new Error('Compiler asset manifest is invalid or targets another revision.');
-  }
-  const asset = (entry: unknown, path: string, maxBytes: number): AssetDescriptor => {
-    if (
-      !record(entry) ||
-      entry.path !== path ||
-      typeof entry.sha256 !== 'string' ||
-      !/^[a-f0-9]{64}$/.test(entry.sha256) ||
-      typeof entry.bytes !== 'number' ||
-      !Number.isInteger(entry.bytes) ||
-      entry.bytes <= 0 ||
-      entry.bytes > maxBytes
-    ) {
-      throw new Error('Compiler asset descriptor is invalid.');
-    }
-    return { path, sha256: entry.sha256, bytes: entry.bytes };
-  };
-  return {
-    formatter: 'graver',
-    compilerRevision: expectedCompilerRevision,
-    wasm: asset(value.wasm, 'carven.wasm', maxWasmBytes),
-    crafts: asset(value.crafts, 'crafts.json', maxCraftsBytes),
-    supportedLibraries: value.supportedLibraries as string[],
-  };
-}
 
 export function parseCrafts(value: unknown): Record<string, string> {
   if (!record(value) || !record(value.files)) throw new Error('Crafts package is invalid.');
@@ -101,7 +53,7 @@ async function boundedDownload(url: URL, limit: number): Promise<Uint8Array<Arra
       const chunk = await reader.read();
       if (chunk.done) break;
       size += chunk.value.byteLength;
-      if (size > limit) throw new Error('Compiler asset exceeds its declared size.');
+      if (size > limit) throw new Error('Compiler asset exceeds its download budget.');
       chunks.push(chunk.value);
     }
   } catch (error) {
@@ -119,30 +71,10 @@ async function boundedDownload(url: URL, limit: number): Promise<Uint8Array<Arra
   return output;
 }
 
-export async function verifiedDownload(
-  base: URL,
-  descriptor: AssetDescriptor,
-): Promise<Uint8Array<ArrayBuffer>> {
-  const bytes = await boundedDownload(new URL(descriptor.path, base), descriptor.bytes);
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  const hash = [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
-  if (bytes.byteLength !== descriptor.bytes || hash !== descriptor.sha256) {
-    throw new Error('Compiler asset integrity verification failed.');
-  }
-  return bytes;
-}
-
 export async function loadCompilerAssets(base: URL): Promise<CompilerAssets> {
-  const manifest = parseManifest(
-    JSON.parse(
-      new TextDecoder().decode(await boundedDownload(new URL('manifest.json', base), 16 * 1024)),
-    ),
-  );
   const [wasm, crafts] = await Promise.all([
-    verifiedDownload(base, manifest.wasm),
-    verifiedDownload(base, manifest.crafts),
+    boundedDownload(new URL('carven.wasm', base), maxWasmBytes),
+    boundedDownload(new URL('crafts.json', base), maxCraftsBytes),
   ]);
   const module = await WebAssembly.compile(wasm);
   // The compiler gets WASI capabilities only; it cannot call browser/network APIs.
@@ -154,12 +86,6 @@ export async function loadCompilerAssets(base: URL): Promise<CompilerAssets> {
   return {
     module,
     files: parseCrafts(JSON.parse(new TextDecoder().decode(crafts))),
-    version: {
-      compilerRevision: manifest.compilerRevision,
-      backend: 'browser-wasi',
-      revisionVerified: true,
-      supportedLibraries: manifest.supportedLibraries,
-    },
   };
 }
 
@@ -174,7 +100,14 @@ export function validateInput(
   ) {
     throw new Error('Source must be a UTF-8 string of at most 64 KiB without NUL characters.');
   }
-  if (action !== 'run' && action !== 'check' && action !== 'compile' && action !== 'format')
+  if (
+    action !== 'run' &&
+    action !== 'check' &&
+    action !== 'compile' &&
+    action !== 'format' &&
+    action !== 'ast' &&
+    action !== 'tokens'
+  )
     throw new Error('Unknown compiler action.');
   return { source, action };
 }
@@ -277,7 +210,9 @@ export async function executeWasi(
       ? ['carven', 'interpret', '--max-steps', '100000', 'main.cv']
       : action === 'compile'
         ? ['carven', 'compile', '-o', 'generated', 'main.cv']
-        : ['carven', action, 'main.cv'];
+        : action === 'ast' || action === 'tokens'
+          ? ['carven', 'dump', action, 'main.cv']
+          : ['carven', action, 'main.cv'];
   const root = filesystem(source, assets.files);
   const wasi = new WASI(
     args,
@@ -348,9 +283,7 @@ export async function executeWasi(
     ...(action === 'format' && exitCode === 0 && !output.truncated
       ? { formattedSource: stdout }
       : {}),
-    version: assets.version,
     durationMs: Math.round(performance.now() - started),
     truncated: output.truncated,
-    timedOut: false,
   };
 }
