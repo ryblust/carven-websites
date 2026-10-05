@@ -6,8 +6,8 @@
 - Use `pnpm install` and the scripts in `package.json`. Treat `package.json` and the lockfile as the dependency and runtime baseline.
 - Write articles in `src/content/` and custom pages in `src/routes/`. Regenerate article routes in `src/generated/` and `src/routeTree.gen.ts` through the content pipeline.
 - Keep README to the project introduction and links. Put repository rules here and subsystem procedures beside their scripts. Keep published documentation focused on website users.
-- Describe current mechanisms, responsibilities and reasons for choices. Keep maintenance history in local records.
-- Consult `docs/content-sync.md` when syncing compiler changes; keep this maintenance record local. Read `scripts/playground/README.md` for the browser compiler's build and execution contract.
+- Describe current mechanisms, responsibilities and reasons for choices. Keep local maintenance records focused on current baselines, validation evidence and open work.
+- Sync compiler changes from the compiler repository's `main` branch. Consult `docs/content-sync.md` for the current baseline; keep this record local. Read `scripts/playground/README.md` for the browser compiler's build and execution contract.
 
 ## Implementation
 

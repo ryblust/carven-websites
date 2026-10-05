@@ -25,7 +25,7 @@ C++ 接入章节属于拓展；如果当前只关注 Carven 代码，可以在�
 
 ## 准备编译器
 
-Carven 生成 C++。构建编译器需要 Git、Xmake 和支持项目 C++26 模块的工具链；当前仓库验证的宿主工具链为 LLVM 23。生成的程序使用 C++20。构建 Carven 编译器和构建它生成的程序，需要分别满足这两套要求。
+Carven 生成 C++。构建编译器需要 Git、Xmake 3.1.1，以及支持项目 C++26 模块的 LLVM/Clang 与 libc++；当前验证的工具链版本为 LLVM 23，Windows 使用 LLVM-MinGW。将工具链的 `bin` 目录加入 `PATH`。生成的程序使用 C++20。构建 Carven 编译器和构建它生成的程序，需要分别满足这两套要求。
 
 ```sh
 git clone https://github.com/ryblust/carven.git

@@ -19,9 +19,10 @@ command from the website repository root:
 ```
 
 The checkout's `xmakew` applies the compiler repository's Clang module pipeline
-patch. The root `xmake.lua` defines `carven-wasm` with C++26, Release mode and
-Xmake's built-in `wasi` toolchain. The `wasm` platform defaults to `wasm32`; SDK 34
-targets WASI Preview 1. Xmake manages module dependencies, compilation and linking.
+patch. The root `xmake.lua` defines `carven-wasm` with C++26, Release mode, Xmake's
+LTO policy and built-in `wasi` toolchain. The policy enables ThinLTO for Clang.
+The `wasm` platform defaults to `wasm32`; SDK 34 targets WASI Preview 1. Xmake
+manages module dependencies, compilation and linking.
 
 For local builds, install the website dependencies, Xmake and WASI SDK, then
 prepare the checkout and SDK environment:

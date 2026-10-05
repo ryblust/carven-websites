@@ -47,15 +47,19 @@ carven check --timings main.cv
 ```
 
 ```text
-carven: check passed in 3.6 ms
-  Source collection            0.3 ms
-  Source loading               0.1 ms
-  Lexing                      <0.1 ms
-  Parsing                      0.2 ms
-  Semantic analysis            2.8 ms
+carven: check passed in 86.9 ms
+  Stage                          Time  % total
+  ---------------------- ------------ --------
+  Source collection            2.6 ms     3.0%
+  Source loading               1.0 ms     1.2%
+  Lexing                       1.0 ms     1.1%
+  Parsing                      4.5 ms     5.1%
+  Semantic analysis           74.5 ms    85.8%
 ```
 
 Durations vary by machine. The first line states the outcome, such as `interpretation finished`, `compilation finished`, or `run exited with code 0`. Checking, compilation, and runtime commands report source collection; compile adds `C++ generation` and `Artifact writing`; native runs add `Native compilation`; native and interpreted runs label the runtime phase `Execution`. Reports are for human reading.
+
+Each stage lists its duration and share of total time. Percentages use unrounded durations and may sum to less than 100%, since total time also includes setup, diagnostics, and cleanup. Values below display precision appear as `<0.1 ms` or `<0.1%`.
 
 ## Direct native execution
 
@@ -68,6 +72,8 @@ For a standalone installation, place `bin/carven` (`bin/carven.exe` on Windows) 
 Every run creates a separate `carven-run-*` directory under the system temporary directory for generated files and the native executable, without caching previous builds. It is removed after execution or a handled failure. Forced termination may leave it behind; cleanup failures produce a warning. Child processes inherit the working directory and standard streams, so relative file paths still resolve from the user's working directory.
 
 Source paths, `--tests`, and `--timings` are accepted before `--`. Subsequent arguments are passed without a shell, including empty arguments, spaces, quotes, and backslashes. Program mode requires an entry; Carven diagnoses multiple entries first. Native compilation failures and program status are passed through; POSIX signal termination maps to `128 + signal`. External build systems handle complex native dependencies and incremental builds.
+
+After the native compiler's own diagnostics, Carven identifies the failed compilation or linking phase, compiler executable, and exit status.
 
 `carven --tests main.cv` runs ordinary runtime tests instead of the program entry and requires at least one runtime test. Static tests still execute during analysis. Failed checks accumulate; require/fail stop the current test and later tests continue. Assertions and runtime traps abort the process. Any test failure produces nonzero status. Top-level statements and main are not executed in test mode.
 
@@ -126,6 +132,8 @@ Invocation, reading, source, or writing failures report to stderr and return non
 Required constant execution sends print/`println` to stdout and eprint/eprintln to stderr. With `compile --stdout`, all compile-time program output goes to stderr, leaving stdout for artifacts. Later compilation failures do not undo output. An incremental build reusing artifacts does not rerun or replay compile-time output.
 
 Source diagnostics appear in source order within each file. Each function, test, and const block reports its first error, allowing independent body errors in one run. A body depending on failed inferred results or failures stays silent until that dependency is fixed. Failure contracts, ownership, and static tests run only after all bodies are accepted. Reports name expected/actual types, undeclared failure types, or a nearby spelling; same-line labels share the line, while note and help lines supply context and a contract-specific source change.
+
+Compile-time and interpreter execution diagnostics show up to eight call sites and report how many additional sites were omitted.
 
 ## Graver
 

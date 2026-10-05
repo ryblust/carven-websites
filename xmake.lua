@@ -12,6 +12,7 @@ local sdk = os.getenv("WASI_SDK_PATH")
 local destination = path.join(site, "public/playground-assets")
 
 target("carven-wasm")
+    set_policy("build.optimization.lto", true)
     set_filename("carven.wasm")
     set_targetdir(destination)
     set_toolchains("wasi")

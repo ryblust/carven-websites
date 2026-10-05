@@ -56,7 +56,7 @@ carven check prices.cv
 carven check --timings prices.cv
 ```
 
-stderr 报告显示总耗时和各阶段耗时，例如源文件收集、语法分析和语义分析；原生运行还会列出 C++ 生成、原生编译和执行。耗时报告不会混入 stdout 上的程序输出或生成产物。在终端中，诊断会带颜色；把 `NO_COLOR` 设为非空值或设置 `TERM=dumb` 可以关闭。查看一个文件的词法和语法可直接用 `carven dump main.cv`，两种结果会依次输出。
+stderr 报告显示总耗时，并用表格列出各阶段耗时及其占总时间的比例，例如源文件收集、语法分析和语义分析；原生运行还会列出 C++ 生成、原生编译和执行。耗时报告不会混入 stdout 上的程序输出或生成产物。在终端中，诊断会带颜色；把 `NO_COLOR` 设为非空值或设置 `TERM=dumb` 可以关闭。查看一个文件的词法和语法可直接用 `carven dump main.cv`，两种结果会依次输出。
 
 ## 用 Graver 格式化源码
 

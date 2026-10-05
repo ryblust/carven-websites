@@ -10,6 +10,8 @@ source: src/diagnostics/code.cpp
 
 Read the source location first, then use the code to identify the checking boundary. Error fails the corresponding compilation operation. Warning does not fail an otherwise valid program. Message text, notes, colors, and ordering are presentation, not a stable machine interface.
 
+Long source lines are excerpted around the marked location, with `...` indicating omitted text. Reported line and column coordinates still refer to the original source.
+
 Unused checks count reachable references as uses. _ is never an unused candidate. A uniquely resolved reference to any selected binding in an import list counts as use.
 
 ## Common areas to inspect

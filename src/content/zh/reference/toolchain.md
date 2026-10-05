@@ -8,7 +8,9 @@ source: docs/toolchain/artifacts.md
 
 ## 宿主与目标
 
-Carven 编译器使用 C++26，关闭异常与 RTTI。当前验证的宿主工具链为 LLVM 23（LLVM/Clang 与 libc++ 23.1.0）。生成程序和安装 Crafts 的最低标准为 C++20；使用 Carven 的项目选择标准，运行时通过特性检测使用可用设施。宿主要求不提高目标最低标准。
+Carven 编译器使用 C++26，关闭异常与 RTTI。各平台使用 LLVM/Clang 与 libc++，Windows 由 LLVM-MinGW 提供；当前验证的工具链版本为 LLVM 23。将工具链的 `bin` 目录加入 `PATH`，供 Xmake 发现构建工具。仓库命令通过 `./xmakew` 使用 Xmake 3.1.1；Windows PowerShell 中使用 `.\xmakew.ps1`。
+
+生成程序和安装 Crafts 的最低标准为 C++20；使用 Carven 的项目选择标准，运行时通过特性检测使用可用设施。宿主要求不提高目标最低标准。
 
 原生调用方根据提供者需求配置异常支持；包含 C++ throw/try/catch 的 cpp 片段需要其翻译单元开启异常。宿主和目标的 `isize`/`usize` 数据模型必须相同，`f32`/`f64` 要求 IEEE binary32/64，原生选项须保留相等和求值语义。
 

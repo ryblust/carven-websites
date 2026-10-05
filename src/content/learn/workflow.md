@@ -56,7 +56,7 @@ Add `--timings` to see where a command spends its time:
 carven check --timings prices.cv
 ```
 
-The stderr report shows the total and stage durations, such as source collection, parsing, and semantic analysis. Native runs add C++ generation, native compilation, and execution. Timing output never mixes with program or artifact output on stdout. Rendered diagnostics use color on a terminal; set `NO_COLOR` to a nonempty value, or `TERM=dumb`, to disable it. Use `carven dump main.cv` to view tokens followed by the syntax tree for one file.
+The stderr report shows total time and a table of stage durations and their shares of that total, such as source collection, parsing, and semantic analysis. Native runs add C++ generation, native compilation, and execution. Timing output never mixes with program or artifact output on stdout. Rendered diagnostics use color on a terminal; set `NO_COLOR` to a nonempty value, or `TERM=dumb`, to disable it. Use `carven dump main.cv` to view tokens followed by the syntax tree for one file.
 
 ## Format source with Graver
 

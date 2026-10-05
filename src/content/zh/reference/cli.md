@@ -47,15 +47,19 @@ carven check --timings main.cv
 ```
 
 ```text
-carven: check passed in 3.6 ms
-  Source collection            0.3 ms
-  Source loading               0.1 ms
-  Lexing                      <0.1 ms
-  Parsing                      0.2 ms
-  Semantic analysis            2.8 ms
+carven: check passed in 86.9 ms
+  Stage                          Time  % total
+  ---------------------- ------------ --------
+  Source collection            2.6 ms     3.0%
+  Source loading               1.0 ms     1.2%
+  Lexing                       1.0 ms     1.1%
+  Parsing                      4.5 ms     5.1%
+  Semantic analysis           74.5 ms    85.8%
 ```
 
 耗时因机器而异。第一行说明结果，例如 `interpretation finished`、`compilation finished` 或 `run exited with code 0`。check、compile 和运行命令都报告源码收集；compile 另有 `C++ generation` 与 `Artifact writing`；原生运行另有 `Native compilation`；原生与解释运行把运行阶段标为 `Execution`。报告供人阅读。
+
+各阶段列出耗时及其占总时间的比例。占比使用未舍入的耗时计算；总时间还包含准备、诊断和清理，因此各阶段占比之和可能小于 100%。低于显示精度的值写作 `<0.1 ms` 或 `<0.1%`。
 
 ## 直接原生运行
 
@@ -68,6 +72,8 @@ carven: check passed in 3.6 ms
 每次运行在系统临时目录创建独立的 `carven-run-*` 目录，保存生成文件和原生可执行文件，不复用缓存。执行完成或驱动处理完失败后清理；强制终止可能留下目录，清理失败会警告。子进程继承工作目录和标准流，相对文件路径仍以用户的当前目录为准。
 
 `--` 之前接收源码路径、`--tests` 和 `--timings`，之后作为程序参数传递，不经过 shell，包括空参数、空格、引号和反斜杠。程序模式要求入口存在，多个入口由 Carven 先诊断。原生编译失败或程序状态透传；POSIX 信号终止映射为 `128 + signal`。复杂原生依赖和增量构建由外部构建系统处理。
+
+原生编译器输出自己的诊断后，Carven 标明失败的编译或链接阶段、编译器可执行文件及退出状态。
 
 `carven --tests main.cv` 执行普通运行时测试，要求至少一条运行时测试。静态测试仍在分析时执行。失败 check 累积，require/fail 停止当前测试，后续测试继续；断言和运行时 trap 则中止进程。任意测试失败使状态非零。测试模式不执行顶层语句或 main。
 
@@ -126,6 +132,8 @@ compile 使用共享源码收集，不调用原生编译链接。它也为收集
 必需常量执行的 print/`println` 到 stdout，eprint/eprintln 到 stderr；`compile --stdout` 时所有编译期程序输出改去 stderr，保持 stdout 只包含产物。编译后续失败不撤回已输出内容。增量构建复用产物时不会重新执行或重放编译期输出。
 
 源码诊断在各文件内按源顺序显示。每个函数、测试与 const 块报告首个错误，一次运行可显示独立函数体错误。依赖失败函数的推断结果或失败集合的函数体，在该依赖修好前不另报告。所有函数体通过后，才检查失败契约、所有权并执行静态测试。报告说明期望/实际类型、未声明失败类型或近似拼写；同行标签共享该行，note 与 help 提供上下文及契约对应的源码修改。
+
+编译期执行和解释执行的诊断最多显示八个调用点，并报告额外省略的数量。
 
 ## Graver
 

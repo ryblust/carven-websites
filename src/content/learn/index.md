@@ -25,7 +25,7 @@ You should be comfortable using a terminal and editing text files. The first cha
 
 ## Prepare the compiler
 
-Carven generates C++. Building the compiler requires Git, Xmake, and a toolchain supporting the project's C++26 modules. The repository's validated host toolchain is LLVM 23. Generated programs use C++20. Building Carven itself and building the programs it generates have separate toolchain requirements.
+Carven generates C++. Building the compiler requires Git, Xmake 3.1.1, and LLVM/Clang with libc++ supporting the project's C++26 modules. LLVM 23 is the validated toolchain version; on Windows, use LLVM-MinGW. Add the toolchain's `bin` directory to `PATH`. Generated programs use C++20. Building Carven itself and building the programs it generates have separate toolchain requirements.
 
 ```sh
 git clone https://github.com/ryblust/carven.git
