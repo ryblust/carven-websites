@@ -109,6 +109,7 @@
 .playground-pane {
   min-width: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: subgrid;
   grid-row: 1 / -1;
 }
@@ -285,54 +286,24 @@
   gap: 0 8px;
   font-family: var(--sans);
 }
-.playground-tabs {
-  display: flex;
-  gap: 0;
-}
-.playground-tabs button {
-  height: 48px;
-  padding-inline: 10px;
-  font-size: var(--text-sm);
-  border-bottom: 2px solid transparent;
-}
-.playground-tabs button[aria-pressed='true'] {
-  border-color: var(--accent);
-  color: var(--text);
-}
-.playground-controls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0 8px;
-  min-height: 48px;
-  max-width: 100%;
+.playground-result-header .playground-actions {
   margin-left: auto;
 }
-.playground-inspection {
+.playground-view {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+  min-height: 48px;
   max-width: 100%;
+  color: var(--muted);
+  font-size: var(--text-xs);
 }
-.playground-inspection select {
-  min-width: 112px;
+.playground-view select {
+  min-width: 132px;
   min-height: 36px;
   padding-block: 6px;
   font-size: var(--text-xs);
-}
-.playground-inspect-action {
-  align-self: flex-start;
-  min-height: 36px;
-  margin: 12px 20px 0;
-  padding: 6px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  font: 400 var(--text-xs)/1.5 var(--sans);
-  white-space: nowrap;
-  color: var(--accent);
 }
 .playground-result-body {
   display: flex;
@@ -425,11 +396,6 @@
   .playground-source-actions {
     justify-content: flex-end;
   }
-  .playground-actions {
-    width: 100%;
-    justify-content: flex-end;
-    padding-block: 4px 8px;
-  }
   .playground-actions .button {
     min-height: 44px;
     padding-inline: 12px;
@@ -437,22 +403,8 @@
   .playground-select select {
     min-height: 44px;
   }
-  .playground-controls {
-    display: contents;
-  }
-  .playground-inspection {
-    margin-left: auto;
-  }
-  .playground-inspection select {
-    min-width: 0;
-    width: 104px;
-    padding-inline: 12px 36px;
-  }
-  .playground-inspection svg {
-    right: 12px;
-  }
-  .playground-tabs button {
-    padding-inline: 6px;
+  .playground-view select {
+    min-height: 44px;
   }
   .playground-pane-header {
     padding-inline: 16px;

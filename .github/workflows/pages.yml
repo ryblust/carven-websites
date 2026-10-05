@@ -23,7 +23,9 @@ jobs:
         with:
           repository: ryblust/carven
           path: .deps/carven
-      - uses: pnpm/setup@v1
+      - uses: pnpm/setup@v3
+        with:
+          require-lockfile: true
       - run: pnpm format:check
       - uses: xmake-io/github-action-setup-xmake@v1
         with:

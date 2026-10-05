@@ -1,0 +1,7 @@
+minimumReleaseAgeExclude:
+  - '@effect/platform-node-shared@4.0.1'
+  - '@effect/platform-node@4.0.1'
+  - '@effect/vitest@4.0.1'
+  - '@vitejs/plugin-react@6.1.2'
+  - effect@4.0.1
+  - marked@18.1.0

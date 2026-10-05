@@ -182,8 +182,15 @@ export default function Playground({ locale }: { locale: Locale }) {
 
   const artifact = result?.artifacts.find((file) => file.path === 'main.cpp');
   const outputResult = resultAction === 'run' ? result : undefined;
-  const inspectionAction =
-    tab === 'cpp' ? 'compile' : tab === 'ast' || tab === 'tokens' ? tab : undefined;
+  const primaryAction =
+    tab === 'output' ? 'run' : tab === 'diagnostics' ? 'check' : tab === 'cpp' ? 'compile' : tab;
+  const primaryActionLabel = {
+    run: t('解释运行', 'Run'),
+    check: t('检查', 'Check'),
+    compile: t('生成 C++', 'Generate C++'),
+    ast: t('查看 AST', 'Inspect AST'),
+    tokens: t('查看 Tokens', 'Inspect Tokens'),
+  }[primaryAction];
   const status = busy
     ? progress === 'loading'
       ? t('正在加载运行环境…', 'Loading runtime…')
@@ -305,90 +312,62 @@ export default function Playground({ locale }: { locale: Locale }) {
               role="group"
               aria-label={t('结果视图', 'Result view')}
             >
-              <div className="playground-tabs">
-                {(['output', 'diagnostics'] as const).map((key) => (
-                  <button key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>
-                    {key === 'output' ? t('输出', 'Output') : t('诊断', 'Diagnostics')}
-                  </button>
-                ))}
+              <div className="playground-view">
+                <label className="sr-only" htmlFor="playground-result-view">
+                  {t('结果视图', 'Result view')}
+                </label>
+                <PlaygroundSelect
+                  id="playground-result-view"
+                  value={tab}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (
+                      value === 'output' ||
+                      value === 'diagnostics' ||
+                      value === 'cpp' ||
+                      value === 'ast' ||
+                      value === 'tokens'
+                    )
+                      setTab(value);
+                  }}
+                >
+                  <option value="output">{t('输出', 'Output')}</option>
+                  <option value="diagnostics">{t('诊断', 'Diagnostics')}</option>
+                  <option value="cpp">C++</option>
+                  <option value="ast">AST</option>
+                  <option value="tokens">Tokens</option>
+                </PlaygroundSelect>
               </div>
-              <div className="playground-controls">
-                <div className="playground-inspection">
-                  <label className="sr-only" htmlFor="playground-inspect-view">
-                    {t('更多结果视图', 'More result views')}
-                  </label>
-                  <PlaygroundSelect
-                    id="playground-inspect-view"
-                    value={inspectionAction ? tab : ''}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      if (value === 'cpp' || value === 'ast' || value === 'tokens') setTab(value);
+              <div className="playground-actions">
+                {busy ? (
+                  <button
+                    className="button button-primary"
+                    onClick={() => {
+                      session.current.cancel();
+                      setBusy(false);
+                      setMessage(t('已取消本次任务。', 'This task was cancelled.'));
                     }}
                   >
-                    <option value="" disabled>
-                      {t('视图', 'Views')}
-                    </option>
-                    <option value="cpp">C++</option>
-                    <option value="ast">AST</option>
-                    <option value="tokens">Tokens</option>
-                  </PlaygroundSelect>
-                </div>
-                <div className="playground-actions">
-                  <button
-                    className="button button-secondary"
-                    disabled={busy || !supported || !source.trim()}
-                    onClick={() => void run('check')}
-                  >
-                    {t('检查', 'Check')}
+                    {t('停止', 'Stop')}
                   </button>
-                  {busy ? (
-                    <button
-                      className="button button-primary"
-                      onClick={() => {
-                        session.current.cancel();
-                        setBusy(false);
-                        setMessage(t('已取消本次任务。', 'This task was cancelled.'));
-                      }}
-                    >
-                      {t('停止', 'Stop')}
-                    </button>
-                  ) : (
-                    <button
-                      className="button button-primary"
-                      disabled={!supported || !source.trim()}
-                      onClick={() => void run('run')}
-                      title={t('解释运行（⌘ / Ctrl + Enter）', 'Interpret (⌘ / Ctrl + Enter)')}
-                    >
-                      <span aria-hidden="true">▷</span>
-                      {t('解释运行', 'Run')}
-                    </button>
-                  )}
-                </div>
+                ) : (
+                  <button
+                    className="button button-primary"
+                    disabled={!supported || !source.trim()}
+                    onClick={() => void run(primaryAction)}
+                    title={
+                      primaryAction === 'run'
+                        ? t('解释运行（⌘ / Ctrl + Enter）', 'Interpret (⌘ / Ctrl + Enter)')
+                        : undefined
+                    }
+                  >
+                    {primaryAction === 'run' && <span aria-hidden="true">▷</span>}
+                    {primaryActionLabel}
+                  </button>
+                )}
               </div>
             </div>
             <div className="playground-result-body">
-              {inspectionAction && (
-                <button
-                  className="playground-inspect-action"
-                  aria-label={
-                    tab === 'cpp'
-                      ? t('生成 C++', 'Generate C++')
-                      : t(
-                          `查看 ${tab === 'ast' ? 'AST' : 'Tokens'}`,
-                          `Inspect ${tab === 'ast' ? 'AST' : 'Tokens'}`,
-                        )
-                  }
-                  disabled={busy || !supported || !source.trim()}
-                  onClick={() => void run(inspectionAction)}
-                >
-                  {tab === 'cpp'
-                    ? t('生成 C++', 'Generate C++')
-                    : t(
-                        `查看 ${tab === 'ast' ? 'AST' : 'Tokens'}`,
-                        `Inspect ${tab === 'ast' ? 'AST' : 'Tokens'}`,
-                      )}
-                </button>
-              )}
               {tab === 'cpp' && artifact ? (
                 <pre tabIndex={0} aria-label="main.cpp">
                   {artifact.content}

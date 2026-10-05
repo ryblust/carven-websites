@@ -11,6 +11,23 @@ interface Props {
   children: ReactNode;
 }
 
+function NavigationTitle({ children }: Props) {
+  return (
+    <span className="header-nav-title">
+      {children}
+      <svg
+        className="header-nav-underline"
+        viewBox="0 0 100 9"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path d="M2 6 C18 2.5 30 8 48 5.2 S77 2.8 98 4.2" pathLength="100" />
+      </svg>
+    </span>
+  );
+}
+
 const nav = [
   { label: 'Playground', english: 'Playground', path: '/playground/', key: 'playground' },
   { label: '设计哲学', english: 'Philosophy', path: '/philosophy/', key: 'philosophy' },
@@ -74,7 +91,7 @@ export default function Site({ children }: Props) {
           <nav className="desktop-nav" aria-label={t('主导航', 'Main navigation')}>
             {nav.map((item) => (
               <Link key={item.key} to={localizedPath(item.path, locale)}>
-                {t(item.label, item.english)}
+                <NavigationTitle>{t(item.label, item.english)}</NavigationTitle>
               </Link>
             ))}
           </nav>
@@ -123,7 +140,7 @@ export default function Site({ children }: Props) {
               <nav aria-label={t('移动端导航', 'Mobile navigation')}>
                 {nav.map((item) => (
                   <Link key={item.key} to={localizedPath(item.path, locale)}>
-                    {t(item.label, item.english)}
+                    <NavigationTitle>{t(item.label, item.english)}</NavigationTitle>
                   </Link>
                 ))}
               </nav>

@@ -38,11 +38,31 @@
 .desktop-nav a[aria-current] {
   color: var(--text);
 }
-.desktop-nav a[aria-current] {
-  text-decoration: underline;
-  text-decoration-color: var(--accent);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 8px;
+.header-nav-title {
+  display: inline-block;
+  position: relative;
+}
+.header-nav-underline {
+  position: absolute;
+  inset: auto -2px -7px;
+  width: calc(100% + 4px);
+  height: 7px;
+  overflow: visible;
+  pointer-events: none;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0;
+}
+.header-nav-underline path {
+  vector-effect: non-scaling-stroke;
+}
+.desktop-nav a:hover .header-nav-underline {
+  opacity: 0.45;
+}
+.site-header a[aria-current] .header-nav-underline {
+  opacity: 1;
 }
 .github-link {
   display: grid;
@@ -237,9 +257,6 @@
   }
   .mobile-nav nav a[aria-current] {
     color: var(--text);
-    text-decoration: underline;
-    text-decoration-color: var(--accent);
-    text-underline-offset: 6px;
   }
   .footer-inner {
     padding-block: 40px var(--space-6);
@@ -261,15 +278,24 @@
   gap: 24px;
   white-space: nowrap;
 }
-.desktop-nav a[aria-current] {
-  text-decoration-thickness: 2px;
-}
 .header-actions .icon-button:hover {
   background: transparent;
   border-color: transparent;
   color: var(--accent);
 }
 @media (prefers-reduced-motion: no-preference) {
+  .header-nav-underline {
+    transition: opacity 160ms var(--ease);
+  }
+  .header-nav-underline path {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    transition: stroke-dashoffset 260ms var(--ease);
+  }
+  .desktop-nav a:hover .header-nav-underline path,
+  .site-header a[aria-current] .header-nav-underline path {
+    stroke-dashoffset: 0;
+  }
   .menu-icon path {
     transition:
       transform 180ms var(--ease),
