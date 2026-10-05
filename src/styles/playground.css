@@ -21,6 +21,7 @@
 .playground-example {
   display: flex;
   align-items: center;
+  min-width: 0;
   gap: 8px;
   max-width: 100%;
 }
@@ -58,6 +59,7 @@
 }
 .playground-example .playground-select {
   width: 200px;
+  min-width: 0;
 }
 .playground-actions {
   display: flex;
@@ -157,14 +159,14 @@
   padding-inline: 16px;
   border-bottom: 1px solid var(--line);
   background: var(--bg-soft);
-  font: 400 var(--text-sm)/1.5 var(--mono);
+  font: var(--code-weight) var(--text-sm)/1.5 var(--mono);
 }
 .playground-source-header {
-  flex-wrap: wrap;
-  gap: 0 8px;
+  flex-wrap: nowrap;
 }
 .playground-source-actions {
   display: flex;
+  flex-shrink: 0;
   margin-left: auto;
   white-space: nowrap;
 }
@@ -202,7 +204,7 @@
 .playground-code-editor .cm-scroller {
   margin-inline: 12px;
   overflow: auto;
-  font: 400 13px/1.8 var(--mono);
+  font: var(--code-weight) 13px/1.8 var(--mono);
 }
 .playground-code-editor .cm-content {
   padding: 20px 0;
@@ -266,7 +268,7 @@
   padding: 20px;
   overflow: auto;
   color: var(--code-text);
-  font: 400 13px/1.8 var(--mono);
+  font: var(--code-weight) 13px/1.8 var(--mono);
 }
 .playground-pane-footer {
   display: flex;
@@ -319,7 +321,7 @@
   overflow: auto;
   color: var(--code-text);
   white-space: pre;
-  font: 400 13px/1.8 var(--mono);
+  font: var(--code-weight) 13px/1.8 var(--mono);
 }
 .playground-diagnostic-location {
   padding: 0;
@@ -378,23 +380,24 @@
   .playground {
     width: calc(100% - 24px);
   }
-  .playground-example,
-  .playground-source-actions {
-    width: 100%;
+  .playground-example .playground-select select {
+    min-height: 36px;
+    padding: 6px 28px 6px 8px;
+    font-size: var(--text-xs);
+    text-overflow: ellipsis;
   }
-  .playground-example .playground-select {
-    width: min(220px, 100%);
+  .playground-example .playground-select svg {
+    right: 8px;
+    width: 12px;
+    height: 12px;
   }
   .playground-file-dot {
     display: none;
   }
   .playground-source-actions button {
     min-width: 0;
-    padding-inline: 8px;
+    padding-inline: 6px;
     white-space: nowrap;
-  }
-  .playground-source-actions {
-    justify-content: flex-end;
   }
   .playground-actions .button {
     min-height: 44px;
@@ -410,6 +413,7 @@
     padding-inline: 16px;
   }
   .playground-source-header {
-    padding-top: 8px;
+    gap: 4px;
+    padding-inline: 8px;
   }
 }

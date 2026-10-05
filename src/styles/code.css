@@ -64,6 +64,7 @@ pre code {
   padding: 1px 5px;
   font-family: var(--mono);
   font-size: 0.85em;
+  font-weight: var(--code-weight);
   overflow-wrap: anywhere;
 }
 .prose pre,
