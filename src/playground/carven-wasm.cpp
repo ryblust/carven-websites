@@ -31,7 +31,7 @@ extern "C++" auto main(int argc, const char* const* argv) noexcept -> int {
             std::println(std::cerr, "graver: {}", source.error().message);
             return 2;
         }
-        const auto formatted = graver::format(sources, *source);
+        const auto formatted = format_source(sources, *source);
         if (!formatted) {
             std::print(std::cerr, "{}", render_diagnostics(formatted.error(), sources));
             return 2;
