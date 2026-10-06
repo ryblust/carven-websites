@@ -21,6 +21,7 @@ body:has(.search-dialog[open]) {
   padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
+  corner-shape: var(--corner-shape);
   background: var(--surface);
   color: var(--muted);
   font-size: var(--text-sm);
@@ -46,6 +47,7 @@ body:has(.search-dialog[open]) {
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
   box-shadow: 6px 6px 0 var(--shadow);
   background: var(--surface);
   color: var(--prose);
@@ -80,6 +82,7 @@ body:has(.search-dialog[open]) {
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
+  corner-shape: var(--corner-shape);
   background: var(--bg);
   color: var(--text);
   font-size: var(--text-base);

@@ -227,4 +227,4 @@ C++ 的组合器或结果库也能封装这些分支。这里保留显式写法�
 
 ## 练习
 
-把 quantity.cv 中的数量改成 3，应只输出 `Total: 36`。再增加 TooExpensive 失败限制总价，调整 line_total 的签名，并在顶层 try 中处理它。然后去掉这条处理：隐式入口会把 TooExpensive 传出去，进程以失败状态退出。把这些语句移进 `fn main() { ... }`，就能看到边界诊断。
+把 quantity.cv 中的数量改成 3，应只输出 `Total: 36`。再增加 TooExpensive 失败限制总价，调整 line_total 的签名，并在顶层 try 中处理它。然后去掉这条处理：隐式入口会把 TooExpensive 传出去，stderr 报告载荷，进程以 `EXIT_FAILURE` 退出。把这些语句移进 `fn main() { ... }`，就能看到边界诊断。

@@ -2,7 +2,7 @@
 title: "Characters, str, and String"
 description: "UTF-8, owning text, view conversions, mutation restrictions, and borrow lifetimes."
 section: reference
-lesson: 10
+lesson: 14
 source: docs/language/text.md
 ---
 
@@ -46,6 +46,12 @@ Layout follows these rules:
 5. Normalize physical LF/CRLF to LF; standalone CR in text is invalid. Then decode escapes and interpolation. Whitespace they produce is content and is never removed as indentation.
 
 Each interpolation hole counts as one nonblank content unit. Its code, nested strings, comments, specifications, and physical newlines do not affect surrounding layout. Text following it continues the same logical body line until a text line ending. Inserted values retain their own whitespace without added or removed indentation. The same layout applies to ordinary, raw, and interpolated forms. Escaped tabs or spaces can express content indentation; backslash continuation and adjacent-literal concatenation are unsupported.
+
+## Unchecked text construction
+
+`char::from_u32_unchecked(value: u32) -> char` constructs a character from a valid Unicode scalar: at most U+10FFFF, excluding U+D800..U+DFFF. `str::from_utf8_unchecked(bytes: [u8]) -> str` constructs a borrowed view of valid UTF-8 without copying, allocating, or extending the backing lifetime. Both are called directly through type names without imports.
+
+Native execution does not validate content; callers must satisfy the preconditions. Use checked [UTF library](/reference/utf/) functions for unvalidated input. Character construction also supports constant execution and interpretation, which check the scalar precondition and diagnose invalid values; this is not a typed failure. Unchecked borrowed text construction currently supports neither constant execution nor interpretation. Ordinary borrowing and argument-type checks still apply.
 
 ## Text queries
 

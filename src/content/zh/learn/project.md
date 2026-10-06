@@ -130,7 +130,7 @@ purchase 返回 Receipt。上下文构造 `return { quantity: quantity, amount: 
 
 reserve 使用表达式函数体和上下文枚举构造：OrderResult 结果类型为 `.Paid(...)` 和 `.Backorder(...)` 提供类型。它只处理 OutOfStock，把原载荷保存在 Backorder 中。契约仍声明 `throw InvalidQuantity + OrderLimit`。缺货预订是已经处理的结果；另外两种错误仍通过 `?` 传出。
 
-顶层语句构成隐式入口，会推断向外失败。最后的 try 处理 InvalidQuantity 并打印载荷；若 OrderLimit 逃出入口，程序会以失败状态结束。调用者也可以选择处理它。
+顶层语句构成隐式入口，会推断向外失败。最后的 try 处理 InvalidQuantity 并打印载荷；若 OrderLimit 逃出入口，程序会在 stderr 报告结构化载荷，并以 `EXIT_FAILURE` 结束。调用者也可以选择处理它。
 
 要观察失败契约，临时把 reserve 的函数体替换为：
 

@@ -1,20 +1,39 @@
 ---
-title: "Functions, result inference, and calls"
-description: "Signatures, expression bodies, recursive result dependencies, void, and call order."
+title: "Functions: fn, parameters, and results"
+description: "Function syntax, calls, expression and block bodies, result types, and static parameters."
 section: reference
-lesson: 6
+lesson: 8
 source: docs/language/functions.md
 ---
+
+Use `fn` to declare a named function. Write parameter types, call it with `name(arguments)`, and use `=>` when its result is one expression. Use a block body for statements, updates, or multiple return paths.
+
+## Syntax at a glance
+
+| Form                                                    | Purpose                                              |
+| ------------------------------------------------------- | ---------------------------------------------------- |
+| `fn name(arg: T) -> R => expression;`                   | Expression body with a declared result type          |
+| `fn name(arg: T) => expression;`                        | Expression body with an inferred result type         |
+| `fn name(arg: T) -> R { return expression; }`           | Block body with an explicit return                   |
+| `fn name(arg: T) { statements }`                        | Block body with an inferred result, including `void` |
+| `const fn name(arg: T) -> R => expression;`             | Function admitted in required constant contexts      |
+| `fn name(arg: T, const setting: S) -> R => expression;` | Function specialized for a static input              |
+| `fn name(arg: T) -> R throw E { statements }`           | Function with a declared outward failure set         |
+
+`T`, `R`, `S`, `E`, `expression`, and `statements` are placeholders. Parameter access markers are described in [access and ownership](/reference/ownership/); anonymous functions and `fn(...) -> R` views are described in [closures](/reference/closures/).
 
 ## Declarations and calls
 
 ```carven
-fn add(left: i32, right: i32) -> i32 {
-    return left + right;
-}
+fn add(left: i32, right: i32) -> i32 => left + right;
 
 fn twice(value: i32) => value * 2;
+
+let total = add(2, 3);
+println(total, twice(total)); // 5 10
 ```
+
+Here `add` declares an `i32` result and `twice` infers the same type from its expression. The calls supply arguments in the parameter order.
 
 Every ordinary named-function parameter needs a type. Named parameters must have unique names; `_` discards a parameter name, can repeat, and creates no binding. Argument count, access markers, and types must match. Functions do not overload. There are no default parameters, variadic parameters, nested functions, or user generic parameter lists. Definitions use a block body or `=> expression;`. The expression body is the usual form for a function whose work is one expression; a block body returns only through explicit `return`.
 

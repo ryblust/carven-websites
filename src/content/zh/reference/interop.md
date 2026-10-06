@@ -2,7 +2,7 @@
 title: C++ 名字、操作与边界
 description: 头文件、原生类型、源片段、函数契约、异常和返回借用责任。
 section: reference
-lesson: 15
+lesson: 19
 source: docs/language/interop.md
 ---
 

@@ -2,7 +2,7 @@
 title: "Structs, classes, arrays, and enums"
 description: "Construction order, value classes, contextual construction, bounds checks, enum payloads, and recursive storage."
 section: reference
-lesson: 5
+lesson: 10
 source: docs/language/aggregates.md
 ---
 
@@ -18,10 +18,12 @@ struct Point {
 
 fn origin() -> Point => Point { 0, 0 };
 
-fn sample() -> Point => Point { y: 2, x: 1 };
+fn sample() -> Point => { y: 2, x: 1 };
 ```
 
 Named construction maps to field declarations but evaluates initializers in written order. Repeated, missing, excess, unknown, or incompatible fields in nonempty construction are errors. Nonempty Carven `T { ... }` constructs structs, and classes only inside their own body; empty construction also accepts builtin types with a default. The type may be omitted when context supplies it; see [contextual construction](#contextual-construction). Enums and callables use their own expression forms. External C++ types have separate construction rules.
+
+The positional construction in `origin` keeps the type name. The declared `Point` result supplies the type for `sample`'s named construction.
 
 Structures do not support `==` or `!=`; compare their fields explicitly. Arrays and enums support equality only when their elements or payloads support it.
 
@@ -77,6 +79,8 @@ Fields end in commas (the last may omit it) and may be interleaved with operatio
 | `fn name(&&self, ...)` | Instance operation that Takes the complete owner                                           |
 | `private fn ...`       | Accessible only inside this class body                                                     |
 
+A first parameter named `self` must omit its type annotation; `self` cannot name a later class-operation parameter. A free-function parameter or ordinary local binding named `self` does not acquire receiver meaning.
+
 Instance operations are called as `expression.name(...)`. The receiver evaluates once, before the explicit arguments, and binds by ordinary Read, Write, or Take rules; explicit arguments still need their own access markers. An instance operation cannot be selected as a standalone value. There is no `static` keyword, member overloading, or implicit `self` lookup: inside an operation, fields are reached only as `self.field`.
 
 Selecting fields and constructing the representation are allowed only in the lexical body of the defining class. That authority covers other values of the same class and lambdas written inside its operations, but not module peers or free functions they call. Outside the body, `counter.value`, `Counter { value: 1 }`, and `let c: Counter = {};` report `CV-ACCESS-CLASS-PRIVATE`; calling a `private fn` from outside reports the same code. Ordinary operations follow the class's own `private`/`export` audience. Operations do not enter the module namespace, and fields and operations share one namespace in which each name is unique.
@@ -118,15 +122,13 @@ There is no structural search by field names and no failure-type selection: `thr
 At the start of a match or catch arm body, `{ field: value }` is a construction but `{}` is an empty branch block. Write `({})` for an empty construction arm:
 
 ```carven
-fn pick(flag: bool) -> Point {
-    return match flag {
-        true => { x: 1, y: 0 },
-        false => ({}),
-    };
-}
+fn pick(flag: bool) -> Point => match flag {
+    true => { x: 1, y: 0 },
+    false => ({}),
+};
 ```
 
-This fragment uses `Point` from the previous example. A function, if, or try body is always a block; its final expression may itself be a contextual construction.
+This fragment uses `Point` from the previous example. The braces of a block-bodied function, an if arm, or a try body still delimit a block; its final expression may itself be a contextual construction.
 
 ## Fixed arrays
 
@@ -165,11 +167,18 @@ enum Reply {
     Number(i32),
     Pair(i32, bool),
 }
+
+fn reply(value: i32) -> Reply => .Number(value);
+
+let empty: Reply = .Empty;
+println(reply(3) == .Number(3), empty == .Empty); // true true
 ```
 
 Payload cases are first-class constructors; payload-free cases are values. A payload constructor requires exactly its parameter count. Do not append `()` to a payload-free case.
 
 `.Case` and `.Case(...)` need an enum type from a binding, return, assignment, argument, aggregate position, or unambiguous adjacent operand. Case names are not searched globally and cannot be imported alone. A full name such as `Reply::Number(3)` specifies the owner explicitly.
+
+The declared result of `reply` supplies the owner for `.Number(value)`; the annotated binding supplies it for `.Empty`.
 
 Equality compares the case first. Different cases are unequal; matching cases compare payload positions with short-circuiting. A payload enum supports equality only when every payload supports it.
 

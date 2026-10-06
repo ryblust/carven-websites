@@ -2,7 +2,7 @@
 title: "Builds, artifacts, and native integration"
 description: "Host requirements, C++20 targets, Xmake batches, generated interfaces, and runtime support."
 section: reference
-lesson: 20
+lesson: 25
 source: docs/toolchain/artifacts.md
 ---
 

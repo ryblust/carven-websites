@@ -2,7 +2,7 @@
 title: "Bindings, access, ownership, and cleanup"
 description: "Read, Write, Take, copying, restoration, aliasing, temporaries, and scoped cleanup."
 section: reference
-lesson: 4
+lesson: 12
 source: docs/language/ownership.md
 ---
 
@@ -32,6 +32,26 @@ Arguments repeat declared access exactly: `read(x)`, `write(&x)`, `take(&&x)`. W
 Carven arrays, `String`, closures, and aggregates containing those storage forms retain storage through `const` references. Other types, including native types, use `const` values when C++ copy construction and destruction are both trivial; otherwise they use `const` references. Declared import(cpp)/export(cpp) functions use the same ordinary Read policy.
 
 By-value Read saves a value during argument evaluation. By-reference Read retains selected storage, so later aliased writes affect reads. An explicit owner copy can establish an independent immediate value, while views inside the copy still reference original backing. Take-conflict checks are not omitted based on native Read representation.
+
+A Read parameter is therefore not universally an independent copy. In this example, scalar Read saves `count` before the third argument runs, while array Read retains `values`:
+
+```carven
+fn change(&count: i32, &values: [i32; 1]) -> i32 {
+    count = 9;
+    values[0] = 9;
+    return 0;
+}
+
+fn inspect(count: i32, values: [i32; 1], _: i32) {
+    println(count, values[0]);
+}
+
+var count = 1;
+var values = [1];
+inspect(count, values, change(&count, &values)); // 1 9
+```
+
+For array contents as they were before argument evaluation, establish an owning copy in an earlier statement and pass that copy.
 
 ## Take and availability
 

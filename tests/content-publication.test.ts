@@ -1,6 +1,7 @@
 import { assert, describe, it } from '@effect/vitest';
 import { NodeFileSystem } from '@effect/platform-node';
 import { Effect, FileSystem, PlatformError } from 'effect';
+import { pathToFileURL } from 'node:url';
 import { ContentRepository } from '../scripts/content/ContentRepository.ts';
 import type { ArticleDocument } from '../src/content/schema.ts';
 
@@ -48,22 +49,29 @@ const assertClean = Effect.fn('assertClean')(function* (root: string, fs: FileSy
   assert.deepStrictEqual(yield* fs.readDirectory(`${root}/src`), ['generated']);
 });
 
+const importGenerated = (root: string, name: string) =>
+  Effect.promise(
+    () => import(/* @vite-ignore */ pathToFileURL(`${root}/src/generated/${name}`).href),
+  );
+
 describe('generated content publication', () => {
   it.effect('replaces changed modules, adds new modules and removes obsolete modules', () =>
     Effect.gen(function* () {
       const { fs, root } = yield* fixture();
       yield* publish(root, fs, next);
       const files = yield* snapshot(`${root}/src/generated`, fs);
-      assert.include(files['articles/first.ts'], '"new"');
-      assert.include(files['articles/added.ts'], '"new"');
-      assert.include(files['articles/unchanged.ts'], '"stable"');
+      assert.strictEqual((yield* importGenerated(root, 'articles/first.ts')).default, 'new');
+      assert.strictEqual((yield* importGenerated(root, 'articles/added.ts')).default, 'new');
+      assert.strictEqual((yield* importGenerated(root, 'articles/unchanged.ts')).default, 'stable');
       assert.notProperty(files, 'articles/removed.ts');
-      assert.include(files['manifest.ts'], '"/added/"');
-      assert.notInclude(files['manifest.ts'], '"/removed/"');
-      assert.deepStrictEqual(
-        Object.keys(files).filter((file) => file.startsWith('routes/')),
-        ['routes/added.tsx', 'routes/first.tsx', 'routes/unchanged.tsx'],
-      );
+      const { articles } = yield* importGenerated(root, 'manifest.ts');
+      assert.deepStrictEqual(Object.keys(articles).sort(), ['/added/', '/first/', '/unchanged/']);
+      const { articleRoutes } = yield* importGenerated(root, 'article-routes.ts');
+      assert.deepStrictEqual(articleRoutes.map((route: { path: string }) => route.path).sort(), [
+        '/added',
+        '/first',
+        '/unchanged',
+      ]);
       yield* assertClean(root, fs);
     }).pipe(Effect.provide(NodeFileSystem.layer)),
   );

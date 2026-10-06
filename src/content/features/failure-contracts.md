@@ -11,6 +11,20 @@ A missing config can use a default. Denied access needs attention, and an invali
 
 **Compose operations without defining another aggregate error type at every layer.** The language combines failure sets, preserving the original type identities and payloads until the program reaches a place that can handle them.
 
+<figure class="semantic-sketch">
+  <svg viewBox="0 0 640 190" aria-hidden="true" focusable="false">
+    <path d="M15 19q84-3 166 1l-2 119q-81 4-164-1ZM184 76q25-3 48 0m-8-6 8 6-8 6" />
+    <path d="M246 51q65-3 127 1l-1 50q-65 3-126-1ZM376 75q22-3 44 0m-8-6 8 6-8 6" />
+    <path d="M434 38q95-3 187 1l-1 75q-95 3-187-1Z" />
+    <path class="sketch-accent" d="M306 106q-2 21 2 43m-7-8 7 8 7-8M255 182q27 2 55-1" />
+    <text x="43" y="50">Missing</text><text x="43" y="85">Denied</text><text x="43" y="120">BadPort</text>
+    <text x="276" y="82">catch</text>
+    <text x="461" y="69">Denied</text><text x="461" y="100">BadPort</text>
+    <text class="sketch-accent" x="256" y="175">8080</text>
+  </svg>
+  <figcaption>Missing becomes the default value 8080. Denied and BadPort still propagate.</figcaption>
+</figure>
+
 ## Let the language organize result composition
 
 In C++, a result type can express failure with an error type parameter, as C++23's std::expected does. std::variant can collect different payloads, while branches or library combinators organize propagation and recovery. Across layers, the project arranges error sets, carrier conversions, and interface conventions.
@@ -95,13 +109,27 @@ Each `?` marks a failure exit. If read fails, parse never runs. load is private 
 
 The public port function uses 8080 when the config is missing:
 
-```carven
+<div class="annotated-example">
+
+```carven {1,4}
 fn port() -> i32 throw Denied + BadPort => try {
     load()?
 } catch {
     Missing(_) => 8080,
 };
 ```
+
+<p class="code-focus-caption">Marked lines: the outward contract and the Missing recovery arm.</p>
+<aside class="margin-note">
+  <strong>Recovery narrows the contract</strong>
+  <p>The two marked lines correspond: fully handling Missing leaves only Denied + BadPort in the public contract.</p>
+</aside>
+</div>
+
+<div class="example-entry">
+  <a href="/playground/#example=typed-failures">Run the complete example in Playground →</a>
+  <span>The complete program includes read, parse, and four inputs.</span>
+</div>
 
 Handling Missing removes it from the outward contract. Denied and BadPort still reach the caller with their original payloads. The homepage inlines load's expression; the behavior is the same.
 
@@ -142,7 +170,7 @@ The [tutorial](/learn/failures/) provides complete runnable Carven and C++ versi
 
 Private helpers, lambdas, and the implicit entry formed by top-level statements infer failure sets as operations compose. Functions visible to module readers, and an explicit `main`, declare allowed types when failures escape. Their implementations are checked against that upper bound. Callers use the declaration without reading the body.
 
-A top-level `println(port()?);` therefore needs no clause: a failure that escapes the implicit entry ends the program with a failure status and no automatic output.
+A top-level `println(port()?);` therefore needs no clause: after local cleanup, a failure that escapes the implicit entry is reported with its type and structural payload on stderr, and the program exits with `EXIT_FAILURE`. Handle it with `catch` when the application needs its own message or recovery.
 
 A declared failure remains part of the call contract even when the current implementation never produces it. The implementation can change within the declared set; expanding the set is an interface change callers must address.
 

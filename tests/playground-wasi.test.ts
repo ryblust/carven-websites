@@ -12,6 +12,25 @@ import {
 } from '../src/playground/wasi';
 
 const root = new URL('../public/playground-assets/', import.meta.url);
+type RunnablePreset = Extract<(typeof playgroundExamples)[number], { defaultView: 'output' }>;
+const presetOutput: Record<RunnablePreset['id'], string> = {
+  hello: 'Answer: 42\n',
+  'structured-output': `Order {
+    id: 7,
+    status: Status::Shipped(
+        3,
+    ),
+    items: [
+        "disk",
+        "cable",
+    ],
+}
+`,
+  'typed-failures': 'ok 9000\nmissing 8080\nDenied: denied\nBad port: 9x00\n',
+  'static-text': 'Commands:\n  build: Compile the project\n  run: Run the program\n\n',
+  specialization: 'true false\n',
+  'simd-bytes': '2\n',
+};
 
 describe('WASM compiler input boundary', () => {
   it('preserves Unicode and exact source bytes for accepted commands', () => {
@@ -109,22 +128,56 @@ describe('packaged Carven compiler through the browser WASI host', () => {
   });
 
   for (const example of playgroundExamples) {
+    if (example.defaultView !== 'output') continue;
     it(`executes the ${example.id} editor preset in a fresh in-memory filesystem`, async () => {
       const result = await executeWasi(assets, example.source, 'run');
       expect(result.exitCode).toBe(0);
-      expect(result.stdout.trim()).not.toBe('');
-      if (example.id === 'hello') expect(result.stdout).toBe('Answer: 42\n');
+      expect(result.stdout).toBe(presetOutput[example.id]);
       expect(result.stderr).toBe('');
       expect(result.artifacts).toEqual([]);
       expect(result.truncated).toBe(false);
     });
   }
 
-  it('checks accepted source without running its entry', async () => {
-    const result = await executeWasi(assets, 'println("runtime only");', 'check');
+  it('generates the native JSON preset while reporting the browser execution boundary', async () => {
+    const example = playgroundExamples.find((item) => item.id === 'native-json')!;
+    const compiled = await executeWasi(assets, example.source, 'compile');
+    expect(compiled.exitCode).toBe(0);
+    expect(compiled.stderr).toBe('');
+    const cpp = compiled.artifacts.find((artifact) => artifact.path === 'main.cpp')!.content;
+    expect(cpp).toContain('#include <nlohmann/json.hpp>');
+    expect(cpp).toContain('::nlohmann::json::parse(');
+    expect(cpp).toContain('merge_patch(');
+    expect(cpp).toContain('.dump()');
+    const interpreted = await executeWasi(assets, example.source, 'run');
+    expect(interpreted.exitCode).toBe(1);
+    expect(interpreted.stderr).toContain('CV-INTERPRET-ADMISSION');
+    expect(interpreted.stdout).toBe('');
+  });
+
+  it('captures const block streams during Check without running the entry', async () => {
+    const result = await executeWasi(
+      assets,
+      'const { print("准备 "); println("完成"); eprintln("compile-time stderr"); }\nprintln("runtime only");',
+      'check',
+    );
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toBe('');
+    expect(result.stdout).toBe('准备 完成\n');
+    expect(result.stderr).toContain('compile-time stderr\n');
     expect(result.stderr).toContain('check passed');
+    expect(result.artifacts).toEqual([]);
+  });
+
+  it('preserves const block output before a failed Check', async () => {
+    const result = await executeWasi(
+      assets,
+      'const { println("before failure"); assert(false, "static failure"); }',
+      'check',
+    );
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe('before failure\n');
+    expect(result.stderr).toContain('static failure');
+    expect(result.stderr).not.toContain('check passed');
   });
 
   it('dumps tokens without parsing or executing source', async () => {

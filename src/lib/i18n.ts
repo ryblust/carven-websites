@@ -12,6 +12,8 @@ const destinations = [
   '/zh/404/',
   '/playground/',
   '/zh/playground/',
+  '/design/',
+  '/zh/design/',
   ...articlePaths,
 ] as const;
 export function localizedPath(path: string, locale: Locale) {

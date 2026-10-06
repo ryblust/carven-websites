@@ -2,7 +2,7 @@
 title: "Interpolation, formatting, and output"
 description: "Hole evaluation and observation, append restrictions, compile-time formatting, and stdout/stderr."
 section: reference
-lesson: 12
+lesson: 15
 source: docs/language/text.md
 ---
 

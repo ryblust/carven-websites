@@ -2,6 +2,7 @@ import { readdir, readFile, stat } from 'node:fs/promises';
 import { resolve, join, extname } from 'node:path';
 import { plainInlineText } from '../src/lib/inline-code.ts';
 import { articles } from '../src/generated/manifest.ts';
+import { playgroundExamples } from '../src/playground/examples.ts';
 
 const root = resolve('dist/client');
 const base = `/${(process.env.BASE_PATH || '').replace(/^\/+|\/+$/g, '')}`.replace(/\/$/, '');
@@ -94,7 +95,12 @@ for (const [file, urls] of references) {
       await stat(targetFile);
       if (target.hash && documents.has(targetFile)) {
         const id = decodeURIComponent(target.hash.slice(1));
-        if (!documents.get(targetFile).ids.has(id))
+        const params = new URLSearchParams(id);
+        const exampleLink =
+          ['/playground/', '/zh/playground/'].includes(pathname) &&
+          params.size === 1 &&
+          playgroundExamples.some((example) => example.id === params.get('example'));
+        if (!exampleLink && !documents.get(targetFile).ids.has(id))
           failures.push(`${file}: missing anchor ${reference}`);
       }
     } catch {

@@ -2,7 +2,7 @@
 title: "The UTF standard library"
 description: "Scalar conversion, UTF-8 encoding and decoding, owning and borrowed text, and incremental validation."
 section: reference
-lesson: 17
+lesson: 22
 source: crafts/carven/std/utf/README.md
 ---
 

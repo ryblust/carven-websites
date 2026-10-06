@@ -2,7 +2,7 @@
 title: 诊断代码目录
 description: 按代码查找当前检查边界、默认严重性与定位方向。
 section: reference
-lesson: 22
+lesson: 27
 source: src/diagnostics/code.cpp
 ---
 

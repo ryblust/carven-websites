@@ -1,5 +1,21 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ComponentProps } from 'react';
 import { useLocation, useNavigate } from '@tanstack/react-router';
+import {
+  AlignLeft,
+  Check,
+  ChevronDown,
+  CircleAlert,
+  CircleCheck,
+  CircleDashed,
+  CodeXml,
+  List,
+  LoaderCircle,
+  Network,
+  Play,
+  RotateCcw,
+  Square,
+} from 'lucide-react';
+import { UIIcon } from '../components/UIIcon';
 import CopyCodeButton from '../components/CopyCodeButton';
 import PlaygroundWorkspace from '../components/PlaygroundWorkspace';
 import PlaygroundDiagnostics from '../components/PlaygroundDiagnostics';
@@ -23,15 +39,7 @@ function PlaygroundSelect(props: ComponentProps<'select'>) {
   return (
     <span className="playground-select">
       <select {...props} />
-      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
-        <path
-          d="m6 9 6 6 6-6"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+      <UIIcon icon={ChevronDown} />
     </span>
   );
 }
@@ -111,6 +119,7 @@ export default function Playground({ locale }: { locale: Locale }) {
     activeExample.current = id;
     invalidate();
     setExampleId(id);
+    setTab(next.defaultView);
     try {
       localStorage.setItem(activeExampleKey, id);
     } catch {
@@ -181,7 +190,10 @@ export default function Playground({ locale }: { locale: Locale }) {
   }
 
   const artifact = result?.artifacts.find((file) => file.path === 'main.cpp');
-  const outputResult = resultAction === 'run' ? result : undefined;
+  const outputResult =
+    resultAction === 'run' || resultAction === 'check' || resultAction === 'compile'
+      ? result
+      : undefined;
   const primaryAction =
     tab === 'output' ? 'run' : tab === 'diagnostics' ? 'check' : tab === 'cpp' ? 'compile' : tab;
   const primaryActionLabel = {
@@ -191,6 +203,22 @@ export default function Playground({ locale }: { locale: Locale }) {
     ast: t('查看 AST', 'Inspect AST'),
     tokens: t('查看 Tokens', 'Inspect Tokens'),
   }[primaryAction];
+  const primaryActionIcon = {
+    run: Play,
+    check: Check,
+    compile: CodeXml,
+    ast: Network,
+    tokens: List,
+  }[primaryAction];
+  const statusIcon = busy
+    ? LoaderCircle
+    : result
+      ? result.exitCode === 0
+        ? CircleCheck
+        : CircleAlert
+      : message
+        ? CircleAlert
+        : CircleDashed;
   const status = busy
     ? progress === 'loading'
       ? t('正在加载运行环境…', 'Loading runtime…')
@@ -209,8 +237,8 @@ export default function Playground({ locale }: { locale: Locale }) {
         <h1 id="playground-title">{t('写一点，运行看看。', 'A little code. A real result.')}</h1>
         <p>
           {t(
-            '选个例子，改一改，在浏览器里运行一个 Carven 文件。',
-            'Pick an example, make it yours, and run one Carven file in your browser.',
+            '选个例子，改一改，在浏览器里检查、运行，或查看生成的 C++。',
+            'Pick an example, make it yours, and check, run, or generate C++ in your browser.',
           )}
         </p>
       </div>
@@ -256,9 +284,11 @@ export default function Playground({ locale }: { locale: Locale }) {
                   onClick={() => void run('format')}
                   title={t('使用 Graver 格式化源码', 'Format source with Graver')}
                 >
+                  <UIIcon icon={AlignLeft} />
                   {t('格式化', 'Format')}
                 </button>
                 <button onClick={() => edit(example.source)} disabled={source === example.source}>
+                  <UIIcon icon={RotateCcw} />
                   {t('重置', 'Reset')}
                 </button>
                 <CopyCodeButton
@@ -280,7 +310,7 @@ export default function Playground({ locale }: { locale: Locale }) {
                     source={source}
                     locale={locale}
                     onChange={edit}
-                    onRun={() => void run('run')}
+                    onRun={() => void run(primaryAction)}
                   />
                 )}
               </Suspense>
@@ -348,6 +378,7 @@ export default function Playground({ locale }: { locale: Locale }) {
                       setMessage(t('已取消本次任务。', 'This task was cancelled.'));
                     }}
                   >
+                    <UIIcon icon={Square} />
                     {t('停止', 'Stop')}
                   </button>
                 ) : (
@@ -355,13 +386,9 @@ export default function Playground({ locale }: { locale: Locale }) {
                     className="button button-primary"
                     disabled={!supported || !source.trim()}
                     onClick={() => void run(primaryAction)}
-                    title={
-                      primaryAction === 'run'
-                        ? t('解释运行（⌘ / Ctrl + Enter）', 'Interpret (⌘ / Ctrl + Enter)')
-                        : undefined
-                    }
+                    title={`${primaryActionLabel} (⌘ / Ctrl + Enter)`}
                   >
-                    {primaryAction === 'run' && <span aria-hidden="true">▷</span>}
+                    <UIIcon icon={primaryActionIcon} />
                     {primaryActionLabel}
                   </button>
                 )}
@@ -372,9 +399,10 @@ export default function Playground({ locale }: { locale: Locale }) {
                 <pre tabIndex={0} aria-label="main.cpp">
                   {artifact.content}
                 </pre>
-              ) : tab === 'diagnostics' && result?.stderr ? (
+              ) : tab === 'diagnostics' && result && (result.stderr || outputResult?.stdout) ? (
                 <PlaygroundDiagnostics
                   text={result.stderr}
+                  stdout={outputResult?.stdout}
                   source={source}
                   locale={locale}
                   onSelect={(location) => editorRef.current?.reveal(location)}
@@ -412,7 +440,10 @@ export default function Playground({ locale }: { locale: Locale }) {
               )}
             </div>
             <div className="playground-pane-footer" role="status">
-              <span>{status}</span>
+              <span className="playground-status">
+                <UIIcon icon={statusIcon} className={busy ? 'icon-spinning' : undefined} />
+                {status}
+              </span>
               {result && (
                 <span>
                   {t('退出码', 'Exit')} {result.exitCode} · {(result.durationMs / 1000).toFixed(2)}s

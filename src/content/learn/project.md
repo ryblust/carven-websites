@@ -130,7 +130,7 @@ purchase returns a Receipt. Its contextual construction, `return { quantity: qua
 
 reserve uses an expression body and contextual enum cases: its OrderResult result supplies the type of `.Paid(...)` and `.Backorder(...)`. It handles only OutOfStock, preserving its payload in the Backorder case. The contract still declares `throw InvalidQuantity + OrderLimit`. A backorder is a handled outcome; those two errors still propagate through `?`.
 
-The top-level statements form an implicit entry that infers outward failures. The final try handles InvalidQuantity and prints its payload; an escaping OrderLimit would end the program with a failure status. A caller can choose to handle it too.
+The top-level statements form an implicit entry that infers outward failures. The final try handles InvalidQuantity and prints its payload; an escaping OrderLimit would be reported with its structural payload on stderr and end the program with `EXIT_FAILURE`. A caller can choose to handle it too.
 
 To inspect the failure contract, temporarily replace reserve's body with:
 

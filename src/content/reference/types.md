@@ -6,6 +6,30 @@ lesson: 3
 source: docs/language/types.md
 ---
 
+## Builtin types
+
+Write a type after `: Type` in a declaration or `-> Type` in a function result. Omitting a variable's annotation lets its initializer determine the type.
+
+| Type                         | Meaning                                 | Example                                    |
+| ---------------------------- | --------------------------------------- | ------------------------------------------ |
+| `bool`                       | Boolean                                 | `true`, `false`                            |
+| `char`                       | Unicode scalar                          | `'我'`                                     |
+| `i8` / `i16` / `i32` / `i64` | Signed integer                          | `42`, `42i64`                              |
+| `u8` / `u16` / `u32` / `u64` | Unsigned integer                        | `255u8`                                    |
+| `isize` / `usize`            | Integer matching the pointer data model | `text.len()` returns `usize`               |
+| `f32` / `f64`                | IEEE floating point                     | `1.5f32`, `1.5`                            |
+| `str`                        | Nonowning UTF-8 text view               | `"hello"`                                  |
+| `String`                     | Owning UTF-8 text value                 | `let name: String = "hello";`              |
+| `void`                       | No successful result value              | `fn notify() -> void => println("ready");` |
+
+```carven
+let count: i32 = 3;
+let name: String = "Carven";
+println(count, name); // 3 Carven
+```
+
+Arrays `[T; N]`, slices `[T]`, integer ranges `range<T>`, pointers `ptr<T>` / `ptr<&T>`, and callable views `fn(...) -> T` have their corresponding forms. `struct`, `class`, and `enum` declare nominal types. SIMD provides fixed vector and mask types. See [builtin APIs](/reference/builtins/) for type members.
+
 ## Type identity
 
 Builtin types are `bool`, `char`, `str`, `String`, `void`, signed integers `i8/i16/i32/i64/isize`, unsigned integers `u8/u16/u32/u64/usize`, and `f32/f64`. Fixed logical [SIMD types](/reference/simd/) are `u8x16`, `mask16`, `f32x4`, `mask4`, `u8x32`, `mask32`, `f32x8`, and `mask8`. Builtin type names are reserved; module declarations cannot reuse them.
@@ -36,6 +60,42 @@ Parentheses carry existing context. Context does not change a binding's type or 
 For a binary expression, a directly unsuffixed numeric left operand can take context from a right operand that is not such a literal. Otherwise, the left takes outer context and supplies the right's type. In equality comparisons, a direct `.Case` can take its enum type from the other operand when that operand is not a direct case. This takes precedence over the numeric rule. Logical operators require `bool`.
 
 These rules inspect direct operands only; they do not search through parentheses, unary operations, or compound expressions for literals. Context selection does not change left-to-right runtime evaluation.
+
+### Context has a local boundary
+
+```carven
+let length = 3usize;
+println(0 + length); // 3: the direct left literal receives usize.
+
+// Check separately: parentheses prevent sibling literal selection here.
+// println((0) + length); // Compile error: i32 and usize do not match.
+```
+
+Parentheses still carry a type supplied from outside; they only prevent this particular direct-operand rule. Context does not flow backward from later statements:
+
+```carven
+enum Status { Ready, Busy }
+
+let ready: Status = .Ready;
+println(.Ready == ready); // true: the other direct operand supplies Status.
+```
+
+Removing `: Status` from the binding is an error at `.Ready`; the later comparison cannot supply its missing type.
+
+### Contextual adaptations
+
+The following adaptations are admitted when a destination type is already known. They do not change the source binding's type, and they are not general conversions between unrelated types.
+
+| Source → destination                             | Effect                                                        |
+| ------------------------------------------------ | ------------------------------------------------------------- |
+| Unsuffixed numeric literal → same numeric family | Check the literal directly at the required precision or width |
+| String literal → `String`                        | Construct independent owning text                             |
+| `String` → `str`                                 | Borrow the current text backing; protect it from mutation     |
+| `[T; N]` → `[T]`                                 | Borrow the array without copying elements                     |
+| Concrete callable → compatible `fn(...)` view    | Adapt the target, borrowing capture storage when needed       |
+| `ptr<&T>` → `ptr<T>`                             | Copy the address with narrower target permission              |
+
+Write parameters retain an existing slot and do not use these value adaptations to change its type. Static freezing of an entire constant `String` result into `str` is a separate [constant-publication rule](/reference/constants/#admission-and-freezing).
 
 ## Numeric literals
 

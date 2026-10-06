@@ -25,6 +25,8 @@ Reading, modifying, and transferring ownership express different intentions. Car
 
 In C++, the permitted uses of an object after a move depend on the type and operation contracts. Carven's Take also changes the source owner's static availability: the compiler checks subsequent uses and restoration. The same rule participates in calls, closures, and control-flow joins.
 
+The [syntax and inference article](/internals/syntax-and-inference/) follows this boundary through reserved words, contextual `self`, ordinary builtin names, and expected types. Context can determine an omitted type; it does not add a capture, a call-access marker, or failure propagation.
+
 A class gathers fields and operations behind one boundary without changing that cost model. It is an encapsulated value: declaring one adds no heap allocation, inheritance, or virtual dispatch, and its fields still decide copying, ownership, and cleanup. Its operations state their receiver as `self`, `&self`, or `&&self`, using the same Read, Write, and Take rules as any other parameter.
 
 Known borrowing relationships constrain the lifetime of backing storage. Providers and callers remain responsible for the validity of objects reached through external C++ pointers. The scope of checking follows the information the compiler actually has.

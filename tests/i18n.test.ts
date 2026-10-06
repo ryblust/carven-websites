@@ -16,7 +16,7 @@ describe('bilingual navigation', () => {
   });
 
   it('maps custom pages in both directions', () => {
-    for (const path of ['/', '/404/', '/playground/']) {
+    for (const path of ['/', '/404/', '/playground/', '/design/']) {
       assert.equal(localizedPath(path, 'zh'), `/zh${path}`);
       assert.equal(localizedPath(`/zh${path}`, 'en'), path);
     }

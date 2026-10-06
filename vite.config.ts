@@ -30,6 +30,8 @@ export default defineConfig({
         '/zh/404/',
         '/playground/',
         '/zh/playground/',
+        '/design/',
+        '/zh/design/',
         ...Object.keys(articles),
       ].map((path) => ({
         path,

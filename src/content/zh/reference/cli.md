@@ -2,7 +2,7 @@
 title: "编译器命令与 Graver"
 description: 原生运行、解释执行、生成产物与 Graver 源码格式化。
 section: reference
-lesson: 19
+lesson: 24
 source: docs/toolchain/cli.md
 ---
 

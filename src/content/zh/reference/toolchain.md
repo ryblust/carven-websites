@@ -2,7 +2,7 @@
 title: 构建、产物与原生集成
 description: 宿主要求、目标 C++20、Xmake 批次、生成接口和运行时支持。
 section: reference
-lesson: 20
+lesson: 25
 source: docs/toolchain/artifacts.md
 ---
 

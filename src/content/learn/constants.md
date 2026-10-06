@@ -195,12 +195,12 @@ The program prints `10`. The endpoint rules for `..` and `..=` are the same at c
 
 ```carven
 const table: [i32] = [2, 4, 6];
-const middle = table.slice(1usize, 3usize);
+const middle = table.slice(1, 3);
 
 println(middle.len(), middle[0]);
 ```
 
-The output is `2 4`. This is a frozen slice with static backing, so it can be returned and retained. A view into a runtime local array does not have that lifetime.
+The output is `2 4`. The slice parameters supply `usize` to the unsuffixed bounds, so explicit suffixes are unnecessary. This is a frozen slice with static backing, so it can be returned and retained. A view into a runtime local array does not have that lifetime.
 
 ## Filter a route table
 

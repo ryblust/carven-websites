@@ -2,7 +2,7 @@
 title: "Constants, const fn, and execution budgets"
 description: "Constant facts, module constants, compile-time functions, text freezing, and resource limits."
 section: reference
-lesson: 13
+lesson: 17
 source: docs/language/constants.md
 ---
 

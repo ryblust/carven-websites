@@ -2,7 +2,7 @@
 title: 插值、格式化与输出
 description: 插值字段的求值与观察、追加限制、编译期格式化以及 stdout/stderr 行为。
 section: reference
-lesson: 12
+lesson: 15
 source: docs/language/text.md
 ---
 

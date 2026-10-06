@@ -23,7 +23,16 @@ export function enhanceCodeBlocks(
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'copy-button';
-    button.textContent = t('复制', 'Copy');
+    const setLabel = (state?: 'copied' | 'manual') => {
+      button.textContent =
+        state === 'copied'
+          ? t('已复制', 'Copied')
+          : state === 'manual'
+            ? t('请手动复制', 'Copy manually')
+            : t('复制', 'Copy');
+      button.toggleAttribute('data-copied', state === 'copied');
+    };
+    setLabel();
     button.setAttribute('aria-label', t('复制代码', 'Copy code'));
     head.append(button);
     let pending: AbortController | undefined;
@@ -42,8 +51,7 @@ export function enhanceCodeBlocks(
           selection.addRange(range);
         },
         feedback: (result) => {
-          button.textContent =
-            result === 'copied' ? t('已复制', 'Copied') : t('请手动复制', 'Copy manually');
+          setLabel(result === 'copied' ? 'copied' : 'manual');
           announce(
             result === 'copied'
               ? t('代码已复制到剪贴板', 'Code copied to clipboard')
@@ -54,14 +62,14 @@ export function enhanceCodeBlocks(
           );
         },
         reset: () => {
-          button.textContent = t('复制', 'Copy');
+          setLabel();
         },
       });
       void Effect.runPromiseExit(program, { signal: controller.signal }).then((exit) => {
         if (Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) {
           console.error('Copy interaction failed', Cause.pretty(exit.cause));
           if (controller.signal.aborted) return;
-          button.textContent = t('请手动复制', 'Copy manually');
+          setLabel('manual');
           announce(
             t(
               '自动复制未完成，请手动选择代码并复制',

@@ -195,12 +195,12 @@ println(total);
 
 ```carven
 const table: [i32] = [2, 4, 6];
-const middle = table.slice(1usize, 3usize);
+const middle = table.slice(1, 3);
 
 println(middle.len(), middle[0]);
 ```
 
-输出 `2 4`。这是具有静态 backing 的冻结切片，可以返回与长期保存。普通运行时局部数组的 view 不具有这个生命周期。
+输出 `2 4`。slice 参数为无后缀的边界字面量提供 `usize` 类型，无需额外后缀。这是具有静态 backing 的冻结切片，可以返回与长期保存。普通运行时局部数组的 view 不具有这个生命周期。
 
 ## 筛选路由表
 

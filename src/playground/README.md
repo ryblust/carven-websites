@@ -38,6 +38,13 @@ Xmake discovers the SDK through `WASI_SDK_PATH`, which CI's SDK setup action set
 `src/playground/carven-wasm.cpp` provides the WASM entry point. Browser execution
 and editor support live alongside it.
 
+For a content synchronization, use the same committed compiler revision for
+example validation and the local `.deps/carven/` checkout before rebuilding the
+package. Record that revision and the WASM validation evidence in
+`docs/content-sync.md`; this README describes the build contract rather than a
+fixed package version. Keep local compiler-checkout changes before selecting
+another revision.
+
 The target adds the SDK's `std.cppm` explicitly because Xmake 3.1.1's WASI toolchain
 leaves the C++ runtime identity unspecified during standard-module discovery.
 That module includes `<csignal>` and `<csetjmp>`; their WASI headers require
@@ -54,18 +61,23 @@ outputs and the compiler checkout are ignored by Git.
 
 ## Execution
 
-| Action    | Result                                                         |
-| --------- | -------------------------------------------------------------- |
-| `check`   | Compiler diagnostics from source analysis                      |
-| `run`     | Interpreter output, with a 100,000-step budget                 |
-| `compile` | Generated C++ files, collected separately from stdout          |
-| `tokens`  | Lexer token dump                                               |
-| `ast`     | Parsed syntax-tree dump                                        |
-| `format`  | Graver-formatted source from a successful, complete invocation |
+| Action    | Result                                                            |
+| --------- | ----------------------------------------------------------------- |
+| `check`   | Compiler diagnostics and compile-time output from source analysis |
+| `run`     | Interpreter output, with a 100,000-step budget                    |
+| `compile` | Generated C++ files, collected separately from stdout             |
+| `tokens`  | Lexer token dump                                                  |
+| `ast`     | Parsed syntax-tree dump                                           |
+| `format`  | Graver-formatted source from a successful, complete invocation    |
 
 Lexing, parsing and formatting operate at their source-syntax boundaries. Source
 analysis resolves names and types; interpretation admits operations supported by
 the interpreter. Native C++ calls produce an interpreter admission error.
+
+The Diagnostics view displays captured standard output alongside diagnostics,
+including output from `const` blocks during Check. The Output view shows standard
+output from Check, Run or Generate C++; syntax dumps and formatted source stay in
+their respective views. Source navigation applies only to diagnostic locations.
 
 Each request owns a worker, WASI instance and filesystem. Cancellation terminates
 the worker. Only the current request can publish a result. Source replacement
@@ -89,7 +101,21 @@ execution tests use the generated WASM and Crafts files.
 | Assets         | Fixed resources resolve beneath the deployment prefix; packaged filesystem paths stay within Crafts; missing resources fail loading                              |
 | WASI execution | Valid programs produce their results; invalid programs report diagnostics; budgets stop execution; generated files and formatted source follow publication rules |
 | Worker session | Requests preserve source; completion releases the worker; cancellation and deadlines stop publication                                                            |
-| Diagnostics    | Compiler byte locations map to editor selections; valid source locations support navigation                                                                      |
+| Diagnostics    | Captured streams retain their text and accessible names; only valid diagnostic locations navigate to source; compiler byte locations map to editor selections    |
+| Page actions   | Editing source and choosing Check publishes compile-time stdout with passing or failing diagnostics; Check does not run the entry                                |
+
+Page interaction tests mount the real Playground, router and CodeMirror in jsdom,
+then select and paste source through DOM events before choosing Check. A Worker
+transport adapter executes each request with the packaged WASM compiler; results
+are not canned fixtures. These tests cover page input and result publication, but
+jsdom does not provide layout or real Web Workers. Browser checks still cover
+responsive layout, focus and real worker execution. Runnable presets have exact
+expected stdout in the WASI execution tests. The
+native JSON preset defaults to C++ generation: tests verify the generated header
+import and library calls, and the interpreter admission diagnostic. Homepage
+links expose the showcase presets in both locales; direct links preserve their
+source and choose the appropriate result view. The editor shortcut executes the
+action selected by that view.
 
 Run `pnpm test` against the generated package. For website changes, run
 `pnpm format:check`, `pnpm build` and `pnpm check:links`. Build and check links with

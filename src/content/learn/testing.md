@@ -23,7 +23,7 @@ test {
 }
 ```
 
-Tests can share a module with functions. A name is optional: the second test is anonymous, and a report identifies it by file, line, and column. Explicit names must be unique within a module. Run the tests directly:
+Tests can share a module with functions. A name is optional: the second test is anonymous, and a report identifies it by file, line, and column. Use a name to describe a business scenario; a short local invariant can use an anonymous test. Explicit names must be unique within a module. Run the tests directly:
 
 ```sh
 carven --tests totals.cv

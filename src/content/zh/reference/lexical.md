@@ -2,7 +2,7 @@
 title: 词法、字面量与语法边界
 description: 源文件编码、标识符、注释、数字、文本、C++ 片段和语法消歧。
 section: reference
-lesson: 1
+lesson: 2
 source: docs/language/grammar.md
 ---
 
@@ -14,6 +14,8 @@ Carven 词法分析的源文本使用 UTF-8。标识符使用 ASCII：首字符�
 
 保留关键字如下：
 
+[按关键字查找规则](/zh/reference/keywords/)；下面列出词法上的保留拼写。
+
 ```text
 as break catch class const continue else enum export false fn for if import in is let
 match nullptr private rethrow return struct test throw true try using var while
@@ -21,7 +23,7 @@ match nullptr private rethrow return struct test throw true try using var while
 
 `new`、`delete` 等没有语言产生式的拼写仍是普通标识符。`_` 在绑定位置表示丢弃；`_name` 是普通名字。
 
-`self` 是上下文关键字，不是保留字。只有作为类操作的第一个无类型参数（`self`、`&self` 或 `&&self`）时它才表示接收者；其他位置的 `fn echo(self: i32) -> i32 => self;` 与 `let self = 2;` 都是普通绑定。`println`、`check`、`assert`、`addressof` 等内建 callable 也是普通标识符，通过名字查找解析，可被遮蔽。
+`self` 是上下文关键字，不是全局保留字。类操作的首参数一旦命名为 `self`，就必须使用无类型接收者形式（`self`、`&self` 或 `&&self`）；带类型的首参数 `self` 或后续位置的 `self` 参数都会被拒绝。自由函数参数 `fn echo(self: i32) -> i32 => self;` 和局部 `let self = 2;` 是普通绑定。`cpp`、字符串前缀和内建类型名的区别见[特殊拼写规则](/zh/reference/keywords/#其他特殊拼写)。`println`、`check`、`assert`、`addressof` 等内建 callable 也是普通标识符，通过名字查找解析，可被遮蔽。
 
 ## 数字
 
@@ -55,7 +57,7 @@ const nul = "a\0b";
 
 ## C++ 头文件与源片段
 
-`import` 后的 `<...>` 或 `"..."` 是专门的非空头文件名 token；中间可有空白或行注释。头文件名不解码转义、不插值、不跨行。
+`import` 后的 `<...>` 或 `"..."` 是专门的非空头文件名 token；中间可有空白或行注释。头文件名不解码转义、不插值，不能包含换行或 NUL。
 
 ```carven
 import <cstdint>;

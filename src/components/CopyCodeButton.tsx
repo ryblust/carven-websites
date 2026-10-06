@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Effect, Exit } from 'effect';
+import { Check, Copy } from 'lucide-react';
+import { UIIcon } from './UIIcon';
 import { copyFeedback } from '../effects/clipboard';
 import { translate, type Locale } from '../lib/i18n';
 
@@ -59,8 +61,9 @@ export default function CopyCodeButton({
 
   return (
     <>
-      <button type="button" onClick={copy}>
-        {label}
+      <button type="button" className="copy-code-button" onClick={copy}>
+        <UIIcon icon={state === 'copied' ? Check : Copy} />
+        <span>{label}</span>
       </button>
       <span className="sr-only" role="status">
         {announcement}

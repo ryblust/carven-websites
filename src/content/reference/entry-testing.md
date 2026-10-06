@@ -2,7 +2,7 @@
 title: "Entries, runtime tests, and compile-time tests"
 description: "Entry selection, process status, assert, check/require/fail, test reports, and test-stop propagation."
 section: reference
-lesson: 14
+lesson: 18
 source: docs/language/execution.md
 ---
 

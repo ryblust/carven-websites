@@ -30,8 +30,11 @@ describe('Carven string token boundaries', () => {
     const tokens = highlighter.codeToTokensBase(source, {
       lang: 'carven',
       theme: paper.name,
-      includeExplanation: 'scopeName',
     });
+    const stringColor = paper.tokenColors.find((rule) => rule.scope?.includes('string'))!.settings
+      .foreground;
+    const keywordColor = paper.tokenColors.find((rule) => rule.scope?.includes('keyword'))!.settings
+      .foreground;
     assert.strictEqual(
       tokens.map((line) => line.map((token) => token.content).join('')).join('\n'),
       source,
@@ -39,26 +42,58 @@ describe('Carven string token boundaries', () => {
     const stringText = tokens
       .map((line) =>
         line
-          .flatMap((token) => token.explanation ?? [])
-          .filter((part) => part.scopes.some((scope) => scope.scopeName.startsWith('string.')))
-          .map((part) => part.content)
+          .filter((token) => token.color === stringColor)
+          .map((token) => token.content)
           .join(''),
       )
       .join('\n')
       .trimEnd();
     assert.strictEqual(stringText, literal);
-    const lastLine = tokens.at(-1)!.flatMap((token) => token.explanation ?? []);
-    assert.isTrue(
-      lastLine.some(
-        (part) =>
-          part.content === 'const' &&
-          part.scopes.some((scope) => scope.scopeName === 'keyword.control.carven'),
-      ),
+    assert.strictEqual(
+      tokens
+        .at(-1)!
+        .filter((token) => token.color === keywordColor)
+        .map((token) => token.content)
+        .join(''),
+      'const',
     );
   });
 });
 
 describe('shared syntax rendering', () => {
+  it.effect('marks authored line ranges without changing the copyable source', () =>
+    Effect.gen(function* () {
+      const markdown = yield* Markdown;
+      const source = 'let first = 1;\nlet second = 2;\nlet third = 3;\nprintln(third);';
+      const html = yield* markdown.render('focus.md', `\`\`\`cv {1-2,4}\n${source}\n\`\`\``);
+      assert.include(html, 'data-language="cv"');
+      assert.include(html, 'data-emphasized="true"');
+      const emphasizedLines = [
+        ...html.matchAll(/<span\b[^>]*data-emphasis="true"[^>]*>([^\n]*)/g),
+      ].map((match) => match[1]!.replace(/<[^>]+>/g, ''));
+      assert.deepStrictEqual(emphasizedLines, [
+        'let first = 1;',
+        'let second = 2;',
+        'println(third);',
+      ]);
+      const code = html.match(/<code\b[^>]*>([\s\S]*?)<\/code>/)?.[1];
+      assert.strictEqual(code?.replace(/<[^>]+>/g, ''), source);
+    }).pipe(Effect.provide(Markdown.layer)),
+  );
+
+  it.effect('rejects invalid or out-of-range emphasis with the authored file context', () =>
+    Effect.gen(function* () {
+      const markdown = yield* Markdown;
+      for (const range of ['0', '2', '2-1', 'invalid']) {
+        const error = yield* markdown
+          .render('focus.md', `\`\`\`cv {${range}}\nprintln(1);\n\`\`\``)
+          .pipe(Effect.flip);
+        assert.strictEqual(error._tag, 'ContentError');
+        assert.strictEqual(error.file, 'focus.md');
+      }
+    }).pipe(Effect.provide(Markdown.layer)),
+  );
+
   it.effect('preserves Carven source text and escapes HTML in rendered code', () =>
     Effect.gen(function* () {
       const markdown = yield* Markdown;

@@ -1,20 +1,39 @@
 ---
-title: 函数、结果推断与调用
-description: 函数签名、表达式体、递归结果依赖、void 与调用顺序。
+title: 函数：fn、参数与返回值
+description: 函数语法、调用、表达式体与块体、结果类型和静态参数。
 section: reference
-lesson: 6
+lesson: 8
 source: docs/language/functions.md
 ---
+
+用 `fn` 声明具名函数，为参数写出类型，通过 `name(arguments)` 调用。结果由一个表达式给出时使用 `=>`；需要多条语句、更新操作或多条返回路径时使用块体。
+
+## 语法一览
+
+| 形式                                                    | 用途                            |
+| ------------------------------------------------------- | ------------------------------- |
+| `fn name(arg: T) -> R => expression;`                   | 声明结果类型的表达式体          |
+| `fn name(arg: T) => expression;`                        | 推断结果类型的表达式体          |
+| `fn name(arg: T) -> R { return expression; }`           | 通过显式 return 返回的块体      |
+| `fn name(arg: T) { statements }`                        | 推断结果类型的块体，包括 `void` |
+| `const fn name(arg: T) -> R => expression;`             | 可在必需常量上下文中执行的函数  |
+| `fn name(arg: T, const setting: S) -> R => expression;` | 针对静态输入特化的函数          |
+| `fn name(arg: T) -> R throw E { statements }`           | 声明向外失败集合的函数          |
+
+`T`、`R`、`S`、`E`、`expression` 和 `statements` 是占位符。参数访问标记见[访问与所有权](/zh/reference/ownership/)；匿名函数和 `fn(...) -> R` 视图见[闭包](/zh/reference/closures/)。
 
 ## 声明与调用
 
 ```carven
-fn add(left: i32, right: i32) -> i32 {
-    return left + right;
-}
+fn add(left: i32, right: i32) -> i32 => left + right;
 
 fn twice(value: i32) => value * 2;
+
+let total = add(2, 3);
+println(total, twice(total)); // 5 10
 ```
+
+`add` 声明 `i32` 结果，`twice` 从表达式推断出同样的类型。调用按形参顺序提供实参。
 
 普通命名函数的每个参数必须有类型。命名参数不可重名；`_` 不创建绑定，可以重复使用。实参个数、访问标记和类型必须匹配。函数不重载，没有默认参数、可变参数、嵌套函数或用户泛型参数列表。带体函数使用块体或 `=> expression;`。只做一件表达式工作的函数通常写表达式体；块体只通过显式 `return` 返回。
 

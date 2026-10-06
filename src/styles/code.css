@@ -34,6 +34,10 @@ pre code {
   letter-spacing: 0.04em;
 }
 .copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-height: 36px;
   min-width: 44px;
   background: transparent;
@@ -72,6 +76,7 @@ pre code {
   background: var(--surface) !important;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
   margin-block: var(--space-5);
 }
 .prose .code-wrap {
@@ -90,6 +95,7 @@ pre code {
   padding: 20px;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
   background: var(--surface);
   min-width: 0;
 }
@@ -147,11 +153,25 @@ pre code {
   letter-spacing: 0;
 }
 .copy-button::before {
-  content: '⧉';
-  margin-right: 6px;
-  font-size: 1rem;
+  content: '';
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  background: currentColor;
+  mask: url('../assets/icons/copy.svg') center / contain no-repeat;
+}
+.copy-button[data-copied]::before {
+  mask-image: url('../assets/icons/check.svg');
 }
 /* Theme colors are supplied by the build-time highlighter. */
+.shiki[data-emphasized] .line {
+  display: inline-block;
+  min-width: 100%;
+}
+.shiki .line[data-emphasis] {
+  background: var(--accent-soft);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
 .shiki,
 .shiki span[style] {
   color: light-dark(var(--shiki-light), var(--shiki-dark)) !important;

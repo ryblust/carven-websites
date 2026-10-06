@@ -15,7 +15,7 @@ struct Order {
 
 let order = Order {
     id: 7,
-    status: Status::Shipped(3),
+    status: .Shipped(3),
     items: ["disk", "cable"],
 };
 
@@ -33,7 +33,7 @@ fn read(key: str) -> str throw Missing + Denied {
 }
 
 fn parse(text: str) -> i32 throw BadPort {
-    if text.len() == 0 { throw BadPort { text: text }; }
+    if text.is_empty() { throw BadPort { text: text }; }
     var value: i32 = 0;
     for byte in text.bytes {
         if byte < 0x30 || byte > 0x39 {
@@ -63,7 +63,7 @@ for key in ["ok", "missing", "denied", "bad"] {
   constants: `struct Command { name: str, summary: str, enabled: bool }
 
 const fn help_text(commands: [Command; 3]) -> String {
-    var text = String {};
+    var text: String = {};
     text.append("Commands:\\n");
     for command in commands {
         if command.enabled {

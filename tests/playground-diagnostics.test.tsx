@@ -1,9 +1,29 @@
+// @vitest-environment jsdom
+
 import { readFile } from 'node:fs/promises';
-import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { resolve } from 'node:path';
+import { act, type ReactNode } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import PlaygroundDiagnostics from '../src/components/PlaygroundDiagnostics';
 import { diagnosticParts, diagnosticSelection } from '../src/playground/diagnostics';
 import { executeWasi, parseCrafts } from '../src/playground/wasi';
+
+let root: Root | undefined;
+beforeAll(() => vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true));
+afterEach(async () => {
+  if (root) await act(() => root!.unmount());
+  root = undefined;
+  document.body.replaceChildren();
+});
+
+async function render(content: ReactNode) {
+  const host = document.createElement('div');
+  document.body.append(host);
+  root = createRoot(host);
+  await act(() => root!.render(content));
+  return host;
+}
 
 describe('playground source diagnostic navigation', () => {
   it('preserves stderr and links only main.cv source-frame anchors', () => {
@@ -61,29 +81,78 @@ describe('playground source diagnostic navigation', () => {
     expect(diagnosticSelection(source, { line: 1, column: 7 })).toEqual({ anchor: 5, head: 5 });
   });
 
-  it('renders valid navigation as keyboard buttons and leaves invalid locations plain', () => {
+  it('navigates valid source locations with keyboard buttons and leaves invalid locations plain', async () => {
     const stderr = ' --> main.cv:1:1\n --> main.cv:2:1\n<unsafe>\n';
-    const html = renderToStaticMarkup(
+    const onSelect = vi.fn();
+    const host = await render(
       <PlaygroundDiagnostics
         text={stderr}
         source="let value = 1;"
         locale="en"
+        onSelect={onSelect}
+      />,
+    );
+    const location = host.querySelector<HTMLButtonElement>(
+      '[aria-label="Go to main.cv line 1, byte column 1"]',
+    )!;
+    expect(location.type).toBe('button');
+    expect(location.tabIndex).toBe(0);
+    await act(() => location.click());
+    expect(onSelect).toHaveBeenCalledWith({ line: 1, column: 1 });
+    expect(host.querySelector('[aria-label="Go to main.cv line 2, byte column 1"]')).toBeNull();
+    expect(host.textContent).toBe(stderr);
+    expect(host.querySelector('unsafe')).toBeNull();
+  });
+
+  it.each([
+    ['en', 'Standard output', 'Diagnostics'],
+    ['zh', '标准输出', '诊断'],
+  ] as const)(
+    'shows %s Check stdout separately from navigable diagnostics',
+    async (locale, outputLabel, diagnosticLabel) => {
+      const stdout = '准备 <tag>\n --> main.cv:1:1\npartial';
+      const stderr = 'carven: check passed\n --> main.cv:1:1\n';
+      const host = await render(
+        <PlaygroundDiagnostics
+          stdout={stdout}
+          text={stderr}
+          source={'const { println("hello"); }'}
+          locale={locale}
+          onSelect={() => {}}
+        />,
+      );
+      const output = host.querySelector(`[aria-label="${outputLabel}"]`)!;
+      const diagnostics = host.querySelector(`[aria-label="${diagnosticLabel}"]`)!;
+      const sourceLocation =
+        '[aria-label="Go to main.cv line 1, byte column 1"], [aria-label="定位到 main.cv 第 1 行，第 1 字节列"]';
+      expect(output.textContent).toBe(stdout);
+      expect(output.querySelector(sourceLocation)).toBeNull();
+      expect(output.querySelector('tag')).toBeNull();
+      expect(diagnostics.textContent).toBe(stderr);
+      expect(diagnostics.querySelector(sourceLocation)).not.toBeNull();
+    },
+  );
+
+  it('shows captured output when diagnostics are empty', async () => {
+    const host = await render(
+      <PlaygroundDiagnostics
+        stdout="compile-time output"
+        text=""
+        source=""
+        locale="en"
         onSelect={() => {}}
       />,
     );
-    expect(html.match(/<button\b/g)).toHaveLength(1);
-    expect(html).toContain('type="button"');
-    expect(html).toContain('Go to main.cv line 1, byte column 1');
-    expect(html).toContain('main.cv:2:1');
-    expect(html).toContain('&lt;unsafe&gt;');
-    expect(html).not.toContain('<unsafe>');
+    expect(host.querySelector('[aria-label="Standard output"]')?.textContent).toBe(
+      'compile-time output',
+    );
+    expect(host.querySelector('[aria-label="Diagnostics"]')).toBeNull();
   });
 
   it('resolves actual packaged compiler diagnostics to the offending source character', async () => {
-    const root = new URL('../public/playground-assets/', import.meta.url);
     const [wasm, crafts] = await Promise.all([
-      readFile(new URL('carven.wasm', root)),
-      readFile(new URL('crafts.json', root), 'utf8'),
+      readFile(resolve('public/playground-assets/carven.wasm')),
+      readFile(resolve('public/playground-assets/crafts.json'), 'utf8'),
     ]);
     const source = 'let text = "中文😀"; let value: i32 = "oops";';
     const result = await executeWasi(

@@ -51,14 +51,12 @@ println(delivery(36), delivery(120));
 不返回值的函数推断为 void：
 
 ```carven
-fn show_total(total: i32) {
-    println("Total:", total);
-}
+fn show_total(total: i32) => println("Total:", total);
 
 show_total(36);
 ```
 
-输出 `Total: 36`。把 show_total 调用写成语句；它没有可保存到局部变量的结果。单独的 `return;` 可以提前结束这种函数。
+输出 `Total: 36`。表达式体也可以返回 `void` 调用，无需显式写 `-> void`。把 show_total 调用写成语句；它没有可保存到局部变量的结果。动作需要多步操作或用单独的 `return;` 提前结束时，使用块体。
 
 ## 声明顺序与调用
 

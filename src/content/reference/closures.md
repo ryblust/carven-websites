@@ -6,6 +6,21 @@ lesson: 9
 source: docs/language/functions.md
 ---
 
+A lambda is an anonymous function written as `[captures](parameters) => expression` or `[captures](parameters) { statements }`. Use an inferred binding to own its concrete closure value; use a `fn(...) -> R` parameter when a function needs to call a callback.
+
+## Minimal example
+
+```carven
+var offset = 2;
+let saved = [offset](value: i32) => value + offset;
+let live = [&offset](value: i32) => value + offset;
+
+offset = 5;
+println(saved(3), live(3)); // 5 8
+```
+
+`saved` owns the value `2` captured at creation. `live` keeps Write access to the original `offset`, so its call reads the updated value `5`. Reading the captured value does not require updating it. Use `[]` for a lambda that captures nothing, for example `[](value: i32) => value * 2`.
+
 ## Creation and capture
 
 A lambda requires a capture list, including [] when empty. Its body is a block or `=> expression`; expression bodies return under named-function rules. Creation does not run its body. Captures are established in list order, each name once, from visible runtime bindings. Module declarations and constants cannot be explicit captures. A visible local constant is usable without capture only if its value can be determined while constructing the lambda body; one depending on an unbound enclosing static parameter cannot cross this boundary. A runtime let initialized from that value can be explicitly captured.

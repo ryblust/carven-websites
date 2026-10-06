@@ -227,4 +227,4 @@ If a failure escapes an implicit entry or explicit main, the entry wrapper repor
 
 ## Exercise
 
-In quantity.cv, set the quantity to 3; expect only `Total: 36`. Add a TooExpensive failure to limit the total price, update line_total's signature, and handle it in the top-level try. Then omit that handler: the implicit entry forwards TooExpensive and the process exits with a failure status. Move the statements into `fn main() { ... }` to inspect the boundary diagnostic instead.
+In quantity.cv, set the quantity to 3; expect only `Total: 36`. Add a TooExpensive failure to limit the total price, update line_total's signature, and handle it in the top-level try. Then omit that handler: the implicit entry forwards TooExpensive, stderr reports its payload, and the process exits with `EXIT_FAILURE`. Move the statements into `fn main() { ... }` to inspect the boundary diagnostic instead.

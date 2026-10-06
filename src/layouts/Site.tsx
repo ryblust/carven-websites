@@ -1,11 +1,14 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Link, useLocation } from '@tanstack/react-router';
+import { Languages, Menu, X } from 'lucide-react';
+import { UIIcon } from '../components/UIIcon';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { DocumentSearch } from '../components/DocumentSearch';
 import { Brand } from '../components/Brand';
 import { GitHubIcon } from '../components/GitHubIcon';
 import { pathWithoutBase, localeOf, localizedPath, translate } from '../lib/i18n';
 import { repository } from '../lib/site';
+import { designReadingGroups } from '../lib/design-readings';
 
 interface Props {
   children: ReactNode;
@@ -30,7 +33,7 @@ function NavigationTitle({ children }: Props) {
 
 const nav = [
   { label: 'Playground', english: 'Playground', path: '/playground/', key: 'playground' },
-  { label: '设计哲学', english: 'Philosophy', path: '/philosophy/', key: 'philosophy' },
+  { label: '设计与原理', english: 'Design', path: '/design/', key: 'design' },
   { label: '学习 Carven', english: 'Learn Carven', path: '/learn/', key: 'learn' },
   { label: '语言参考', english: 'Reference', path: '/reference/', key: 'reference' },
 ] as const;
@@ -41,7 +44,7 @@ const footer = [
     english: 'Learn',
     links: [
       { label: '开始学习', english: 'Start learning', path: '/learn/' },
-      { label: '设计哲学', english: 'Philosophy', path: '/philosophy/' },
+      { label: '设计与原理', english: 'Design & principles', path: '/design/' },
       { label: '接入现有工程', english: 'Integrate with C++', path: '/use-cases/' },
     ],
   },
@@ -73,6 +76,9 @@ export default function Site({ children }: Props) {
   const hash = useLocation({ select: (location) => location.hash });
   const locale = localeOf(pathname);
   const t = translate(locale);
+  const designReading = designReadingGroups.some((group) =>
+    group.readings.some((item) => localizedPath(item.path, locale) === pathname),
+  );
   const previousPath = useRef(pathname);
   useEffect(() => {
     if (previousPath.current !== pathname) content.current?.focus({ preventScroll: true });
@@ -90,7 +96,13 @@ export default function Site({ children }: Props) {
           <DocumentSearch key={locale} locale={locale} />
           <nav className="desktop-nav" aria-label={t('主导航', 'Main navigation')}>
             {nav.map((item) => (
-              <Link key={item.key} to={localizedPath(item.path, locale)}>
+              <Link
+                key={item.key}
+                to={localizedPath(item.path, locale)}
+                inactiveProps={
+                  item.key === 'design' && designReading ? { 'aria-current': 'true' } : undefined
+                }
+              >
                 <NavigationTitle>{t(item.label, item.english)}</NavigationTitle>
               </Link>
             ))}
@@ -115,9 +127,7 @@ export default function Site({ children }: Props) {
               aria-label={t('Read this page in English', '用中文阅读本页')}
               title={t('切换到 English', 'Switch to 中文')}
             >
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M2.7 5.5q5 .3 10.4-.3M8 2.5l.2 2.7M5.3 8.2q2 5.6 7.5 8.1M11 5.5Q9.5 13 2.5 17.7M13.2 21q2.2-6.3 4.7-12l4.1 11.8m-7-3.5 5.5-.3" />
-              </svg>
+              <UIIcon icon={Languages} />
             </Link>
             <details
               className="mobile-nav"
@@ -131,15 +141,20 @@ export default function Site({ children }: Props) {
               }}
             >
               <summary aria-label={t('主导航菜单', 'Main navigation menu')}>
-                <svg className="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 6h16" />
-                  <path d="M4 12h16" />
-                  <path d="M4 18h16" />
-                </svg>
+                <UIIcon icon={Menu} className="menu-icon menu-open" />
+                <UIIcon icon={X} className="menu-icon menu-close" />
               </summary>
               <nav aria-label={t('移动端导航', 'Mobile navigation')}>
                 {nav.map((item) => (
-                  <Link key={item.key} to={localizedPath(item.path, locale)}>
+                  <Link
+                    key={item.key}
+                    to={localizedPath(item.path, locale)}
+                    inactiveProps={
+                      item.key === 'design' && designReading
+                        ? { 'aria-current': 'true' }
+                        : undefined
+                    }
+                  >
                     <NavigationTitle>{t(item.label, item.english)}</NavigationTitle>
                   </Link>
                 ))}

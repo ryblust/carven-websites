@@ -2,7 +2,7 @@
 title: "Pointers and external addresses"
 description: "Nullable addresses, addressof, target access, non-null proofs, liveness checks, and native resource responsibilities."
 section: reference
-lesson: 16
+lesson: 13
 source: docs/language/pointers.md
 ---
 

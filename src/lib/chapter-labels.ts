@@ -23,6 +23,11 @@ const labels = {
   '/learn/project/': ['实践：库存更新', 'Project: inventory'],
   '/learn/workflow/': ['运行、格式化与排错', 'Tools and workflow'],
   '/reference/': ['语言参考', 'Overview'],
+  '/reference/keywords/': ['关键字索引', 'Keyword index'],
+  '/reference/bindings/': ['变量声明与作用域', 'Variables and scope'],
+  '/reference/operators/': ['运算符与表达式', 'Operators'],
+  '/reference/builtins/': ['内建函数与类型 API', 'Builtin APIs'],
+  '/reference/library/': ['标准库总览', 'Library overview'],
   '/reference/types/': ['类型与转换', 'Types and casts'],
   '/reference/lexical/': ['词法与字面量', 'Syntax and literals'],
   '/reference/grammar/': ['语法与优先级', 'Grammar'],
@@ -44,7 +49,7 @@ const labels = {
   '/reference/toolchain/': ['构建与原生集成', 'Build integration'],
   '/reference/diagnostics/': ['诊断代码', 'Diagnostics'],
   '/reference/utf/': ['UTF 标准库', 'UTF library'],
-  '/reference/simd/': ['SIMD 向量与掩码', 'SIMD vectors and masks'],
+  '/reference/simd/': ['SIMD 向量与掩码', 'SIMD and masks'],
 } satisfies Record<ChapterPath, readonly [string, string]>;
 
 export function chapterLabel(path: ArticlePath): string {

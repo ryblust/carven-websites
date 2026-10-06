@@ -154,6 +154,7 @@
   padding: var(--space-3) var(--space-4);
   border: 1px solid transparent;
   border-radius: var(--radius);
+  corner-shape: var(--corner-shape);
   background: transparent;
   color: var(--muted);
   font-size: 0.9375rem;
@@ -210,10 +211,16 @@
   line-height: var(--body-leading);
   margin-top: var(--space-3);
 }
-.showcase-caption .text-link {
-  align-self: flex-start;
+.showcase-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
   margin-top: auto;
   padding-top: var(--space-4);
+}
+.showcase-try {
+  color: var(--accent);
 }
 .showcase-code {
   grid-area: code;
@@ -246,6 +253,7 @@
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
   background: var(--surface);
   box-shadow: 4px 4px 0 var(--shadow);
   overflow: hidden;
@@ -353,37 +361,162 @@
 }
 
 /* Workflow */
+.workflow-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.8fr);
+  align-items: center;
+  gap: 80px;
+}
+#native-heading {
+  scroll-margin-top: calc(var(--header-height) + 24px);
+}
+.workflow-article {
+  display: block;
+  padding: 20px 24px;
+  border-inline-start: 2px solid var(--accent-line);
+  color: var(--ink-emphasis);
+}
+.workflow-article-label {
+  color: var(--quiet);
+  font-size: var(--text-xs);
+}
+.workflow-article h3 {
+  margin-top: 12px;
+  font: var(--weight-heading) 1.5rem/1.45 var(--heading);
+  text-wrap: balance;
+}
+.workflow-article p {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: var(--body-leading);
+}
+.workflow-article-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  color: var(--accent);
+  font-size: var(--text-sm);
+}
+.workflow-article:hover {
+  background: var(--bg-soft);
+}
+.workflow-article:hover h3 {
+  text-decoration: underline;
+  text-decoration-color: var(--accent-line);
+  text-underline-offset: 5px;
+}
 .workflow-steps {
   list-style: none;
   margin: 56px 0 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
+  gap: 40px;
+  align-items: start;
 }
 .workflow-steps li {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: 28px;
+  position: relative;
+  min-width: 0;
+}
+.workflow-steps details {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
   background: var(--surface);
-  box-shadow: 3px 3px 0 var(--shadow);
+  overflow: clip;
+}
+.workflow-steps summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 24px;
+  list-style: none;
+  cursor: pointer;
+}
+.workflow-steps summary::-webkit-details-marker {
+  display: none;
+}
+.workflow-steps summary:hover,
+.workflow-steps details[open] summary {
+  background: var(--bg-soft);
+}
+.workflow-steps summary:focus-visible {
+  outline-offset: -3px;
+}
+.workflow-sketch {
+  width: 150px;
+  height: 90px;
+  align-self: center;
+  margin-bottom: 12px;
+  fill: none;
+  stroke: var(--prose);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.workflow-connector {
+  position: absolute;
+  width: 32px;
+  height: 20px;
+  inset-inline-end: -36px;
+  top: 70px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.workflow-artifact {
+  color: var(--muted);
+  font: var(--code-weight) var(--text-sm)/1.7 var(--mono);
+}
+.workflow-disclosure {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  color: var(--quiet);
+  font-size: var(--text-xs);
+}
+.workflow-steps details[open] .workflow-disclosure svg {
+  transform: rotate(180deg);
+}
+.workflow-detail {
+  padding: 20px 24px 24px;
+  border-top: 1px solid var(--line-soft);
+}
+.workflow-detail dl {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: var(--text-sm);
+}
+.workflow-detail dl > div {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 8px;
+}
+.workflow-detail dt {
+  color: var(--quiet);
+}
+.workflow-detail code {
+  margin-top: 16px;
 }
 .workflow-index {
-  font-family: var(--mono);
-  font-size: var(--text-xs);
+  font-size: 1.15rem;
+  font-family: var(--heading);
+  font-style: italic;
   color: var(--accent);
 }
-.workflow-steps h3 {
+.workflow-title {
   color: var(--ink-emphasis);
   font-weight: var(--weight-emphasis);
   font-size: 1.125rem;
   line-height: 1.5;
 }
 .workflow-steps p {
-  flex: 1;
   color: var(--muted);
   font-size: 0.9375rem;
   line-height: var(--body-leading);
@@ -399,8 +532,35 @@
   color: var(--prose);
   font: 0.8125rem / 1.7 var(--mono);
 }
-.workflow-more {
-  margin-top: 28px;
+@media (max-width: 900px) {
+  .workflow-intro {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .workflow-article {
+    padding: 16px 20px;
+  }
+  .workflow-connector {
+    inset-inline-end: auto;
+    left: 50%;
+    top: auto;
+    bottom: -30px;
+    transform: translateX(-50%) rotate(90deg);
+  }
+  .workflow-steps {
+    gap: 40px;
+  }
+  .workflow-steps summary {
+    display: grid;
+    grid-template-columns: 100px minmax(0, 1fr);
+    padding: 20px;
+    gap: 6px 20px;
+  }
+  .workflow-sketch {
+    grid-row: 1 / 5;
+    width: 100px;
+    margin: 0;
+  }
 }
 
 /* Quick start */
@@ -466,6 +626,7 @@
     grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
     padding: var(--space-1);
     border-radius: var(--radius);
+    corner-shape: var(--corner-shape);
     background: var(--control);
   }
   .showcase-tabs button {
@@ -487,7 +648,7 @@
   }
   .workflow-steps {
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-3);
+    gap: 40px;
   }
   .quickstart {
     grid-template-columns: minmax(0, 1fr);
@@ -538,9 +699,6 @@
   .terminal-step {
     padding-inline: var(--space-4);
   }
-  .workflow-steps li {
-    padding: 22px 20px;
-  }
 }
 @media (prefers-reduced-motion: no-preference) {
   .showcase-tabs button,
@@ -552,11 +710,6 @@
   }
 }
 
-.workflow-index {
-  font-size: 1.15rem;
-  font-family: var(--heading);
-  font-style: italic;
-}
 .code-window-bar {
   background: var(--bg-soft);
 }

@@ -2,7 +2,7 @@
 title: "Formal grammar and precedence"
 description: "Complete EBNF productions, associativity, delimiters, and control-header disambiguation."
 section: reference
-lesson: 21
+lesson: 26
 source: docs/language/grammar.md
 ---
 
@@ -26,7 +26,7 @@ Explicit comma lists accept one trailing comma only where their productions perm
 
 Module imports form a contiguous prefix. Top-level `const` bindings declare module constants, while `const { ... }` or `const "label" { ... }` introduces a constant block; the optional label only names the block in diagnostics and need not be unique. A test name is optional; explicit names are unique within a module, and anonymous tests are identified by source location in reports. Top-level executable statements form an implicit entry. There is no namespace block, generic declaration, default parameter, or variadic parameter syntax. Range expressions `a..b` and `a..=b` are non-associative and require both integer bounds. Omitted bounds are permitted only in range patterns; step and implicit-reverse forms are unsupported. Unqualified `range<T>` denotes an integer range type. Pattern bounds use shift expressions; parentheses allow the full expression grammar. An unparenthesized `|` separates alternatives. A bare identifier binds a value; it does not test membership in a stored range.
 
-`class` is a reserved keyword. A class body interleaves fields, each followed by a comma except optionally the last, and operations. An instance operation's first parameter is untyped `self`, `&self`, or `&&self`; this spelling is contextual, not a keyword. An operation without a receiver is associated, with no `static` keyword. Other parameters need type annotations. Class forms, nested declarations, `const fn`, and C++ boundary operations are not admitted in class bodies. The optional `const` before a top-level `fn` declares compile-time call capability: required constant execution calls only such functions, and a `const fn` may call only other `const fn` dependencies.
+`class` is a reserved keyword. A class body interleaves fields, each followed by a comma except optionally the last, and operations. An instance operation's first parameter is untyped `self`, `&self`, or `&&self`; this spelling is contextual, not globally reserved. A first parameter named `self` cannot carry a type annotation, and later class-operation parameters cannot use that name. An operation without a receiver is associated, with no `static` keyword. Other parameters need type annotations. Class forms, nested declarations, `const fn`, and C++ boundary operations are not admitted in class bodies. The optional `const` before a top-level `fn` declares compile-time call capability: required constant execution calls only such functions, and a `const fn` may call only other `const fn` dependencies.
 
 Raw and multiline string boundaries follow [text layout](/reference/text/#string-literals-and-multiline-layout). SIMD type spellings are builtin type names. Named functions may use `const name: T` static parameters; lambdas and callable views may not. `const if` and Read integer-range `const for` explicitly select static specialization. Conditionless while is `while { ... }`; the C-style for condition is required. A const block is a transfer boundary, so return cannot leave it.
 
@@ -140,10 +140,10 @@ CPP_ANGLE_HEADER_NAME = "<", cpp-angle-header-content, ">";
 CPP_QUOTE_HEADER_NAME = "\"", cpp-quote-header-content, "\"";
 cpp-angle-header-content = cpp-angle-header-character,
                            { cpp-angle-header-character };
-cpp-angle-header-character = source-character - ">" - line-terminator;
+cpp-angle-header-character = source-character - ">" - line-terminator - U+0000;
 cpp-quote-header-content = cpp-quote-header-character,
                            { cpp-quote-header-character };
-cpp-quote-header-character = source-character - "\"" - line-terminator;
+cpp-quote-header-character = source-character - "\"" - line-terminator - U+0000;
 ```
 
 ## 08 · C++ source fragments

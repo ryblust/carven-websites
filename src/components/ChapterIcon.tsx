@@ -1,17 +1,27 @@
 // Deliberately drawn curves and uneven endpoints keep these small pen sketches crisp.
-// Shared subjects use the same mark in the tutorial and the language reference.
+// Shared subjects use the same mark in all three documentation sections.
 const check =
   'M6.7 12.1q1.8 1.3 3.1 3.2Q14 10.8 17.5 7.9M20.9 8.7C17.8-1.1 3.1 1.2 2.6 11.4S15.4 25.6 20.4 17q1.7-2.8 1-5.8';
 const terminal =
   'M3.1 4.5Q12 3.6 21 4.2l-.6 15.5q-9.2.9-17.5.1ZM3.2 8.8q9.1.5 17.4-.2M7 12.2l3.1 2.7-3.3 2.4m7.1.1 3.7-.2';
+const failures =
+  'M9.7 7.4l3.6-3.2c4.7-4.2 11 2.3 6.9 6.8l-4.1 4q-3.9 3.6-7-.4M14 16.3l-3.3 3.1C6.2 23.6-.2 17.2 4.2 13l4-3.8q3.9-3.5 7 .1';
+const constants =
+  'M11.7 2.2q1.7 7.4 9.6 9.6-7.7 2.1-9.2 10Q10.2 14 2.3 12q7.7-2.1 9.4-9.8ZM18.4 3.1l1.2-1m.5 4 1.8-.4';
 const symbols: Record<string, string> = {
   reference:
     'M12 6.3Q8.5 3.5 2.8 4.8l.5 14.7q5-1.2 8.9 1.8 3.6-3.2 8.7-2.4l.3-14.8q-5.6-.6-9.2 2.2Zm0 0 .2 15M5.7 8.7l3.2.5m6.4-.4 3.1-.6',
+  builtins:
+    'M3.2 7.4q8.6-.7 17.5-.2l-.3 13q-8.5.5-17.3-.1ZM8.1 7.3l.2-3.7 7.2.3-.2 3.6M3.4 12.5q8.4.5 17-.1M10.5 11.1l.1 3.1 2.9-.2-.1-3.2',
+  library:
+    'M3.4 4.3l4.1-.1-.2 16.4-4.4-.2ZM10 3.2l4.2.2-.1 17.1-4.2-.1ZM16.7 5.1l3.9-.7 2.2 15.7-4 .6ZM3.3 8.4l3.9.1m2.9-.8 3.8.2m3.6 1.3 3.5-.5',
   types: 'M3.5 5q8.4-.8 17-.2M11.7 5q.7 7.6.1 15.4M8.4 20.3l7.1-.4M3.4 4.4l.1 2.5m17-2.8-.2 2.5',
   lexical:
     'M7.6 5.3Q4.2 8.7 2.9 12l5.2 6.3M16.8 5.7l4.3 6.1q-2.2 3.5-5 6.7M14.3 3.6q-2.3 8.5-4.2 17',
   grammar:
     'M5.1 3.1l10.2.5 3.7 3.9-.4 13.2-13.9-.5ZM15.3 3.8l-.2 4.3 3.5-.4M8.1 10.6l7.3-.3m-7.5 4 6 .3m-6.2 3 4.2-.1',
+  operators:
+    'M3.7 7.2l6.9-.2M7 3.5l.2 7.1M14.3 7.2l6.5-.2M4.7 15.1l4.8 4.8m-.1-4.9-4.9 4.8M14.2 15.8l6.6-.2m-6.4 3.3 6.5.2',
   cli: terminal,
   toolchain: terminal,
   diagnostics: 'M11.7 3.2Q7.2 10.3 2.3 20.6q9.1-.7 19.1.1Q17 11 12.9 4.5M12 9.1l-.3 5.5m.1 3.1.1.2',
@@ -34,24 +44,37 @@ const symbols: Record<string, string> = {
   formatting: 'M4.6 5q3.3 3.3 6 7l-6.5 6.8M13.3 19.1q3.7-.5 7.6-.1',
   modules:
     'M8.8 2.9l6.5.3-.4 5.7-6.2-.2ZM2.8 16.1l6.1-.3.1 5.3-6.1.3Zm12.4-.2 6 .3-.4 5.3-5.9-.4ZM11.8 9.2l.3 3.8M5.9 15.6l.2-2.9 12.2.4-.2 2.6',
-  failures:
-    'M9.7 7.4l3.6-3.2c4.7-4.2 11 2.3 6.9 6.8l-4.1 4q-3.9 3.6-7-.4M14 16.3l-3.3 3.1C6.2 23.6-.2 17.2 4.2 13l4-3.8q3.9-3.5 7 .1',
+  failures,
+  'failure-contracts': failures,
   closures: 'M2.3 12.9l4 .3 3-8.9q2.6 8.5 4.7 16.2l3.1-10.6 2.2 3.4 2.5-.2',
   testing: check,
-  constants:
-    'M11.7 2.2q1.7 7.4 9.6 9.6-7.7 2.1-9.2 10Q10.2 14 2.3 12q7.7-2.1 9.4-9.8ZM18.4 3.1l1.2-1m.5 4 1.8-.4',
+  constants,
+  'compile-time': constants,
+  'compiler-architecture':
+    'M3.1 3.4l7.2.2-.3 5.5-7.1-.3Zm10.6 11.4 7.1.4-.3 5.4-7.2-.2ZM6.4 9.3l-.1 8.2 7.1-.1m-3-2.9 3.2 3-3.3 2.7M13.8 6.2q3.5-.4 6.7.2m-2.5-2.8 2.8 2.7-2.9 2.8',
+  'runtime-boundary':
+    'M3.1 3.8l17.7.4-.3 16.4-17.7-.4ZM3.2 9.8l17.2-.2M8.7 4l-.1 16.3M13.6 13.4l4.4.2m-2.2-2.1 2.4 2.2-2.5 2.2',
+  'cpp-generation':
+    'M7.1 4.5Q2.9 7.6 2.6 12q1.7 4 5.2 6.8M16.7 5l4.7 7.2-5.1 6.1M10.2 9.4l-.1 5.4m-2.4-2.7 5.1.2M16.2 9.7l-.1 5.3m-2.4-2.7 5.1.1',
+  philosophy:
+    'M12 2.8q-8.8.3-9 8.7T12 21q8.7-.5 9-9T12 2.8ZM14.9 7.4l-2.1 5.5-4.2 3.8 2-5.7Zm-3.7 3.8 1.6 1.7',
   pointers: 'M5.2 3.1q-.7 8.7-.1 17.1l4.8-5.1 3.7 6.4 3.1-1.9-3.7-6.4 7-.2Q12.9 7.7 5.2 3.1Z',
   interop:
     'M3.1 6.7l6.4.4-.2 10.3-6.5-.6ZM14.6 6.9l6.6-.3-.4 10.5-6.2.3ZM8 11.9q4.3.4 8.6-.2m-2.5-2.1 2.7 2.1-2.5 2.3',
   project: 'M3.2 7.1l6.3.1 2.6-3.1 8.7.4-.5 15.3q-8.6.7-17.3-.1ZM3.5 9.5q8.9-.7 17-.2',
   workflow: terminal,
 };
+const aliases: Record<string, string> = {
+  keywords: 'lexical',
+  bindings: 'values',
+  'syntax-and-inference': 'lexical',
+};
 
 export function ChapterIcon({ path }: { path: string }) {
   const key = path.split('/').filter(Boolean).at(-1) ?? 'learn';
   return (
     <svg className="chapter-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d={symbols[key] ?? symbols.reference} />
+      <path d={symbols[aliases[key] ?? key] ?? symbols.reference} />
     </svg>
   );
 }

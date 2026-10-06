@@ -2,7 +2,7 @@
 title: "Diagnostic code catalog"
 description: "Find current checking boundaries, default severity, and likely fixes by code."
 section: reference
-lesson: 22
+lesson: 27
 source: src/diagnostics/code.cpp
 ---
 

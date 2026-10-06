@@ -51,14 +51,12 @@ The output is `8 0`. Choose a block when the function needs local steps or early
 A function that returns no value infers void:
 
 ```carven
-fn show_total(total: i32) {
-    println("Total:", total);
-}
+fn show_total(total: i32) => println("Total:", total);
 
 show_total(36);
 ```
 
-The output is `Total: 36`. Call show_total as a statement; there is no value to save in a local binding. A bare `return;` can finish such a function early.
+The output is `Total: 36`. An expression body can return a `void` call too; it does not need an explicit `-> void`. Call show_total as a statement; there is no value to save in a local binding. Use a block when an action needs multiple steps or a bare `return;` to finish early.
 
 ## Declaration order and calls
 

@@ -166,9 +166,11 @@ describe('content build', () => {
     ['reserved home route', '/', 1],
     ['reserved error route', '/404/', 1],
     ['reserved playground route', '/playground/', 1],
+    ['reserved design route', '/design/', 1],
     ['reserved translated home route', '/zh/', 1],
     ['reserved translated error route', '/zh/404/', 1],
     ['reserved translated playground route', '/zh/playground/', 1],
+    ['reserved translated design route', '/zh/design/', 1],
   ] as const)('rejects %s before publication', ([rule, path, number]) =>
     Effect.gen(function* () {
       let published = false;

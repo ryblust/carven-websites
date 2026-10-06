@@ -2,7 +2,7 @@
 title: "SIMD vectors, masks, and block helpers"
 description: "Fixed logical lanes, static controls, bounded loads, byte and float helpers, and native backend requirements."
 section: reference
-lesson: 18
+lesson: 23
 source: crafts/carven/std/simd/README.md
 ---
 

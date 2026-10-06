@@ -2,7 +2,7 @@
 title: "Typed failure contracts"
 description: "Failure sets, explicit upper bounds, inference, propagation targets, partial catches, guards, and rethrow."
 section: reference
-lesson: 8
+lesson: 7
 source: docs/language/failures.md
 ---
 
@@ -63,7 +63,7 @@ fn wrapper() throw B {
 }
 ```
 
-This program handles A and retains B outward. To spell the remaining propagation explicitly, use the following wrapper with the same A, B, and source declarations:
+This program handles A and retains B outward. Residual forwarding happens at the `try` boundary without an extra `?` on the `try` statement or a required wildcard handler. The call inside the protected body still needs `source()?`; `try` does not insert missing propagation markers into its body. An explicit wildcard `rethrow` makes the same forwarding visible in the source. To spell the remaining propagation explicitly, use the following wrapper with the same A, B, and source declarations:
 
 ```carven
 fn wrapper() throw B {

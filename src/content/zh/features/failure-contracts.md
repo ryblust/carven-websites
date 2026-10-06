@@ -11,6 +11,20 @@ source: docs/language/failures.md
 
 **组合一组操作，无需为每一层额外定义一个汇总错误类型。** 失败集合由语言组合，原有的类型身份与载荷保留到真正需要处理它们的位置。
 
+<figure class="semantic-sketch">
+  <svg viewBox="0 0 640 190" aria-hidden="true" focusable="false">
+    <path d="M15 19q84-3 166 1l-2 119q-81 4-164-1ZM184 76q25-3 48 0m-8-6 8 6-8 6" />
+    <path d="M246 51q65-3 127 1l-1 50q-65 3-126-1ZM376 75q22-3 44 0m-8-6 8 6-8 6" />
+    <path d="M434 38q95-3 187 1l-1 75q-95 3-187-1Z" />
+    <path class="sketch-accent" d="M306 106q-2 21 2 43m-7-8 7 8 7-8M255 182q27 2 55-1" />
+    <text x="43" y="50">Missing</text><text x="43" y="85">Denied</text><text x="43" y="120">BadPort</text>
+    <text x="276" y="82">catch</text>
+    <text x="461" y="69">Denied</text><text x="461" y="100">BadPort</text>
+    <text class="sketch-accent" x="256" y="175">8080</text>
+  </svg>
+  <figcaption>Missing 恢复为默认值 8080；Denied 和 BadPort 继续向外传播。</figcaption>
+</figure>
+
 ## 把结果组合的配套工作交给语言
 
 在 C++ 中，结果类型可以用一个错误类型参数表达失败，例如 C++23 的 std::expected；多种载荷可由 std::variant 汇总，传播与恢复可用分支或库组合器组织。跨层组合时，项目需要安排错误集合、载体转换以及相应的接口约定。
@@ -95,13 +109,27 @@ private fn load() -> i32 => parse(read()?)?;
 
 公开的 port 函数在配置缺失时使用 8080：
 
-```carven
+<div class="annotated-example">
+
+```carven {1,4}
 fn port() -> i32 throw Denied + BadPort => try {
     load()?
 } catch {
     Missing(_) => 8080,
 };
 ```
+
+<p class="code-focus-caption">关注高亮行：向外的契约，以及 Missing 的恢复分支。</p>
+<aside class="margin-note">
+  <strong>恢复会缩小契约</strong>
+  <p>高亮的两行相互对应：完整恢复 Missing 后，公开契约只剩 Denied + BadPort。</p>
+</aside>
+</div>
+
+<div class="example-entry">
+  <a href="/zh/playground/#example=typed-failures">在 Playground 运行完整例子 →</a>
+  <span>这段节选的完整程序，包含 read、parse 和四种输入。</span>
+</div>
 
 处理 Missing 后，它不再出现在向外的契约中。Denied 和 BadPort 仍携带原有数据传给调用者。首页将 load 的表达式直接写入 port，行为相同。
 
@@ -142,7 +170,7 @@ report 是公开函数且没有 `throw` 子句，所以编译器还会报告 `CV
 
 编译器根据私有辅助函数、lambda 以及顶层语句构成的隐式入口中的操作推断失败集合。模块外可见的函数和显式 `main` 若有向外传播的失败，须显式声明允许的类型；编译器检查实现是否超出这一上界。调用者根据声明理解接口，无需阅读函数体。
 
-因此顶层的 `println(port()?);` 不需要 `throw` 子句：失败逸出隐式入口时，程序以失败状态结束，不会自动输出内容。
+因此顶层的 `println(port()?);` 不需要 `throw` 子句：失败逸出隐式入口时，局部清理完成后会在 stderr 报告失败类型和结构化载荷，程序以 `EXIT_FAILURE` 退出。应用需要自己的消息或恢复行为时，用 `catch` 处理它。
 
 声明允许的某种失败，即使当前实现没有产生它，也仍属于调用契约。实现可以在已声明范围内调整；扩大范围则是调用者需要重新处理的接口变化。
 

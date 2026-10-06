@@ -4,6 +4,9 @@ import { Link } from '@tanstack/react-router';
 import { localizedPath, translate, type Locale } from '../lib/i18n';
 import { Wordmark } from '../components/Brand';
 import { Sketch } from '../components/Sketch';
+import { CompilationFlow } from '../components/CompilationFlow';
+import { ArrowUpRight, Play } from 'lucide-react';
+import { UIIcon } from '../components/UIIcon';
 import { repository } from '../lib/site';
 import { homeExamples } from '../generated/home-examples';
 import '../styles/home.css';
@@ -32,6 +35,7 @@ export default function Home({ locale }: { locale: Locale }) {
       ),
       standard: 'C++20',
       path: '/learn/aggregates/',
+      playground: 'structured-output',
     },
     {
       label: t('编译期生成', 'Build at compile time'),
@@ -49,6 +53,7 @@ export default function Home({ locale }: { locale: Locale }) {
       ),
       standard: 'C++20',
       path: '/features/compile-time/',
+      playground: 'static-text',
     },
     {
       label: t('静态特化', 'Specialize runtime code'),
@@ -67,6 +72,7 @@ export default function Home({ locale }: { locale: Locale }) {
       ),
       standard: 'C++20',
       path: '/reference/functions/',
+      playground: 'specialization',
     },
     {
       label: t('SIMD 字节扫描', 'Scan bytes with SIMD'),
@@ -87,6 +93,7 @@ export default function Home({ locale }: { locale: Locale }) {
       ),
       standard: 'C++20',
       path: '/reference/simd/',
+      playground: 'simd-bytes',
     },
     {
       label: t('失败处理', 'Handle failures'),
@@ -104,6 +111,7 @@ export default function Home({ locale }: { locale: Locale }) {
       ),
       standard: 'C++23',
       path: '/features/failure-contracts/',
+      playground: 'typed-failures',
     },
     {
       label: t('调用 C++', 'Use C++ libraries'),
@@ -124,37 +132,12 @@ export default function Home({ locale }: { locale: Locale }) {
       ),
       standard: 'C++20',
       path: '/learn/interop/',
+      playground: 'native-json',
     },
   ] as const;
   const example = examples[selected]!;
   const cpp26 = 'cpp26' in example ? example.cpp26 : undefined;
   const codeLanguage = language === 'cpp26' && !cpp26 ? 'cpp' : language;
-  const steps = [
-    {
-      title: t('编写 Carven', 'Write Carven'),
-      detail: t(
-        '在源码中写明读取、修改还是转移所有权，以及哪些失败会向外传递。编译器在生成代码前检查这些契约。',
-        'State whether code reads, mutates, or takes ownership, and which failures can escape. The compiler checks these contracts before generating code.',
-      ),
-      command: 'main.cv',
-    },
-    {
-      title: t('生成 C++', 'Generate C++'),
-      detail: t(
-        'compile 输出 C++20 源文件，可以直接打开阅读，也可以放进现有构建。',
-        'compile writes C++20 source files you can open, read, and add to an existing build.',
-      ),
-      command: 'carven compile -o generated main.cv',
-    },
-    {
-      title: t('原生构建', 'Build natively'),
-      detail: t(
-        '你的 C++ 编译器负责编译、链接与优化。直接运行源文件时默认使用 clang++，可用 CXX 指定其他编译器。',
-        'Your C++ compiler handles compilation, linking, and optimization. Running a source file directly uses clang++ by default; set CXX to choose another compiler.',
-      ),
-      command: 'carven main.cv',
-    },
-  ];
   return (
     <div className="home-page">
       <section className="home-intro" aria-labelledby="home-heading">
@@ -233,9 +216,19 @@ export default function Home({ locale }: { locale: Locale }) {
               >
                 <h3>{item.title}</h3>
                 <p>{item.detail}</p>
-                <Link className="text-link" to={localizedPath(item.path, locale)}>
-                  {t('了解相关用法', 'Explore this feature')} <span aria-hidden="true">→</span>
-                </Link>
+                <div className="showcase-links">
+                  <Link
+                    className="text-link showcase-try"
+                    to={localizedPath('/playground/', locale)}
+                    hash={`example=${item.playground}`}
+                  >
+                    <UIIcon icon={Play} />
+                    {t('在 Playground 打开', 'Open in Playground')}
+                  </Link>
+                  <Link className="text-link" to={localizedPath(item.path, locale)}>
+                    {t('了解相关用法', 'Explore this feature')} <span aria-hidden="true">→</span>
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
@@ -298,36 +291,37 @@ export default function Home({ locale }: { locale: Locale }) {
       </section>
 
       <section className="home-section workflow" aria-labelledby="native-heading">
-        <header className="section-head">
-          <p className="eyebrow">{t('继续使用你的 C++ 工具链', 'Native integration')}</p>
-          <h2 id="native-heading">
-            {t('写 Carven，用 C++ 工具链构建。', 'Write Carven. Build with your C++ tools.')}
-          </h2>
-          <p>
-            {t(
-              'Carven 检查访问、所有权和失败契约，生成可直接阅读的 C++ 源码。接下来，由你的 C++ 工具链完成编译、链接和优化。',
-              'Carven checks access, ownership, and failure contracts, then generates C++ source you can inspect. Your C++ toolchain compiles, links, and optimizes it.',
-            )}
-          </p>
-        </header>
-        <ol className="workflow-steps">
-          {steps.map((step, index) => (
-            <li key={step.command}>
-              <span className="workflow-index" aria-hidden="true">
-                {String(index + 1).padStart(2, '0')}
-              </span>
-              <h3>{step.title}</h3>
-              <p>{step.detail}</p>
-              <code>{step.command}</code>
-            </li>
-          ))}
-        </ol>
-        <p className="workflow-more">
-          <Link className="text-link" to={localizedPath('/features/cpp-generation/', locale)}>
-            {t('了解 C++ 如何生成', 'See how the C++ is generated')}{' '}
-            <span aria-hidden="true">→</span>
+        <div className="workflow-intro">
+          <header className="section-head">
+            <p className="eyebrow">{t('继续使用你的 C++ 工具链', 'Native integration')}</p>
+            <h2 id="native-heading">
+              {t('写 Carven，用 C++ 工具链构建。', 'Write Carven. Build with your C++ tools.')}
+            </h2>
+            <p>
+              {t(
+                'Carven 检查访问、所有权和失败契约，生成可直接阅读的 C++ 源码。接下来，由你的 C++ 工具链完成编译、链接和优化。',
+                'Carven checks access, ownership, and failure contracts, then generates C++ source you can inspect. Your C++ toolchain compiles, links, and optimizes it.',
+              )}
+            </p>
+          </header>
+          <Link
+            className="workflow-article"
+            to={localizedPath('/features/cpp-generation/', locale)}
+          >
+            <span className="workflow-article-label">{t('深入阅读', 'Further reading')}</span>
+            <h3>{t('让语义决定 C++ 的组织', 'Let semantics shape the C++')}</h3>
+            <p>
+              {t(
+                '从模块接口到所有权与失败传播，看看源码中的契约如何成为生成代码。',
+                'From module interfaces to ownership and failure propagation, see how source contracts shape the generated code.',
+              )}
+            </p>
+            <span className="workflow-article-action">
+              {t('阅读文章', 'Read the article')} <UIIcon icon={ArrowUpRight} />
+            </span>
           </Link>
-        </p>
+        </div>
+        <CompilationFlow locale={locale} />
       </section>
 
       <section className="home-section quickstart" aria-labelledby="quickstart-heading">

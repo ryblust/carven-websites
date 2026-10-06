@@ -2,7 +2,7 @@
 title: SIMD 向量、掩码与块辅助函数
 description: 固定逻辑通道、静态控制、受限加载、字节与浮点辅助函数及原生后端要求。
 section: reference
-lesson: 18
+lesson: 23
 source: crafts/carven/std/simd/README.md
 ---
 

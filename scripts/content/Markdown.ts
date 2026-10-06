@@ -49,7 +49,20 @@ export class Markdown extends Context.Service<
         marked.use({
           renderer: {
             code({ text, lang }) {
-              const language = lang || 'text';
+              // A fence may select lines for an explanation, without changing its source text.
+              const info = /^(\S+?)(?:\s+\{(\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*)\})?$/.exec(
+                lang || 'text',
+              );
+              if (!info) throw new Error(`Invalid code fence: ${lang}`);
+              const language = info[1]!;
+              const ranges =
+                info[2]?.split(',').map((range) => {
+                  const [first, last = first] = range.split('-').map(Number);
+                  return [first!, last!] as const;
+                }) ?? [];
+              const lines = text.split('\n').length;
+              if (ranges.some(([first, last]) => first < 1 || last < first || last > lines))
+                throw new Error(`Emphasized lines exceed code block: ${lang}`);
               const highlighted = highlighter.codeToHtml(text, {
                 lang: language,
                 themes: { light: paper.name, dark: vesperBlack.name },
@@ -58,6 +71,11 @@ export class Markdown extends Context.Service<
                   {
                     pre(node) {
                       node.properties['data-language'] = language;
+                      if (ranges.length) node.properties['data-emphasized'] = 'true';
+                    },
+                    line(node, line) {
+                      if (ranges.some(([first, last]) => line >= first && line <= last))
+                        node.properties['data-emphasis'] = 'true';
                     },
                   },
                 ],

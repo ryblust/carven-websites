@@ -21,6 +21,7 @@ export const ArticleMetadata = Schema.Union([
       'failure-contracts',
       'cpp-generation',
       'compile-time',
+      'internals',
     ]),
   }),
 ]);

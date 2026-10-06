@@ -1,4 +1,9 @@
 /* Shared buttons, links, icon controls, and their motion preferences. */
+.ui-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
 .button {
   min-height: 44px;
   padding: 10px 22px;
@@ -71,6 +76,7 @@
   padding: 10px;
   border: 1px solid transparent;
   border-radius: var(--radius);
+  corner-shape: var(--corner-shape);
   background: transparent;
   color: var(--prose);
 }
@@ -102,6 +108,9 @@
 }
 /* Physical feedback is optional when motion is permitted. */
 @media (prefers-reduced-motion: no-preference) {
+  .icon-spinning {
+    animation: icon-spin 1s linear infinite;
+  }
   .button {
     transition:
       color 160ms var(--ease),
@@ -133,6 +142,11 @@
   .theme-toggle[data-preference='light'] .theme-sun,
   .theme-toggle[data-preference='dark'] .theme-moon {
     transform: none;
+  }
+}
+@keyframes icon-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 @media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {

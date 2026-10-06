@@ -2,6 +2,8 @@ import { InlineCode } from './InlineCode';
 import { plainInlineText } from '../lib/inline-code';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Link, useHydrated } from '@tanstack/react-router';
+import { Search, X } from 'lucide-react';
+import { UIIcon } from './UIIcon';
 import { articles, type ArticlePath } from '../generated/manifest';
 import { localeOf, translate, type Locale } from '../lib/i18n';
 
@@ -64,10 +66,7 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
         aria-haspopup="dialog"
         aria-label={t('搜索文档', 'Search documentation')}
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="10" cy="10" r="6.5" />
-          <path d="m15 15 6 6" />
-        </svg>
+        <UIIcon icon={Search} />
         <span>{t('搜索文档', 'Search docs')}</span>
         <kbd>{shortcut}</kbd>
       </button>
@@ -101,7 +100,7 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
               onClick={close}
               aria-label={t('关闭搜索', 'Close search')}
             >
-              ×
+              <UIIcon icon={X} />
             </button>
           </div>
           <input

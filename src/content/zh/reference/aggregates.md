@@ -2,7 +2,7 @@
 title: 结构体、类、数组与枚举
 description: 构造次序、值类、上下文构造、边界检查、枚举载荷和递归存储。
 section: reference
-lesson: 5
+lesson: 10
 source: docs/language/aggregates.md
 ---
 
@@ -18,10 +18,12 @@ struct Point {
 
 fn origin() -> Point => Point { 0, 0 };
 
-fn sample() -> Point => Point { y: 2, x: 1 };
+fn sample() -> Point => { y: 2, x: 1 };
 ```
 
 命名形式映射到字段声明，但初始化表达式仍按书写顺序求值。非空构造的重复、遗漏、多余、未知字段和不兼容值都报错。非空 Carven `T { ... }` 构造结构体，类只能在自身类体内构造；空构造也支持有默认值的内建类型。上下文能提供类型时可以省略类型，见[上下文构造](#上下文构造)。枚举和 callable 使用各自的表达式形式。外部 C++ 类型有单独的构造规则。
+
+`origin` 的位置构造保留类型名；`sample` 的命名构造从声明的 `Point` 结果类型获得上下文。
 
 结构体不支持 `==` 或 `!=`；需要比较时请显式比较字段。数组和枚举只有在元素或载荷支持相等时才支持相等。
 
@@ -77,6 +79,8 @@ println(counter.read(), counter); // 4 Counter
 | `fn name(&&self, ...)` | Take 整个 owner 的实例操作                                             |
 | `private fn ...`       | 只能在本类体内访问                                                     |
 
+首参数命名为 `self` 时必须省略类型标注，类操作的后续参数也不能命名为 `self`。自由函数参数或普通局部绑定名为 `self` 时不会获得接收者含义。
+
 实例操作用 `expression.name(...)` 调用。接收者在显式实参之前求值一次，按普通 Read、Write 或 Take 规则绑定；显式实参仍需写自己的访问标记。实例操作不能单独取为值。没有 `static` 关键字、成员重载或隐式 `self` 查找：操作内部只能用 `self.field` 访问字段。
 
 选择字段和构造表示只允许在定义该类的词法类体内进行。这项权限覆盖同类的其他值以及类操作中书写的 lambda，但不延伸到同模块的其他声明或它们调用的自由函数。在类体外写 `counter.value`、`Counter { value: 1 }` 或 `let c: Counter = {};` 报告 `CV-ACCESS-CLASS-PRIVATE`；从外部调用 `private fn` 也报告此代码。普通操作沿用类自身的 `private`/`export` 可见范围。操作不进入模块命名空间；字段与操作共用一个命名空间，名字必须唯一。
@@ -118,15 +122,13 @@ println(text, width(segment), width({ start: origin(), end: { x: 5, y: 0 } }));
 在 match 或 catch 分支体开头，`{ field: value }` 是构造，而 `{}` 是空分支块。空构造分支写作 `({})`：
 
 ```carven
-fn pick(flag: bool) -> Point {
-    return match flag {
-        true => { x: 1, y: 0 },
-        false => ({}),
-    };
-}
+fn pick(flag: bool) -> Point => match flag {
+    true => { x: 1, y: 0 },
+    false => ({}),
+};
 ```
 
-此片段使用上一例中的 `Point`。函数体、if 体和 try 体始终是块；块的末尾表达式本身可以是上下文构造。
+此片段使用上一例中的 `Point`。块体函数、if 分支和 try 体的花括号仍界定一个块；块的末尾表达式本身可以是上下文构造。
 
 ## 固定数组
 
@@ -165,11 +167,18 @@ enum Reply {
     Number(i32),
     Pair(i32, bool),
 }
+
+fn reply(value: i32) -> Reply => .Number(value);
+
+let empty: Reply = .Empty;
+println(reply(3) == .Number(3), empty == .Empty); // true true
 ```
 
 载荷 case 是一等构造函数，无载荷 case 是值。调用载荷 case 要满足精确参数个数；无载荷 case 不能加 `()`。
 
 `.Case` 和 `.Case(...)` 必须从绑定、返回、赋值、实参、聚合位置或无歧义相邻操作数获得枚举类型。没有全局 case 名搜索，也不能单独导入 case。写全名 `Reply::Number(3)` 可明确指定 owner。
+
+`reply` 的声明结果类型为 `.Number(value)` 提供 owner；带类型注解的绑定为 `.Empty` 提供 owner。
 
 相等比较先比较 case；不同 case 不相等，相同 case 按载荷位置短路比较。所有载荷都支持相等时，载荷枚举才支持相等。
 

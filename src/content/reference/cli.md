@@ -2,7 +2,7 @@
 title: "Compiler commands and Graver"
 description: "Native execution, interpretation, generated artifacts, and Graver source formatting."
 section: reference
-lesson: 19
+lesson: 24
 source: docs/toolchain/cli.md
 ---
 

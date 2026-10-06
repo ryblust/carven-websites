@@ -13,6 +13,7 @@ describe('authored content boundary', () => {
       'philosophy',
       valid.replace('section: learn', 'section: philosophy').replace('lesson: 0\n', ''),
     ],
+    ['internals', valid.replace('section: learn', 'section: internals').replace('lesson: 0\n', '')],
   ])('accepts %s metadata without modifying the Markdown body', ([section, source]) =>
     Effect.gen(function* () {
       const article = yield* parseArticle('hello.md', source!);

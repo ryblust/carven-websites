@@ -2,7 +2,7 @@
 title: 常量、const fn 与执行预算
 description: 常量事实、模块常量、编译期函数、文本冻结及资源限制。
 section: reference
-lesson: 13
+lesson: 17
 source: docs/language/constants.md
 ---
 

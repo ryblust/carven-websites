@@ -21,7 +21,16 @@ export const generateContent = Effect.fn('generateContent')(function* (root: str
   const paths = new Set<string>();
   for (const article of articles) {
     if (
-      ['/', '/404/', '/playground/', '/zh/', '/zh/404/', '/zh/playground/'].includes(article.path)
+      [
+        '/',
+        '/404/',
+        '/playground/',
+        '/design/',
+        '/zh/',
+        '/zh/404/',
+        '/zh/playground/',
+        '/zh/design/',
+      ].includes(article.path)
     ) {
       return yield* new ContentError({
         file: article.file,

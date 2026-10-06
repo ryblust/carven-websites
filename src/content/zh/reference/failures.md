@@ -2,7 +2,7 @@
 title: 类型化失败契约
 description: 失败集合、显式上界、推断、传播目标、部分捕获、守卫条件和重抛。
 section: reference
-lesson: 8
+lesson: 7
 source: docs/language/failures.md
 ---
 
@@ -63,7 +63,7 @@ fn wrapper() throw B {
 }
 ```
 
-该程序处理 A，向外保留 B。若显式写出剩余失败的转发，同一组 A、B 和 source 声明下，wrapper 可以写为：
+该程序处理 A，向外保留 B。未覆盖失败在 `try` 边界继续向外传播，不要求给整个 `try` 语句加 `?`，也不要求补一个通配处理器。受保护体中的调用仍须写 `source()?`；`try` 不会替体内调用补上传播标记。若显式写出剩余失败的转发，同一组 A、B 和 source 声明下，wrapper 可以写为：
 
 ```carven
 fn wrapper() throw B {

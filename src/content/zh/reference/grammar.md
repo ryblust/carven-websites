@@ -2,7 +2,7 @@
 title: 形式语法与优先级
 description: 完整 EBNF 产生式、结合性、分隔规则和控制头部消歧。
 section: reference
-lesson: 21
+lesson: 26
 source: docs/language/grammar.md
 ---
 
@@ -26,7 +26,7 @@ source: docs/language/grammar.md
 
 模块 import 是连续前缀。顶层 `const` 绑定是模块常量，`const { ... }` 或 `const "label" { ... }` 引入常量块；可选标签只用于诊断中标识该块，不要求唯一。测试名可省略；显式名字在模块内唯一，匿名测试在报告中以源位置标识。顶层可执行语句形成隐式入口。没有 namespace block、泛型声明、默认参数或可变参数语法。区间表达式 `a..b` 和 `a..=b` 不可连续结合，且必须提供两个整数端点。只有区间模式可以省略端点；不支持步长和隐式反向遍历。类型位置的非限定名 `range<T>` 表示整数区间。模式端点使用移位表达式，括号内可使用完整表达式；未加括号的 `|` 分隔模式分支。裸标识符绑定值，不表示检查一个已保存区间的成员关系。
 
-`class` 是保留关键字。类体中字段与操作可以交错，字段后接逗号，最后一个字段可省略逗号。实例操作的第一个参数是不带类型的 `self`、`&self` 或 `&&self`；这个拼写只在该位置有特殊含义，不是关键字。没有 receiver 的操作是关联操作，不需要 `static` 关键字。其他参数必须注明类型。类体中不允许类形式、嵌套声明、`const fn` 和 C++ 边界操作。顶层 `fn` 前可选的 `const` 声明编译期调用能力：必需常量执行只调用这类函数，`const fn` 也只能调用其他 `const fn`。
+`class` 是保留关键字。类体中字段与操作可以交错，字段后接逗号，最后一个字段可省略逗号。实例操作的第一个参数是不带类型的 `self`、`&self` 或 `&&self`；这个拼写依赖上下文，不是全局保留字。首参数名为 `self` 时不能标注类型，类操作的后续参数也不能使用这个名字。没有 receiver 的操作是关联操作，不需要 `static` 关键字。其他参数必须注明类型。类体中不允许类形式、嵌套声明、`const fn` 和 C++ 边界操作。顶层 `fn` 前可选的 `const` 声明编译期调用能力：必需常量执行只调用这类函数，`const fn` 也只能调用其他 `const fn`。
 
 原始与多行字符串的边界遵循[文本布局](/zh/reference/text/#字符串字面量与多行布局)。SIMD 类型拼写属于内建类型名。具名函数可声明 `const name: T` 静态参数，lambda 与 callable view 不可。`const if` 和 Read 整数区间 `const for` 显式选择静态特化。无条件 while 写作 `while { ... }`，C 风格 for 的条件必需。const 块具有转移边界，return 不能离开它。
 
@@ -140,10 +140,10 @@ CPP_ANGLE_HEADER_NAME = "<", cpp-angle-header-content, ">";
 CPP_QUOTE_HEADER_NAME = "\"", cpp-quote-header-content, "\"";
 cpp-angle-header-content = cpp-angle-header-character,
                            { cpp-angle-header-character };
-cpp-angle-header-character = source-character - ">" - line-terminator;
+cpp-angle-header-character = source-character - ">" - line-terminator - U+0000;
 cpp-quote-header-content = cpp-quote-header-character,
                            { cpp-quote-header-character };
-cpp-quote-header-character = source-character - "\"" - line-terminator;
+cpp-quote-header-character = source-character - "\"" - line-terminator - U+0000;
 ```
 
 ## 08 · C++ 源片段

@@ -2,7 +2,7 @@
 title: "C++ names, operations, and boundaries"
 description: "Headers, native types, source fragments, function contracts, exceptions, and returned borrows."
 section: reference
-lesson: 15
+lesson: 19
 source: docs/language/interop.md
 ---
 

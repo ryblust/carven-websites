@@ -2,7 +2,7 @@
 title: "Lexical syntax and literals"
 description: "Source encoding, identifiers, comments, numbers, text, C++ fragments, and syntactic disambiguation."
 section: reference
-lesson: 1
+lesson: 2
 source: docs/language/grammar.md
 ---
 
@@ -12,7 +12,7 @@ Carven source text is UTF-8. Identifiers use ASCII: a letter or `_` first, follo
 
 Whitespace includes spaces, tabs, LF, CR, and CRLF. Line comments run from `//` to the line end. Ordinary Carven source has no block comments. A `#[cpp]` payload is treated as opaque bytes.
 
-Reserved keywords:
+Reserved keywords (see the [keyword index](/reference/keywords/) for individual rules):
 
 ```text
 as break catch class const continue else enum export false fn for if import in is let
@@ -21,7 +21,7 @@ match nullptr private rethrow return struct test throw true try using var while
 
 Spellings without language productions, such as `new` and `delete`, remain ordinary identifiers. `_` discards in binding positions; `_name` is an ordinary name.
 
-`self` is contextual, not reserved. It has receiver meaning only as the untyped first parameter of a class operation (`self`, `&self`, or `&&self`); elsewhere `fn echo(self: i32) -> i32 => self;` and `let self = 2;` are ordinary bindings. Builtin callables such as `println`, `check`, `assert`, and `addressof` are ordinary identifiers resolved by name lookup and may be shadowed.
+`self` is contextual, not globally reserved. A class operation whose first parameter is named `self` must use the untyped receiver form (`self`, `&self`, or `&&self`); a typed first `self` or a later `self` parameter is rejected. Free-function parameters `fn echo(self: i32) -> i32 => self;` and local `let self = 2;` are ordinary bindings. See the [special-spelling rules](/reference/keywords/#other-special-spellings) for `cpp`, string prefixes, and builtin type names. Builtin callables such as `println`, `check`, `assert`, and `addressof` are ordinary identifiers resolved by name lookup and may be shadowed.
 
 ## Numbers
 
@@ -55,7 +55,7 @@ The c in `c"..."` must touch the quote. The result is native `const char*`; deco
 
 ## C++ headers and source fragments
 
-After import, `<...>` or `"..."` is a dedicated nonempty header-name token. Whitespace or line comments may intervene. Header names do not decode escapes, interpolate, or span lines.
+After import, `<...>` or `"..."` is a dedicated nonempty header-name token. Whitespace or line comments may intervene. Header names do not decode escapes or interpolate, and cannot contain line terminators or NUL.
 
 ```carven
 import <cstdint>;

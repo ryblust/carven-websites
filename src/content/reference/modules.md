@@ -2,21 +2,9 @@
 title: "Modules, declarations, and visibility"
 description: "Compilation batches, craft domains, import resolution, name lookup, and interface visibility."
 section: reference
-lesson: 2
+lesson: 16
 source: docs/language/modules.md
 ---
-
-## Batches and canonical module names
-
-A compilation analyzes a closed source batch assembled by its driver or build integration before import resolution. Import does not search the filesystem or download dependencies. Each input maps to a unique canonical module name. Path components, including the file stem, follow `[A-Za-z_][A-Za-z0-9_]*`; module components may be language keywords. The CLI rejects `my-file.cv` with `invalid module file stem`; name it `my_file.cv`.
-
-```text
-src/main.cv                  → src.main
-crafts/json/parser.cv        → crafts.json.parser
-crafts/carven/std/utf/text.cv → crafts.carven.std.utf.text
-```
-
-A leading `crafts.<name>.<path>` defines a craft domain. Neither `crafts` nor `crafts.<name>` alone is a complete module. Ordinary application modules belong to the unprefixed domain. A nonleading crafts is an ordinary component. The official craft is carven; `std::` specifically selects its std subtree.
 
 ## Three import path forms
 
@@ -40,16 +28,6 @@ The import path selects a module; using selects names or introduces a name envir
 
 Imports have no runtime side effects. An import counts as used through an actual uniquely resolved reference. Unused imports produce `CV-LINT-UNUSED-IMPORT`. C++ header imports may share the import prefix but do not resolve Carven modules.
 
-## Declarations and lookup
-
-Functions, structs, classes, enums, and module constants share one module namespace. Duplicate module declaration names are invalid; functions do not overload. Modules may also contain tests, constant blocks, C++ fragments, and entry statements.
-
-Declaration identities are collected across the batch. Valid forward calls, mutual recursion, and constant dependencies are independent of source order. Cycles in required constant facts are errors.
-
-Unprefixed lookup starts in the innermost lexical scope, then proceeds through outer scopes, module declarations, and imports. Names cannot repeat within one lexical scope; inner scopes may shadow outer ones. A local name becomes visible after its type, initializer, and constant proof are complete, so an initializer may refer to an outer binding of the same name.
-
-A lambda is a capture boundary. Outer runtime bindings require explicit capture. Module declarations remain directly accessible; a visible local constant may cross only when its value is determinable while constructing the lambda body, independently of unbound enclosing static parameters.
-
 ## Visibility
 
 | Form        | Audience                                                 |
@@ -72,3 +50,25 @@ export fn expose() -> Hidden {
 ```
 
 The CLI combines explicit application files with the toolchain and project Crafts roots for `check`, `compile`, native execution, and `interpret`. Collection happens before import resolution. See [source collection](/reference/cli/#source-collection) for roots, deduplication, and installed-library requirements.
+
+## Declarations and lookup
+
+Functions, structs, classes, enums, and module constants share one module namespace. Duplicate module declaration names are invalid; functions do not overload. Modules may also contain tests, constant blocks, C++ fragments, and entry statements.
+
+Declaration identities are collected across the batch. Valid forward calls, mutual recursion, and constant dependencies are independent of source order. Cycles in required constant facts are errors.
+
+Unprefixed lookup starts in the innermost lexical scope, then proceeds through outer scopes, module declarations, and imports. Names cannot repeat within one lexical scope; inner scopes may shadow outer ones. A local name becomes visible after its type, initializer, and constant proof are complete, so an initializer may refer to an outer binding of the same name.
+
+A lambda is a capture boundary. Outer runtime bindings require explicit capture. Module declarations remain directly accessible; a visible local constant may cross only when its value is determinable while constructing the lambda body, independently of unbound enclosing static parameters.
+
+## Batches and canonical module names
+
+A compilation analyzes a closed source batch assembled by its driver or build integration before import resolution. Import does not search the filesystem or download dependencies. Each input maps to a unique canonical module name. Path components, including the file stem, follow `[A-Za-z_][A-Za-z0-9_]*`; module components may be language keywords. The CLI rejects `my-file.cv` with `invalid module file stem`; name it `my_file.cv`.
+
+```text
+src/main.cv                  → src.main
+crafts/json/parser.cv        → crafts.json.parser
+crafts/carven/std/utf/text.cv → crafts.carven.std.utf.text
+```
+
+A leading `crafts.<name>.<path>` defines a craft domain. Neither `crafts` nor `crafts.<name>` alone is a complete module. Ordinary application modules belong to the unprefixed domain. A nonleading crafts is an ordinary component. The official craft is carven; `std::` specifically selects its std subtree.

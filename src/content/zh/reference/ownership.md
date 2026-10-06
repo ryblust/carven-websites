@@ -2,7 +2,7 @@
 title: 绑定、访问、所有权与清理
 description: Read、Write、Take 的规则，复制、恢复、别名、临时值和作用域清理。
 section: reference
-lesson: 4
+lesson: 12
 source: docs/language/ownership.md
 ---
 
@@ -32,6 +32,26 @@ source: docs/language/ownership.md
 Carven 数组、`String`、闭包，以及包含这些存储的聚合通过 `const` 引用保持存储。其他类型与原生类型：当 C++ 复制构造和析构均 trivial 时使用 `const` 值，否则 `const` 引用。声明式 import(cpp)/export(cpp) 函数沿用相同的普通 Read 策略。
 
 按值 Read 在实参求值时保存值；按引用 Read 保持所选存储，后续别名写入会影响读取。显式 owner 副本可建立独立立即值，但副本内的视图仍指向原 backing。Take 冲突检查不因原生 Read 表示不同而省略。
+
+因此，Read 参数并不总是独立副本。下面的标量 Read 在第三个实参执行前保存 `count`，数组 Read 则保持对 `values` 的访问：
+
+```carven
+fn change(&count: i32, &values: [i32; 1]) -> i32 {
+    count = 9;
+    values[0] = 9;
+    return 0;
+}
+
+fn inspect(count: i32, values: [i32; 1], _: i32) {
+    println(count, values[0]);
+}
+
+var count = 1;
+var values = [1];
+inspect(count, values, change(&count, &values)); // 1 9
+```
+
+如果需要实参求值之前的数组内容，应在前一条语句建立拥有副本，再把该副本传入。
 
 ## Take 与可用性
 

@@ -6,6 +6,21 @@ lesson: 9
 source: docs/language/functions.md
 ---
 
+lambda 是匿名函数，写作 `[captures](parameters) => expression` 或 `[captures](parameters) { statements }`。用推断类型的绑定拥有具体闭包值；需要调用回调的函数可以用 `fn(...) -> R` 参数。
+
+## 最小示例
+
+```carven
+var offset = 2;
+let saved = [offset](value: i32) => value + offset;
+let live = [&offset](value: i32) => value + offset;
+
+offset = 5;
+println(saved(3), live(3)); // 5 8
+```
+
+`saved` 拥有创建时捕获的值 `2`。`live` 保留对原 `offset` 的 Write 访问，调用时读取更新后的值 `5`；保留 Write 访问不要求一定执行写入。完全不捕获的 lambda 使用 `[]`，例如 `[](value: i32) => value * 2`。
+
 ## 创建与捕获
 
 lambda 必须写捕获列表，空列表写 []。函数体可以是块或 `=> expression`，表达式体遵循具名函数的返回规则。创建不执行函数体；捕获按列表顺序建立，每个名字一次，源为可见运行时绑定。模块声明与常量不能显式捕获。局部常量只有在构造 lambda 函数体时能确定值，才可不捕获而直接使用；依赖未绑定外围静态参数的常量不能跨越该边界。可以先用该值初始化运行时 let，再显式捕获它。

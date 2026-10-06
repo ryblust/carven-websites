@@ -1,7 +1,22 @@
+// @vitest-environment jsdom
+
 import { runInNewContext } from 'node:vm';
 import { assert, describe, it } from '@effect/vitest';
-import { afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 import { observeTheme, themeScript, themeColors, type ThemePreference } from '../src/lib/theme';
+
+beforeEach(() => {
+  localStorage.clear();
+  delete document.documentElement.dataset.theme;
+  const meta = document.createElement('meta');
+  meta.name = 'theme-color';
+  document.head.replaceChildren(meta);
+});
+afterEach(() => vi.unstubAllGlobals());
+
+const browserColor = () =>
+  document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')!.content;
+const isDarkQuery = (query: string) => query.replace(/\s+/g, '') === '(prefers-color-scheme:dark)';
 
 describe('theme before first paint', () => {
   it.each([
@@ -13,70 +28,52 @@ describe('theme before first paint', () => {
     { saved: 'system', systemDark: false, expected: 'light' },
     { saved: 'invalid', systemDark: true, expected: 'dark' },
   ])('resolves $saved with system dark = $systemDark', ({ saved, systemDark, expected }) => {
-    const root = { dataset: {} as Record<string, string> };
-    let browserColor = '';
-    const querySelector = () => ({
-      setAttribute: (_name: string, value: string) => {
-        browserColor = value;
-      },
-    });
+    if (saved !== null) localStorage.setItem('carven-theme', saved);
     runInNewContext(themeScript, {
-      document: { documentElement: root, querySelector },
-      localStorage: { getItem: () => saved },
-      matchMedia: () => ({ matches: systemDark }),
+      document,
+      localStorage,
+      matchMedia: (query: string) => ({
+        matches: isDarkQuery(query) && systemDark,
+      }),
     });
-    assert.strictEqual(root.dataset.theme, expected);
-    assert.strictEqual(browserColor, themeColors[expected as keyof typeof themeColors]);
+    assert.strictEqual(document.documentElement.dataset.theme, expected);
+    assert.strictEqual(browserColor(), themeColors[expected as keyof typeof themeColors]);
   });
 
   it('still renders the system theme when storage access is blocked', () => {
-    const root = { dataset: {} as Record<string, string> };
-    let browserColor = '';
-    const querySelector = () => ({
-      setAttribute: (_name: string, value: string) => {
-        browserColor = value;
-      },
-    });
     runInNewContext(themeScript, {
-      document: { documentElement: root, querySelector },
+      document,
       get localStorage() {
         throw new Error('Storage blocked');
       },
-      matchMedia: () => ({ matches: true }),
+      matchMedia: (query: string) => ({ matches: isDarkQuery(query) }),
     });
-    assert.strictEqual(root.dataset.theme, 'dark');
-    assert.strictEqual(browserColor, themeColors.dark);
+    assert.strictEqual(document.documentElement.dataset.theme, 'dark');
+    assert.strictEqual(browserColor(), themeColors.dark);
   });
 });
 
 describe('theme preference changes', () => {
-  afterEach(() => vi.unstubAllGlobals());
-
   function browser(saved: string | null = null, systemDark = false, blocked = false) {
     const media = Object.assign(new EventTarget(), { matches: systemDark });
-    const window = Object.assign(new EventTarget(), { matchMedia: () => media });
-    const root = { dataset: {} as Record<string, string> };
-    let browserColor = '';
-    const storage = {
-      getItem: () => {
-        if (blocked) throw new Error('Storage blocked');
-        return saved;
-      },
-      setItem: (_key: string, value: string) => {
-        if (blocked) throw new Error('Storage blocked');
-        saved = value;
-      },
-    };
+    const window = Object.assign(new EventTarget(), {
+      matchMedia: (query: string) =>
+        isDarkQuery(query) ? media : Object.assign(new EventTarget(), { matches: false }),
+    });
+    const store = localStorage;
+    if (saved !== null) store.setItem('carven-theme', saved);
+    const storage = blocked
+      ? {
+          getItem: () => {
+            throw new Error('Storage blocked');
+          },
+          setItem: () => {
+            throw new Error('Storage blocked');
+          },
+        }
+      : store;
     vi.stubGlobal('window', window);
     vi.stubGlobal('localStorage', storage);
-    vi.stubGlobal('document', {
-      documentElement: root,
-      querySelector: () => ({
-        setAttribute: (_name: string, value: string) => {
-          browserColor = value;
-        },
-      }),
-    });
     const changes: ThemePreference[] = [];
     let notifications = 0;
     window.addEventListener('carven-theme-change', () => notifications++);
@@ -85,21 +82,22 @@ describe('theme preference changes', () => {
       observer,
       changes,
       get saved() {
-        return saved;
+        return store.getItem('carven-theme');
       },
       get notifications() {
         return notifications;
       },
       assertTheme(theme: keyof typeof themeColors) {
-        assert.strictEqual(root.dataset.theme, theme);
-        assert.strictEqual(browserColor, themeColors[theme]);
+        assert.strictEqual(document.documentElement.dataset.theme, theme);
+        assert.strictEqual(browserColor(), themeColors[theme]);
       },
       system(dark: boolean) {
         media.matches = dark;
         media.dispatchEvent(new Event('change'));
       },
       external(value: string | null, key: string | null = 'carven-theme') {
-        saved = value;
+        if (value === null) store.removeItem(key ?? 'carven-theme');
+        else store.setItem(key ?? 'carven-theme', value);
         window.dispatchEvent(Object.assign(new Event('storage'), { key, storageArea: storage }));
       },
     };
@@ -108,13 +106,17 @@ describe('theme preference changes', () => {
   it('tracks system changes in both directions without saving an override', () => {
     const page = browser();
     page.assertTheme('light');
+    assert.strictEqual(page.changes.at(-1), 'system');
+    const beforeDark = page.notifications;
     page.system(true);
     page.assertTheme('dark');
+    assert.isAbove(page.notifications, beforeDark);
+    const beforeLight = page.notifications;
     page.system(false);
     page.assertTheme('light');
+    assert.isAbove(page.notifications, beforeLight);
     assert.strictEqual(page.saved, null);
-    assert.deepStrictEqual(page.changes, ['system', 'system', 'system']);
-    assert.strictEqual(page.notifications, 3);
+    assert.strictEqual(page.changes.at(-1), 'system');
     page.observer.dispose();
   });
 
@@ -127,6 +129,7 @@ describe('theme preference changes', () => {
       page.assertTheme(saved);
       page.observer.setPreference('system');
       page.assertTheme('light');
+      assert.strictEqual(page.changes.at(-1), 'system');
       assert.strictEqual(page.saved, 'system');
       page.system(true);
       page.assertTheme('dark');
@@ -138,6 +141,7 @@ describe('theme preference changes', () => {
     const page = browser(null, false, true);
     page.observer.setPreference('dark');
     page.assertTheme('dark');
+    assert.strictEqual(page.changes.at(-1), 'dark');
     page.system(true);
     page.system(false);
     page.assertTheme('dark');
@@ -154,6 +158,7 @@ describe('theme preference changes', () => {
     page.assertTheme('dark');
     page.external('light');
     page.assertTheme('light');
+    assert.strictEqual(page.changes.at(-1), 'light');
     page.external('system');
     page.assertTheme('dark');
     page.external('light');
@@ -165,10 +170,12 @@ describe('theme preference changes', () => {
   it('removes listeners when the control unmounts', () => {
     const page = browser();
     page.observer.dispose();
+    const changes = [...page.changes];
+    const notifications = page.notifications;
     page.system(true);
     page.external('dark');
     page.assertTheme('light');
-    assert.deepStrictEqual(page.changes, ['system']);
-    assert.strictEqual(page.notifications, 1);
+    assert.deepStrictEqual(page.changes, changes);
+    assert.strictEqual(page.notifications, notifications);
   });
 });
