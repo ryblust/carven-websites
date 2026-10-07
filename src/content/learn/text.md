@@ -2,7 +2,7 @@
 title: "Own text and borrow sequences"
 description: "Choose `String` or `str`, work with UTF-8, and understand when views prevent mutation."
 section: learn
-lesson: 6
+lesson: 7
 source: docs/language/text.md
 ---
 

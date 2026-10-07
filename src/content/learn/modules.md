@@ -2,7 +2,7 @@
 title: "Split a program into modules"
 description: "Split source files and understand explicit batches, import paths, and visibility."
 section: learn
-lesson: 8
+lesson: 9
 source: docs/language/modules.md
 ---
 

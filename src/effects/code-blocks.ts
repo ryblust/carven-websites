@@ -1,5 +1,4 @@
 import { translate, type Locale } from '../lib/i18n';
-import { Cause, Effect, Exit } from 'effect';
 import { copyFeedback } from './clipboard';
 
 // React owns the surrounding article. This scoped enhancement also handles
@@ -41,34 +40,37 @@ export function enhanceCodeBlocks(
       pending?.abort();
       const controller = new AbortController();
       pending = controller;
-      const program = copyFeedback(window.navigator.clipboard, code.textContent ?? '', {
-        select: () => {
-          const range = document.createRange();
-          range.selectNodeContents(pre);
-          const selection = window.getSelection();
-          if (!selection) throw new Error('Text selection is unavailable');
-          selection.removeAllRanges();
-          selection.addRange(range);
+      void copyFeedback(
+        window.navigator.clipboard,
+        code.textContent ?? '',
+        {
+          select: () => {
+            const range = document.createRange();
+            range.selectNodeContents(pre);
+            const selection = window.getSelection();
+            if (!selection) throw new Error('Text selection is unavailable');
+            selection.removeAllRanges();
+            selection.addRange(range);
+          },
+          feedback: (result) => {
+            setLabel(result === 'copied' ? 'copied' : 'manual');
+            announce(
+              result === 'copied'
+                ? t('代码已复制到剪贴板', 'Code copied to clipboard')
+                : t(
+                    '代码已选中，请使用系统复制快捷键',
+                    'Code selected. Use your system copy shortcut.',
+                  ),
+            );
+          },
+          reset: () => {
+            setLabel();
+          },
         },
-        feedback: (result) => {
-          setLabel(result === 'copied' ? 'copied' : 'manual');
-          announce(
-            result === 'copied'
-              ? t('代码已复制到剪贴板', 'Code copied to clipboard')
-              : t(
-                  '代码已选中，请使用系统复制快捷键',
-                  'Code selected. Use your system copy shortcut.',
-                ),
-          );
-        },
-        reset: () => {
-          setLabel();
-        },
-      });
-      void Effect.runPromiseExit(program, { signal: controller.signal }).then((exit) => {
-        if (Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) {
-          console.error('Copy interaction failed', Cause.pretty(exit.cause));
-          if (controller.signal.aborted) return;
+        controller.signal,
+      ).catch((error) => {
+        if (!controller.signal.aborted) {
+          console.error('Copy interaction failed', error);
           setLabel('manual');
           announce(
             t(

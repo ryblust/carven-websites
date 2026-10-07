@@ -18,6 +18,8 @@ import runtimeEnglish from '../src/generated/articles/internals/runtime-boundary
 import runtimeChinese from '../src/generated/articles/zh/internals/runtime-boundary';
 import learnEnglish from '../src/generated/articles/learn/index';
 import learnChinese from '../src/generated/articles/zh/learn/index';
+import firstProgramEnglish from '../src/generated/articles/learn/first-program';
+import firstProgramChinese from '../src/generated/articles/zh/learn/first-program';
 import referenceEnglish from '../src/generated/articles/reference/index';
 import referenceChinese from '../src/generated/articles/zh/reference/index';
 import { designReadingGroups } from '../src/lib/design-readings';
@@ -42,7 +44,7 @@ async function renderPage(path: string, component: () => ReactNode, basepath = '
 }
 
 function assertOutlineTargets(host: HTMLElement) {
-  const links = [...host.querySelectorAll<HTMLAnchorElement>('.page-outline nav a')];
+  const links = [...host.querySelectorAll<HTMLAnchorElement>('aside[aria-label] nav a[href^="#"]')];
   expect(links.length).toBeGreaterThan(0);
   for (const link of links) {
     const id = decodeURIComponent(link.hash.slice(1));
@@ -50,7 +52,35 @@ function assertOutlineTargets(host: HTMLElement) {
   }
 }
 
-describe('Design reading navigation', () => {
+describe('reading navigation', () => {
+  it.each([
+    ['en', '/'],
+    ['zh', '/'],
+    ['en', '/carven-websites/'],
+    ['zh', '/carven-websites/'],
+  ] as const)(
+    'connects the %s first program to its overview and next lesson under %s',
+    async (locale, basepath) => {
+      vi.stubEnv('BASE_URL', basepath);
+      const prefix = basepath.replace(/\/$/, '');
+      const path = localizedPath('/learn/first-program/', locale) as ArticlePath;
+      const html = locale === 'zh' ? firstProgramChinese : firstProgramEnglish;
+      const host = await renderPage(path, () => <Article path={path} html={html} />, basepath);
+      const chapters = host.querySelector(
+        `nav[aria-label="${locale === 'zh' ? '章节导航' : 'Chapter navigation'}"]`,
+      )!;
+      expect(chapters.querySelector('a')?.getAttribute('href')).toBe(
+        `${prefix}${localizedPath('/learn/', locale)}`,
+      );
+      expect(chapters.querySelector('a:last-child')?.getAttribute('href')).toBe(
+        `${prefix}${localizedPath('/learn/values/', locale)}`,
+      );
+      expect(
+        host.querySelector('nav[aria-label] a[aria-current="page"]')?.getAttribute('href'),
+      ).toBe(`${prefix}${path}`);
+      assertOutlineTargets(host);
+    },
+  );
   it.each([
     ['en', '/'],
     ['zh', '/'],
@@ -91,7 +121,7 @@ describe('Design reading navigation', () => {
     },
   );
   it.each(['en', 'zh'] as const)(
-    'keeps %s tutorial and reference chapters inside their own shared reading frame',
+    'keeps %s tutorial and reference navigation inside its own book',
     async (locale) => {
       for (const section of ['learn', 'reference'] as const) {
         const path = localizedPath(`/${section}/`, locale) as ArticlePath;
@@ -104,16 +134,29 @@ describe('Design reading navigation', () => {
               ? referenceChinese
               : referenceEnglish;
         const host = await renderPage(path, () => <Article path={path} html={html} />);
-        expect(host.querySelector('.reading-layout .book-label a')?.getAttribute('href')).toBe(
-          path,
-        );
-        expect(host.querySelector('.article-main .article-header')).not.toBeNull();
-        const chapters = [
-          ...host.querySelectorAll<HTMLAnchorElement>('.desktop-chapters .chapter-list a'),
-        ];
+        const label =
+          section === 'learn'
+            ? locale === 'zh'
+              ? '教程章节'
+              : 'Tutorial chapters'
+            : locale === 'zh'
+              ? '参考手册章节'
+              : 'Reference chapters';
+        const navigation = host.querySelector(`nav[aria-label="${label}"]`)!;
+        expect(navigation).not.toBeNull();
+        const chapters = [...navigation.querySelectorAll<HTMLAnchorElement>('a')];
         expect(chapters.length).toBeGreaterThan(1);
         expect(chapters.every((link) => link.getAttribute('href')!.startsWith(path))).toBe(true);
         expect(chapters.some((link) => link.getAttribute('aria-current') === 'page')).toBe(true);
+        expect(chapters[0]?.textContent).toBe(locale === 'zh' ? '总览' : 'Overview');
+        if (section === 'learn') {
+          const start = [...host.querySelectorAll('article a')].find((link) =>
+            link.textContent?.includes(
+              locale === 'zh' ? '运行第一个程序' : 'Run your first program',
+            ),
+          );
+          expect(start?.getAttribute('href')).toBe(localizedPath('/learn/first-program/', locale));
+        }
         assertOutlineTargets(host);
       }
     },
@@ -123,11 +166,11 @@ describe('Design reading navigation', () => {
     async (locale) => {
       const path = localizedPath('/design/', locale);
       const host = await renderPage(path, () => <Design locale={locale} />);
-      const nav = host.querySelector('.desktop-chapters .design-navigation')!;
-      expect(host.querySelector('.book-label a[aria-current="page"]')?.getAttribute('href')).toBe(
-        path,
-      );
-      expect(nav.querySelector('a[aria-current]')).toBeNull();
+      const nav = host.querySelector(
+        `nav[aria-label="${locale === 'zh' ? '设计专题' : 'Design topics'}"]`,
+      )!;
+      expect(nav).not.toBeNull();
+      expect(nav.querySelector('a[aria-current="page"]')?.getAttribute('href')).toBe(path);
       expect(nav.querySelector('a[href*="/learn/"], a[href*="/reference/"]')).toBeNull();
       const paths = designReadingGroups.flatMap((group) =>
         group.readings.map((item) => localizedPath(item.path, locale)),
@@ -137,36 +180,28 @@ describe('Design reading navigation', () => {
         [...nav.querySelectorAll<HTMLAnchorElement>('a')]
           .map((link) => link.getAttribute('href'))
           .sort(),
-      ).toEqual([...paths].sort());
+      ).toEqual([path, ...paths].sort());
       for (const destination of paths) {
         expect(articles[destination as ArticlePath]).toBeDefined();
         const chapter = nav.querySelector(`a[href="${destination}"]`)!;
         expect(chapter).not.toBeNull();
-        expect(chapter.querySelector('.chapter-icon[aria-hidden="true"]')).not.toBeNull();
-        expect(host.querySelector(`.article-main a[href="${destination}"]`)).not.toBeNull();
+        expect(chapter.textContent?.trim()).toBeTruthy();
+        expect(host.querySelector(`section a[href="${destination}"]`)).not.toBeNull();
       }
-      expect(nav.querySelectorAll('.chapter-group-label')).toHaveLength(designReadingGroups.length);
-      expect(host.querySelector('.reading-layout .article-main .article-header')).not.toBeNull();
       assertOutlineTargets(host);
     },
   );
 
   it.each(['en', 'zh'] as const)(
-    'keeps %s runtime navigation, section anchors and C++ syntax in published HTML',
+    'keeps %s runtime navigation and section anchors in published HTML',
     async (locale) => {
       const path = localizedPath('/internals/runtime-boundary/', locale) as ArticlePath;
       const html = locale === 'zh' ? runtimeChinese : runtimeEnglish;
       const host = await renderPage(path, () => <Article path={path} html={html} />);
       expect(
-        host.querySelector('.desktop-chapters a[aria-current="page"]')?.getAttribute('href'),
+        host.querySelector('nav[aria-label] a[aria-current="page"]')?.getAttribute('href'),
       ).toBe(path);
-      expect(host.querySelector('.mobile-chapters')).not.toBeNull();
       assertOutlineTargets(host);
-      const entries = [...host.querySelectorAll('.prose table td:first-child code')].map(
-        (code) => code.textContent,
-      );
-      expect(entries).toContain('import(cpp)');
-      expect(entries).toContain('export(cpp)');
     },
   );
 });

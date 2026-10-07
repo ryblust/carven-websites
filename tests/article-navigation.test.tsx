@@ -27,7 +27,7 @@ describe('article navigation', () => {
   it('tracks the new article sections after navigating between articles with the same heading IDs', async () => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
-    vi.stubGlobal('matchMedia', () => new EventTarget());
+    vi.stubGlobal('matchMedia', () => Object.assign(new EventTarget(), { matches: true }));
     // jsdom has no page layout. Model old and new articles at different scroll
     // positions so retaining the previous article's elements gives the wrong section.
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (

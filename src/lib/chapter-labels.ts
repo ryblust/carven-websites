@@ -5,7 +5,8 @@ type ChapterPath = Extract<ArticlePath, `/learn/${string}` | `/reference/${strin
 
 // Keep navigation labels brief; article headings retain the full descriptive titles.
 const labels = {
-  '/learn/': ['第一个程序', 'First program'],
+  '/learn/': ['总览', 'Overview'],
+  '/learn/first-program/': ['第一个程序', 'First program'],
   '/learn/values/': ['命名与更新值', 'Names and values'],
   '/learn/control/': ['分支与循环', 'Branches and loops'],
   '/learn/functions/': ['函数', 'Functions'],
@@ -22,7 +23,7 @@ const labels = {
   '/learn/pointers/': ['地址与非空检查', 'Native addresses'],
   '/learn/project/': ['实践：库存更新', 'Project: inventory'],
   '/learn/workflow/': ['运行、格式化与排错', 'Tools and workflow'],
-  '/reference/': ['语言参考', 'Overview'],
+  '/reference/': ['总览', 'Overview'],
   '/reference/keywords/': ['关键字索引', 'Keyword index'],
   '/reference/bindings/': ['变量声明与作用域', 'Variables and scope'],
   '/reference/operators/': ['运算符与表达式', 'Operators'],

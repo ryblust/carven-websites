@@ -33,7 +33,7 @@ source: docs/language/README.md
 | `main`、`test`、断言                   | [入口与测试](/zh/reference/entry-testing/)                                                               |
 | C++ 头文件、函数与源片段               | [C++ 互操作](/zh/reference/interop/)                                                                     |
 
-知道具体拼写时，可以先查[关键字索引](/zh/reference/keywords/)。左侧「查找章节」也接受关键字和常用符号，例如 `let`、`break`、`?`。
+知道具体拼写时，可以先查[关键字索引](/zh/reference/keywords/)。顶部「搜索文档」可以按标题、主题、关键字或常用符号查找，例如 `let`、`break`、`?`。
 
 ## 默认规则与上下文行为
 
@@ -62,7 +62,7 @@ source: docs/language/README.md
 
 先看要使用的语法形式，再看该操作的类型、访问、失败和生命周期规则。文中的「编译错误」表示程序应被 Carven 拒绝；「终止」表示执行结束，不能被捕获为类型化失败。
 
-没有另行标注时，完整示例单独保存为 `main.cv`，使用 `carven main.cv` 原生运行；编译错误示例单独用 `carven check main.cv` 检查。局部片段和语法模板需要相应上下文，不要将多个独立示例拼接为一个程序。`test` 示例使用 `carven --tests main.cv`；`const test` 在检查期间执行。更多运行步骤见[第一个程序](/zh/learn/)。
+没有另行标注时，完整示例单独保存为 `main.cv`，使用 `carven main.cv` 原生运行；编译错误示例单独用 `carven check main.cv` 检查。局部片段和语法模板需要相应上下文，不要将多个独立示例拼接为一个程序。`test` 示例使用 `carven --tests main.cv`；`const test` 在检查期间执行。更多运行步骤见[第一个程序](/zh/learn/first-program/)。
 
 ## 术语
 

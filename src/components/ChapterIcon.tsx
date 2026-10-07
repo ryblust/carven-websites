@@ -65,6 +65,8 @@ const symbols: Record<string, string> = {
   workflow: terminal,
 };
 const aliases: Record<string, string> = {
+  design: 'reference',
+  'first-program': 'learn',
   keywords: 'lexical',
   bindings: 'values',
   'syntax-and-inference': 'lexical',

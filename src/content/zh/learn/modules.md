@@ -2,7 +2,7 @@
 title: "把程序拆成模块"
 description: 拆分源文件，理解显式批次、三种导入路径和可见性。
 section: learn
-lesson: 8
+lesson: 9
 source: docs/language/modules.md
 ---
 

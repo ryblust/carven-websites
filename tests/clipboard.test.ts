@@ -1,83 +1,105 @@
-import { assert, describe, it } from '@effect/vitest';
-import { Duration, Effect, Fiber } from 'effect';
-import { TestClock } from 'effect/testing';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { copyFeedback, copyText, copyWithFallback } from '../src/effects/clipboard';
 
-describe('copy interaction', () => {
-  it.effect('preserves exact source code', () =>
-    Effect.gen(function* () {
-      const text = 'fn main() {\n    let answer = 42;\n}\n';
-      let written = '';
-      const result = yield* copyWithFallback(
-        {
-          writeText: async (value) => {
-            written = value;
-          },
-        },
-        text,
-        () => {
-          throw new Error('Unexpected fallback');
-        },
-      );
-      assert.strictEqual(written, text);
-      assert.strictEqual(result, 'copied');
-    }),
-  );
+afterEach(() => vi.useRealTimers());
 
-  it.effect('recovers permission denial by selecting the code', () =>
-    Effect.gen(function* () {
-      let selected = false;
-      const result = yield* copyWithFallback(
+describe('copy interaction', () => {
+  it('preserves exact source and starts writing within the user activation', async () => {
+    const text = 'fn main() {\n    let answer = 42;\n}\n';
+    const writeText = vi.fn(async () => {});
+    const select = vi.fn();
+    const result = copyWithFallback({ writeText }, text, select);
+    expect(writeText).toHaveBeenCalledWith(text);
+    await expect(result).resolves.toBe('copied');
+    expect(select).not.toHaveBeenCalled();
+  });
+
+  it('recovers permission denial by selecting the code', async () => {
+    const select = vi.fn();
+    await expect(
+      copyWithFallback(
         {
           writeText: async () => {
             throw new Error('Permission denied');
           },
         },
         'code',
-        () => {
-          selected = true;
+        select,
+      ),
+    ).resolves.toBe('selected');
+    expect(select).toHaveBeenCalledOnce();
+    await expect(copyText(undefined, 'code')).rejects.toThrow();
+  });
+
+  it('shows feedback before clearing it after a delay', async () => {
+    vi.useFakeTimers();
+    const events: string[] = [];
+    const result = copyFeedback(
+      undefined,
+      'code',
+      {
+        select: () => events.push('select'),
+        feedback: (value) => events.push(`feedback:${value}`),
+        reset: () => events.push('reset'),
+      },
+      new AbortController().signal,
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events).toEqual(['select', 'feedback:selected']);
+    await vi.advanceTimersByTimeAsync(2400);
+    await result;
+    expect(events).toEqual(['select', 'feedback:selected', 'reset']);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('cancellation clears the timer and prevents stale feedback', async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const events: string[] = [];
+    const result = copyFeedback(
+      undefined,
+      'code',
+      {
+        select: () => {},
+        feedback: (value) => events.push(value),
+        reset: () => events.push('reset'),
+      },
+      controller.signal,
+    );
+    const cancelled = expect(result).rejects.toMatchObject({ name: 'AbortError' });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events).toEqual(['selected']);
+    controller.abort();
+    await cancelled;
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(2400);
+    expect(events).toEqual(['selected']);
+  });
+
+  it.each([true, false])(
+    'ignores a pending clipboard result after cancellation (success: %s)',
+    async (success) => {
+      let finish!: () => void;
+      const controller = new AbortController();
+      const select = vi.fn();
+      const feedback = vi.fn();
+      const result = copyFeedback(
+        {
+          writeText: () =>
+            new Promise<void>((resolve, reject) => {
+              finish = () => (success ? resolve() : reject(new Error('Permission denied')));
+            }),
         },
+        'code',
+        { select, feedback, reset: vi.fn() },
+        controller.signal,
       );
-      assert.strictEqual(result, 'selected');
-      assert.isTrue(selected);
-      const error = yield* copyText(undefined, 'code').pipe(Effect.flip);
-      assert.strictEqual(error._tag, 'ClipboardUnavailable');
-    }),
-  );
-
-  it.effect('shows feedback before clearing it after a delay', () =>
-    Effect.gen(function* () {
-      const events: string[] = [];
-      const fiber = yield* Effect.forkChild(
-        copyFeedback(undefined, 'code', {
-          select: () => events.push('select'),
-          feedback: (result) => events.push(`feedback:${result}`),
-          reset: () => events.push('reset'),
-        }),
-      );
-      yield* TestClock.adjust(0);
-      assert.deepStrictEqual(events, ['select', 'feedback:selected']);
-      yield* TestClock.adjust(Duration.infinity);
-      yield* Fiber.join(fiber);
-      assert.deepStrictEqual(events, ['select', 'feedback:selected', 'reset']);
-    }),
-  );
-
-  it.effect('interruption prevents stale delayed feedback', () =>
-    Effect.gen(function* () {
-      const events: string[] = [];
-      const fiber = yield* Effect.forkChild(
-        copyFeedback(undefined, 'code', {
-          select: () => {},
-          feedback: (result) => events.push(result),
-          reset: () => events.push('reset'),
-        }),
-      );
-      yield* TestClock.adjust(0);
-      assert.deepStrictEqual(events, ['selected']);
-      yield* Fiber.interrupt(fiber);
-      yield* TestClock.adjust(Duration.infinity);
-      assert.deepStrictEqual(events, ['selected']);
-    }),
+      const cancelled = expect(result).rejects.toMatchObject({ name: 'AbortError' });
+      controller.abort();
+      finish();
+      await cancelled;
+      expect(select).not.toHaveBeenCalled();
+      expect(feedback).not.toHaveBeenCalled();
+    },
   );
 });

@@ -8,7 +8,7 @@ source: docs/toolchain/artifacts.md
 
 ## Host and target
 
-The Carven compiler uses C++26 with exceptions and RTTI disabled. It uses LLVM/Clang and libc++ across platforms, supplied by LLVM-MinGW on Windows. LLVM 23 is the validated toolchain version. Add the toolchain's `bin` directory to `PATH` so Xmake can discover its build tools. Repository commands use Xmake 3.1.1 through `./xmakew` (`.\xmakew.ps1` in Windows PowerShell).
+The Carven compiler uses C++26 with exceptions and RTTI disabled. It uses LLVM/Clang and libc++ across platforms, supplied by LLVM-MinGW on Windows. LLVM 23 is the validated toolchain version. Repository commands use Xmake 3.1.1 through `./xmakew` (`.\xmakew.ps1` in Windows PowerShell).
 
 Generated programs and installed Crafts require at least C++20. The consumer project selects its standard, and runtime feature detection uses available facilities. Host requirements do not raise the target minimum.
 

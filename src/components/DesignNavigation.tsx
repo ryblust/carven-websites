@@ -8,6 +8,12 @@ export function DesignNavigation({ locale }: { locale: Locale }) {
   const t = translate(locale);
   return (
     <nav className="chapter-list design-navigation" aria-label={t('设计专题', 'Design topics')}>
+      <div className="chapter-group chapter-overview">
+        <Link to={localizedPath('/design/', locale)} activeOptions={{ exact: true }}>
+          <ChapterIcon path="/design/" />
+          <span>{t('总览', 'Overview')}</span>
+        </Link>
+      </div>
       {designReadingGroups.map((group) => (
         <div className="chapter-group" key={group.id}>
           <p className="chapter-group-label">{group.title[locale]}</p>

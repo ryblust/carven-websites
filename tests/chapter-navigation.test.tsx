@@ -49,60 +49,23 @@ async function renderNavigation(path: ArticlePath) {
   return host;
 }
 
-async function search(host: HTMLElement, value: string) {
-  const input = host.querySelector<HTMLInputElement>('input[type="search"]')!;
-  await act(() => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value);
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-  });
-}
-
 describe('language reference navigation', () => {
   it.each(['en', 'zh'] as const)(
-    'keeps every %s reference chapter reachable in a labeled group',
+    'makes every %s reference chapter reachable and identifies the overview',
     async (locale) => {
       const path = localizedPath('/reference/', locale) as ArticlePath;
       const host = await renderNavigation(path);
-      const links = [...host.querySelectorAll<HTMLAnchorElement>('.chapter-list a')];
+      const navigation = host.querySelector(
+        `nav[aria-label="${locale === 'zh' ? '参考手册章节' : 'Reference chapters'}"]`,
+      )!;
+      expect(navigation).not.toBeNull();
+      const links = [...navigation.querySelectorAll<HTMLAnchorElement>('a')];
       expect(links.map((link) => link.getAttribute('href')).sort()).toEqual(
         referencePaths.filter((item) => localeOf(item) === locale).sort(),
       );
-      expect(host.querySelector('a[aria-current="page"]')?.getAttribute('href')).toBe(path);
-      for (const group of host.querySelectorAll('.chapter-group')) {
-        expect(group.querySelector('.chapter-group-label')?.textContent).toBeTruthy();
-        expect(group.querySelector('a .chapter-icon')).not.toBeNull();
-      }
-    },
-  );
-
-  it.each(['en', 'zh'] as const)(
-    'finds %s syntax rules by keywords and recovers from an empty result',
-    async (locale) => {
-      const host = await renderNavigation(localizedPath('/reference/', locale) as ArticlePath);
-      for (const [query, target] of [
-        ['let', 'bindings'],
-        [' BREAK ', 'control'],
-        ['for', 'control'],
-        ['?', 'failures'],
-        ['addressof', 'builtins'],
-        ['validate_utf8', 'library'],
-      ] as const) {
-        await search(host, query);
-        expect(
-          host.querySelector(`a[href="${localizedPath(`/reference/${target}/`, locale)}"]`),
-        ).not.toBeNull();
-        expect(host.querySelector('.chapter-empty')).toBeNull();
-        expect(
-          [...host.querySelectorAll('.chapter-group')].every((group) => group.querySelector('a')),
-        ).toBe(true);
-      }
-      await search(host, 'unknown-keyword-that-does-not-exist');
-      expect(host.querySelector('.chapter-empty[role="status"]')).not.toBeNull();
-      expect(host.querySelector('.chapter-group-label')).toBeNull();
-      await search(host, '');
-      expect(host.querySelectorAll('.chapter-list a')).toHaveLength(
-        referencePaths.filter((item) => localeOf(item) === locale).length,
-      );
+      expect(links[0]?.textContent).toBe(locale === 'zh' ? '总览' : 'Overview');
+      expect(navigation.querySelector('a[aria-current="page"]')?.getAttribute('href')).toBe(path);
+      expect(links.every((link) => link.textContent?.trim())).toBe(true);
     },
   );
 });

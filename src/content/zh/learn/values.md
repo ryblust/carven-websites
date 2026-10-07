@@ -2,7 +2,7 @@
 title: "命名与更新值"
 description: 用 `let`、`var`、`const` 和类型注解表达数据，理解字面量与显式转换。
 section: learn
-lesson: 1
+lesson: 2
 source: docs/language/types.md
 ---
 

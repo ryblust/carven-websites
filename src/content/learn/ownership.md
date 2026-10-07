@@ -2,7 +2,7 @@
 title: "Read, update, and transfer values"
 description: "Use an inventory example to understand Read, nonexclusive Write, explicit Take, restoration, and class receivers."
 section: learn
-lesson: 5
+lesson: 6
 source: docs/language/ownership.md
 ---
 

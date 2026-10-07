@@ -2,7 +2,7 @@
 title: "Test success and failure paths"
 description: "Make successful paths, boundaries, and failure recovery repeatable."
 section: learn
-lesson: 11
+lesson: 12
 source: docs/language/execution.md
 ---
 

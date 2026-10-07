@@ -2,7 +2,7 @@
 title: "组合失败与缩小契约"
 description: 定义带数据的失败，在调用处传播，在有业务上下文的位置恢复。
 section: learn
-lesson: 9
+lesson: 10
 source: docs/language/failures.md
 ---
 

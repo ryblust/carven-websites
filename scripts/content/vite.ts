@@ -9,7 +9,7 @@ export function contentPlugin(): Plugin {
   return {
     name: 'carven-content',
     apply: 'serve',
-    configureServer(server) {
+    async configureServer(server) {
       const runtime = ManagedRuntime.make(ContentLive);
       const serial = Semaphore.makeUnsafe(1);
       const controller = new AbortController();
@@ -49,8 +49,20 @@ export function contentPlugin(): Plugin {
         controller.abort();
         return runtime.dispose();
       };
+      // Config dependencies (including homepage examples) trigger a restart rather
+      // than a Markdown watcher event. Publish their current values before serving.
+      try {
+        await runtime.runPromise(generateContent(server.config.root).pipe(serial.withPermit), {
+          signal: controller.signal,
+        });
+      } catch (error) {
+        const cleanup = dispose;
+        dispose = undefined;
+        await cleanup();
+        throw error;
+      }
     },
-    async closeBundle() {
+    async closeServer() {
       const cleanup = dispose;
       dispose = undefined;
       await cleanup?.();

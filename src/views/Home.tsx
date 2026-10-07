@@ -341,7 +341,10 @@ export default function Home({ locale }: { locale: Locale }) {
             )}
           </p>
           <div className="home-actions">
-            <Link className="button button-primary" to={localizedPath('/learn/', locale)}>
+            <Link
+              className="button button-primary"
+              to={localizedPath('/learn/first-program/', locale)}
+            >
               {t('写第一个程序', 'Write your first program')} <span aria-hidden="true">→</span>
             </Link>
             <Link className="text-link" to={localizedPath('/use-cases/', locale)}>

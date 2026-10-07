@@ -2,7 +2,7 @@
 title: "Call C++ and export an interface"
 description: "Move from `printf` to declared function contracts, with explicit native types, exceptions, and build responsibilities."
 section: learn
-lesson: 13
+lesson: 14
 source: docs/language/interop.md
 ---
 

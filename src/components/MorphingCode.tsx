@@ -20,20 +20,23 @@ export function MorphingCode({ html }: { html: string }) {
   useLayoutEffect(() => {
     const host = root.current;
     if (!host || current.current === html) return;
-    const bounds = host.getBoundingClientRect();
+    const changed = current.current !== undefined;
+    const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const morph = changed && !preference.matches;
+    const bounds = morph ? host.getBoundingClientRect() : undefined;
     const read = (): Token[] =>
       Array.from(host.querySelectorAll<HTMLElement>('code .morph-token'), (node) => {
         const rect = node.getBoundingClientRect();
         return {
           text: node.textContent ?? '',
           node,
-          x: rect.left - bounds.left,
-          y: rect.top - bounds.top,
+          x: rect.left - bounds!.left,
+          y: rect.top - bounds!.top,
           color: getComputedStyle(node).color,
         };
       });
     // Capture the currently visible positions before interrupting an earlier morph.
-    const before = read();
+    const before = morph ? read() : [];
     stop.current();
     host.innerHTML = html;
     const code = host.querySelector('code');
@@ -54,10 +57,8 @@ export function MorphingCode({ html }: { html: string }) {
       }
       leaf.replaceWith(fragment);
     }
-    const changed = current.current !== undefined;
     current.current = html;
-    const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
-    if (!changed || preference.matches) return;
+    if (!morph) return;
 
     const after = read();
     const matches = matchCodeTokens(

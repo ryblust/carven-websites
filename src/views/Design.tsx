@@ -33,7 +33,9 @@ export default function Design({ locale }: { locale: Locale }) {
     >
       <div className="design-page">
         <header className="article-header">
-          <p className="article-kicker">{t('设计与原理', 'Design & principles')}</p>
+          <p className="article-kicker">
+            {t('设计与原理 · 总览', 'Design & principles · Overview')}
+          </p>
           <div className="article-title-row">
             <h1>
               <span>
@@ -133,7 +135,7 @@ export default function Design({ locale }: { locale: Locale }) {
 
         <div className="design-next" id="design-next">
           <p>{t('想动手写一个程序？', 'Ready to write a program?')}</p>
-          <Link className="text-link" to={localizedPath('/learn/', locale)}>
+          <Link className="text-link" to={localizedPath('/learn/first-program/', locale)}>
             {t('从第一个程序开始', 'Start with your first program')}{' '}
             <span aria-hidden="true">→</span>
           </Link>

@@ -2,7 +2,7 @@
 title: "使用原生地址与检查非空"
 description: 用 addressof 取地址，保存原生地址，建立局部非空证明，并保持资源所有者存活。
 section: learn
-lesson: 14
+lesson: 15
 source: docs/language/pointers.md
 ---
 

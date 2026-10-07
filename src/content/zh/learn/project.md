@@ -2,7 +2,7 @@
 title: "实践：成功后才扣减库存"
 description: 用明确的订单结果、金额上限、选择性失败恢复，以及静态和运行时测试，完成订单流程。
 section: learn
-lesson: 15
+lesson: 16
 source: docs/language/tutorial.md
 ---
 

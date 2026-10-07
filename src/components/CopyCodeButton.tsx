@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { Effect, Exit } from 'effect';
 import { Check, Copy } from 'lucide-react';
 import { UIIcon } from './UIIcon';
 import { copyFeedback } from '../effects/clipboard';
@@ -29,15 +28,19 @@ export default function CopyCodeButton({
     pending.current?.abort();
     const controller = new AbortController();
     pending.current = controller;
-    const program = copyFeedback(navigator.clipboard, source, {
-      select: () => {
-        if (!onSelect()) throw new Error('Code selection unavailable');
+    void copyFeedback(
+      navigator.clipboard,
+      source,
+      {
+        select: () => {
+          if (!onSelect()) throw new Error('Code selection unavailable');
+        },
+        feedback: setState,
+        reset: () => setState(undefined),
       },
-      feedback: setState,
-      reset: () => setState(undefined),
-    });
-    void Effect.runPromiseExit(program, { signal: controller.signal }).then((exit) => {
-      if (Exit.isFailure(exit) && !controller.signal.aborted) setState('failed');
+      controller.signal,
+    ).catch(() => {
+      if (!controller.signal.aborted) setState('failed');
     });
   }
 

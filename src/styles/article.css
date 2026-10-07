@@ -20,6 +20,36 @@
   letter-spacing: var(--heading-tracking);
   text-wrap: balance;
 }
+.overview-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-5);
+  margin-top: var(--space-6);
+}
+.prose .learning-route {
+  padding: 0;
+  list-style: none;
+  counter-reset: learning-stage;
+}
+.prose .learning-route li {
+  position: relative;
+  counter-increment: learning-stage;
+  margin: 0;
+  padding: var(--space-5) 0 var(--space-5) var(--space-7);
+  border-top: 1px solid var(--line);
+}
+.learning-route li::before {
+  content: '0' counter(learning-stage);
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font: var(--text-sm)/1.8 var(--mono);
+}
+.learning-route p {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+}
 /* Authored article content. */
 .prose {
   font-size: var(--body-size);

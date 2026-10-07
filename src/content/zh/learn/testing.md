@@ -2,7 +2,7 @@
 title: "测试成功与失败路径"
 description: 让正常路径、边界与失败恢复得到可重复验证。
 section: learn
-lesson: 11
+lesson: 12
 source: docs/language/execution.md
 ---
 

@@ -2,7 +2,7 @@
 title: "Organize calculations with functions"
 description: "Name calculations, declare parameter types, and make return paths explicit."
 section: learn
-lesson: 3
+lesson: 4
 source: docs/language/functions.md
 ---
 

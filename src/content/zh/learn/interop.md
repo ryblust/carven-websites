@@ -2,7 +2,7 @@
 title: "调用 C++ 与导出接口"
 description: 从 `printf` 到声明式函数契约，了解原生类型、异常与构建要求。
 section: learn
-lesson: 13
+lesson: 14
 source: docs/language/interop.md
 ---
 

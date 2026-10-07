@@ -9,16 +9,9 @@ import { contentPlugin } from '../scripts/content/vite';
 const article = (body: string) =>
   `---\ntitle: Guide\ndescription: Example guide\nsection: philosophy\nsource: docs/guide.md\n---\n\n${body}\n`;
 
-async function fixture() {
+async function fixture(initialBody?: string) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'carven-content-vite-')));
   await mkdir(join(root, 'src/content/zh'), { recursive: true });
-  const server = await createServer({
-    root,
-    configFile: false,
-    plugins: [contentPlugin()],
-    server: { middlewareMode: true, watch: null, ws: false },
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
   const writePair = async (name: string, body: string) => {
     await Promise.all(
       ['', 'zh/'].map((prefix) =>
@@ -26,6 +19,14 @@ async function fixture() {
       ),
     );
   };
+  if (initialBody !== undefined) await writePair('guide', initialBody);
+  const server = await createServer({
+    root,
+    configFile: false,
+    plugins: [contentPlugin()],
+    server: { middlewareMode: true, watch: null, ws: false },
+    optimizeDeps: { noDiscovery: true, include: [] },
+  });
   let readId = 0;
   const html = async (name: string) => {
     const file = join(root, 'src/generated/articles', `${name}.ts`);
@@ -52,6 +53,31 @@ async function change(server: ViteDevServer, event: string, file: string) {
 }
 
 describe('content development output', () => {
+  it('publishes current content on startup and regenerates it after a server restart', async () => {
+    const { root, server, writePair, html } = await fixture('Content before startup.');
+    let restarted: ViteDevServer | undefined;
+    try {
+      expect(await html('guide')).toContain('Content before startup.');
+      expect(await html('zh/guide')).toContain('Content before startup.');
+      await server.close();
+      await writePair('guide', 'Current content before restart.');
+      restarted = await createServer({
+        root,
+        configFile: false,
+        plugins: [contentPlugin()],
+        server: { middlewareMode: true, watch: null, ws: false },
+        optimizeDeps: { noDiscovery: true, include: [] },
+      });
+      expect(await html('guide')).toContain('Current content before restart.');
+      expect(await html('guide')).not.toContain('Content before startup.');
+      expect(await html('zh/guide')).toContain('Current content before restart.');
+    } finally {
+      await restarted?.close();
+      await server.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it('publishes authored additions, changes and removals before requesting a reload', async () => {
     const { root, server, writePair, html } = await fixture();
     try {

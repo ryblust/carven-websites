@@ -52,38 +52,7 @@
   line-height: 1.5;
   margin: 0 0 var(--space-4);
 }
-/* Chapter filtering and navigation. */
-.chapter-search {
-  display: block;
-  margin: 0 0 var(--space-4);
-}
-.chapter-search span {
-  display: block;
-  font-size: var(--text-xs);
-  line-height: 1.5;
-  color: var(--muted);
-  margin-bottom: var(--space-2);
-}
-.chapter-search input {
-  width: 100%;
-  min-width: 0;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius);
-  corner-shape: var(--corner-shape);
-  background: var(--surface);
-  padding: 9px var(--space-3);
-  color: var(--text);
-  font-size: var(--text-sm);
-  line-height: 1.5;
-  transition: border-color 0.18s;
-}
-.chapter-search input:hover {
-  border-color: var(--line);
-}
-.chapter-search input:focus-visible {
-  outline: 2px solid var(--accent-bright);
-  outline-offset: 2px;
-}
+/* Chapter navigation. */
 .chapter-list a {
   display: flex;
   gap: 10px;
@@ -100,6 +69,10 @@
 }
 .chapter-group + .chapter-group {
   margin-top: var(--space-5);
+}
+.chapter-overview {
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--line-soft);
 }
 .chapter-group-label {
   padding-inline: 12px;
@@ -129,19 +102,13 @@
   background: none;
   border-left-color: var(--accent);
 }
-.chapter-empty {
-  color: var(--muted);
-  font-size: 0.8125rem;
-  padding: var(--space-3);
-}
 @media (min-width: 801px) {
   .reading-nav-inner {
     display: flex;
     flex-direction: column;
     overflow: visible;
   }
-  .reading-nav .book-label,
-  .desktop-chapters .chapter-search {
+  .reading-nav .book-label {
     flex-shrink: 0;
   }
   .desktop-chapters {
@@ -381,9 +348,6 @@
     font-size: var(--text-sm);
     color: var(--text);
   }
-  .mobile-chapters .chapter-search {
-    margin-top: 20px;
-  }
   .chapter-toggle {
     display: flex;
     align-items: center;
@@ -402,9 +366,6 @@
     margin-left: auto;
     color: var(--muted);
     font-size: var(--text-xs);
-  }
-  .chapter-drawer .chapter-search input {
-    font-size: var(--text-base);
   }
   .chapter-drawer .chapter-list a {
     min-height: 44px;

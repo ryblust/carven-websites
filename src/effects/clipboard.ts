@@ -1,39 +1,42 @@
-import { Effect, Schema } from 'effect';
-
-export class ClipboardUnavailable extends Schema.TaggedError<ClipboardUnavailable>()(
-  'ClipboardUnavailable',
-  {
-    cause: Schema.Defect(),
-  },
-) {}
+export class ClipboardUnavailable extends Error {
+  constructor(cause: unknown) {
+    super('Clipboard API unavailable', { cause });
+  }
+}
 
 export interface ClipboardPort {
   readonly writeText: (text: string) => Promise<void>;
 }
 
 // Keep the browser boundary explicit; tests can supply a different clipboard.
-export const copyText = Effect.fn('copyText')(
-  (clipboard: ClipboardPort | undefined, text: string) =>
-    clipboard
-      ? Effect.tryPromise({
-          try: () => clipboard.writeText(text),
-          catch: (cause) => new ClipboardUnavailable({ cause }),
-        })
-      : Effect.fail(new ClipboardUnavailable({ cause: 'Clipboard API unavailable' })),
-);
+export async function copyText(clipboard: ClipboardPort | undefined, text: string) {
+  if (!clipboard) throw new ClipboardUnavailable('Clipboard API unavailable');
+  try {
+    // Start the write in the click handler's user activation, before any await.
+    await clipboard.writeText(text);
+  } catch (cause) {
+    throw new ClipboardUnavailable(cause);
+  }
+}
 
-export const copyWithFallback = Effect.fn('copyWithFallback')(
-  (clipboard: ClipboardPort | undefined, text: string, selectText: () => void) =>
-    copyText(clipboard, text).pipe(
-      Effect.as('copied' as const),
-      Effect.catchTag('ClipboardUnavailable', () =>
-        Effect.sync(() => {
-          selectText();
-          return 'selected' as const;
-        }),
-      ),
-    ),
-);
+export async function copyWithFallback(
+  clipboard: ClipboardPort | undefined,
+  text: string,
+  selectText: () => void,
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted();
+  try {
+    await copyText(clipboard, text);
+  } catch (error) {
+    signal?.throwIfAborted();
+    if (!(error instanceof ClipboardUnavailable)) throw error;
+    selectText();
+    return 'selected' as const;
+  }
+  signal?.throwIfAborted();
+  return 'copied' as const;
+}
 
 export interface CopyView {
   readonly select: () => void;
@@ -41,13 +44,27 @@ export interface CopyView {
   readonly reset: () => void;
 }
 
-export const copyFeedback = Effect.fn('copyFeedback')(function* (
+export async function copyFeedback(
   clipboard: ClipboardPort | undefined,
   text: string,
   view: CopyView,
+  signal: AbortSignal,
 ) {
-  const result = yield* copyWithFallback(clipboard, text, view.select);
-  yield* Effect.sync(() => view.feedback(result));
-  yield* Effect.sleep('2400 millis');
-  yield* Effect.sync(view.reset);
-});
+  const result = await copyWithFallback(clipboard, text, view.select, signal);
+  signal.throwIfAborted();
+  view.feedback(result);
+  signal.throwIfAborted();
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', abort);
+      resolve();
+    }, 2400);
+    const abort = () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    };
+    signal.addEventListener('abort', abort, { once: true });
+  });
+  signal.throwIfAborted();
+  view.reset();
+}

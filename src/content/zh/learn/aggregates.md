@@ -2,7 +2,7 @@
 title: "用结构体、数组和枚举表示数据"
 description: 把相关数据放在一起，用穷尽模式表达状态。
 section: learn
-lesson: 4
+lesson: 5
 source: docs/language/aggregates.md
 ---
 

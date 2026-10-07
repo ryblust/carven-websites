@@ -1,4 +1,4 @@
-import { localeOf, localizedPath, translate } from '../lib/i18n';
+import { localeOf, localizedPath, translate, unlocalizedPath } from '../lib/i18n';
 import { Link } from '@tanstack/react-router';
 import { InlineCode } from '../components/InlineCode';
 import { Sketch } from '../components/Sketch';
@@ -19,6 +19,7 @@ export default function Article({ path, html }: { path: ArticlePath; html: strin
   const { title, description, section, source } = article;
   const reference = section === 'reference';
   const book = section === 'learn' || reference;
+  const overview = book && unlocalizedPath(path) === `/${section}/`;
   const design =
     !book &&
     designReadingGroups.some((group) =>
@@ -59,11 +60,14 @@ export default function Article({ path, html }: { path: ArticlePath; html: strin
           </Link>
         </div>
       )}
-      <article>
+      <article className={overview ? 'book-overview' : undefined}>
         <header className="article-header">
           {book && (
             <p className="article-kicker">
-              {label} · {String(article.lesson).padStart(2, '0')}
+              {label}
+              {overview
+                ? ` · ${t('总览', 'Overview')}`
+                : ` · ${String(article.lesson).padStart(2, '0')}`}
             </p>
           )}
           <div className="article-title-row">
@@ -75,6 +79,19 @@ export default function Article({ path, html }: { path: ArticlePath; html: strin
           <p>
             <InlineCode text={description} />
           </p>
+          {overview && !reference && (
+            <div className="overview-actions">
+              <Link
+                className="button button-primary"
+                to={localizedPath('/learn/first-program/', locale)}
+              >
+                {t('运行第一个程序', 'Run your first program')} <span aria-hidden="true">→</span>
+              </Link>
+              <Link className="text-link" to={localizedPath('/playground/', locale)}>
+                {t('先在 Playground 试试', 'Try the Playground')}
+              </Link>
+            </div>
+          )}
         </header>
         <details className="mobile-toc" key={`${path}-toc`}>
           <summary>
@@ -102,13 +119,26 @@ export default function Article({ path, html }: { path: ArticlePath; html: strin
         <nav className="chapter-nav" aria-label={t('章节导航', 'Chapter navigation')}>
           {previous && (
             <Link to={previous}>
-              <span>← {t('上一章', 'Previous')}</span>
+              <span>
+                ←{' '}
+                {unlocalizedPath(previous) === `/${section}/`
+                  ? t('回到总览', 'Back to overview')
+                  : t('上一章', 'Previous')}
+              </span>
               <strong>{articles[previous].title}</strong>
             </Link>
           )}
           {next && (
             <Link className="chapter-next" to={next}>
-              <span>{t('下一章', 'Next')} →</span>
+              <span>
+                {overview
+                  ? t(
+                      reference ? '开始查阅' : '开始学习',
+                      reference ? 'Start exploring' : 'Start learning',
+                    )
+                  : t('下一章', 'Next')}{' '}
+                →
+              </span>
               <strong>{articles[next].title}</strong>
             </Link>
           )}

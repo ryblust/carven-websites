@@ -2,7 +2,7 @@
 title: "Name and update values"
 description: "Express data with `let`, `var`, `const`, and type annotations; understand literals and explicit conversions."
 section: learn
-lesson: 1
+lesson: 2
 source: docs/language/types.md
 ---
 

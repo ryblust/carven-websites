@@ -2,7 +2,7 @@
 title: "Capture state and pass behavior"
 description: "Move from value captures to Write captures, and distinguish owning closures from non-owning views."
 section: learn
-lesson: 10
+lesson: 11
 source: docs/language/functions.md
 ---
 

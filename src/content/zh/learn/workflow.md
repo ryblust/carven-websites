@@ -2,7 +2,7 @@
 title: "运行、格式化与排错"
 description: 选择执行阶段，组织项目验证，并用明确边界定位问题。
 section: learn
-lesson: 16
+lesson: 17
 source: docs/toolchain/cli.md
 ---
 

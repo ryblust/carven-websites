@@ -2,7 +2,7 @@
 title: "Project: update stock only after success"
 description: "Build an order workflow with explicit outcomes, amount limits, selective failure recovery, and static and runtime tests."
 section: learn
-lesson: 15
+lesson: 16
 source: docs/language/tutorial.md
 ---
 

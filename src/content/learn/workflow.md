@@ -2,7 +2,7 @@
 title: "Run, format, and diagnose"
 description: "Select execution stages, organize validation, and locate problems at their boundaries."
 section: learn
-lesson: 16
+lesson: 17
 source: docs/toolchain/cli.md
 ---
 

@@ -2,7 +2,7 @@
 title: "在编译期构造数据"
 description: 用 `const fn` 组织循环和文本构造，认识冻结和执行阶段。
 section: learn
-lesson: 12
+lesson: 13
 source: docs/language/constants.md
 ---
 

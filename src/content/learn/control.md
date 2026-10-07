@@ -2,7 +2,7 @@
 title: "Choose branches and repeat work"
 description: "Organize execution with conditions, integer ranges, pattern matching, and loop updates."
 section: learn
-lesson: 2
+lesson: 3
 source: docs/language/control-flow.md
 ---
 

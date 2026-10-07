@@ -2,7 +2,7 @@
 title: "Model data with structs, arrays, and enums"
 description: "Group related data and express states with exhaustive patterns."
 section: learn
-lesson: 4
+lesson: 5
 source: docs/language/aggregates.md
 ---
 

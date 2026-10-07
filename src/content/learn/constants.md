@@ -2,7 +2,7 @@
 title: "Build data at compile time"
 description: "Organize loops and text construction with `const fn`, and understand freezing and execution stages."
 section: learn
-lesson: 12
+lesson: 13
 source: docs/language/constants.md
 ---
 

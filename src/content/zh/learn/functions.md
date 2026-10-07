@@ -2,7 +2,7 @@
 title: "用函数组织计算"
 description: 拆分计算，声明参数类型，明确每条路径的返回值。
 section: learn
-lesson: 3
+lesson: 4
 source: docs/language/functions.md
 ---
 

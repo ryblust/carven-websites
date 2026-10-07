@@ -2,7 +2,7 @@
 title: "拥有文本与借用序列"
 description: 选择 `String` 或 `str`，处理 UTF-8，并理解视图何时阻止修改。
 section: learn
-lesson: 6
+lesson: 7
 source: docs/language/text.md
 ---
 

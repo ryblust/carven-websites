@@ -2,7 +2,7 @@
 title: "捕获状态与传递行为"
 description: 从值捕获到 Write 捕获，区分拥有闭包与非拥有 view。
 section: learn
-lesson: 10
+lesson: 11
 source: docs/language/functions.md
 ---
 

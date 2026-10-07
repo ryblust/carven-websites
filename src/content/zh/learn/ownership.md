@@ -2,7 +2,7 @@
 title: "读取、修改与转移值"
 description: 用一个库存例子理解 Read、非独占 Write、显式 Take、恢复和类的接收者。
 section: learn
-lesson: 5
+lesson: 6
 source: docs/language/ownership.md
 ---
 

@@ -2,7 +2,7 @@
 title: "Format and print results"
 description: "Build readable output with interpolation, format specifications, and in-place append."
 section: learn
-lesson: 7
+lesson: 8
 source: docs/language/text.md
 ---
 

@@ -33,7 +33,7 @@ This manual describes Carven's implemented language. Look up a keyword, syntax c
 | `main`, `test`, and assertions                    | [Entries and tests](/reference/entry-testing/)                                                                |
 | C++ headers, functions, and source fragments      | [C++ interoperation](/reference/interop/)                                                                     |
 
-Start with the [keyword index](/reference/keywords/) when you know a spelling. The sidebar's chapter search also accepts keywords and common symbols, such as `let`, `break`, and `?`.
+Start with the [keyword index](/reference/keywords/) when you know a spelling. Use the search at the top to find titles, topics, keywords, or common symbols such as `let`, `break`, and `?`.
 
 ## Defaults and contextual behavior
 
@@ -62,7 +62,7 @@ The [grammar appendix](/reference/grammar/) gives the complete EBNF. The [diagno
 
 Start with the syntax form, then check its type, access, failure, and lifetime rules. “Compile error” means Carven should reject the program. “Termination” means execution ends without a catchable typed failure.
 
-Unless noted otherwise, save each complete example separately as `main.cv` and run it natively with `carven main.cv`. Check a compile-error example separately with `carven check main.cv`. Fragments and syntax templates need their stated context; do not combine independent examples into one program. Run `test` examples with `carven --tests main.cv`; `const test` executes during checking. See [your first program](/learn/) for setup and commands.
+Unless noted otherwise, save each complete example separately as `main.cv` and run it natively with `carven main.cv`. Check a compile-error example separately with `carven check main.cv`. Fragments and syntax templates need their stated context; do not combine independent examples into one program. Run `test` examples with `carven --tests main.cv`; `const test` executes during checking. See [your first program](/learn/first-program/) for setup and commands.
 
 ## Terms
 

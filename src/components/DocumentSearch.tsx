@@ -1,11 +1,12 @@
 import { InlineCode } from './InlineCode';
-import { plainInlineText } from '../lib/inline-code';
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Link, useHydrated } from '@tanstack/react-router';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Link, useHydrated, useLocation } from '@tanstack/react-router';
 import { Search, X } from 'lucide-react';
 import { UIIcon } from './UIIcon';
-import { articles, type ArticlePath } from '../generated/manifest';
-import { localeOf, translate, type Locale } from '../lib/i18n';
+import { articles } from '../generated/manifest';
+import { translate, type Locale } from '../lib/i18n';
+import { searchArticles } from '../lib/document-search';
+import { HighlightedText } from './HighlightedText';
 
 export function DocumentSearch({ locale }: { locale: Locale }) {
   const t = translate(locale);
@@ -13,21 +14,19 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
   const trigger = useRef<HTMLButtonElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
+  const results = useRef<HTMLElement>(null);
+  const composing = useRef(false);
   const navigating = useRef(false);
   const id = useId();
   const [query, setQuery] = useState('');
   const ready = useHydrated();
+  const pathname = useLocation({ select: (location) => location.pathname });
   const [opened, setOpened] = useState(false);
   const [shortcut, setShortcut] = useState('Ctrl K');
-  const matches = (Object.keys(articles) as ArticlePath[]).filter((path) => {
-    const article = articles[path];
-    return (
-      localeOf(path) === locale &&
-      `${article.title} ${plainInlineText(article.description)}`
-        .toLocaleLowerCase()
-        .includes(query.trim().toLocaleLowerCase())
-    );
-  });
+  const matches = useMemo(
+    () => (opened ? searchArticles(locale, query) : []),
+    [locale, opened, query],
+  );
   const open = useCallback(
     (focusInput = window.matchMedia('(hover: hover) and (pointer: fine)').matches) => {
       if (!dialog.current || !input.current || !closeButton.current) return;
@@ -43,6 +42,13 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
     [],
   );
   const close = () => dialog.current?.close();
+  useEffect(() => {
+    if (!dialog.current?.open) return;
+    // History navigation can change the page while its search dialog is open.
+    // Let the layout move focus to the destination instead of the old trigger.
+    navigating.current = true;
+    dialog.current.close();
+  }, [pathname]);
   useEffect(() => {
     setShortcut(/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ K' : 'Ctrl K');
     const onKeyDown = (event: KeyboardEvent) => {
@@ -75,9 +81,51 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
         className="search-dialog"
         aria-labelledby={id}
         onKeyDown={(event) => {
+          if (composing.current || event.nativeEvent.isComposing) return;
           if (event.key === 'Escape') {
             event.preventDefault();
             close();
+            return;
+          }
+          if (event.altKey || event.ctrlKey || event.metaKey) return;
+          const links = [
+            ...(results.current?.querySelectorAll<HTMLAnchorElement>('a[href]') ?? []),
+          ];
+          const focused = document.activeElement;
+          const index = links.findIndex((link) => link === focused);
+          const focus = (element: HTMLElement) => {
+            element.focus({ preventScroll: true });
+            if (links.includes(element as HTMLAnchorElement)) {
+              element.scrollIntoView({ block: 'nearest' });
+            }
+          };
+          if (event.key === 'Tab') {
+            const controls = [closeButton.current, input.current, ...links].filter(
+              (element): element is HTMLButtonElement | HTMLInputElement | HTMLAnchorElement =>
+                element !== null,
+            );
+            const current = controls.findIndex((element) => element === focused);
+            const next = (current + (event.shiftKey ? -1 : 1) + controls.length) % controls.length;
+            if (controls[next]) {
+              event.preventDefault();
+              focus(controls[next]);
+            }
+          } else if (
+            (event.key === 'ArrowDown' || event.key === 'ArrowUp') &&
+            links.length &&
+            (focused === input.current || index >= 0)
+          ) {
+            event.preventDefault();
+            const next =
+              focused === input.current
+                ? event.key === 'ArrowDown'
+                  ? 0
+                  : links.length - 1
+                : (index + (event.key === 'ArrowDown' ? 1 : -1) + links.length) % links.length;
+            focus(links[next]!);
+          } else if (event.key === 'Enter' && focused === input.current && links[0]) {
+            event.preventDefault();
+            links[0].click();
           }
         }}
         onClose={() => {
@@ -109,8 +157,15 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('输入标题或主题，例如：类型', 'Title or topic, e.g. types')}
+            placeholder={t('标题、主题或关键字，例如：let', 'Title, topic or keyword, e.g. let')}
             autoComplete="off"
+            aria-describedby={`${id}-keys`}
+            onCompositionStart={() => {
+              composing.current = true;
+            }}
+            onCompositionEnd={() => {
+              composing.current = false;
+            }}
           />
           <p className="search-hint" role="status">
             {query.trim()
@@ -118,11 +173,15 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
                   `${matches.length} 个结果`,
                   `${matches.length} ${matches.length === 1 ? 'result' : 'results'}`,
                 )
-              : t('浏览教程与语言参考', 'Explore the tutorial and language reference')}
+              : t('浏览教程、语言参考与设计专题', 'Explore tutorials, reference and design topics')}
           </p>
-          <nav className="search-results" aria-label={t('搜索结果', 'Search results')}>
+          <nav
+            ref={results}
+            className="search-results"
+            aria-label={t('搜索结果', 'Search results')}
+          >
             {opened &&
-              matches.map((path) => (
+              matches.map(({ path, matchedTerms }) => (
                 <Link
                   key={path}
                   to={path}
@@ -145,12 +204,22 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
                       ? t('教程', 'Learn')
                       : articles[path].section === 'reference'
                         ? t('语言参考', 'Reference')
-                        : 'Carven'}
+                        : articles[path].section === 'use-cases'
+                          ? t('接入现有工程', 'Integration')
+                          : t('设计与原理', 'Design & principles')}
                   </span>
-                  <strong>{articles[path].title}</strong>
-                  <span>
-                    <InlineCode text={articles[path].description} />
+                  <strong>
+                    <HighlightedText text={articles[path].title} query={query} />
+                  </strong>
+                  <span className="search-description">
+                    <InlineCode text={articles[path].description} highlight={query} />
                   </span>
+                  {matchedTerms.length > 0 && (
+                    <span className="search-match">
+                      {t('匹配词：', 'Matches: ')}
+                      <HighlightedText text={matchedTerms.join(' · ')} query={query} />
+                    </span>
+                  )}
                 </Link>
               ))}
             {matches.length === 0 && (
@@ -162,8 +231,11 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
               </p>
             )}
           </nav>
-          <p className="search-footnote">
-            {t('Tab 选择 · Enter 打开 · Esc 关闭', 'Tab to select · Enter to open · Esc to close')}
+          <p className="search-footnote" id={`${id}-keys`}>
+            {t(
+              '↑↓ 选择 · Tab 切换焦点 · Enter 打开 · Esc 关闭',
+              '↑↓ to select · Tab to move focus · Enter to open · Esc to close',
+            )}
           </p>
         </div>
       </dialog>

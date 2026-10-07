@@ -2,7 +2,7 @@
 title: "Combine failures and narrow contracts"
 description: "Define failures with data, propagate at calls, and recover where business context is available."
 section: learn
-lesson: 9
+lesson: 10
 source: docs/language/failures.md
 ---
 

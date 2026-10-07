@@ -6,7 +6,7 @@ export function Wordmark({ priority = false }: { priority?: boolean }) {
   return (
     <span className="brand-image" aria-hidden="true">
       <img
-        src={href('/brand/carven-wordmark.png')}
+        src={href('/brand/carven-wordmark.webp')}
         alt=""
         width={2001}
         height={786}
