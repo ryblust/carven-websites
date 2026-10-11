@@ -98,7 +98,7 @@
 .design-number {
   padding-top: 2px;
   color: var(--quiet);
-  font: var(--text-sm)/1.5 var(--mono);
+  font: var(--code-weight) var(--text-sm)/1.5 var(--mono);
 }
 .design-reading h3 {
   font-size: 1.4rem;

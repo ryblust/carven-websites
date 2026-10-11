@@ -212,7 +212,7 @@
   margin-inline: 12px;
   overflow: auto;
   overscroll-behavior-x: none;
-  font: var(--code-weight) 13px/1.8 var(--mono);
+  font: var(--code-weight) var(--code-size) / var(--code-leading) var(--mono);
 }
 .playground-code-editor .cm-content {
   padding: 20px 0;
@@ -289,7 +289,7 @@
   padding: 20px;
   overflow: auto;
   color: var(--code-text);
-  font: var(--code-weight) 13px/1.8 var(--mono);
+  font: var(--code-weight) var(--code-size) / var(--code-leading) var(--mono);
 }
 .playground-pane-footer {
   display: flex;
@@ -348,7 +348,7 @@
   overflow: auto;
   color: var(--code-text);
   white-space: pre;
-  font: var(--code-weight) 13px/1.8 var(--mono);
+  font: var(--code-weight) var(--code-size) / var(--code-leading) var(--mono);
 }
 .playground-result-label {
   padding: 12px 20px 0;

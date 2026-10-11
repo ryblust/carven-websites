@@ -90,9 +90,9 @@
   --body-leading: 1.75;
   --lead-size: 1.125rem;
   --lead-leading: 1.8;
-  --code-size: 0.875rem;
+  --code-size: 0.8125rem;
   --code-weight: 350;
-  --code-leading: 1.7;
+  --code-leading: 1.8;
   --heading-tracking: -0.02em;
 
   --space-1: 4px;
@@ -244,7 +244,6 @@ p {
 @media (max-width: 800px) {
   :root {
     --gutter: 40px;
-    --code-size: 0.8125rem;
     --lead-size: var(--text-base);
   }
 }

@@ -44,7 +44,7 @@
   position: absolute;
   left: 0;
   color: var(--accent);
-  font: var(--text-sm)/1.8 var(--mono);
+  font: var(--code-weight) var(--text-sm)/1.8 var(--mono);
 }
 .learning-route p {
   margin-top: var(--space-2);
@@ -279,7 +279,7 @@
 }
 .architecture-pipeline li > span {
   color: var(--accent);
-  font: var(--text-xs)/1.7 var(--mono);
+  font: var(--code-weight) var(--text-xs)/1.7 var(--mono);
 }
 .architecture-pipeline strong {
   grid-column: 2;

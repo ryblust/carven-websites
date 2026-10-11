@@ -1,5 +1,5 @@
 .home-page {
-  padding-bottom: var(--space-10);
+  padding-bottom: var(--space-9);
   overflow: clip;
   background: var(--bg);
   background-image: var(--paper-texture);
@@ -9,8 +9,8 @@
 .home-intro {
   width: min(var(--page-width), calc(100% - var(--gutter)));
   margin-inline: auto;
-  min-height: 630px;
-  padding-block: 88px 96px;
+  min-height: 600px;
+  padding-block: 72px 80px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: center;
@@ -98,10 +98,10 @@
 .home-section {
   width: min(var(--page-width), calc(100% - var(--gutter)));
   margin-inline: auto;
-  padding-top: 120px;
+  padding-top: var(--space-9);
 }
 #why-carven {
-  padding-top: var(--space-8);
+  padding-top: 56px;
   scroll-margin-top: var(--header-height);
 }
 .section-head {
@@ -130,10 +130,10 @@
 
 /* Reserve the showcase footprint so switching examples never moves the next section. */
 .showcase-grid {
-  margin-top: 56px;
+  margin-top: 40px;
   display: grid;
   grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
-  grid-template-rows: 1fr auto;
+  grid-template-rows: auto 1fr;
   grid-template-areas:
     'tabs code'
     'caption code';
@@ -174,6 +174,7 @@
 }
 .showcase-index {
   font-family: var(--mono);
+  font-weight: var(--code-weight);
   font-size: var(--text-xs);
   color: var(--quiet);
 }
@@ -182,7 +183,7 @@
 }
 .showcase-caption {
   grid-area: caption;
-  align-self: end;
+  align-self: start;
   display: grid;
   padding: var(--space-5) var(--space-4) 0;
   border-top: 1px solid var(--line);
@@ -238,8 +239,9 @@
   flex-shrink: 0;
 }
 .showcase-code .code-window-result {
-  flex: 0 0 6rem;
-  min-height: 0;
+  flex: 0 0 auto;
+  min-height: 4rem;
+  max-height: 7rem;
   overflow: auto;
 }
 .showcase-code .showcase-details {
@@ -296,7 +298,7 @@
 }
 .why-code-block pre {
   margin: 0;
-  padding: var(--space-5) 28px;
+  padding: 20px 28px;
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -337,7 +339,7 @@
 .code-window-result p {
   white-space: pre-line;
   color: var(--prose);
-  font: var(--code-weight) 0.8125rem / 1.7 var(--mono);
+  font: var(--code-weight) var(--code-size) / var(--code-leading) var(--mono);
 }
 .showcase-details {
   padding: 0 28px;
@@ -409,7 +411,7 @@
 }
 .workflow-steps {
   list-style: none;
-  margin: 56px 0 0;
+  margin: 40px 0 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -470,7 +472,7 @@
 }
 .workflow-artifact {
   color: var(--muted);
-  font: var(--code-weight) var(--text-sm)/1.7 var(--mono);
+  font: var(--code-weight) var(--code-size) / var(--code-leading) var(--mono);
 }
 .workflow-disclosure {
   display: flex;
@@ -530,7 +532,7 @@
   border-radius: var(--radius-sm);
   background: var(--bg-soft);
   color: var(--prose);
-  font: 0.8125rem / 1.7 var(--mono);
+  font: var(--code-weight) var(--code-size) / var(--code-leading) var(--mono);
 }
 @media (max-width: 900px) {
   .workflow-intro {
@@ -599,6 +601,15 @@
   color: var(--prose);
 }
 
+@media (min-width: 901px) {
+  .showcase-code {
+    --code-size: 0.875rem;
+    margin-left: 24px;
+  }
+  .showcase-code .why-code-block pre {
+    padding-left: 36px;
+  }
+}
 @media (max-width: 1100px) {
   .showcase-grid {
     grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
@@ -609,8 +620,8 @@
   }
 }
 @media (max-width: 900px) {
-  .showcase-code {
-    height: 36rem;
+  .showcase-code .code-window-result {
+    min-height: 7rem;
   }
   .showcase-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -655,6 +666,9 @@
   }
 }
 @media (max-width: 800px) {
+  .home-page {
+    padding-bottom: var(--space-8);
+  }
   .home-intro {
     min-height: auto;
     grid-template-columns: minmax(0, 1fr);
@@ -672,14 +686,14 @@
     justify-self: center;
   }
   .home-section {
-    padding-top: var(--space-9);
+    padding-top: 72px;
   }
   #why-carven {
     padding-top: var(--space-6);
   }
   .showcase-grid,
   .workflow-steps {
-    margin-top: 40px;
+    margin-top: var(--space-6);
   }
 }
 @media (max-width: 600px) {
@@ -698,6 +712,15 @@
   .showcase-details,
   .terminal-step {
     padding-inline: var(--space-4);
+  }
+}
+@media (max-width: 360px) {
+  .showcase-code {
+    height: 43rem;
+  }
+  .showcase-code .code-window-result {
+    min-height: 8rem;
+    max-height: 8rem;
   }
 }
 @media (prefers-reduced-motion: no-preference) {

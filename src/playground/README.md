@@ -1,122 +1,61 @@
 # Playground
 
-The Playground runs the Carven compiler and Graver from one WASI module in a Web
-Worker. Each invocation receives `main.cv` and the packaged Crafts library in an
-in-memory filesystem. The worker returns diagnostics, output and generated files.
-GitHub Pages serves the website and compiler assets as static files.
-
-CodeMirror 6 owns editing and undo history. Its lexer supplies syntax highlighting;
-the compiler supplies diagnostics.
+The Playground runs the Carven compiler and Graver as a WASI module in a Web
+Worker. CodeMirror 6 handles editing and syntax highlighting. GitHub Pages serves
+the website and compiler assets.
 
 ## Build
 
-CI shallow-checks out the compiler repository's latest default-branch commit into
-`.deps/carven/`. It installs Xmake 3.1.1 and WASI SDK 34, then runs this
-command from the website repository root:
+CI checks out the compiler repository's latest default-branch commit into
+`.deps/carven/` and builds it with Xmake 3.1.1 and WASI SDK 34. For a local build,
+extract the SDK into `.deps/wasi-sdk/`, then run from the website repository root:
 
 ```sh
-.deps/carven/xmakew build
-```
-
-The checkout's `xmakew` applies the compiler repository's Clang module pipeline
-patch. The root `xmake.lua` defines `carven-wasm` with C++26, Release mode, Xmake's
-LTO policy and built-in `wasi` toolchain. The policy enables ThinLTO for Clang.
-The `wasm` platform defaults to `wasm32`; SDK 34 targets WASI Preview 1. Xmake
-manages module dependencies, compilation and linking.
-
-For local builds, install the website dependencies and Xmake, extract WASI SDK 34
-into `.deps/wasi-sdk/`, then prepare the checkout and SDK environment:
-
-```sh
-export WASI_SDK_PATH="$PWD/.deps/wasi-sdk"
+pnpm install
 git clone --depth 1 https://github.com/ryblust/carven.git .deps/carven
+export WASI_SDK_PATH="$PWD/.deps/wasi-sdk"
 pnpm playground:build
 ```
 
-`pnpm playground:build` runs the same wrapper command against the local checkout.
-Xmake discovers the SDK through `WASI_SDK_PATH`, which CI's SDK setup action sets.
-`src/playground/carven-wasm.cpp` provides the WASM entry point. Browser execution
-and editor support live alongside it.
+`pnpm playground:build` invokes `.deps/carven/xmakew build` with the website's
+`xmake.lua`. The target uses C++26, Release mode and ThinLTO. Its WASI standard-module
+configuration is documented beside the target in `xmake.lua`.
 
-For a content synchronization, use the same committed compiler revision for
-example validation and the local `.deps/carven/` checkout before rebuilding the
-package. Record that revision and the WASM validation evidence in
-`docs/content-sync.md`; this README describes the build contract rather than a
-fixed package version. Keep local compiler-checkout changes before selecting
-another revision.
+Build outputs go to `public/playground-assets/`: `carven.wasm`, `crafts.json`,
+and license notices. Website builds validate these assets before generating pages.
 
-The target adds the SDK's `std.cppm` explicitly because Xmake 3.1.1's WASI toolchain
-leaves the C++ runtime identity unspecified during standard-module discovery.
-That module includes `<csignal>` and `<csetjmp>`; their WASI headers require
-`_WASI_EMULATED_SIGNAL` and `-mexception-handling`, respectively. C++ exceptions
-remain disabled through `set_exceptions("no-cxx")`.
-
-Xmake links `carven.wasm` directly into `public/playground-assets/`. The target's
-`after_build` hook bundles Crafts source into `crafts.json` and copies license
-notices into that directory. The package includes an empty runtime header for the
-compiler's library discovery; browser execution uses the interpreter, while
-`compile` returns C++ source for a native build. The website build checks that the
-WASM compiles, Crafts parses and license files exist. Generated assets, build
-outputs and the compiler checkout are ignored by Git.
+Local content synchronization baselines and validation evidence are recorded in
+`docs/content-sync.md`.
 
 ## Execution
 
-| Action    | Result                                                            |
-| --------- | ----------------------------------------------------------------- |
-| `check`   | Compiler diagnostics and compile-time output from source analysis |
-| `run`     | Interpreter output, with a 100,000-step budget                    |
-| `compile` | Generated C++ files, collected separately from stdout             |
-| `tokens`  | Lexer token dump                                                  |
-| `ast`     | Parsed syntax-tree dump                                           |
-| `format`  | Graver-formatted source from a successful, complete invocation    |
+Each invocation receives `main.cv` and the packaged Crafts library in an in-memory
+filesystem. `carven-wasm.cpp` provides the compiler entry point; `wasi.ts` handles
+asset loading and filesystem access; `client.ts` manages worker sessions.
 
-Lexing, parsing and formatting operate at their source-syntax boundaries. Source
-analysis resolves names and types; interpretation admits operations supported by
-the interpreter. Native C++ calls produce an interpreter admission error.
+| Action    | Result                              |
+| --------- | ----------------------------------- |
+| `check`   | Diagnostics and compile-time output |
+| `run`     | Interpreter output                  |
+| `compile` | Generated C++ files                 |
+| `tokens`  | Lexer token dump                    |
+| `ast`     | Parsed syntax-tree dump             |
+| `format`  | Formatted source                    |
 
-The Diagnostics view displays captured standard output alongside diagnostics,
-including output from `const` blocks during Check. The Output view shows standard
-output from Check, Run or Generate C++; syntax dumps and formatted source stay in
-their respective views. Source navigation applies only to diagnostic locations.
+Native C++ calls produce an interpreter admission error. Generated C++ can be
+built with a native toolchain.
+
+Diagnostics includes captured standard output. Output shows stdout from Check,
+Run or Generate C++; syntax dumps and formatted source use their respective views.
 
 Each request owns a worker, WASI instance and filesystem. Cancellation terminates
-the worker. Only the current request can publish a result. Source replacement
-requires a successful, complete formatting result.
-
-Source and formatted output have a 64 KiB UTF-8 budget. Other stdout and stderr
-share a 128 KiB budget; generated file writes have a separate 128 KiB budget.
-Asset loading has a 120-second deadline and execution has a 30-second deadline.
-The worker loads `carven.wasm` and `crafts.json` beneath the site's deployment
-prefix. Downloads have a 128 MiB WASM budget and an 8 MiB Crafts budget. The module
-imports WASI Preview 1 capabilities; WASI receives the packaged filesystem and
-standard I/O.
+the worker, and only the current request publishes results. Formatting replaces
+source after a successful, complete result. Resource limits and deadlines are
+defined in `carven-wasm.cpp`, `wasi.ts` and `client.ts`.
 
 ## Validation
 
-Tests assert current contracts using accepted inputs and expected errors. WASM
-execution tests use the generated WASM and Crafts files.
-
-| Boundary       | Contract                                                                                                                                                         |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Assets         | Fixed resources resolve beneath the deployment prefix; packaged filesystem paths stay within Crafts; missing resources fail loading                              |
-| WASI execution | Valid programs produce their results; invalid programs report diagnostics; budgets stop execution; generated files and formatted source follow publication rules |
-| Worker session | Requests preserve source; completion releases the worker; cancellation and deadlines stop publication                                                            |
-| Diagnostics    | Captured streams retain their text and accessible names; only valid diagnostic locations navigate to source; compiler byte locations map to editor selections    |
-| Page actions   | Editing source and choosing Check publishes compile-time stdout with passing or failing diagnostics; Check does not run the entry                                |
-
-Page interaction tests mount the real Playground, router and CodeMirror in jsdom,
-then select and paste source through DOM events before choosing Check. A Worker
-transport adapter executes each request with the packaged WASM compiler; results
-are not canned fixtures. These tests cover page input and result publication, but
-jsdom does not provide layout or real Web Workers. Browser checks still cover
-responsive layout, focus and real worker execution. Runnable presets have exact
-expected stdout in the WASI execution tests. The
-native JSON preset defaults to C++ generation: tests verify the generated header
-import and library calls, and the interpreter admission diagnostic. Homepage
-links expose the showcase presets in both locales; direct links preserve their
-source and choose the appropriate result view. The editor shortcut executes the
-action selected by that view.
-
-Run `pnpm test` against the generated package. For website changes, run
-`pnpm format:check`, `pnpm build` and `pnpm check:links`. Build and check links with
-the same deployment prefix.
+Build the compiler assets before running `pnpm test`. WASI execution tests and
+page interaction tests execute the packaged compiler. Page tests use jsdom with
+a worker transport adapter; layout, focus and browser workers are checked in the
+browser.
