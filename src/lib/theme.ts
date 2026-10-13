@@ -1,4 +1,4 @@
-export const themeColors = { light: '#faf8f4', dark: '#17191e' } as const;
+export const themeColors = { light: '#fcfbf8', dark: '#17191e' } as const;
 export type ThemePreference = 'system' | keyof typeof themeColors;
 
 export function observeTheme(onChange: (preference: ThemePreference) => void) {

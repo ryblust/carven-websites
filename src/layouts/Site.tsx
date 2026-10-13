@@ -20,12 +20,15 @@ function NavigationTitle({ children }: Props) {
       {children}
       <svg
         className="header-nav-underline"
-        viewBox="0 0 100 9"
+        viewBox="0 0 100 28"
         preserveAspectRatio="none"
         aria-hidden="true"
         focusable="false"
       >
-        <path d="M2 6 C18 2.5 30 8 48 5.2 S77 2.8 98 4.2" pathLength="100" />
+        <path
+          fillRule="evenodd"
+          d="M2.2 12.9 C3.3 12.2 4.8 11.7 6.8 11.4 L6.1 12.8 C4.9 13.2 3.7 13.7 2.5 14 Z M10.4 11.5 C29.5 4.4 65.5 4 98 9.2 C76.2 8.4 55 11 31.2 14.4 C24.4 15.3 17.4 15.5 11.1 14.8 L12.8 13.1 L9.3 13.7 Z M12.3 12.7 C15.6 11 20.2 10.1 25.8 9.5 C21 11.4 16.5 12.6 12.3 14 Z"
+        />
       </svg>
     </span>
   );

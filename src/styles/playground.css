@@ -102,12 +102,12 @@
   display: grid;
   grid-template-columns: minmax(0, var(--playground-split, 55%)) 9px minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
-  border: 1px solid var(--line);
+  border: 1px solid color-mix(in srgb, var(--prose) 16%, var(--surface));
   border-radius: var(--radius);
   corner-shape: var(--corner-shape);
   overflow: hidden;
   background: var(--surface);
-  box-shadow: 4px 4px 0 var(--shadow);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--prose) 8%, transparent);
 }
 .playground-pane {
   min-width: 0;
@@ -252,10 +252,17 @@
   position: absolute;
   inset: 3px;
   z-index: 1;
-  border: 1px solid color-mix(in srgb, var(--accent) 70%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--ink-emphasis) 65%, var(--surface));
   border-radius: var(--radius-sm);
-  box-shadow: 0 0 0 2px var(--accent-soft);
   pointer-events: none;
+}
+@media (prefers-contrast: more) {
+  .playground-workspace {
+    border-color: var(--line);
+  }
+  .playground-editor:focus-within::after {
+    border-color: var(--ink-emphasis);
+  }
 }
 .playground-code-editor .cm-cursor {
   border-left-color: var(--accent);

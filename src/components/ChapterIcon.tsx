@@ -30,7 +30,7 @@ const symbols: Record<string, string> = {
   slices:
     'M3.2 5.1q8.7-.7 17.5.3l-.3 13.4q-9.1.7-17.4-.1ZM8.7 5.4l.4 13M15 5.4q-.5 7 .2 13.1M5 3l3.1-.3m8.8 18.4 3.7-.2',
   'entry-testing': check,
-  learn: 'M7.1 3.7q6.6 4.1 12.6 8.3L7.4 20.3q-.8-7.8-.3-16.6M4 7.3l-.3 8.7',
+  'first-program': 'M7.1 3.7q6.6 4.1 12.6 8.3L7.4 20.3q-.8-7.8-.3-16.6M4 7.3l-.3 8.7',
   values:
     'M3.1 11.7 11.8 3l8.4.5-.5 8.2-8.8 9.1Q6.1 16.3 3.1 11.7ZM15 7.8q-.2-1.6 1.3-1.5t1.1 1.5q-.6 1.1-1.8.6',
   control:
@@ -66,7 +66,7 @@ const symbols: Record<string, string> = {
 };
 const aliases: Record<string, string> = {
   design: 'reference',
-  'first-program': 'learn',
+  learn: 'reference',
   keywords: 'lexical',
   bindings: 'values',
   'syntax-and-inference': 'lexical',

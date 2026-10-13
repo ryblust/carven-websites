@@ -48,27 +48,30 @@
 :root {
   color-scheme: light dark;
 
-  --bg: light-dark(#faf8f4, #17191e);
-  --bg-soft: light-dark(#f3f0e9, #14161a);
-  --surface: light-dark(#fcfaf7, #1d2026);
+  --bg: light-dark(#fcfbf8, #17191e);
+  --bg-soft: light-dark(#f6f5f2, #14161a);
+  --surface: light-dark(#fffefa, #1d2026);
   --text: light-dark(#20211f, #eee9de);
-  --prose: light-dark(#2e3b61, #c4ccde);
+  --prose: light-dark(#34383f, #c4ccde);
   --ink-emphasis: light-dark(#243b70, #c5d5fa);
   --weight-emphasis: 650;
   --weight-medium: 500;
   --weight-heading: 700;
   --weight-subheading: 600;
-  --muted: light-dark(#52607b, #aeb8cb);
-  --quiet: light-dark(#6e746f, #989eac);
-  --line: light-dark(#dad5cb, #3b3e43);
-  --line-soft: light-dark(#e5dfd6, #30343b);
-  --accent: light-dark(#bc421e, #e9a080);
-  --accent-bright: light-dark(#a93416, #f2b799);
-  --accent-soft: light-dark(#fbe6d6, #362b29);
-  --accent-line: light-dark(#d9a087, #9b6d58);
+  --muted: light-dark(#59616e, #aeb8cb);
+  --quiet: light-dark(#6b706b, #989eac);
+  --line: light-dark(#dcd7ce, #3b3e43);
+  --line-soft: light-dark(#e9e4dc, #30343b);
+  --card-bg: light-dark(#f9f8f5, #14161a);
+  --card-line: light-dark(#e3dfd7, #3b3e43);
+  --card-description: light-dark(#505762, #aeb8cb);
+  --accent: light-dark(#a64b32, #e9a080);
+  --accent-bright: light-dark(#923c25, #f2b799);
+  --accent-soft: light-dark(#f7e9df, #362b29);
+  --accent-line: light-dark(#d3a895, #9b6d58);
   --code-text: var(--prose);
   --control: var(--bg-soft);
-  --shadow: light-dark(#dad5cb, #101216);
+  --shadow: light-dark(#e3ddd3, #101216);
   --on-solid: var(--bg);
   --paper-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Cpath fill='%23808080' opacity='.035' filter='url(%23p)' d='M0 0h180v180H0z'/%3E%3C/svg%3E");
   --paper-grid: light-dark(#e7e1d7, #2b3039);
@@ -262,5 +265,7 @@ p {
     --quiet: var(--prose);
     --line: light-dark(#77746f, #92959d);
     --line-soft: var(--line);
+    --card-line: var(--line);
+    --card-description: var(--prose);
   }
 }

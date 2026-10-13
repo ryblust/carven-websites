@@ -202,7 +202,7 @@ export default function Home({ locale }: { locale: Locale }) {
                 <span className="showcase-index" aria-hidden="true">
                   {String(index + 1).padStart(2, '0')}
                 </span>
-                {item.label}
+                <span className="showcase-tab-label">{item.label}</span>
               </button>
             ))}
           </div>
@@ -332,12 +332,6 @@ export default function Home({ locale }: { locale: Locale }) {
             {t(
               '构建编译器需要 Git、Xmake，以及支持 C++26 的 LLVM/Clang 工具链；生成的程序使用 C++20。',
               'Building the compiler requires Git, Xmake, and an LLVM/Clang toolchain with C++26 support. Generated programs use C++20.',
-            )}
-          </p>
-          <p className="quickstart-note">
-            {t(
-              'Windows 使用 .\\xmakew.ps1；已安装编译器时，用 carven 代替 ./xmakew run carven。',
-              'On Windows, use .\\xmakew.ps1. With an installed compiler, replace ./xmakew run carven with carven.',
             )}
           </p>
           <div className="home-actions">

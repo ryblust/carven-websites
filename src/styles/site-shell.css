@@ -58,19 +58,15 @@
 }
 .header-nav-underline {
   position: absolute;
-  inset: auto -2px -7px;
-  width: calc(100% + 4px);
-  height: 7px;
+  inset: auto -6px -13px auto;
+  width: 48px;
+  max-width: none;
+  height: 16px;
   overflow: visible;
   pointer-events: none;
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 1.5;
-  stroke-linecap: round;
+  fill: var(--accent);
+  stroke: none;
   opacity: 0;
-}
-.header-nav-underline path {
-  vector-effect: non-scaling-stroke;
 }
 .desktop-nav a:hover .header-nav-underline {
   opacity: 0.45;
@@ -295,13 +291,12 @@
     transition: opacity 160ms var(--ease);
   }
   .header-nav-underline path {
-    stroke-dasharray: 100;
-    stroke-dashoffset: 100;
-    transition: stroke-dashoffset 260ms var(--ease);
+    clip-path: inset(0 100% 0 0);
+    transition: clip-path 220ms var(--ease);
   }
   .desktop-nav a:hover .header-nav-underline path,
   .site-header a[aria-current] .header-nav-underline path {
-    stroke-dashoffset: 0;
+    clip-path: inset(0);
   }
 }
 

@@ -540,10 +540,10 @@
   flex-direction: column;
   gap: var(--space-3);
   padding: 20px 18px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--card-line);
   border-radius: var(--radius-lg);
   corner-shape: var(--corner-shape);
-  background: var(--bg-soft);
+  background: var(--card-bg);
   color: var(--ink-emphasis);
   text-decoration: none;
 }
@@ -552,7 +552,7 @@
   line-height: 1.5;
 }
 .reference-entry span {
-  color: var(--muted);
+  color: var(--card-description);
   font-size: var(--text-sm);
   line-height: 1.7;
 }
