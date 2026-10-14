@@ -1,5 +1,7 @@
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { glob, readFile, stat } from 'node:fs/promises';
 import { resolve, join, extname } from 'node:path';
+import { htmlToDOM } from 'html-react-parser';
+import { findAll, getElementsByTagName, textContent } from 'domutils';
 import { plainInlineText } from '../src/lib/inline-code.ts';
 import { articles } from '../src/generated/manifest.ts';
 import { playgroundExamples } from '../src/playground/examples.ts';
@@ -9,39 +11,27 @@ const base = `/${(process.env.BASE_PATH || '').replace(/^\/+|\/+$/g, '')}`.repla
 const failures = [];
 const documents = new Map();
 
-async function collect(directory) {
-  const files = [];
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) files.push(...(await collect(path)));
-    else if (['.html', '.css'].includes(extname(entry.name))) files.push(path);
-  }
-  return files;
-}
-
-function decode(value) {
-  return value
-    .replace(/&amp;/g, '&')
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"');
-}
-
-const outputFiles = await collect(root);
+const outputFiles = await Array.fromAsync(glob('**/*.{html,css}', { cwd: root }), (file) =>
+  join(root, file),
+);
 for (const file of outputFiles.filter((file) => extname(file) === '.html')) {
   const html = await readFile(file, 'utf8');
+  const dom = htmlToDOM(html);
   documents.set(file, {
-    html,
-    ids: new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((match) => decode(match[1]))),
+    dom,
+    ids: new Set(
+      findAll((element) => Boolean(element.attribs.id), dom).map((element) => element.attribs.id),
+    ),
   });
-  const h1Count = [...html.matchAll(/<h1(?:\s|>)/g)].length;
+  const h1Count = getElementsByTagName('h1', dom).length;
   if (h1Count !== 1) failures.push(`${file}: expected one h1, got ${h1Count}`);
   const expectedLanguage = file.slice(root.length).startsWith('/zh/') ? 'zh-CN' : 'en';
-  if (!new RegExp(`<html[^>]* lang="${expectedLanguage}"`).test(html))
+  if (getElementsByTagName('html', dom)[0]?.attribs.lang !== expectedLanguage)
     failures.push(`${file}: incorrect document language, expected ${expectedLanguage}`);
-  const titles = [...html.matchAll(/<title>([^<]+)<\/title>/g)];
-  const descriptions = [
-    ...html.matchAll(/<meta\s+name="description"\s+content="([^"]+)"\s*\/?>(?:<\/meta>)?/g),
-  ];
+  const titles = getElementsByTagName('title', dom);
+  const descriptions = getElementsByTagName('meta', dom).filter(
+    (element) => element.attribs.name === 'description',
+  );
   if (titles.length !== 1) failures.push(`${file}: expected one title, got ${titles.length}`);
   if (descriptions.length !== 1)
     failures.push(`${file}: expected one description, got ${descriptions.length}`);
@@ -49,8 +39,8 @@ for (const file of outputFiles.filter((file) => extname(file) === '.html')) {
   const article = articles[route];
   if (
     article &&
-    (decode(titles[0]?.[1] ?? '') !== `${article.title} · Carven` ||
-      decode(descriptions[0]?.[1] ?? '') !== plainInlineText(article.description))
+    ((titles[0] ? textContent(titles[0]) : '') !== `${article.title} · Carven` ||
+      descriptions[0]?.attribs.content !== plainInlineText(article.description))
   ) {
     failures.push(`${file}: document metadata does not match its article`);
   }
@@ -58,9 +48,11 @@ for (const file of outputFiles.filter((file) => extname(file) === '.html')) {
 
 let checked = 0;
 const references = new Map(
-  [...documents].map(([file, { html }]) => [
+  [...documents].map(([file, { dom }]) => [
     file,
-    [...html.matchAll(/\b(?:href|src)="([^"]+)"/g)].map((match) => decode(match[1])),
+    findAll((element) => Boolean(element.attribs.href || element.attribs.src), dom).flatMap(
+      (element) => [element.attribs.href, element.attribs.src].filter(Boolean),
+    ),
   ]),
 );
 for (const file of outputFiles.filter((file) => extname(file) === '.css')) {

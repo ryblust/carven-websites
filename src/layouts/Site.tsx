@@ -6,7 +6,7 @@ import { ThemeToggle } from '../components/ThemeToggle';
 import { DocumentSearch } from '../components/DocumentSearch';
 import { Brand } from '../components/Brand';
 import { GitHubIcon } from '../components/GitHubIcon';
-import { pathWithoutBase, localeOf, localizedPath, translate } from '../lib/i18n';
+import { localeOf, localizedPath, translate } from '../lib/i18n';
 import { repository } from '../lib/site';
 import { designReadingGroups } from '../lib/design-readings';
 
@@ -74,7 +74,7 @@ const footer = [
 export default function Site({ children }: Props) {
   const content = useRef<HTMLElement>(null);
   const pathname = useLocation({
-    select: (location) => pathWithoutBase(location.pathname, import.meta.env.BASE_URL),
+    select: (location) => location.pathname,
   });
   const hash = useLocation({ select: (location) => location.hash });
   const locale = localeOf(pathname);

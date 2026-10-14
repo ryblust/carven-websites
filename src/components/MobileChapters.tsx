@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { useHydrated } from '@tanstack/react-router';
+import { useHydrated, useRouter } from '@tanstack/react-router';
 
 export function MobileChapters({
   label,
@@ -14,8 +14,10 @@ export function MobileChapters({
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const ready = useHydrated();
+  const router = useRouter();
   const dialogId = useId();
   const [open, setOpen] = useState(false);
+  useEffect(() => router.subscribe('onBeforeNavigate', () => dialog.current?.close()), [router]);
   useEffect(() => {
     const wide = window.matchMedia('(min-width: 801px)');
     const closeOnWide = () => {
@@ -61,12 +63,6 @@ export function MobileChapters({
         id={dialogId}
         className="chapter-drawer"
         aria-label={`${label} · ${title}`}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            dialog.current?.close();
-          }
-        }}
         onClose={() => setOpen(false)}
         onClick={(event) => {
           if (event.target === event.currentTarget) dialog.current?.close();
@@ -79,14 +75,7 @@ export function MobileChapters({
               ×
             </button>
           </div>
-          <div
-            onClick={(event) => {
-              if (event.target instanceof Element && event.target.closest('a'))
-                dialog.current?.close();
-            }}
-          >
-            {children}
-          </div>
+          <div>{children}</div>
         </div>
       </dialog>
     </div>

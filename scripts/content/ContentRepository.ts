@@ -1,5 +1,6 @@
 import { join, relative, resolve, dirname } from 'node:path';
 import { Context, Effect, FileSystem, Layer, Schema } from 'effect';
+import type { KeyedTokensInfo } from '@shikijs/magic-move/core';
 import type { ArticleDocument } from '../../src/content/schema.ts';
 import { ContentError } from './model.ts';
 import { articleRouteModule } from './routes.ts';
@@ -23,6 +24,7 @@ export class ContentRepository extends Context.Service<
       root: string,
       articles: readonly ArticleDocument[],
       homeExamples?: Readonly<Record<string, string>>,
+      homeExampleTokens?: Readonly<Record<string, KeyedTokensInfo>>,
     ): Effect.Effect<void, ContentError>;
   }
 >()('carven-website/content/ContentRepository') {
@@ -30,37 +32,19 @@ export class ContentRepository extends Context.Service<
     ContentRepository,
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const files = Effect.fn('ContentRepository.files')(function* (
-        directory: string,
-      ): Effect.fn.Return<string[], ContentError> {
+      const read = Effect.fn('ContentRepository.read')(function* (root: string) {
+        const directory = resolve(root, 'src/content');
         const names = yield* fs
-          .readDirectory(directory)
+          .readDirectory(directory, { recursive: true })
           .pipe(
             Effect.mapError(
               (cause) => new ContentError({ file: directory, operation: 'read', cause }),
             ),
           );
-        const groups = yield* Effect.forEach(
-          names,
-          (name) =>
-            Effect.gen(function* () {
-              const file = join(directory, name);
-              const info = yield* fs
-                .stat(file)
-                .pipe(
-                  Effect.mapError((cause) => new ContentError({ file, operation: 'read', cause })),
-                );
-              if (info.type === 'Directory') return yield* files(file);
-              return file.endsWith('.md') ? [file] : [];
-            }),
-          { concurrency: 4 },
-        );
-        return groups.flat().sort();
-      });
-
-      const read = Effect.fn('ContentRepository.read')(function* (root: string) {
-        const directory = resolve(root, 'src/content');
-        const sources = yield* files(directory);
+        const sources = names
+          .filter((name) => name.endsWith('.md'))
+          .sort()
+          .map((name) => join(directory, name));
         return yield* Effect.forEach(
           sources,
           (file) =>
@@ -92,6 +76,7 @@ export class ContentRepository extends Context.Service<
         root: string,
         articles: readonly ArticleDocument[],
         homeExamples: Readonly<Record<string, string>> = {},
+        homeExampleTokens: Readonly<Record<string, KeyedTokensInfo>> = {},
       ) {
         const output = resolve(root, 'src/generated');
         const manifest = Object.fromEntries(
@@ -126,6 +111,10 @@ export class ContentRepository extends Context.Service<
         modules.set(
           'home-examples.ts',
           `// Generated from src/content/home-examples.ts. Do not edit.\nexport const homeExamples = ${JSON.stringify(homeExamples)} as const;\n`,
+        );
+        modules.set(
+          'home-tokens.ts',
+          `// Generated from src/content/home-examples.ts. Do not edit.\nimport type { KeyedTokensInfo } from '@shikijs/magic-move/core';\nexport const homeExampleTokens = ${JSON.stringify(homeExampleTokens)} satisfies Record<string, KeyedTokensInfo>;\n`,
         );
         modules.set(
           'manifest.ts',

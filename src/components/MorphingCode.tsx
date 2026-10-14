@@ -1,133 +1,40 @@
-import { useLayoutEffect, useRef } from 'react';
-import { matchCodeTokens } from '../lib/code-motion';
+import { useMemo, useSyncExternalStore } from 'react';
+import { ShikiMagicMovePrecompiled } from '@shikijs/magic-move/react';
+import { homeExampleTokens } from '../generated/home-tokens';
+import '@shikijs/magic-move/style.css';
 
-interface Token {
-  text: string;
-  node: HTMLElement;
-  x: number;
-  y: number;
-  color: string;
-}
+const names = Object.keys(homeExampleTokens) as Array<keyof typeof homeExampleTokens>;
+const steps = names.map((name) => homeExampleTokens[name]);
+const motionQuery = '(prefers-reduced-motion: reduce)';
+const subscribe = (notify: () => void) => {
+  const preference = window.matchMedia(motionQuery);
+  preference.addEventListener('change', notify);
+  return () => preference.removeEventListener('change', notify);
+};
 
-// React owns the shell; this effect owns only its highlighted code descendants.
-export function MorphingCode({ html }: { html: string }) {
-  const root = useRef<HTMLDivElement>(null);
-  // Keep this prop object stable so React does not reset our token spans before measurement.
-  const initial = useRef({ __html: html });
-  const current = useRef<string | undefined>(undefined);
-  const stop = useRef<() => void>(() => {});
-
-  useLayoutEffect(() => {
-    const host = root.current;
-    if (!host || current.current === html) return;
-    const changed = current.current !== undefined;
-    const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const morph = changed && !preference.matches;
-    const bounds = morph ? host.getBoundingClientRect() : undefined;
-    const read = (): Token[] =>
-      Array.from(host.querySelectorAll<HTMLElement>('code .morph-token'), (node) => {
-        const rect = node.getBoundingClientRect();
-        return {
-          text: node.textContent ?? '',
-          node,
-          x: rect.left - bounds!.left,
-          y: rect.top - bounds!.top,
-          color: getComputedStyle(node).color,
-        };
-      });
-    // Capture the currently visible positions before interrupting an earlier morph.
-    const before = morph ? read() : [];
-    stop.current();
-    host.innerHTML = html;
-    const code = host.querySelector('code');
-    if (!code) return;
-    const walker = document.createTreeWalker(code, NodeFilter.SHOW_TEXT);
-    const leaves: Text[] = [];
-    while (walker.nextNode()) leaves.push(walker.currentNode as Text);
-    for (const leaf of leaves) {
-      const fragment = document.createDocumentFragment();
-      for (const text of leaf.data.match(/\s+|[\p{L}\p{N}_]+|[^\s\p{L}\p{N}_]/gu) ?? []) {
-        if (/^\s+$/.test(text)) fragment.append(document.createTextNode(text));
-        else {
-          const token = document.createElement('span');
-          token.className = 'morph-token';
-          token.textContent = text;
-          fragment.append(token);
-        }
-      }
-      leaf.replaceWith(fragment);
-    }
-    current.current = html;
-    if (!morph) return;
-
-    const after = read();
-    const matches = matchCodeTokens(
-      before.map((t) => t.text),
-      after.map((t) => t.text),
-    );
-    const used = new Set(matches.filter((index): index is number => index !== undefined));
-    const animations: Animation[] = [];
-    const overlay = document.createElement('div');
-    overlay.className = 'code-morph-overlay';
-    overlay.setAttribute('aria-hidden', 'true');
-    host.append(overlay);
-    const timing = { duration: 700, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' };
-    after.forEach((token, index) => {
-      const previous = matches[index];
-      const from = previous === undefined ? undefined : before[previous];
-      animations.push(
-        token.node.animate(
-          from
-            ? [
-                {
-                  transform: `translate(${from.x - token.x}px, ${from.y - token.y}px)`,
-                  color: from.color,
-                },
-                { transform: 'translate(0, 0)', color: token.color },
-              ]
-            : [{ opacity: 0 }, { opacity: 1 }],
-          timing,
-        ),
-      );
-    });
-    before.forEach((token, index) => {
-      if (used.has(index)) return;
-      const ghost = document.createElement('span');
-      ghost.textContent = token.text;
-      Object.assign(ghost.style, {
-        position: 'absolute',
-        left: `${token.x}px`,
-        top: `${token.y}px`,
-        color: token.color,
-      });
-      overlay.append(ghost);
-      animations.push(
-        ghost.animate([{ opacity: 1 }, { opacity: 0 }], { ...timing, fill: 'forwards' }),
-      );
-    });
-    const cleanup = () => {
-      animations.forEach((animation) => animation.cancel());
-      overlay.remove();
-      preference.removeEventListener('change', cleanup);
-      window.removeEventListener('resize', cleanup);
-      window.removeEventListener('carven-theme-change', cleanup);
-      host.removeEventListener('scroll', cleanup, true);
-    };
-    stop.current = cleanup;
-    preference.addEventListener('change', cleanup);
-    window.addEventListener('resize', cleanup);
-    window.addEventListener('carven-theme-change', cleanup);
-    host.addEventListener('scroll', cleanup, true);
-    void Promise.all(animations.map((animation) => animation.finished)).then(cleanup, () => {});
-  }, [html]);
-
-  useLayoutEffect(
-    () => () => {
-      stop.current();
-      current.current = undefined;
-    },
-    [],
+export function MorphingCode({ example }: { example: keyof typeof homeExampleTokens }) {
+  const reducedMotion = useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia(motionQuery).matches,
+    () => true,
   );
-
-  return <div ref={root} className="why-code-block" dangerouslySetInnerHTML={initial.current} />;
+  const options = useMemo(
+    () => ({
+      duration: reducedMotion ? 0 : 700,
+      easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      animateContainer: false,
+      containerStyle: false,
+    }),
+    [reducedMotion],
+  );
+  return (
+    <div className="why-code-block">
+      <ShikiMagicMovePrecompiled
+        steps={steps}
+        step={names.indexOf(example)}
+        animate={!reducedMotion}
+        options={options}
+      />
+    </div>
+  );
 }

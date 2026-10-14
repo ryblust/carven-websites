@@ -1,6 +1,6 @@
 import { InlineCode } from './InlineCode';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Link, useHydrated, useLocation } from '@tanstack/react-router';
+import { Link, useHydrated, useRouter } from '@tanstack/react-router';
 import { Search, X } from 'lucide-react';
 import { UIIcon } from './UIIcon';
 import { articles } from '../generated/manifest';
@@ -20,7 +20,7 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
   const id = useId();
   const [query, setQuery] = useState('');
   const ready = useHydrated();
-  const pathname = useLocation({ select: (location) => location.pathname });
+  const router = useRouter();
   const [opened, setOpened] = useState(false);
   const [shortcut, setShortcut] = useState('Ctrl K');
   const matches = useMemo(
@@ -42,13 +42,16 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
     [],
   );
   const close = () => dialog.current?.close();
-  useEffect(() => {
-    if (!dialog.current?.open) return;
-    // History navigation can change the page while its search dialog is open.
-    // Let the layout move focus to the destination instead of the old trigger.
-    navigating.current = true;
-    dialog.current.close();
-  }, [pathname]);
+  useEffect(
+    () =>
+      router.subscribe('onBeforeNavigate', ({ pathChanged, hrefChanged }) => {
+        if (!dialog.current?.open || (!pathChanged && hrefChanged)) return;
+        navigating.current = true;
+        dialog.current.close();
+        document.getElementById('main')?.focus({ preventScroll: true });
+      }),
+    [router],
+  );
   useEffect(() => {
     setShortcut(/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ K' : 'Ctrl K');
     const onKeyDown = (event: KeyboardEvent) => {
@@ -82,11 +85,6 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
         aria-labelledby={id}
         onKeyDown={(event) => {
           if (composing.current || event.nativeEvent.isComposing) return;
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            close();
-            return;
-          }
           if (event.altKey || event.ctrlKey || event.metaKey) return;
           const links = [
             ...(results.current?.querySelectorAll<HTMLAnchorElement>('a[href]') ?? []),
@@ -99,18 +97,7 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
               element.scrollIntoView({ block: 'nearest' });
             }
           };
-          if (event.key === 'Tab') {
-            const controls = [closeButton.current, input.current, ...links].filter(
-              (element): element is HTMLButtonElement | HTMLInputElement | HTMLAnchorElement =>
-                element !== null,
-            );
-            const current = controls.findIndex((element) => element === focused);
-            const next = (current + (event.shiftKey ? -1 : 1) + controls.length) % controls.length;
-            if (controls[next]) {
-              event.preventDefault();
-              focus(controls[next]);
-            }
-          } else if (
+          if (
             (event.key === 'ArrowDown' || event.key === 'ArrowUp') &&
             links.length &&
             (focused === input.current || index >= 0)
@@ -182,23 +169,7 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
           >
             {opened &&
               matches.map(({ path, matchedTerms }) => (
-                <Link
-                  key={path}
-                  to={path}
-                  onClick={(event) => {
-                    if (
-                      event.button !== 0 ||
-                      event.metaKey ||
-                      event.ctrlKey ||
-                      event.shiftKey ||
-                      event.altKey
-                    )
-                      return;
-                    navigating.current = true;
-                    close();
-                    document.getElementById('main')?.focus({ preventScroll: true });
-                  }}
-                >
+                <Link key={path} to={path}>
                   <span className="search-section">
                     {articles[path].section === 'learn'
                       ? t('教程', 'Learn')

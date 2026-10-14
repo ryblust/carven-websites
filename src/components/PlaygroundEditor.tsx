@@ -1,4 +1,11 @@
-import { useEffect, useImperativeHandle, useLayoutEffect, useRef, type Ref } from 'react';
+import {
+  useEffect,
+  useEffectEvent,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  type Ref,
+} from 'react';
 import { EditorView, keymap } from '@codemirror/view';
 import { isolateHistory } from '@codemirror/commands';
 import { Annotation, Prec } from '@codemirror/state';
@@ -28,10 +35,12 @@ export default function PlaygroundEditor({
 }) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
-  const current = useRef({ source, onChange, onRun });
+  const currentSource = useRef(source);
+  const changed = useEffectEvent(onChange);
+  const run = useEffectEvent(onRun);
   useLayoutEffect(() => {
-    current.current = { source, onChange, onRun };
-  });
+    currentSource.current = source;
+  }, [source]);
 
   useImperativeHandle(
     ref,
@@ -46,10 +55,10 @@ export default function PlaygroundEditor({
       reveal(location) {
         const instance = view.current;
         if (!instance) return false;
-        if (instance.state.doc.toString() !== current.current.source.replace(/\r\n?/g, '\n')) {
+        if (instance.state.doc.toString() !== currentSource.current.replace(/\r\n?/g, '\n')) {
           return false;
         }
-        const selection = diagnosticSelection(current.current.source, location);
+        const selection = diagnosticSelection(currentSource.current, location);
         if (!selection || selection.head > instance.state.doc.length) return false;
         instance.dispatch({
           selection,
@@ -67,7 +76,7 @@ export default function PlaygroundEditor({
     const t = translate(locale);
     const instance = new EditorView({
       parent: host.current,
-      state: sourceEditorState(current.current.source, [
+      state: sourceEditorState(currentSource.current, [
         EditorView.contentAttributes.of({
           id: 'playground-source',
           'aria-label': t('main.cv 源码编辑器', 'main.cv source editor'),
@@ -81,7 +90,7 @@ export default function PlaygroundEditor({
             {
               key: 'Mod-Enter',
               run: () => {
-                current.current.onRun();
+                run();
                 return true;
               },
             },
@@ -93,7 +102,7 @@ export default function PlaygroundEditor({
               (transaction) => transaction.docChanged && !transaction.annotation(externalSource),
             )
           )
-            current.current.onChange(update.state.doc.toString());
+            changed(update.state.doc.toString());
         }),
       ]),
     });
@@ -106,7 +115,7 @@ export default function PlaygroundEditor({
 
   useEffect(() => {
     const instance = view.current;
-    if (instance && instance.state.doc.toString() !== source) {
+    if (instance && instance.state.doc.toString() !== source.replace(/\r\n?/g, '\n')) {
       // An explicit reset is an undoable edit. Ordinary typing already lives in
       // CodeMirror's state and must not replace the document or its history.
       instance.dispatch({

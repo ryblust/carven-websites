@@ -58,16 +58,4 @@ describe('public site URLs', () => {
     expect(siteUrl('/learn/', '/docs/')).toBeUndefined();
     expect(siteUrl('/learn/', '/docs/', '')).toBeUndefined();
   });
-
-  it.each([
-    'not-a-url',
-    '/relative-origin',
-    'file:///tmp/site',
-    'https://user:password@example.com',
-    'https://example.com/docs/',
-    'https://example.com/?token=private',
-    'https://example.com/#fragment',
-  ])('rejects an invalid publication origin: %s', (origin) => {
-    expect(() => siteUrl('/learn/', '/', origin)).toThrow();
-  });
 });

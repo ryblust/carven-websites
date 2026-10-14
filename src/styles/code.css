@@ -163,16 +163,17 @@ pre code {
   mask-image: url('../assets/icons/check.svg');
 }
 /* Theme colors are supplied by the build-time highlighter. */
-.shiki[data-emphasized] .line {
+.shiki.has-highlighted .line {
   display: inline-block;
   min-width: 100%;
 }
-.shiki .line[data-emphasis] {
+.shiki .line.highlighted {
   background: var(--accent-soft);
   box-shadow: inset 2px 0 0 var(--accent);
 }
 .shiki,
-.shiki span[style] {
+.shiki span[style],
+.shiki-magic-move-container span[style] {
   color: light-dark(var(--shiki-light), var(--shiki-dark)) !important;
 }
 .prose pre code {
@@ -196,7 +197,8 @@ pre code {
 }
 @media (forced-colors: active) {
   .shiki,
-  .shiki span[style] {
+  .shiki span[style],
+  .shiki-magic-move-container span[style] {
     color: CanvasText !important;
   }
 }

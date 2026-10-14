@@ -65,7 +65,7 @@ export default function Playground({ locale }: { locale: Locale }) {
   const [saved, setSaved] = useState(true);
   const [tab, setTab] = useState<'output' | 'diagnostics' | 'cpp' | 'ast' | 'tokens'>('output');
   const [resultAction, setResultAction] = useState<Action>();
-  const session = useRef(new ExecutionSession());
+  const [session] = useState(() => new ExecutionSession());
   const editorRef = useRef<PlaygroundEditorHandle>(null);
   const hash = useLocation({ select: (location) => location.hash });
   const navigate = useNavigate();
@@ -73,8 +73,8 @@ export default function Playground({ locale }: { locale: Locale }) {
 
   useEffect(() => {
     setSupported(typeof Worker !== 'undefined' && typeof WebAssembly !== 'undefined');
-    return () => session.current.cancel();
-  }, []);
+    return () => session.cancel();
+  }, [session]);
 
   useEffect(() => {
     let id = new URLSearchParams(hash.replace(/^#/, '')).get('example');
@@ -101,7 +101,7 @@ export default function Playground({ locale }: { locale: Locale }) {
   }
 
   function invalidate() {
-    session.current.cancel();
+    session.cancel();
     setBusy(false);
     setResult(undefined);
     setMessage('');
@@ -154,7 +154,7 @@ export default function Playground({ locale }: { locale: Locale }) {
             : 'diagnostics',
     );
     try {
-      const next = await session.current.run(assetsBase, source, action, setProgress);
+      const next = await session.run(assetsBase, source, action, setProgress);
       if (!next) return;
       if (action === 'format' && next.formattedSource !== undefined) {
         setSource(next.formattedSource);
@@ -373,7 +373,7 @@ export default function Playground({ locale }: { locale: Locale }) {
                   <button
                     className="button button-primary"
                     onClick={() => {
-                      session.current.cancel();
+                      session.cancel();
                       setBusy(false);
                       setMessage(t('已取消本次任务。', 'This task was cancelled.'));
                     }}

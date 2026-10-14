@@ -345,17 +345,6 @@
   display: block;
   font: inherit;
 }
-.morph-token {
-  display: inline-block;
-}
-.code-morph-overlay {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  user-select: none;
-  font: var(--code-weight) var(--code-size) / var(--code-leading) var(--mono);
-}
 .code-window-result {
   display: flex;
   align-items: baseline;

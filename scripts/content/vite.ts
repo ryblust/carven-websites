@@ -26,7 +26,7 @@ export function contentPlugin(): Plugin {
           .runPromiseExit(
             generateContent(server.config.root).pipe(
               serial.withPermit,
-              Effect.tap(() => Effect.sync(() => server.ws.send({ type: 'full-reload' }))),
+              Effect.tap(() => Effect.sync(() => server.hot.send({ type: 'full-reload' }))),
             ),
             { signal: controller.signal },
           )
@@ -35,7 +35,7 @@ export function contentPlugin(): Plugin {
             const message = Cause.pretty(exit.cause);
             server.config.logger.error(message);
             if (!controller.signal.aborted) {
-              server.ws.send({
+              server.hot.send({
                 type: 'error',
                 err: { message, stack: message, plugin: 'carven-content' },
               });

@@ -2,6 +2,7 @@
 
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import {
   createMemoryHistory,
   createRootRoute,
@@ -12,6 +13,7 @@ import {
 } from '@tanstack/react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Article from '../src/layouts/Article';
+import { ArticleBody } from '../src/components/ArticleBody';
 import type { ArticlePath } from '../src/generated/manifest';
 
 let root: Root | undefined;
@@ -21,9 +23,85 @@ afterEach(async () => {
   document.body.replaceChildren();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe('article navigation', () => {
+  it('publishes article and asset links under the deployment path before hydration', async () => {
+    vi.stubEnv('BASE_URL', '/carven-websites/');
+    const routeRoot = createRootRoute();
+    const route = createRoute({
+      getParentRoute: () => routeRoot,
+      path: '/learn/first-program/',
+      component: () => (
+        <ArticleBody
+          html={
+            '<p><a href="../values/?mode=print&amp;lang=zh#示例"><code>Values</code></a><a download="guide.txt" href="/guide.txt">Download</a><a href="https://example.com/">External</a></p><img src="/brand/art.webp" alt="Art" />'
+          }
+        />
+      ),
+    });
+    const router = createRouter({
+      routeTree: routeRoot.addChildren([route]),
+      history: createMemoryHistory({ initialEntries: ['/carven-websites/learn/first-program/'] }),
+      basepath: '/carven-websites/',
+      trailingSlash: 'always',
+      isServer: true,
+    });
+    await router.load();
+    const host = document.createElement('div');
+    host.innerHTML = renderToString(<RouterProvider router={router} />);
+    expect(decodeURI(host.querySelector('a')!.getAttribute('href')!)).toBe(
+      '/carven-websites/learn/values/?mode=print&lang=zh#示例',
+    );
+    expect(host.querySelector('[download]')?.getAttribute('href')).toBe(
+      '/carven-websites/guide.txt',
+    );
+    expect(host.querySelector('a:last-child')?.getAttribute('href')).toBe('https://example.com/');
+    expect(host.querySelector('img')?.getAttribute('src')).toBe('/carven-websites/brand/art.webp');
+  });
+
+  it('opens relative article links with their query and fragment through nested code text', async () => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const routeRoot = createRootRoute();
+    function Document() {
+      const location = useLocation();
+      return (
+        <>
+          <h1>{location.pathname}</h1>
+          <output>
+            {JSON.stringify(location.search)} · {location.hash}
+          </output>
+          <ArticleBody
+            html={
+              '<a href="../values/?mode=print#示例"><code>Read values</code></a><a href="#current-section">Current section</a><h2 id="current-section">Details</h2>'
+            }
+          />
+        </>
+      );
+    }
+    const route = createRoute({ getParentRoute: () => routeRoot, path: '$', component: Document });
+    const router = createRouter({
+      routeTree: routeRoot.addChildren([route]),
+      history: createMemoryHistory({ initialEntries: ['/docs/learn/first-program/'] }),
+      basepath: '/docs/',
+      trailingSlash: 'always',
+    });
+    await router.load();
+    const host = document.createElement('div');
+    document.body.append(host);
+    root = createRoot(host);
+    await act(() => root!.render(<RouterProvider router={router} />));
+    await act(() => host.querySelector('code')!.click());
+    await vi.waitFor(() => expect(host.querySelector('h1')?.textContent).toBe('/learn/values/'));
+    expect(host.querySelector('output')?.textContent).toBe('{"mode":"print"} · 示例');
+    await act(() => host.querySelectorAll('a')[1]!.click());
+    await vi.waitFor(() =>
+      expect(host.querySelector('output')?.textContent).toBe('{"mode":"print"} · current-section'),
+    );
+  });
+
   it('tracks the new article sections after navigating between articles with the same heading IDs', async () => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {});

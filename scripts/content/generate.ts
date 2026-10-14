@@ -86,20 +86,27 @@ export const generateContent = Effect.fn('generateContent')(function* (root: str
       }
     }
   }
-  const highlightedExamples = Object.fromEntries(
-    yield* Effect.forEach(Object.entries(homeExamples), ([name, code]) =>
-      Effect.gen(function* () {
-        const language = name.endsWith('Cpp') ? 'cpp' : 'cv';
-        const html = yield* markdown.render(
-          `home-examples/${name}`,
-          '```' + language + '\n' + code + '\n```',
-          { codeBlockFrame: false },
-        );
-        return [name, html] as const;
-      }),
-    ),
+  const examples = yield* Effect.forEach(Object.entries(homeExamples), ([name, code]) =>
+    Effect.gen(function* () {
+      const language = name.endsWith('Cpp') ? 'cpp' : 'cv';
+      const html =
+        name === 'quickstart'
+          ? yield* markdown.render(
+              `home-examples/${name}`,
+              '```' + language + '\n' + code + '\n```',
+              { codeBlockFrame: false },
+            )
+          : undefined;
+      const tokens = yield* markdown.tokens(`home-examples/${name}`, code, language);
+      return { name, html, tokens };
+    }),
   );
-  yield* repository.publish(root, articles, highlightedExamples);
+  yield* repository.publish(
+    root,
+    articles,
+    Object.fromEntries(examples.flatMap(({ name, html }) => (html ? [[name, html]] : []))),
+    Object.fromEntries(examples.map(({ name, tokens }) => [name, tokens])),
+  );
   yield* Effect.logInfo(`Prepared ${articles.length} articles.`);
   return articles.map((article) => article.path);
 });

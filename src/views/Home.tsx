@@ -26,8 +26,8 @@ export default function Home({ locale }: { locale: Locale }) {
         '结构体、枚举和数组直接交给 println，字段名、枚举成员和元素都会按结构打印。不用手写输出运算符，也不用反射库。',
         'Pass a struct, enum, or array to println and it prints field names, enum cases, and elements. No handwritten output operator or reflection library.',
       ),
-      html: homeExamples.display,
-      cpp: homeExamples.displayCpp,
+      code: 'display',
+      cpp: 'displayCpp',
       result: 'Order { id: 7, status: Status::Shipped(3), items: ["disk", "cable"] }',
       comparison: t(
         '两边都是完整程序，按相同的多行布局打印这个订单；结果栏压缩成了一行。C++20 对照为这个数据结构手写输出，字段变化时需同步修改。示例商品名不含需要转义的字符，对照没有实现通用文本转义。Boost.PFR、magic_enum 或 C++26 反射可以减少类型专用的代码。Carven 的结构化显示也用于测试失败时报告操作数值。',
@@ -44,8 +44,8 @@ export default function Home({ locale }: { locale: Locale }) {
         '从命令定义生成帮助文本，只列出启用的命令。照常写循环、判断和插值；Carven 在编译期构造并检查结果，运行时直接使用静态文本。',
         'Build help text from command definitions, listing only enabled commands. Use ordinary loops, conditions, and interpolation; Carven builds and checks the result at compile time, leaving static text ready for runtime use.',
       ),
-      html: homeExamples.constants,
-      cpp: homeExamples.constantsCpp,
+      code: 'constants',
+      cpp: 'constantsCpp',
       result: 'Commands:\n  build: Compile the project\n  run: Run the program',
       comparison: t(
         '两边都在编译期筛选三个命令定义，生成相同的帮助文本；这里不解析参数或执行命令。C++20 对照用 constexpr 字符串操作构造文本，再用 freeze 确定长度并复制进数组，供 string_view 引用；静态字符串库也能封装这部分存储。Carven 在常量初始化时直接把 String 冻结为静态 str，用 const test 核对完整内容。命令配置变化后需要重新编译。',
@@ -62,9 +62,9 @@ export default function Home({ locale }: { locale: Locale }) {
         '用 INV-DDDD 描述编号格式，D 表示一个 ASCII 数字。const for 展开每个位置，const if 选择数字检查或字面匹配。生成的函数只接收待检查的文本。',
         'Describe an identifier with INV-DDDD, where D stands for one ASCII digit. const for expands each position; const if selects a digit check or a literal match. The generated function receives only the text to check.',
       ),
-      html: homeExamples.specialization,
-      cpp: homeExamples.specializationCpp,
-      cpp26: homeExamples.specialization26Cpp,
+      code: 'specialization',
+      cpp: 'specializationCpp',
+      cpp26: 'specialization26Cpp',
       result: 'INV-2048 → true\nINV-20x8 → false',
       comparison: t(
         '三份都是完整程序，依次输出 true、false。D 匹配一个 ASCII 数字，其余字节按字面匹配；先检查长度，再访问输入。这个小型模式没有转义、重复次数或捕获，CTRE 等 C++ 库提供更丰富的语法。C++20 用 index_sequence 和参数包展开位置，C++26 用 template for 展开同一索引序列，两版均以 if constexpr 选择检查。Carven 仍检查所有源分支的类型、所有权和失败契约，两种语言的分支检查规则不同。C++26 版已在支持枚举展开语句的 Clang 23 验证。',
@@ -84,8 +84,8 @@ export default function Home({ locale }: { locale: Locale }) {
         '用向量比较 32 个字节，再用掩码统计匹配项。最后不足一块时，只读取实际数据，并用 active 排除补零的位置。',
         'Compare 32 byte lanes, then count matching mask bits. A partial final block reads only available input and uses active to exclude zero-filled lanes.',
       ),
-      html: homeExamples.simd,
-      cpp: homeExamples.simdCpp,
+      code: 'simd',
+      cpp: 'simdCpp',
       result: '2',
       comparison: t(
         '两边都是完整程序，统计指定字节出现的次数；这只是分隔符计数，不是 CSV 解析器。第二个静态测试保证零填充不会被计入。C++20 对照逐字节完成相同任务，未手写 SIMD；原生优化器可能将循环向量化。Carven 的逻辑向量由 NEON、显式启用的 AVX2 或可移植后端实现，没有运行时分派，也不承诺速度提升。',
@@ -102,8 +102,8 @@ export default function Home({ locale }: { locale: Locale }) {
         '配置缺失时使用默认端口。编译器算出剩下的失败：契约少写 BadPort 会报错，调用者漏处理某种失败时，错误信息会指出漏掉的类型。',
         'Use a default port when the config is missing. The compiler computes the failures that remain: leave BadPort out of the contract and it reports an error; a caller that misses a failure is told which type is uncovered.',
       ),
-      html: homeExamples.failures,
-      cpp: homeExamples.failuresCpp,
+      code: 'failures',
+      cpp: 'failuresCpp',
       result: 'ok 9000 · missing 8080 · Denied: denied · Bad port: 9x00',
       comparison: t(
         '两边都是包含完整类型、函数实现和入口的可运行程序，按顺序输出上面的四行。read 使用内存配置表展示正常、缺失、拒绝访问和错误文本；parse 只接受 1–65535 范围内的 ASCII 十进制端口。port 只恢复 Missing，其余失败交给调用者处理。C++23 用 expected、variant 和分支表达同样的结果，剩余失败列表需要手动维护；Carven 从实际传播与恢复中检查契约。C++ 是手写等价实现，使用 clang++ -std=c++23 编译；Carven 保存为 ports.cv 后运行 carven ports.cv。',
@@ -123,8 +123,8 @@ export default function Home({ locale }: { locale: Locale }) {
         '用三引号直接写多行 JSON，再交给 nlohmann/json：保留 host，把 port 改成 9000，并删除 debug。文本按代码层级缩进，双引号无需转义；直接调用库的现有接口。',
         'Write multiline JSON directly with triple quotes, then pass it to nlohmann/json: keep host, change port to 9000, and remove debug. Indent the text with your code and leave double quotes unescaped; call the library’s existing API directly.',
       ),
-      html: homeExamples.native,
-      cpp: homeExamples.nativeCpp,
+      code: 'native',
+      cpp: 'nativeCpp',
       result: '{"server":{"host":"localhost","port":9000}}',
       comparison: t(
         '使用 nlohmann/json 3.12.0，两边都是完整程序，调用相同的 parse、merge_patch 和 dump，输出相同。Carven 三引号文本自动去除公共缩进；C++ 原始字符串也能直接写多行 JSON，但保留内部缩进。JSON 解析器允许这些空白，因此不影响结果。合并与 null 删除字段的规则由库提供。头文件需在 C++ 包含路径中，重载和模板仍由 C++ 编译器检查；插值格式化 dump 返回的原生 std::string。原生异常需要在 C++ 适配层恢复，详情页提供接入步骤。',
@@ -270,9 +270,9 @@ export default function Home({ locale }: { locale: Locale }) {
               </span>
             </div>
             <MorphingCode
-              html={
+              example={
                 codeLanguage === 'carven'
-                  ? example.html
+                  ? example.code
                   : codeLanguage === 'cpp26'
                     ? cpp26!
                     : example.cpp

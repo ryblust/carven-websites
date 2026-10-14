@@ -1,7 +1,12 @@
 import { Context, Effect, Layer } from 'effect';
 import { Marked } from 'marked';
-import GithubSlugger from 'github-slugger';
-import { createHighlighter } from 'shiki';
+import { gfmHeadingId } from 'marked-gfm-heading-id';
+import { transformerMetaHighlight } from '@shikijs/transformers';
+import { codeToKeyedTokens, type KeyedTokensInfo } from '@shikijs/magic-move/core';
+import { createHighlighterCore } from 'shiki/core';
+import { createOnigurumaEngine } from 'shiki/engine/oniguruma';
+import cpp from '@shikijs/langs/cpp';
+import shellscript from '@shikijs/langs/shellscript';
 import carven from './syntax/carven.ts';
 import paper from './syntax/paper.ts';
 import vesperBlack from './syntax/vesper-black.ts';
@@ -18,6 +23,11 @@ const languageLabels: Record<string, string> = {
 export class Markdown extends Context.Service<
   Markdown,
   {
+    tokens(
+      file: string,
+      source: string,
+      language: string,
+    ): Effect.Effect<KeyedTokensInfo, ContentError>;
     render(
       file: string,
       markdown: string,
@@ -31,9 +41,10 @@ export class Markdown extends Context.Service<
       const highlighter = yield* Effect.acquireRelease(
         Effect.tryPromise({
           try: () =>
-            createHighlighter({
+            createHighlighterCore({
+              engine: createOnigurumaEngine(import('shiki/wasm')),
               themes: [paper, vesperBlack],
-              langs: [carven, 'shellscript', 'cpp'],
+              langs: [carven, shellscript, cpp],
             }),
           catch: (cause) => new ContentError({ file: 'syntax', operation: 'render', cause }),
         }),
@@ -44,38 +55,23 @@ export class Markdown extends Context.Service<
         markdown: string,
         options?: { codeBlockFrame?: boolean },
       ) {
-        const slugger = new GithubSlugger();
         const marked = new Marked({ gfm: true });
+        marked.use(gfmHeadingId());
         marked.use({
           renderer: {
             code({ text, lang }) {
               // A fence may select lines for an explanation, without changing its source text.
-              const info = /^(\S+?)(?:\s+\{(\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*)\})?$/.exec(
-                lang || 'text',
-              );
-              if (!info) throw new Error(`Invalid code fence: ${lang}`);
-              const language = info[1]!;
-              const ranges =
-                info[2]?.split(',').map((range) => {
-                  const [first, last = first] = range.split('-').map(Number);
-                  return [first!, last!] as const;
-                }) ?? [];
-              const lines = text.split('\n').length;
-              if (ranges.some(([first, last]) => first < 1 || last < first || last > lines))
-                throw new Error(`Emphasized lines exceed code block: ${lang}`);
+              const [language = 'text', ...meta] = (lang || 'text').split(/\s+/);
               const highlighted = highlighter.codeToHtml(text, {
                 lang: language,
                 themes: { light: paper.name, dark: vesperBlack.name },
                 defaultColor: false,
+                meta: { __raw: meta.join(' ') },
                 transformers: [
+                  transformerMetaHighlight(),
                   {
                     pre(node) {
                       node.properties['data-language'] = language;
-                      if (ranges.length) node.properties['data-emphasized'] = 'true';
-                    },
-                    line(node, line) {
-                      if (ranges.some(([first, last]) => line >= first && line <= last))
-                        node.properties['data-emphasis'] = 'true';
                     },
                   },
                 ],
@@ -85,11 +81,6 @@ export class Markdown extends Context.Service<
               const label = languageLabels[language] ?? '';
               return `<div class="code-wrap"><div class="code-head"><span>${label}</span></div>${highlighted}</div>`;
             },
-            heading({ tokens, depth }) {
-              const inner = this.parser.parseInline(tokens);
-              const slug = slugger.slug(inner.replace(/<[^>]*>/g, ''));
-              return `<h${depth} id="${slug}">${inner}</h${depth}>\n`;
-            },
           },
         });
         return yield* Effect.tryPromise({
@@ -97,7 +88,17 @@ export class Markdown extends Context.Service<
           catch: (cause) => new ContentError({ file, operation: 'render', cause }),
         });
       });
-      return Markdown.of({ render });
+      const tokens = (file: string, source: string, language: string) =>
+        Effect.try({
+          try: () =>
+            codeToKeyedTokens(highlighter, source, {
+              lang: language,
+              themes: { light: paper.name, dark: vesperBlack.name },
+              defaultColor: false,
+            }),
+          catch: (cause) => new ContentError({ file, operation: 'render', cause }),
+        });
+      return Markdown.of({ render, tokens });
     }),
   );
 }

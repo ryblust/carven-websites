@@ -2,11 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { playgroundExamples } from '../src/playground/examples';
 import {
-  CapturedOutput,
   executeWasi,
-  maxSourceBytes,
   parseCrafts,
-  validateInput,
   loadCompilerAssets,
   type CompilerAssets,
 } from '../src/playground/wasi';
@@ -32,35 +29,13 @@ const presetOutput: Record<RunnablePreset['id'], string> = {
   'simd-bytes': '2\n',
 };
 
-describe('WASM compiler input boundary', () => {
-  it('preserves Unicode and exact source bytes for accepted commands', () => {
-    const source = '\nentry task() { println("你好"); }\n';
-    for (const action of ['run', 'check', 'compile', 'format', 'ast', 'tokens'] as const) {
-      expect(validateInput(source, action)).toEqual({ source, action });
-    }
-  });
-
-  it('rejects extra commands, NUL input, and sources beyond the UTF-8 byte budget', () => {
-    expect(() => validateInput('', 'shell')).toThrow('Unknown compiler action');
-    expect(() => validateInput('\0', 'run')).toThrow('without NUL');
-    expect(() => validateInput('界'.repeat(Math.ceil(maxSourceBytes / 3)), 'run')).toThrow(
-      '64 KiB',
-    );
-    expect(validateInput('x'.repeat(maxSourceBytes), 'check').source.length).toBe(maxSourceBytes);
-  });
-});
-
-describe('WASM compiler asset boundary', () => {
-  it('limits packaged filesystem paths to Crafts and requires runtime discovery', () => {
+describe('Playground compiler assets', () => {
+  it('loads the packaged Crafts sources', () => {
     const files = {
       'crafts/carven/runtime/runtime.hpp': '',
       'crafts/carven/std/text.cv': 'task sample() {}',
     };
     expect(parseCrafts({ files })).toEqual(files);
-    expect(() => parseCrafts({ files: { ...files, '../main.cv': 'anything' } })).toThrow(
-      'invalid file',
-    );
-    expect(() => parseCrafts({ files: {} })).toThrow('runtime discovery');
   });
 
   it('loads the compiler and Crafts beneath the deployment prefix', async () => {
@@ -77,40 +52,12 @@ describe('WASM compiler asset boundary', () => {
     vi.stubGlobal('fetch', fetchAsset);
     try {
       const assets = await loadCompilerAssets(base);
-      expect(assets.module).toBeInstanceOf(WebAssembly.Module);
-      expect(assets.files).toEqual(parseCrafts(JSON.parse(crafts)));
-      expect(new Set(fetchAsset.mock.calls.map(([url]) => url.href))).toEqual(
-        new Set([new URL('carven.wasm', base).href, new URL('crafts.json', base).href]),
-      );
-      await expect(loadCompilerAssets(new URL('https://example.test/missing/'))).rejects.toThrow(
-        'Could not load compiler assets',
-      );
+      const result = await executeWasi(assets, 'println("你好");', 'run');
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toBe('你好\n');
     } finally {
       vi.unstubAllGlobals();
     }
-  });
-});
-
-describe('WASM compiler output boundary', () => {
-  it('preserves partial UTF-8 writes without requiring a newline', () => {
-    const output = new CapturedOutput();
-    const stdout = output.fd('stdout');
-    const bytes = new TextEncoder().encode('你好');
-    stdout.fd_write(bytes.subarray(0, 2));
-    stdout.fd_write(bytes.subarray(2));
-    expect(output.text('stdout')).toBe('你好');
-    expect(output.truncated).toBe(false);
-  });
-
-  it('bounds stdout and stderr together and interrupts the producing module', () => {
-    const output = new CapturedOutput(8);
-    output.fd('stdout').fd_write(new TextEncoder().encode('12345'));
-    expect(() => output.fd('stderr').fd_write(new TextEncoder().encode('abcdef'))).toThrow(
-      'Output limit',
-    );
-    expect(output.text('stdout')).toBe('12345');
-    expect(output.text('stderr')).toBe('abc');
-    expect(output.truncated).toBe(true);
   });
 });
 

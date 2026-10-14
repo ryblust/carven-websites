@@ -25,6 +25,7 @@ jobs:
           path: .deps/carven
       - uses: pnpm/setup@v3
         with:
+          cache: true
           require-lockfile: true
       - run: pnpm format:check
       - uses: xmake-io/github-action-setup-xmake@v1

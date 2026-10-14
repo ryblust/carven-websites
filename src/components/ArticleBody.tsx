@@ -1,23 +1,69 @@
 import type { Locale } from '../lib/i18n';
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
-import { useRouter } from '@tanstack/react-router';
+import { useEffect, useRef, useState, type ComponentProps } from 'react';
+import { Link, useLocation, useRouter } from '@tanstack/react-router';
+import parse, {
+  attributesToProps,
+  domToReact,
+  Element,
+  type DOMNode,
+  type HTMLReactParserOptions,
+} from 'html-react-parser';
 import { enhanceCodeComparisons } from '../effects/code-comparisons';
 import { enhanceCodeBlocks } from '../effects/code-blocks';
-import { articleDestination } from '../lib/article-links';
-import { articleHtmlWithBase } from '../lib/article-html';
+import { href } from '../lib/site';
+
+function ArticleLink({ href: reference, ...props }: ComponentProps<'a'> & { href: string }) {
+  const currentHref = useLocation({ select: (location) => location.href });
+  const router = useRouter();
+  const url = new URL(reference, `https://carven.invalid${currentHref}`);
+  if (url.origin !== 'https://carven.invalid' || props.download !== undefined)
+    return (
+      <a
+        {...props}
+        href={
+          reference.startsWith('/') && !reference.startsWith('//') ? href(reference) : reference
+        }
+      />
+    );
+  return (
+    <Link
+      {...props}
+      to={url.pathname}
+      search={router.options.parseSearch!(url.search)}
+      hash={decodeURIComponent(url.hash.slice(1))}
+    />
+  );
+}
+
+const parserOptions: HTMLReactParserOptions = {
+  replace(node) {
+    if (!(node instanceof Element)) return;
+    if (node.name === 'a' && node.attribs.href) {
+      const props = attributesToProps(node.attribs) as ComponentProps<'a'>;
+      return (
+        <ArticleLink {...props} href={node.attribs.href}>
+          {domToReact(node.children as DOMNode[], parserOptions)}
+        </ArticleLink>
+      );
+    }
+    if (
+      node.name === 'img' &&
+      node.attribs.src?.startsWith('/') &&
+      !node.attribs.src.startsWith('//')
+    )
+      return <img {...attributesToProps(node.attribs)} src={href(node.attribs.src)} />;
+  },
+};
 
 export function ArticleBody({ html, locale = 'zh' }: { html: string; locale?: Locale }) {
-  const body = articleHtmlWithBase(html, import.meta.env.BASE_URL);
-  return <ArticleBodyContent key={`${locale}:${body}`} html={body} locale={locale} />;
+  return <ArticleBodyContent key={`${locale}:${html}`} html={html} locale={locale} />;
 }
 
 function ArticleBodyContent({ html, locale }: { html: string; locale: Locale }) {
   const content = useRef<HTMLDivElement>(null);
   const [status, announce] = useState('');
-  const router = useRouter();
-  // React supplies immutable initial markup; effects own its enhanced descendants.
-  // A content or locale change remounts this boundary and releases its old enhancements.
-  const [body] = useState(() => ({ __html: html }));
+  // Keep parsed children stable while effects enhance code blocks and comparisons.
+  const [body] = useState(() => parse(html, parserOptions));
   useEffect(() => {
     if (!content.current) return;
     const removeComparisons = enhanceCodeComparisons(content.current);
@@ -28,35 +74,11 @@ function ArticleBodyContent({ html, locale }: { html: string; locale: Locale }) 
     };
   }, [html, locale]);
 
-  // Preserve native link semantics while enhancing known authored article links.
-  const navigate = (event: MouseEvent<HTMLDivElement>) => {
-    if (
-      event.defaultPrevented ||
-      event.button !== 0 ||
-      event.metaKey ||
-      event.ctrlKey ||
-      event.shiftKey ||
-      event.altKey
-    )
-      return;
-    const anchor = event.target instanceof Element ? event.target.closest('a') : null;
-    if (!anchor || anchor.hasAttribute('download') || (anchor.target && anchor.target !== '_self'))
-      return;
-    const destination = articleDestination(
-      anchor.href,
-      window.location.href,
-      import.meta.env.BASE_URL,
-    );
-    if (!destination) return;
-    event.preventDefault();
-    void router
-      .navigate(destination)
-      .catch((error) => console.error('Article navigation failed', error));
-  };
-
   return (
     <>
-      <div ref={content} className="prose" onClick={navigate} dangerouslySetInnerHTML={body} />
+      <div ref={content} className="prose">
+        {body}
+      </div>
       <div className="sr-only" role="status" aria-live="polite">
         {status}
       </div>

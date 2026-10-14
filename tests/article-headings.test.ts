@@ -24,4 +24,10 @@ describe('article outline', () => {
     ]);
     expect(articleHeadings('<p>No sections</p>')).toEqual([]);
   });
+
+  it('reads section titles with HTML entities and arbitrary heading attributes', () => {
+    expect(
+      articleHeadings('<h2 class="section" id="rights">Copyright &copy; &mdash; &#x1F680;</h2>'),
+    ).toEqual([{ level: 2, id: 'rights', title: 'Copyright © — 🚀' }]);
+  });
 });

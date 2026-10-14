@@ -1,9 +1,9 @@
-import { localeOf, localizedPath, pathWithoutBase, translate } from '../lib/i18n';
+import { localeOf, localizedPath, translate } from '../lib/i18n';
 import { Link, useLocation, type ErrorComponentProps } from '@tanstack/react-router';
 
 export default function PageError({ reset }: ErrorComponentProps) {
   const pathname = useLocation({
-    select: (location) => pathWithoutBase(location.pathname, import.meta.env.BASE_URL),
+    select: (location) => location.pathname,
   });
   const locale = localeOf(pathname);
   const t = translate(locale);

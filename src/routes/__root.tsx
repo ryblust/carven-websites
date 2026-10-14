@@ -4,7 +4,7 @@ import NotFound from '../views/NotFound';
 import PageError from '../views/PageError';
 import { themeScript } from '../lib/theme';
 import Site from '../layouts/Site';
-import { pathWithoutBase, localeOf } from '../lib/i18n';
+import { localeOf } from '../lib/i18n';
 import { pageHead } from '../lib/head';
 import { href } from '../lib/site';
 import '../styles/global.css';
@@ -53,7 +53,7 @@ export const Route = createRootRoute({
 
 function Document({ children }: { children: ReactNode }) {
   const pathname = useLocation({
-    select: (location) => pathWithoutBase(location.pathname, import.meta.env.BASE_URL),
+    select: (location) => location.pathname,
   });
   return (
     <html lang={localeOf(pathname) === 'en' ? 'en' : 'zh-CN'} suppressHydrationWarning>

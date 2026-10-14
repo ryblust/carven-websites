@@ -3,7 +3,6 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { act, type ReactNode } from 'react';
-import { EditorView } from '@codemirror/view';
 import { createRoot, type Root } from 'react-dom/client';
 import {
   createMemoryHistory,
@@ -59,11 +58,11 @@ beforeEach(() => {
   localStorage.clear();
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   vi.stubGlobal('Worker', CompilerWorker);
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: query.includes('reduced-motion'),
-    addListener() {},
-    removeListener() {},
-  }));
+  vi.stubGlobal('matchMedia', (query: string) =>
+    Object.assign(new EventTarget(), {
+      matches: query.includes('reduced-motion'),
+    }),
+  );
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
 });
 
@@ -140,6 +139,44 @@ async function check(host: HTMLElement) {
 }
 
 describe('Playground Check from edited source to visible result', () => {
+  it('formats edited source and lets the user undo the formatting', async () => {
+    const host = await mountPlayground();
+    const source = 'let   answer=42;\nprintln( answer );';
+    await replaceSource(host, source);
+    const format = [...host.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Format',
+    )!;
+    await act(async () => format.click());
+    const editor = host.querySelector<HTMLElement>('[aria-label="main.cv source editor"]')!;
+    expect(editor.textContent).toBe('let answer = 42;println(answer);');
+    await act(() => {
+      editor.focus();
+      editor.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'z',
+          code: 'KeyZ',
+          ctrlKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    expect(editor.textContent).toBe(source.replace(/\r?\n/g, ''));
+  });
+
+  it('restores the current draft after reopening the Playground', async () => {
+    const host = await mountPlayground('/#example=hello');
+    const source = 'println("saved draft");';
+    await replaceSource(host, source);
+    await act(() => root!.unmount());
+    root = undefined;
+    host.remove();
+    const reopened = await mountPlayground('/#example=hello');
+    expect(reopened.querySelector('[aria-label="main.cv source editor"]')?.textContent).toBe(
+      source,
+    );
+  });
+
   it('displays compile-time stdout and passing diagnostics without running the entry', async () => {
     const host = await mountPlayground();
     await replaceSource(
@@ -204,13 +241,26 @@ describe('Homepage examples and Playground navigation', () => {
   it.each(playgroundExamples)(
     'loads the exact $id source and default view from a direct link',
     async (example) => {
+      let copied = '';
+      vi.stubGlobal('navigator', {
+        clipboard: {
+          writeText: async (text: string) => {
+            copied = text;
+          },
+        },
+      });
       const host = await mountPlayground(`/#example=${example.id}`);
       expect((host.querySelector('#playground-example') as HTMLSelectElement).value).toBe(
         example.id,
       );
-      expect(EditorView.findFromDOM(host.querySelector('.cm-editor')!)!.state.doc.toString()).toBe(
-        example.source,
+      expect(host.querySelector('[aria-label="main.cv source editor"]')?.textContent).toContain(
+        example.source.split('\n')[0],
       );
+      const copy = [...host.querySelectorAll('button')].find(
+        (button) => button.textContent === 'Copy',
+      )!;
+      await act(async () => copy.click());
+      expect(copied).toBe(example.source);
       expect((host.querySelector('#playground-result-view') as HTMLSelectElement).value).toBe(
         example.defaultView,
       );

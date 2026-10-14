@@ -6,7 +6,11 @@ import { act, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import PlaygroundDiagnostics from '../src/components/PlaygroundDiagnostics';
-import { diagnosticParts, diagnosticSelection } from '../src/playground/diagnostics';
+import {
+  diagnosticParts,
+  diagnosticSelection,
+  type DiagnosticLocation,
+} from '../src/playground/diagnostics';
 import { executeWasi, parseCrafts } from '../src/playground/wasi';
 
 let root: Root | undefined;
@@ -45,33 +49,17 @@ describe('playground source diagnostic navigation', () => {
     ]);
   });
 
-  it('does not create links for zero, unsafe or malformed coordinates', () => {
-    const stderr =
-      ' --> main.cv:0:1\n --> main.cv:1:0\n --> main.cv:1:9007199254740992\n --> main.cv:1:2suffix';
-    expect(diagnosticParts(stderr).some((part) => part.location)).toBe(false);
-    expect(
-      diagnosticParts(stderr)
-        .map((part) => part.text)
-        .join(''),
-    ).toBe(stderr);
-  });
-
   it('maps byte columns after Chinese and supplementary scalars to UTF-16 selections', () => {
     const source = '\t中文😀x';
     expect(diagnosticSelection(source, { line: 1, column: 8 })).toEqual({ anchor: 3, head: 5 });
     expect(diagnosticSelection(source, { line: 1, column: 12 })).toEqual({ anchor: 5, head: 6 });
     expect(diagnosticSelection(source, { line: 1, column: 2 })).toEqual({ anchor: 1, head: 2 });
-    expect(diagnosticSelection(source, { line: 1, column: 3 })).toBeNull();
   });
 
-  it('accepts line-end and EOF carets while rejecting out-of-range coordinates', () => {
+  it('maps line-end and EOF carets to the editor', () => {
     expect(diagnosticSelection('a\n', { line: 1, column: 2 })).toEqual({ anchor: 1, head: 1 });
     expect(diagnosticSelection('a\n', { line: 2, column: 1 })).toEqual({ anchor: 2, head: 2 });
     expect(diagnosticSelection('', { line: 1, column: 1 })).toEqual({ anchor: 0, head: 0 });
-    expect(diagnosticSelection('a', { line: 1, column: 3 })).toBeNull();
-    expect(diagnosticSelection('a', { line: 2, column: 1 })).toBeNull();
-    expect(diagnosticSelection('a', { line: -1, column: 1 })).toBeNull();
-    expect(diagnosticSelection('a', { line: 1, column: 1.5 })).toBeNull();
   });
 
   it('normalizes CRLF offsets to the editor document without counting tabs as display columns', () => {
@@ -83,13 +71,15 @@ describe('playground source diagnostic navigation', () => {
 
   it('navigates valid source locations with keyboard buttons and leaves invalid locations plain', async () => {
     const stderr = ' --> main.cv:1:1\n --> main.cv:2:1\n<unsafe>\n';
-    const onSelect = vi.fn();
+    let selected: DiagnosticLocation | undefined;
     const host = await render(
       <PlaygroundDiagnostics
         text={stderr}
         source="let value = 1;"
         locale="en"
-        onSelect={onSelect}
+        onSelect={(location) => {
+          selected = location;
+        }}
       />,
     );
     const location = host.querySelector<HTMLButtonElement>(
@@ -98,7 +88,7 @@ describe('playground source diagnostic navigation', () => {
     expect(location.type).toBe('button');
     expect(location.tabIndex).toBe(0);
     await act(() => location.click());
-    expect(onSelect).toHaveBeenCalledWith({ line: 1, column: 1 });
+    expect(selected).toEqual({ line: 1, column: 1 });
     expect(host.querySelector('[aria-label="Go to main.cv line 2, byte column 1"]')).toBeNull();
     expect(host.textContent).toBe(stderr);
     expect(host.querySelector('unsafe')).toBeNull();

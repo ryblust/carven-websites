@@ -23,10 +23,3 @@ export function localizedPath(path: string, locale: Locale) {
 }
 export const translate = (locale: Locale) => (zh: string, en: string) =>
   locale === 'en' ? en : zh;
-
-export function pathWithoutBase(pathname: string, base: string) {
-  const prefix = base.replace(/\/$/, '');
-  return prefix && (pathname === prefix || pathname.startsWith(`${prefix}/`))
-    ? pathname.slice(prefix.length) || '/'
-    : pathname;
-}

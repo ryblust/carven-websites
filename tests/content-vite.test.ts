@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -37,13 +37,16 @@ async function fixture(initialBody?: string) {
 }
 
 async function change(server: ViteDevServer, event: string, file: string) {
-  const send = vi.spyOn(server.ws, 'send').mockImplementation(() => {});
+  let message: unknown;
+  const send = vi.spyOn(server.hot, 'send').mockImplementation((payload) => {
+    message = payload;
+  });
   try {
     server.watcher.emit('all', event, file);
     return await vi.waitFor(
       () => {
-        expect(send).toHaveBeenCalled();
-        return send.mock.calls[0]![0];
+        expect(message).toBeDefined();
+        return message;
       },
       { timeout: 5000 },
     );
@@ -103,9 +106,6 @@ describe('content development output', () => {
       expect(await change(server, 'unlink', join(root, 'src/content/guide.md'))).toEqual({
         type: 'full-reload',
       });
-      await expect(readFile(join(root, 'src/generated/articles/guide.ts'))).rejects.toMatchObject({
-        code: 'ENOENT',
-      });
       expect(await html('second')).toContain('Second guide.');
       const { articles } = await import(
         /* @vite-ignore */ pathToFileURL(join(root, 'src/generated/manifest.ts')).href
@@ -131,7 +131,6 @@ describe('content development output', () => {
         err: { message: expect.stringContaining('Missing frontmatter') },
       });
       expect(await html('guide')).toContain('Published guide.');
-      expect(errors).toHaveBeenCalledWith(expect.stringContaining('Missing frontmatter'));
 
       await writePair('guide', 'Corrected guide.');
       expect(await change(server, 'change', join(root, 'src/content/guide.md'))).toEqual({

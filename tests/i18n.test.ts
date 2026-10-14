@@ -1,6 +1,6 @@
 import { describe, it, assert } from 'vitest';
 import { articles, articlePaths } from '../src/generated/manifest';
-import { localizedPath, localeOf, pathWithoutBase } from '../src/lib/i18n';
+import { localizedPath, localeOf } from '../src/lib/i18n';
 
 describe('bilingual navigation', () => {
   it('round-trips every article without falling back to the home page', () => {
@@ -34,13 +34,5 @@ describe('bilingual navigation', () => {
     for (const path of ['/', '/learn/', '/zh-extra/', '/learn/zh/']) {
       assert.equal(localeOf(path), 'en');
     }
-  });
-
-  it('strips only the complete deployment prefix', () => {
-    assert.equal(pathWithoutBase('/carven', '/carven/'), '/');
-    assert.equal(pathWithoutBase('/carven/', '/carven/'), '/');
-    assert.equal(pathWithoutBase('/carven/zh/reference/', '/carven/'), '/zh/reference/');
-    assert.equal(pathWithoutBase('/carven-extra/zh/', '/carven/'), '/carven-extra/zh/');
-    assert.equal(pathWithoutBase('/zh/learn/', '/'), '/zh/learn/');
   });
 });

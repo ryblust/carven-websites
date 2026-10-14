@@ -1,14 +1,12 @@
+import { htmlToDOM } from 'html-react-parser';
+import { getElementsByTagName, textContent } from 'domutils';
+
 export function articleHeadings(html: string) {
-  return Array.from(html.matchAll(/<h([23]) id="([^"]+)">([\s\S]*?)<\/h[23]>/g), (match) => ({
-    level: Number(match[1]),
-    id: match[2]!,
-    title: match[3]!
-      .replace(/<[^>]+>/g, '')
-      .replace(
-        /&(?:amp|lt|gt|quot|#39);/g,
-        (entity) =>
-          ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" })[entity] ??
-          entity,
-      ),
-  }));
+  return getElementsByTagName((name) => name === 'h2' || name === 'h3', htmlToDOM(html))
+    .filter((heading) => heading.attribs.id)
+    .map((heading) => ({
+      level: Number(heading.name.slice(1)),
+      id: heading.attribs.id!,
+      title: textContent(heading),
+    }));
 }

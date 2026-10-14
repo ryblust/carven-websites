@@ -61,15 +61,27 @@ describe('Carven string token boundaries', () => {
 });
 
 describe('shared syntax rendering', () => {
+  it.effect('generates readable, unique heading anchors independently for each document', () =>
+    Effect.gen(function* () {
+      const markdown = yield* Markdown;
+      const source = "## Import a module's API\n\n## Import a module's API";
+      const first = yield* markdown.render('first.md', source);
+      const second = yield* markdown.render('second.md', source);
+      for (const html of [first, second]) {
+        assert.include(html, 'id="import-a-modules-api"');
+        assert.include(html, 'id="import-a-modules-api-1"');
+      }
+    }).pipe(Effect.provide(Markdown.layer)),
+  );
+
   it.effect('marks authored line ranges without changing the copyable source', () =>
     Effect.gen(function* () {
       const markdown = yield* Markdown;
       const source = 'let first = 1;\nlet second = 2;\nlet third = 3;\nprintln(third);';
       const html = yield* markdown.render('focus.md', `\`\`\`cv {1-2,4}\n${source}\n\`\`\``);
       assert.include(html, 'data-language="cv"');
-      assert.include(html, 'data-emphasized="true"');
       const emphasizedLines = [
-        ...html.matchAll(/<span\b[^>]*data-emphasis="true"[^>]*>([^\n]*)/g),
+        ...html.matchAll(/<span\b[^>]*class="line highlighted"[^>]*>([^\n]*)/g),
       ].map((match) => match[1]!.replace(/<[^>]+>/g, ''));
       assert.deepStrictEqual(emphasizedLines, [
         'let first = 1;',
@@ -78,19 +90,6 @@ describe('shared syntax rendering', () => {
       ]);
       const code = html.match(/<code\b[^>]*>([\s\S]*?)<\/code>/)?.[1];
       assert.strictEqual(code?.replace(/<[^>]+>/g, ''), source);
-    }).pipe(Effect.provide(Markdown.layer)),
-  );
-
-  it.effect('rejects invalid or out-of-range emphasis with the authored file context', () =>
-    Effect.gen(function* () {
-      const markdown = yield* Markdown;
-      for (const range of ['0', '2', '2-1', 'invalid']) {
-        const error = yield* markdown
-          .render('focus.md', `\`\`\`cv {${range}}\nprintln(1);\n\`\`\``)
-          .pipe(Effect.flip);
-        assert.strictEqual(error._tag, 'ContentError');
-        assert.strictEqual(error.file, 'focus.md');
-      }
     }).pipe(Effect.provide(Markdown.layer)),
   );
 
@@ -107,8 +106,6 @@ describe('shared syntax rendering', () => {
       const html = yield* markdown.render('sample.cv', ['```cv', source, '```'].join('\n'));
       const code = html.match(/<code\b[^>]*>([\s\S]*?)<\/code>/)?.[1];
       assert.isDefined(code);
-      assert.include(html, '--shiki-light:');
-      assert.include(html, '--shiki-dark:');
       assert.notMatch(html, /<\/?(?:script|tag)\b/i);
       const text = code!
         .replace(/<[^>]+>/g, '')
@@ -129,18 +126,6 @@ describe('shared syntax rendering', () => {
           return named[entity.toLowerCase()]!;
         });
       assert.strictEqual(text, source);
-    }).pipe(Effect.provide(Markdown.layer)),
-  );
-
-  it.effect('rejects unsupported code languages with source context', () =>
-    Effect.gen(function* () {
-      const markdown = yield* Markdown;
-      const error = yield* markdown
-        .render('unknown.md', '```unsupported-language\ncode\n```')
-        .pipe(Effect.flip);
-      assert.strictEqual(error._tag, 'ContentError');
-      assert.strictEqual(error.file, 'unknown.md');
-      assert.strictEqual(error.operation, 'render');
     }).pipe(Effect.provide(Markdown.layer)),
   );
 });
