@@ -26,6 +26,10 @@ export default function Home({ locale }: { locale: Locale }) {
         '结构体、枚举和数组直接交给 println，字段名、枚举成员和元素都会按结构打印。不用手写输出运算符，也不用反射库。',
         'Pass a struct, enum, or array to println and it prints field names, enum cases, and elements. No handwritten output operator or reflection library.',
       ),
+      note: t(
+        '给 Order 加一个字段并赋值，再运行，输出会自动带上新字段。',
+        'Add a field to Order and its initializer. Run it again to see the new field in the output.',
+      ),
       code: 'display',
       cpp: 'displayCpp',
       result: 'Order { id: 7, status: Status::Shipped(3), items: ["disk", "cable"] }',
@@ -44,6 +48,10 @@ export default function Home({ locale }: { locale: Locale }) {
         '从命令定义生成帮助文本，只列出启用的命令。照常写循环、判断和插值；Carven 在编译期构造并检查结果，运行时直接使用静态文本。',
         'Build help text from command definitions, listing only enabled commands. Use ordinary loops, conditions, and interpolation; Carven builds and checks the result at compile time, leaving static text ready for runtime use.',
       ),
+      note: t(
+        '启用 trace，先不改测试预期：const test 会在编译时指出差异。',
+        'Enable trace without updating the expected text. const test catches the difference at compile time.',
+      ),
       code: 'constants',
       cpp: 'constantsCpp',
       result: 'Commands:\n  build: Compile the project\n  run: Run the program',
@@ -61,6 +69,10 @@ export default function Home({ locale }: { locale: Locale }) {
       detail: t(
         '用 INV-DDDD 描述编号格式，D 表示一个 ASCII 数字。const for 展开每个位置，const if 选择数字检查或字面匹配。生成的函数只接收待检查的文本。',
         'Describe an identifier with INV-DDDD, where D stands for one ASCII digit. const for expands each position; const if selects a digit check or a literal match. The generated function receives only the text to check.',
+      ),
+      note: t(
+        '把 invoice 改成 INV-20x8，观察第一个结果变为 false。',
+        'Change invoice to INV-20x8. The first result becomes false.',
       ),
       code: 'specialization',
       cpp: 'specializationCpp',
@@ -84,6 +96,10 @@ export default function Home({ locale }: { locale: Locale }) {
         '用向量比较 32 个字节，再用掩码统计匹配项。最后不足一块时，只读取实际数据，并用 active 排除补零的位置。',
         'Compare 32 byte lanes, then count matching mask bits. A partial final block reads only available input and uses active to exclude zero-filled lanes.',
       ),
+      note: t(
+        '在 row 里再加一个逗号，运行后计数会从 2 变成 3。',
+        'Add one more comma to row. Run it again and the count changes from 2 to 3.',
+      ),
       code: 'simd',
       cpp: 'simdCpp',
       result: '2',
@@ -101,6 +117,10 @@ export default function Home({ locale }: { locale: Locale }) {
       detail: t(
         '配置缺失时使用默认端口。编译器算出剩下的失败：契约少写 BadPort 会报错，调用者漏处理某种失败时，错误信息会指出漏掉的类型。',
         'Use a default port when the config is missing. The compiler computes the failures that remain: leave BadPort out of the contract and it reports an error; a caller that misses a failure is told which type is uncovered.',
+      ),
+      note: t(
+        '试着删掉 port 契约里的 BadPort，点击“检查”，看看编译器如何指出遗漏。',
+        'Remove BadPort from the port contract, then choose Check to see how the compiler reports the omission.',
       ),
       code: 'failures',
       cpp: 'failuresCpp',
@@ -122,6 +142,10 @@ export default function Home({ locale }: { locale: Locale }) {
       detail: t(
         '用三引号直接写多行 JSON，再交给 nlohmann/json：保留 host，把 port 改成 9000，并删除 debug。文本按代码层级缩进，双引号无需转义；直接调用库的现有接口。',
         'Write multiline JSON directly with triple quotes, then pass it to nlohmann/json: keep host, change port to 9000, and remove debug. Indent the text with your code and leave double quotes unescaped; call the library’s existing API directly.',
+      ),
+      note: t(
+        '这个例子可以在浏览器中生成 C++；实际调用第三方库需要在本地运行。',
+        'Generate C++ for this example in the browser. Run it locally to execute the third-party library calls.',
       ),
       code: 'native',
       cpp: 'nativeCpp',
@@ -161,13 +185,23 @@ export default function Home({ locale }: { locale: Locale }) {
             )}
           </p>
           <div className="home-actions">
-            <Link className="button button-primary" to={localizedPath('/learn/', locale)}>
-              {t('开始学习', 'Start learning')} <span aria-hidden="true">→</span>
+            <Link
+              className="button button-primary"
+              to={localizedPath('/playground/', locale)}
+              hash="example=structured-output"
+            >
+              <UIIcon icon={Play} /> {t('在线运行示例', 'Run an example')}
             </Link>
-            <Link className="button button-secondary" to={localizedPath('/reference/', locale)}>
-              {t('语言参考', 'Reference')}
+            <Link className="button button-secondary" to={localizedPath('/learn/', locale)}>
+              {t('开始学习', 'Start learning')}
             </Link>
           </div>
+          <p className="home-try-note">
+            {t(
+              '无需安装。在浏览器中修改代码，查看运行结果与生成的 C++。',
+              'No installation. Edit code in your browser, see its output, and inspect the generated C++.',
+            )}
+          </p>
         </div>
         <Sketch />
       </section>
@@ -181,8 +215,8 @@ export default function Home({ locale }: { locale: Locale }) {
           </h2>
           <p>
             {t(
-              '打印结构体、生成静态文本、按固定格式检查编号、按块扫描字节、恢复指定失败，或调用现有 C++ 库。选择一个任务，切换 Carven 与 C++，比较实现方式与适用范围。',
-              'Print a struct, build static text, check identifiers against a fixed format, scan byte blocks, recover from a selected failure, or call a C++ library. Choose a task, then switch between Carven and C++ to compare implementations and their scope.',
+              '从一个具体任务开始，看 Carven 如何表达它，再与手写 C++ 对照。试着修改示例，或展开说明了解适用范围。',
+              'Start with a task. See how Carven expresses it, then compare it with handwritten C++. Try an edit, or open the details to explore its scope.',
             )}
           </p>
         </header>
@@ -215,15 +249,18 @@ export default function Home({ locale }: { locale: Locale }) {
                 inert={selected !== index}
               >
                 <h3>{item.title}</h3>
-                <p>{item.detail}</p>
+                <p className="showcase-description">{item.detail}</p>
+                <p className="showcase-note">{item.note}</p>
                 <div className="showcase-links">
                   <Link
-                    className="text-link showcase-try"
+                    className="button button-primary showcase-try"
                     to={localizedPath('/playground/', locale)}
                     hash={`example=${item.playground}`}
                   >
                     <UIIcon icon={Play} />
-                    {t('在 Playground 打开', 'Open in Playground')}
+                    {item.playground === 'native-json'
+                      ? t('生成这个示例的 C++', 'Generate this example’s C++')
+                      : t('修改并运行示例', 'Edit and run this example')}
                   </Link>
                   <Link className="text-link" to={localizedPath(item.path, locale)}>
                     {t('了解相关用法', 'Explore this feature')} <span aria-hidden="true">→</span>
