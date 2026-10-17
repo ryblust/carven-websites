@@ -1,31 +1,56 @@
 # Playground
 
-The Playground runs the Carven compiler and Graver as a WASI module in a Web
+The Playground runs the Carven compiler and formatter as a WASI module in a Web
 Worker. CodeMirror 6 handles editing and syntax highlighting. GitHub Pages serves
 the website and compiler assets.
 
 ## Build
 
-CI checks out the compiler repository's latest default-branch commit into
-`.deps/carven/` and builds it with Xmake 3.1.1 and WASI SDK 34. For a local build,
-extract the SDK into `.deps/wasi-sdk/`, then run from the website repository root:
+Use Node.js 26 or later and the pnpm version in `package.json`. Extract WASI SDK 34
+into `.deps/wasi-sdk/`, then run from the website repository root:
 
 ```sh
 pnpm install
-git clone --depth 1 https://github.com/ryblust/carven.git .deps/carven
-export WASI_SDK_PATH="$PWD/.deps/wasi-sdk"
+pnpm sync
+pnpm preview
+```
+
+`pnpm sync` fetches the compiler's latest remote `main` into `.deps/carven/`, then
+builds the Playground, builds the website, runs tests, and checks generated links.
+It stops on failure. Local changes in `.deps/carven/` stop synchronization.
+
+To use a local compiler checkout without fetching:
+
+```sh
+CARVEN_SOURCE_DIR=../carven pnpm sync
+```
+
+Set `WASI_SDK_PATH` to use an SDK installed elsewhere. For website-only development,
+run `pnpm dev` with the existing compiler assets. Restart `pnpm preview` after a
+new production build.
+
+To build only the Playground from the existing compiler checkout:
+
+```sh
 pnpm playground:build
 ```
 
-`pnpm playground:build` invokes `.deps/carven/xmakew build` with the website's
-`xmake.lua`. The target uses C++26, Release mode and ThinLTO. Its WASI standard-module
-configuration is documented beside the target in `xmake.lua`.
+This uses `.deps/carven/` and `.deps/wasi-sdk/` by default. `CARVEN_SOURCE_DIR` and
+`WASI_SDK_PATH` select other locations. The command uses the selected compiler's
+wrapper without fetching source.
 
-Build outputs go to `public/playground-assets/`: `carven.wasm`, `crafts.json`,
-and license notices. Website builds validate these assets before generating pages.
+The compiler wrapper builds the website's `xmake.lua` target with C++26, Release
+mode and ThinLTO. CI installs Xmake 3.1.1 and WASI SDK 34, runs `pnpm sync`, and
+uploads the website output for deployment.
 
-Local content synchronization baselines and validation evidence are recorded in
-`docs/content-sync.md`.
+Outputs in `public/playground-assets/` include `carven.wasm`, `crafts.json`,
+`compiler-revision.txt`, and license notices. `crafts.json` contains the standard
+library's `.cv` sources and is regenerated after each Playground build. Website
+builds validate these assets. The footer displays the packaged compiler revision;
+`-dirty` identifies a checkout with local changes.
+
+Record local synchronization baselines and validation evidence in the Git-ignored
+`content-sync.md` at the repository root.
 
 ## Execution
 
@@ -42,8 +67,10 @@ asset loading and filesystem access; `client.ts` manages worker sessions.
 | `ast`     | Parsed syntax-tree dump             |
 | `format`  | Formatted source                    |
 
-Native C++ calls produce an interpreter admission error. Generated C++ can be
-built with a native toolchain.
+The interpreter runs supported Carven source, including async composition, JSON,
+and SIMD. Standard input is empty; clocks and timers use the WASI host. Native
+C++ calls and TCP providers require a native build. Use Generate C++ to export
+source for a native toolchain.
 
 Diagnostics includes captured standard output. Output shows stdout from Check,
 Run or Generate C++; syntax dumps and formatted source use their respective views.

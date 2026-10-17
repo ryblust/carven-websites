@@ -1,8 +1,8 @@
 ---
 title: "实践：成功后才扣减库存"
-description: 用明确的订单结果、金额上限、选择性失败恢复，以及静态和运行时测试，完成订单流程。
+description: "接受合法订单，拒绝时保留原库存，并用测试验证这两种行为。"
 section: learn
-lesson: 16
+lesson: 17
 source: docs/language/tutorial.md
 ---
 
@@ -16,7 +16,7 @@ source: docs/language/tutorial.md
 
 ```carven
 struct Item {
-    name: str,
+    name: String,
     price: i32,
     stock: i32,
 }
@@ -122,7 +122,7 @@ purchase 使用 Write 访问，调用处重复写 `&item`。它的 `?` 必须先
 
 断言承担另一种责任：商品数据为负是程序错误，成功扣减之后库存也必须非负。断言停止执行，不产生可恢复失败。插值消息只在失败时求值。参见[用 assert 检查程序不变量](/zh/learn/testing/#用-assert-检查程序不变量)。
 
-金额使用 `i64`：非负的 `i32` 单价和正的 `i32` 数量都在乘法**之前**扩大类型，因此乘积放得下。100000 上限是独立的业务规则。先以 `i32` 相乘再转换结果，会在转换之前发生 `i32` 回绕。
+金额使用 i64。乘法**之前**先把 i32 单价和数量都转换为 i64，它们的非负乘积才能放进更宽的类型。100000 上限是独立的业务规则。先以 `i32` 相乘再转换结果，会在转换之前发生 `i32` 回绕。
 
 ## 明确结果，选择性恢复
 
@@ -249,6 +249,40 @@ carven: tests: 3 passed; 1 failed
 ```
 
 条件保留检查的源码文字；操作数展示观察到的库存，不会再次读取它。字面量 2 已经在条件中出现，因此无需另列操作数。继续之前把预期值恢复为 1。
+
+## 处理可增长批次并明确拒绝结果
+
+保留已有声明，用下面批处理替换顶层应用语句。向量拥有库存，数组提供固定请求：
+
+```carven
+var inventory: Vector<Item> = [
+    { name: "Lamp", price: 1200, stock: 3 },
+];
+let requests = [(0usize, 2), (0usize, 2), (0usize, 0)];
+var paid: Vector<Receipt> = [];
+
+for (index, quantity) in requests {
+    try {
+        match reserve(&inventory[index], quantity)? {
+            .Paid(receipt) => paid.push(receipt),
+            .Backorder(error) => println("Backorder:", error.requested, error.available),
+        }
+    } catch {
+        InvalidQuantity(error) => println("Rejected:", error.requested),
+        OrderLimit(error) => println("Limit:", error.limit),
+    }
+}
+
+var charged: i64 = 0;
+for receipt in paid {
+    charged += receipt.amount;
+}
+println("Paid:", paid.length(), charged, "Stock:", inventory[0].stock);
+```
+
+依次输出 `Backorder: 2 1`、`Rejected: 0`、`Paid: 1 2400 Stock: 1`。元组目标为索引与数量命名，不必额外声明请求类型。成功收据成为独立向量元素，不用哨兵收据表示拒绝。整个批次不是原子的：后续请求失败，不会撤销先前成功的购买。
+
+Item.name 使用 `String`，因此每个库存元素拥有自己的名字。Vector 元素不能保留借用文本。已有测试在拥有上下文里从字面量名字构造 Item。接着完成[JSON 输入项目](/zh/learn/data-pipeline/)，用有上限输入替换固定请求。
 
 ## 独立完成的扩展
 

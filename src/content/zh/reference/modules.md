@@ -8,67 +8,77 @@ source: docs/language/modules.md
 
 ## 三种导入路径
 
+import 用于在当前文件中使用另一个模块的声明。例如 `import std::json using Value;` 引入 JSON 值类型。导入放在其他声明之前，不执行被导入模块，也不自行在文件系统中寻找源码。
+
+一次编译要用到哪些源文件，由命令行或构建系统预先提供。导入只在这些源模块和编译器提供的标准模块中解析。每个源文件有非空规范模块路径，组件形如 `[A-Za-z_][A-Za-z0-9_]*`，可使用关键字拼写。文件到路径的映射属于驱动策略。
+
+`crafts.<name>.<path>` 属于 crafts.<name> 的模块域；须同时有 name 和非空 path。其他路径属于无前缀模块域，非首位 crafts 组件没有特殊含义。官方 craft 为 carven，`std::utf` 选择 `crafts.carven.std.utf`。
+
+导入必须连续出现在模块开头：
+
+| 引用           | 解析                      |
+| -------------- | ------------------------- |
+| `model.user`   | 当前模块域根              |
+| `.value`       | 当前模块逻辑目录          |
+| `json::parser` | 外部 craft json 的 parser |
+| `std::utf`     | 官方标准模块              |
+
+`.value` 在 a.b.main 中是 a.b.value，在 crafts.json.a.b.main 中是 crafts.json.a.b.value。无前缀和前导点不跨模块域，缺失目标或自导入非法。std::core 与 carven::std.core 是同一模块。
+
+编译器提供的声明不要求相应源文件，源导出必须在批次里；标准入口可同时包含两类声明，冲突非法。目录前缀仅分组路径，不隐式导入子模块。C++ 头文件导入提供原生声明，独立于 Carven 模块解析。
+
+## 标准模块与默认名字
+
+| 模块         | 编译器提供的导出                                                                                               | 默认绑定               |
+| ------------ | -------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| std::core    | 标量、文本、void、Vector、Range、assert、addressof                                                             | 上述名字               |
+| std::io      | print、println、eprint、eprintln                                                                               | 打印名字与源定义 stdin |
+| std::testing | check、require、fail                                                                                           | 上述名字               |
+| std::async   | Operation、cancel_requested、cancel_point、yield_once、wait_ready、close、when_all、when_any、first_successful | 无                     |
+| std::simd    | u8x16、mask16、f32x4、mask4、u8x32、mask32、f32x8、mask8                                                       | 上述名字               |
+| std::time    | timeout                                                                                                        | 无                     |
+
+显式导入默认名字参与普通使用跟踪。测试助手需要活跃测试，assert 在测试外可用。stdin 默认绑定与显式 std::io 导入选择同一源声明；char::from_u32 与 str::from_utf8 也分别复用 std::utf 的 char_from_u32/from_utf8 声明。
+
+导入函数不同时绑定其签名里的所有类型。可推断、使用并传播结果和失败而不命名类型；注解、构造或处理器里命名非默认类型须显式导入。Duration 字面量无需导入，命名 Duration 须从 std::time 导入；数值 parse 同理，命名 NumberParseError 须从 std::core 导入。
+
+标准库条目见[库总览](/zh/reference/library/)、[异步](/zh/reference/async/)、[时间](/zh/reference/time/)、[输入输出](/zh/reference/io/)、[JSON](/zh/reference/json/)与[网络](/zh/reference/net/)。
+
+## 库源文件组织
+
+公开库入口是普通模块，导出其契约。能力可放一个 cv 文件，或把实现放进同名目录；每个文件保持独立身份与显式依赖。std/utf.cv 不会自动导出 std/utf/scan.cv 的内容。裸声明可在 craft 内共享，private 辅助限定到模块。using 只引入局部绑定，不重新导出，也不聚合子目录。
+
+## 导入别名
+
 ```carven
-import model.user using User;
-import .value using Value;
-import json::parser using parse;
-import std::utf.text using *;
+import std::core using String as Text;
+import std::async using { Operation, when_all as join };
+import std::simd.bytes using load_block as load_bytes;
+import std::simd.floats using load_block as load_floats;
 ```
 
-| 引用            | 起点                             |
-| --------------- | -------------------------------- |
-| `model.user`    | 当前 craft 域根                  |
-| `.value`        | 当前模块去掉最后分量后的逻辑目录 |
-| `json::parser`  | `crafts.json`                    |
-| `std::utf.text` | `crafts.carven.std`              |
+as 前按目标模块可见性检查导出名，别名是该选择唯一引入的局部名；两者均须普通标识符。单项与列表规则相同，通配导入无别名。不同局部名可选同一实体，重复局部名非法。别名保留身份、类型、拥有权、失败和调用契约。默认绑定独立存在，`print as write` 不移除默认 print。导入顺序不改变解析或冲突。
 
-在 `crafts.foo.models.user` 中，`.value` 指向 `crafts.foo.models.value`。无前缀和相对导入都留在当前域中。目标必须是批次中另一个模块；自导入、缺失模块和重复规范输入名都是错误。
+## 声明与名字查找
 
-导入路径选择模块，`using` 选择名字或引入名字环境。跨模块使用必须先显式导入。多个 wildcard 提供同名符号时，只有实际使用需要该名字才构成歧义。显式选择优先于同名 wildcard；它不能与本地声明冲突，也不能把同一个绑定名映射到不同符号。
+函数、结构体、类、枚举与模块常量共享模块名字空间，不支持重载。裸声明必须使用普通标识符 token，关键字不能作声明名；只有 ptr 对模块声明、类型参数和导入局部名字额外保留。内建类型名可遮蔽。模块路径与限定/成员组件可接收标识符形关键字，using 选择仍要求普通标识符；没有转义标识符。
 
-导入没有运行时副作用。一个导入通过唯一解析的实际引用计为使用；未使用的导入产生 `CV-LINT-UNUSED-IMPORT`。C++ 头文件导入可以位于同一导入前缀，但不解析 Carven 模块。
+整个编译边界先识别各类型和函数的声明，再按依赖完成签名、常量和所需静态函数体。声明顺序不限制前向常量依赖或相互递归调用；必需常量依赖环非法。
+
+表达式查找依次考虑词法绑定、模块声明与 Carven 导入、显式原生选择、默认标准名字、打开的 C++ 名字空间。模块声明压过通配候选，显式 Carven 导入压过通配但与模块声明冲突。多个通配候选仅在实际使用需要该名时歧义，即使选同一实体也歧义。选到错误种类不会因默认契约更适合而回退。
+
+类型位置优先类型参数，忽略运行时局部与参数；表达式限定符优先词法绑定与类型参数。`fn f(String: i32) -> String` 的结果仍为默认 String，但参数阻止 `String::from_str`；可导入 String as Text 并用 Text::from_str。字面量后缀、推断类型和结构语法的规范意义不因名字遮蔽而变。
 
 ## 可见性
 
-| 写法      | 可见范围                               |
-| --------- | -------------------------------------- |
-| `private` | 定义模块                               |
-| 无修饰符  | 同一 craft 域的所有模块                |
-| `export`  | 当前编译批次的所有模块，包括其他 craft |
+| 声明    | 受众               |
+| ------- | ------------------ |
+| private | 定义模块           |
+| 裸声明  | 同一 craft/模块域  |
+| export  | 编译边界内跨 craft |
 
-每个声明在自身模块都可见。可见性由定义域决定，不因导入拼写变化。通过 `std::` 引入的模块仍属于 `carven` craft。普通应用模块可以互相选择裸声明。
+可见性取决于定义 craft，不取决于导入拼写；std:: 属于 carven craft。普通应用模块共享无前缀域。声明在自身模块总可见。对外暴露的类型信息会递归检查参数、结果、失败、可调用值、字段、载荷、底层类型、数组及常量的归一化类型和值，不能把对使用者不可见的类型暴露出去；违反报告 CV-TYPE-VISIBILITY-LEAK。函数体与被归一化消除的内部身份不属于公开表面。类私有字段可用模块私有类型，类操作仍遵循声明受众。
 
-一个声明的公开表面只能使用对其所有读者可见的名义类型。检查递归覆盖参数、返回值、失败集合、嵌套 callable、字段、枚举载荷及底层类型、数组、常量的类型和归一化值。函数体和常量计算中已经消去的身份不属于公开表面。泄漏不可见类型产生 `CV-TYPE-VISIBILITY-LEAK`。类字段只对类体私有，可以使用模块私有类型；类操作遵循类声明的受众，`private fn` 成员只能在该类体内访问。
+## 批次与规范模块名
 
-```carven
-private struct Hidden {}
-
-// 编译错误：export 的读者看不到 Hidden。
-export fn expose() -> Hidden {
-    return Hidden {};
-}
-```
-
-CLI 的 `check`、`compile`、原生运行和 `interpret` 将显式应用文件与工具链、项目的 Crafts 目录合并。收集发生在导入解析之前；目录、去重和已安装库的要求见[源码收集](/zh/reference/cli/#源码收集)。
-
-## 声明与查找
-
-函数、结构体、类、枚举和模块常量共享模块命名空间。同名模块声明非法，函数没有重载。模块还可包含测试、常量块、C++ 片段和入口语句。
-
-声明身份在整个批次中收集，合法的前向函数调用、相互递归和常量依赖不受源码先后顺序限制。常量必需事实形成环会报错。
-
-无前缀名字从最内层词法作用域查找，再到外围作用域、模块声明和导入。同一词法作用域内不能重复声明；内层可以遮蔽外层。局部名字在类型、初始化表达式及常量证明完成后才可见，所以初始化表达式可以引用同名外层绑定。
-
-lambda 是捕获边界。外层运行时绑定必须显式捕获。模块声明可直接访问；可见局部常量只有在构造 lambda 函数体时能确定值，且不依赖未绑定的外围静态参数，才可跨越该边界。
-
-## 编译批次与规范模块名
-
-一次编译分析由驱动或构建集成在导入解析前确定的封闭源码批次。导入不会自动搜索磁盘或下载依赖。每个输入对应唯一规范模块名；路径分量（包括文件名主干）符合 `[A-Za-z_][A-Za-z0-9_]*`，模块分量允许语言关键字。CLI 会以 `invalid module file stem` 拒绝 `my-file.cv`，应改名为 `my_file.cv`。
-
-```text
-src/main.cv                  → src.main
-crafts/json/parser.cv        → crafts.json.parser
-crafts/carven/std/utf/text.cv → crafts.carven.std.utf.text
-```
-
-前导 `crafts.<name>.<path>` 定义一个 craft 域；`crafts` 和 `crafts.<name>` 本身不构成完整模块。普通应用模块属于无前缀域。非前导 `crafts` 是普通分量。官方 craft 名是 `carven`，`std::` 专门选择它的 `std` 子树。
+模块目录由调用者预先建立。import 不发现文件、不下载包、不添加链接库，也没有运行时副作用。未被导入的批次源文件仍接受检查。实际选择唯一绑定的引用才算导入使用，否则有 CV-LINT-UNUSED-IMPORT。同作用域重复名字非法，内层可遮蔽外层；lambda 自由运行时绑定须显式捕获。

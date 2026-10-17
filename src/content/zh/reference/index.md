@@ -11,7 +11,7 @@ source: docs/language/README.md
 <div class="reference-entry-grid">
 <a class="reference-entry" href="#查找语法与规则"><strong>语言语法</strong><span>关键字、变量、类型、表达式与控制流</span></a>
 <a class="reference-entry" href="/zh/reference/builtins/"><strong>内建函数与类型 API</strong><span>无需导入的输出、断言、文本与序列操作</span></a>
-<a class="reference-entry" href="/zh/reference/library/"><strong>标准库参考</strong><span>按模块查阅 UTF 与 SIMD 的签名和契约</span></a>
+<a class="reference-entry" href="/zh/reference/library/"><strong>标准库参考</strong><span>异步、集合、文本、时间、输入、JSON 与原生网络</span></a>
 </div>
 
 ## 查找语法与规则
@@ -45,11 +45,11 @@ source: docs/language/README.md
 | 省略类型或使用前导 `.Case`、`{ ... }`        | [局部期望类型规则](/zh/reference/types/#期望类型)、[上下文构造](/zh/reference/aggregates/#上下文构造)                            |
 | 把拥有文本或数组放入期望视图的位置           | [上下文适配](/zh/reference/types/#上下文适配)，以及借用的寿命                                                                    |
 | 后面的实参修改了前面的 Read 实参存储         | [Read 值与别名](/zh/reference/ownership/#read-值与别名)                                                                          |
-| 返回具名 owner，或用它初始化另一个 owner     | [复制与显式 Take](/zh/reference/ownership/#take-与可用性)                                                                        |
+| 返回具名 所有者，或用它初始化另一个所有者    | [复制与显式 Take](/zh/reference/ownership/#take-与可用性)                                                                        |
 | catch 列表只覆盖部分失败                     | [try 边界的剩余失败传播](/zh/reference/failures/#部分捕获与剩余集合)                                                             |
 | 具名文本或切片视图后面不再使用               | [文本借用持续时间](/zh/reference/text/#借用与修改)、[切片持续时间](/zh/reference/slices/#借用持续时间)；最后一次使用不会结束借用 |
 | 用字面量实参调用 `const fn`                  | [编译期能力](/zh/reference/functions/#编译期能力)；普通调用仍在运行时执行                                                        |
-| 常量产生拥有文本或数组 backing               | [准入与冻结](/zh/reference/constants/#准入与冻结)                                                                                |
+| 常量产生拥有文本或数组后备存储               | [准入与冻结](/zh/reference/constants/#准入与冻结)                                                                                |
 | 用 `{}` 初始化值，或把代码放在 `if false` 后 | [默认初始化](/zh/reference/aggregates/#默认初始化)、[未执行代码的检查](/zh/reference/control/#顺序与不活动代码)                  |
 
 ## 标准库、工具链与附录
@@ -68,21 +68,27 @@ source: docs/language/README.md
 
 规则页会在需要时使用下列术语。类型说明值是什么；访问说明怎样使用存储；所有权决定值何时结束生命周期；失败契约说明调用可能传播哪些失败。
 
-| 术语                | 含义                                     |
-| ------------------- | ---------------------------------------- |
-| 名义类型            | 由结构体、类或枚举的声明身份决定的类型   |
-| 值                  | 一次计算的结果                           |
-| 存储位置            | 可读取或写入的对象、字段、元素或指针目标 |
-| owner               | 拥有立即值并负责其作用域生命周期的绑定   |
-| Read / Write / Take | 读取、非拥有可写访问、所有权转移         |
-| backing             | 为切片、文本视图等提供实际存储的对象     |
-| 完整表达式          | 临时值通常所属的求值与清理边界           |
-| 正常完成            | 求值产生成功结果或执行到下一条语句       |
-| typed failure       | 携带名义类型载荷的可恢复控制效果         |
-| 发布接口            | 模块外可以访问的声明及其类型信息         |
+| 术语                | 含义                                                         |
+| ------------------- | ------------------------------------------------------------ |
+| 名义类型            | 由结构体、类或枚举的声明身份决定的类型                       |
+| 值                  | 一次计算的结果                                               |
+| 存储位置            | 可读取或写入的对象、字段、元素或指针目标                     |
+| 所有者              | 让自己的值存活到作用域结束的绑定，例如保存 String 的局部变量 |
+| Read / Write / Take | 读取、非拥有可写访问、所有权转移                             |
+| 后备存储            | 为切片、文本视图等提供实际存储的对象                         |
+| 完整表达式          | 一次表达式求值，以及通常保留到该表达式结束才清理的临时值     |
+| 正常完成            | 求值产生成功结果或执行到下一条语句                           |
+| typed failure       | 函数没有成功返回时携带的结构体或枚举值，可传播或捕获         |
+| 发布接口            | 模块外可以访问的声明及其类型信息                             |
 
 ## 规则的适用边界
 
 Carven 检查已知 Carven 存储的可用性、访问标记和借用关系。对于外部地址的存活、C++ 指针保留、迭代器失效、重入及原生未定义行为，提供者和调用者须遵守相应的 C++ 契约。
 
-当前源语言没有 async/await、线程创建或同步、原子操作、并发内存模型、用户定义泛型、trait、继承、虚派发、源级析构器或自定义复制/移动钩子，也没有通用引用类型。Read/Write/Take 不建立跨线程安全。指针和 C++ 接入的存在不授予这些能力。本文说明已实现的同步求值与生命周期规则。
+语言支持结构化 async/await、词法子任务、协作式取消、带类型参数的函数与数据类型、元组及拥有向量。原生线程/同步、trait、继承、虚派发、源级析构、定制复制/移动和一般引用类型仍不属于这些源契约，Read/Write/Take 不建立跨线程安全。
+
+## 现代库能力
+
+[结构化异步](/zh/reference/async/) · [时间与 deadline](/zh/reference/time/) · [输入与分帧](/zh/reference/io/) · [拥有 JSON](/zh/reference/json/) · [原生 TCP](/zh/reference/net/)
+
+用[元组与 Vector](/zh/reference/aggregates/)组织应用数据，以[类型与失败集合参数](/zh/reference/functions/#参数化函数)表达可复用操作。

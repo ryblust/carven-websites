@@ -48,7 +48,7 @@ The output is `8 0`. Choose a block when the function needs local steps or early
 
 ## Functions that perform an action
 
-A function that returns no value infers void:
+Some functions perform an action instead of calculating a useful result. Their result type is void:
 
 ```carven
 fn show_total(total: i32) => println("Total:", total);
@@ -56,7 +56,9 @@ fn show_total(total: i32) => println("Total:", total);
 show_total(36);
 ```
 
-The output is `Total: 36`. An expression body can return a `void` call too; it does not need an explicit `-> void`. Call show_total as a statement; there is no value to save in a local binding. Use a block when an action needs multiple steps or a bare `return;` to finish early.
+The output is `Total: 36`. Call show_total as a statement because its purpose is printing. The compiler infers void, so `-> void` is optional. Use a block when an action needs several statements or an early `return;`.
+
+Precisely, void has one value, `()`, called unit. It can be stored like other values, but this printing function does not need to keep it. The [type reference](/reference/types/) covers its use in data structures. The async chapter shows how unit keeps a place for an operation without a business result.
 
 ## Declaration order and calls
 
@@ -65,6 +67,21 @@ A function may call another defined later in the same module, and top-level stat
 Functions do not see top-level `let` and `var` bindings: those belong to the program entry. Pass required values as parameters.
 
 For mutually recursive functions, write explicit result types so checking one result does not depend on inferring the other. See the [function Reference](/reference/functions/) for the full inference rules. The [access chapter](/learn/ownership/) will show when a parameter reads a saved value and when it retains the caller's storage.
+
+## Return related results together
+
+A function can return a tuple when its results belong together. It can also accept a tuple as one argument and name its parts in the parameter list:
+
+```carven
+fn delivery(total: i32) -> i32 => if total >= 100 { 0 } else { 8 };
+fn amount((price, quantity): (i32, i32)) -> i32 => price * quantity;
+fn price_and_delivery(total: i32) -> (i32, i32) => (total, delivery(total));
+
+let (items, shipping) = price_and_delivery(amount((12, 3)));
+println(items, shipping, items + shipping);
+```
+
+Save this as a separate program. It prints `36 8 44`. `(i32, i32)` states the types of the two positions. The pair passed to amount is one argument, not two separate arguments. Use a struct when names such as price and quantity should remain part of the value wherever it goes; use a tuple for a short local combination.
 
 ## Exercise
 

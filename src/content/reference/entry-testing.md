@@ -29,7 +29,7 @@ println("not reached");
 
 Native execution prints `42`, then reports the escaped failure type and structural payload on stderr and exits with `EXIT_FAILURE`. `carven interpret` prints `42`, then reports the same payload under `CV-INTERPRET-EXECUTION` at the throw location with its call path.
 
-An explicit main is selected regardless of module path, craft, or visibility. It may have no parameters or one unannotated Read command-line parameter. That parameter is an entry-specific opaque value, not an indexable or iterable sequence. Ordinary function parameters still require types.
+An explicit main is selected regardless of module path, craft, or visibility. It may have no parameters or one unannotated Read command-line parameter. The wrapper owns a Vector<String> of arguments excluding the executable name; the parameter borrows it and supports ordinary indexing, iteration, printing, and views. Native ingress validates UTF-8. Synchronous and async entries retain the owner until execution and lexical child closure complete. Ordinary function parameters still require types.
 
 An explicit main with outward failures requires a throw clause, including private main; omission reports `CV-EFFECT-THROW-PUBLISHED`. Normal completion produces process status zero; a Carven return value is not the status. A typed failure escaping either entry produces C++ `EXIT_FAILURE` and one stderr report containing its type and structural payload. Ordinary local cleanup completes first; the wrapper retains the payload through reporting and destroys it before exit. Native reports point to the entry declaration because failure values carry no source location. Catching the failure and completing normally gives zero and no failure report.
 
@@ -45,7 +45,7 @@ test "addition" {
 }
 ```
 
-`carven --tests` runs native runtime tests; `carven interpret --tests` runs admitted runtime tests. Both require at least one runtime test and skip the program entry. check and ordinary compile only analyze runtime tests. `compile --tests` / `--tests=default` emits module tests, a runner, and a default test entry while suppressing the program entry wrapper. `--tests=external` retains that wrapper and emits tests and a runner; the consumer owns entry selection. Generation allows an empty suite.
+`carven --tests` runs native runtime tests; `carven interpret --tests` runs admitted runtime tests. Both require at least one runtime test and skip the program entry. check and ordinary compile only analyze runtime tests. `compile --tests` emits module tests, a runner, and a default test entry while suppressing the program entry wrapper. `--tests=runner` retains that wrapper and emits tests and a runner; the consumer owns entry selection. Generation allows an empty suite.
 
 ## Test operations
 

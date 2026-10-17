@@ -8,9 +8,34 @@ source: docs/language/text.md
 
 ## Characters and UTF-8 views
 
-`char` is an immutable, copyable Unicode scalar. It supports equality, inequality, and pattern matching, but no arithmetic, ordering, truthiness, or implicit numeric conversion. `as u32` obtains its scalar number.
+Choose `String` when the value should own its text and `str` when it should read existing text without copying. Both use UTF-8. A `char` holds one Unicode scalar: one code point other than a surrogate, rather than necessarily one whole displayed symbol. It is immutable and copyable. It supports equality,
+inequality, and matching, but not numeric arithmetic, ordering, truthiness, or
+implicit numeric conversion. The explicit conversion `character as u32` yields
+its Unicode scalar number. `char::from_u32` performs checked integer-to-char
+conversion.
 
-`str` is an immutable UTF-8 view passed by value and represented by an address and byte length. Length includes interior NUL; trailing NUL is not guaranteed. It does not own storage. There is no &`str` reference type or source-level lifetime annotation. Backing may come from static literals, a `String` borrow, or external storage. Copying preserves known relationships.
+`str` is an immutable, copyable, value-passed UTF-8 view represented by a pointer
+and byte length. Length defines its contents, including internal NUL bytes; the view
+does not promise a trailing NUL. It has no owning storage, `&str` type, or source
+lifetime syntax. Its backing can be static literal storage, a checked borrow of a `String`,
+or externally supplied storage. Copying a view preserves its known backing relationship.
+
+Decoded string and character literal values are not Unicode-normalized.
+
+Both `str` and `String` provide:
+
+- `text.byte_length() -> usize` returns the UTF-8 byte count.
+- `text.is_empty() -> bool` tests that byte count.
+- `text.bytes` returns the read-only slice `[u8]`.
+- `text.chars` is a copyable read-only range that decodes `char` values.
+
+`bytes` and `chars` are computed projections, not general properties.
+The `chars` view type cannot be spelled; bindings and aggregate components infer
+it. Each Read traversal starts at the beginning of the selected text; copies
+keep the same view and have independent traversal cursors. Byte views support
+all slice operations.
+User structures may declare same-named fields because member resolution depends
+on the receiver type.
 
 ## String literals and multiline layout
 
@@ -20,90 +45,197 @@ source: docs/language/text.md
 | Raw          | `r"..."`    | `r"""..."""` | No      | No            |
 | Interpolated | `f"..."`    | `f"""..."""` | Yes     | Yes           |
 
-Ordinary and raw literals produce str with program-lifetime storage. Multiline interpolation produces String under the same evaluation and ownership rules as single-line interpolation. Prefixes must touch the delimiter; r and f remain identifiers elsewhere. Raw/interpolated prefixes cannot combine. C strings remain single-line, escaped, and NUL-free.
+Ordinary and raw literals produce `str` with program-lifetime storage. Multiline
+interpolation follows the same type, ownership, and evaluation rules as
+single-line interpolation. All text must be valid UTF-8; no Unicode normalization
+is performed. `c"..."` is single-line and NUL-free, with ordinary escapes.
+Prefixes are adjacent to their delimiters. `r` and `f` are ordinary identifiers
+elsewhere. Prefix combinations such as `fr`, `rf`, and
+`cr` are not string forms.
 
-Raw strings preserve backslashes and braces. Zero or more hashes may extend their delimiters, as in `r#"text"#` or `r#"""..."""#`. The first complete closing sequence with the opening quote count and hash count ends the literal; extra hashes are outside it.
+Raw strings preserve backslashes and braces literally. Matching `#` characters
+extend their delimiters to distinguish the closing boundary from body text:
 
 ```carven
 let path = r"C:\tools\bin\";
 let json = r#"{"name": "{name}"}"#;
+let example = r#"""
+    A literal """ sequence.
+    Backslashes such as \n remain text.
+"""#;
+```
+
+The first complete closing sequence ends the literal: one or three quotes,
+followed by the number of `#` characters in the opening delimiter. Extra `#`
+characters after that sequence are outside the literal.
+
+Single-line text cannot contain physical line endings. Multiline opening
+markers must be immediately followed by LF or CRLF. A closing marker must be
+on a separate line, preceded only by spaces or tabs; normal code such as `;`,
+`,`, or `)` may follow it. The closing line's indentation does not determine
+the string value.
+
+```carven
 let text = """
     Hello
       Carven
     World
 """;
-println(text); // Hello, two spaces before Carven, then World on separate lines
+// Equivalent to "Hello\n  Carven\nWorld".
 ```
 
-The multiline example has exactly the value `"Hello\n  Carven\nWorld"`. A multiline opening delimiter must be immediately followed by LF or CRLF. Its closing delimiter occupies a separate line, preceded only by spaces or tabs; ordinary code such as a semicolon, comma or closing parenthesis may follow it. Closing indentation does not determine the value.
+Multiline layout uses these rules:
 
-Layout follows these rules:
+1. Exclude the opening line ending and the closing line's indentation. Exclude
+   the line ending immediately preceding the closing line, if distinct from
+   the opening line ending. Additional blank body lines remain content.
+2. Find the longest common space/tab prefix of nonblank body lines. Match
+   characters, not display columns. Blank lines do not determine this prefix.
+3. Remove that prefix from nonblank lines. On blank lines, remove only the
+   leading characters matching the prefix, stopping at its end, the line's end,
+   or the first mismatch. Preserve remaining spaces, tabs, and trailing spaces.
+   A nonblank line with no indentation makes the common prefix empty.
+4. If every body line is blank, remove all spaces and tabs on those lines while
+   retaining their separating line endings. Zero or one blank body line gives
+   an empty string; two blank body lines give one LF.
+5. Normalize physical LF and CRLF to LF. A standalone CR in literal text is
+   invalid. Then interpret escapes and interpolation; their produced whitespace
+   is never treated as source indentation.
 
-1. Remove the opening line ending, closing-line indentation, and the line ending immediately before the closing line when distinct from the opening line ending. Additional blank body lines remain.
-2. Find the longest common space/tab prefix of nonblank body lines, matching characters rather than display columns. Blank lines do not determine it.
-3. Remove that prefix from nonblank lines. From blank lines remove only the leading characters that match it, stopping at a mismatch or either end. Preserve remaining and trailing whitespace. A nonblank unindented line makes the prefix empty.
-4. If all body lines are blank, remove their spaces/tabs but retain separating line endings. Zero or one blank body line yields empty text; two yield one LF.
-5. Normalize physical LF/CRLF to LF; standalone CR in text is invalid. Then decode escapes and interpolation. Whitespace they produce is content and is never removed as indentation.
+In multiline interpolation, each hole counts as one nonblank content unit.
+The hole's code, including nested strings, comments, format specifications, and
+physical line endings, does not participate in the surrounding text's layout.
+Text after the hole continues the same logical body line until a text line
+ending. Format text uses ordinary escapes and ends at a brace; decoded escapes
+are not rescanned for interpolation delimiters. Hole expressions admit physical
+line endings under ordinary expression rules. Inserted values retain their own
+whitespace; no indentation is removed or added.
 
-Each interpolation hole counts as one nonblank content unit. Its code, nested strings, comments, specifications, and physical newlines do not affect surrounding layout. Text following it continues the same logical body line until a text line ending. Inserted values retain their own whitespace without added or removed indentation. The same layout applies to ordinary, raw, and interpolated forms. Escaped tabs or spaces can express content indentation; backslash continuation and adjacent-literal concatenation are unsupported.
+Multiline layout applies equally to ordinary, raw, and interpolated strings.
+Escapes such as `\t` and `\u{20}` express content indentation independently of
+source indentation in ordinary and interpolated strings. Backslash line
+continuation and implicit adjacent-literal concatenation are not supported.
+
+## Checked text construction
+
+`char::from_u32(value: u32) -> char throw UnicodeScalarError` accepts Unicode scalar
+values. Surrogates U+D800 through U+DFFF and values above U+10FFFF fail with
+`UnicodeScalarError { value }`.
+
+`str::from_utf8(bytes: [u8]) -> str throw UTF8Error` validates the complete byte
+slice and returns a view of the same storage. Empty input is valid. The view
+retains its input's backing relationship: the storage must remain alive and
+unchanged while the view is used. Convert the result with `as String` when an
+independent owner is needed.
+
+Import `UnicodeScalarError`, `UTF8Error`, and `UTF8ErrorKind` from `std::utf` when
+naming them. UTF failures carry zero-based byte offsets for the rejected byte and
+invalid sequence start; EOF truncation points at the input end. Kinds are
+`InvalidLead`, `InvalidContinuation`, `Overlong`, `Surrogate`, `TooLarge`, and
+`Truncated`. Both constructors support static and ordinary execution,
+with the usual typed failure and result-retention rules.
 
 ## Unchecked text construction
 
-`char::from_u32_unchecked(value: u32) -> char` constructs a character from a valid Unicode scalar: at most U+10FFFF, excluding U+D800..U+DFFF. `str::from_utf8_unchecked(bytes: [u8]) -> str` constructs a borrowed view of valid UTF-8 without copying, allocating, or extending the backing lifetime. Both are called directly through type names without imports.
+`char::from_u32_unchecked(value: u32) -> char` requires a Unicode scalar value:
+at most U+10FFFF, excluding U+D800 through U+DFFF.
+`str::from_utf8_unchecked(bytes: [u8]) -> str` requires valid UTF-8 and borrows
+the input storage without copying or allocating. Both are builtin factories
+called directly through their type names; no runtime header import is needed.
 
-Native execution does not validate content; callers must satisfy the preconditions. Use checked [UTF library](/reference/utf/) functions for unvalidated input. Character construction also supports constant execution and interpretation, which check the scalar precondition and diagnose invalid values; this is not a typed failure. Unchecked borrowed text construction currently supports neither constant execution nor interpretation. Ordinary borrowing and argument-type checks still apply.
+These operations do not validate content. The caller must satisfy their content
+preconditions; violating them is outside the language's valid text contract.
+Carven checks argument types and tracks the returned text's backing through
+ordinary borrow analysis. Construction does not extend the backing lifetime.
+Use the checked constructors for input that has not been validated.
 
-## Text queries
-
-Both `str` and `String` provide:
-
-| Expression        | Meaning                                     |
-| ----------------- | ------------------------------------------- |
-| `text.len()`      | UTF-8 byte count as `usize`                 |
-| `text.is_empty()` | Whether the byte count is zero              |
-| `text.bytes`      | Read-only `[u8]`                            |
-| `text.chars`      | Read iteration range decoding `char` values |
-
-bytes/chars are computed projections on specific types, not a general property mechanism. The chars view type cannot be spelled explicitly; it supports inferred bindings and Read range iteration. Byte views expose the full slice API. Use `0..text.len()` for byte positions: the literal bound takes the other bound's type, so the range is `range<usize>`. User structs may have fields with these names.
+Both constructors are available in constant initializers, `const fn`, and
+interpretation. The executor checks their content preconditions when they execute
+and diagnoses invalid input as an execution error, not a typed failure. Borrowed
+text retains the selected byte range and its backing lifetime; its `.bytes` view
+refers to that same range. Native construction retains the caller-provided
+precondition without adding validation.
 
 ## `String` ownership
 
-`String` requires no import. Unprefixed `String` in type and factory-qualifier positions prefers the builtin type. Ordinary value lookup is unchanged; `::String` selects a C++ name.
+`String` is a builtin owning UTF-8 value, available without imports and distinct
+from `str`, user declarations, and C++ types. Its default binding belongs to
+`std::core` and follows ordinary name selection. Module declarations can shadow
+the type name; runtime locals also shadow factory qualifiers. Use an explicit
+alias such as `import std::core using String as Text;` to retain access.
+`::String` selects an external C++ name.
 
-`String` owns contiguous valid UTF-8 bytes, including possible NUL. It performs no normalization, case folding, or BOM removal. Equality compares bytes. Capacity, layout, address stability, trailing NUL, and allocation count have no source-level guarantees.
+A String owns contiguous, valid UTF-8 bytes, including internal NUL. It performs
+no normalization, case folding, or BOM removal. Equality and inequality compare
+bytes, including between `String` and `str` operands through borrowed views.
+Length counts bytes. Storage layout, capacity, address stability, trailing NUL,
+and allocation count are unspecified.
 
-| Operation                 | Access and result                               |
-| ------------------------- | ----------------------------------------------- |
-| `String {}`               | Empty `String`                                  |
-| `String::from_str(text)`  | Read `str`; independent copy                    |
-| `s.len()`, `s.is_empty()` | Read, O(1)                                      |
-| `s.as_str()`              | Read, O(1) borrow; no allocation or transcoding |
-| `s.append(text)`          | Write receiver, Read `str`, void                |
-| `s.append_format(f"...")` | Write receiver, formatted append, void          |
-| `s.push(character)`       | Write, encode one `char`, void                  |
-| `s.clear()`               | Write, void                                     |
+| Operation                          | Access and result                                |
+| ---------------------------------- | ------------------------------------------------ |
+| `String {}`                        | Empty owning `String`                            |
+| `String::from_str(text: str)`      | Read text; independent owning copy               |
+| `s.byte_length()` / `s.is_empty()` | Read receiver; `usize` / `bool`                  |
+| `s.as_str()`                       | Read receiver; borrowed `str`                    |
+| `s.bytes` / `s.chars`              | Read receiver; borrowed byte/scalar range        |
+| `s.append(text: str)`              | Write receiver, Read text; `void`                |
+| `s.append_format(f"...")`          | Write receiver, Read interpolation holes; `void` |
+| `s.push(value: char)`              | Write receiver, Read scalar; `void`              |
+| `s.clear()`                        | Write receiver; `void`                           |
 
-Mutable fields and elements may be Write receivers; temporaries and Read parameters may not. Dot calls supply receiver access, while ordinary arguments still obey explicit access markers. Factories and methods must be called directly, with parentheses around a direct call allowed. They cannot be taken as first-class method values.
+The queries `byte_length`, `is_empty`, and `as_str` are O(1); `as_str` does not allocate
+or transcode. `push` encodes one Unicode scalar into UTF-8. Mutable fields and
+array elements can be Write receivers; temporaries and Read parameters cannot.
+The dot receiver supplies its access, while ordinary arguments follow the usual
+explicit-marker rules. Factories and methods require direct calls, including
+grouped direct calls; they do not produce first-class method values.
 
-## Conversions, copying, and borrowing
+String literals default to `str`. In a `String` context, a literal constructs an
+owning value; this applies to annotated bindings, assignments, arguments, returns,
+and aggregate initializers. Grouping preserves that context. An existing `str`
+value requires `text as String` or `String::from_str(text)` to create an independent
+owning copy.
 
-A literal defaults to `str`; in `String` context it constructs an owning value. An existing `str` needs `as String` or from_str to copy. `String` borrows in `str` destination context, equivalent to `.as_str()`. Write parameters still require matching slot types.
+A `String` value in a `str` destination context creates a borrowed view with the
+same lifetime and ownership constraints as `.as_str()`. Write arguments still
+require matching storage types. Without a `str` context, `let copy = owner`
+retains String value semantics; `let view = owner.as_str()` explicitly creates a
+view. Borrowing neither allocates nor extends the owner's lifetime.
 
-```carven
-var owner: String = "hello";
-let copy = owner;          // Independent String
-let view = owner.as_str(); // Borrowed str
-```
+Constant expressions and functions can construct and retain owning String values. Constant
+initializers preserve `String`, including nested fields and elements. A `str`
+destination or `as_str()` explicitly selects a retained read-only text view.
+String literal patterns, indexing, ordering, truthiness, concatenation,
+direct iteration, and access to C++ container members are unsupported.
+Nonempty `String { ... }`, `String(...)`, and `String as str` are invalid.
+Iterate `s.bytes` or `s.chars`.
 
-A `String` copy owns independent contents. Take makes the whole source owner unavailable. Read `String` parameters refer to caller storage. Equality between existing `str` and `String` values does not implicitly unify their types. A string literal on the right may accept `String` context from the left.
-
-`String` has no literal patterns, direct indexing, ordering, truthiness, `+` concatenation, direct iteration, or C++ container member access. `String(...)`, nonempty `String { ... }`, and `String as str` are invalid.
+Copying String creates independently owned content. Whole-owner Take transfers
+the value and makes its source unavailable. Read String parameters alias the
+caller's storage. Fields, elements, captures, results, and cleanup use ordinary
+Carven value rules. Borrowing does not extend a String owner's lifetime.
 
 ## Borrows and mutation
 
-A named view's borrow lasts until replacement, Take, or scope exit; last use does not end it early. While borrowed, a source `String` cannot be mutated, replaced, or Taken, and neither can an owner containing it be Taken. Fields and elements may be distinguished; an unknown index may overlap any element.
+A borrowed view keeps referring to its original storage when copied or passed
+through aggregates, captures, functions, Write outputs, branches, loops, and
+failure payloads. Owning copies made by `as String` or `from_str` and extracted `u8`/`char`
+values are independent of the source. A named value holding a view keeps the
+borrow until that value is replaced, taken, or leaves scope; its last use does
+not end the borrow.
 
-Write is nonexclusive: Write aliases or captures can be established, but actual writes remain subject to existing borrows. A native Write call counts as a possible write. Even clear or append that leaves contents unchanged requires write permission. `s.append(s.as_str())` is invalid; establish an independent copy first.
+While a view borrows a String, that String cannot be modified, replaced, or
+taken, including by taking a containing owner. The check distinguishes fields
+and elements; an unknown index may overlap any possible element. Write access
+is nonexclusive: creating a Write alias or capture is allowed, but actual
+writes through it must respect live borrows. Native Write access counts as a
+possible write. This also applies to `append` and `clear` when contents would
+not change. Self-append `s.append(s.as_str())` is rejected; copy to an independent
+owner first.
+
+Temporary views keep their backing borrowed until the consuming operation
+finishes, including evaluation of its remaining operands. An independent result
+ends that borrow when no other view remains. For example:
 
 ```carven
 var text: String = "hello";
@@ -112,41 +244,127 @@ let snapshot = text;
 text.append(snapshot);
 ```
 
-The right-side copy completes before writing the assignment target. A temporary view protects backing until its consuming operation completes, including later argument evaluation. A temporary borrow may end once an independent result no longer carries input borrows. An independent `String` copy may therefore combine with a later Take, whereas a direct view may not.
+The RHS copy finishes before assignment writes. Similarly,
+`f(String::from_str(s.as_str()), &&s)` can be valid, while
+`f(s.as_str(), &&s)` is rejected. Each receiver/operand is evaluated once in
+source order, with the receiver or assignment target selected first. A selected
+Read receiver observes its content when the operation executes.
 
-Returning a view of a Read `String` parameter requires sufficiently long-lived caller backing. Views of a local `String` or Take parameter cannot escape. Storing `String::from_str("x").as_str()` as a named view is invalid, but immediate consumption can be valid. A range loop retains a `String` owner produced by its header and cleans it up on every loop exit.
+A view may be returned from a Read String parameter when the caller backing
+outlives the returned view. Views into callee-local Strings or Take parameters
+cannot escape. Saving `String::from_str("x").as_str()` into a named view is
+invalid; immediate consumption is valid. A range loop retains String owners
+created while evaluating its header, including those passed through view-returning
+functions; `for c in String::from_str("x").chars` is valid. The borrow lasts
+through the loop; retained temporaries are destroyed on every loop exit.
 
-An aggregate may contain both `String` and `str` fields, but cannot retain a view into its own `String` storage. Copying its `String` field creates independent contents; copying its view field retains the original referent.
+An aggregate can contain both String and str fields, but cannot store a view
+into its own String storage. Copying a String field creates independent content;
+copying a view field keeps referring to its original storage.
+A view may borrow an owning String stored in a live closure.
 
-## Failure payloads and text validity
+Nominal failure values can contain Strings under the ordinary copyable failure
+contract; builtin String itself is not a failure type. Throw copies unless Take
+is explicit. Borrowed text must remain valid through throw, propagation, catch
+selection and guards, and rethrow. The original failure payload retains its
+borrows independently of copied catch bindings. Unwinding must not destroy
+their backing. A handler can copy borrowed content into an independent String result.
+Completed effects are retained on failure; mutation is not rolled back.
 
-Failure structs and enums may contain `String`. throw copies by default; explicit Take transfers. The original failure payload retains borrows independently of copied catch bindings through selection, guards, and rethrow. Cleanup must not destroy backing early. A handler may copy text into an independent `String`.
+Builtin String construction accepts valid text and scalars. Allocation failure
+and unrepresentable lengths terminate.
 
-`char::from_u32_unchecked(u32)` requires a valid Unicode scalar. `str::from_utf8_unchecked([u8])` requires valid UTF-8 and borrows its input. Both are direct builtin factories; native execution performs no content validation. Carven checks types and known borrows; the caller guarantees the preconditions. Static execution and interpretation check the character scalar precondition when executed and report an execution error for invalid values. Unchecked borrowed text construction is unavailable in either executor. Use the checked UTF library for unvalidated input.
+## String interpolation
 
-`String` allocation failure and unrepresentable length terminate.
-
-## Text in compile-time execution
-
-Required compile-time execution supports `String` construction and mutation, as_str, len/is_empty, interpolation, byte views and slice operations, and byte loops. Character iteration through `text.chars` and unchecked borrowed text construction remain outside the executor and report `CV-CONST-ADMISSION`. Unchecked scalar construction is admitted and checks its precondition during execution.
+An `f"..."` or `f"""..."""` expression produces an independent owning `String`, including `f""`
+and text without holes. `String.append_format` consumes this syntax directly as
+formatting content, as described below. Ordinary string literals remain `str`.
 
 ```carven
-const fn count_spaces(text: str) -> usize {
-    var count = 0usize;
-    for byte in text.bytes {
-        if byte == 0x20 {
-            count += 1;
-        }
-    }
-    return count;
-}
-
-const spaces = count_spaces("a b c");
-for index in 0..spaces {
-    println(index);
-}
+let name = "Ada";
+let price = 12.5;
+let count = 3;
+let id = 42;
+let value = 1.25;
+let width = 8;
+let precision = 2;
+println(f"Hello, {name}!");
+println(f"Total: {price * (count as f64):.2f}");
+println(f"ID: {id:08x}");
+println(f"{{value}} = {value}");
+println(f"{value:{width}.{precision}f}");
 ```
 
-This prints `0` and `1`. The range `0..spaces` is `range<usize>` because the unsuffixed literal takes the type of the other bound. Byte addresses are checked for liveness during compile-time execution; see [pointers](/reference/pointers/#liveness-checks).
+A hole contains an ordinary expression and an optional `:` format specification.
+Formatting follows `std::format` rules for escaped braces, alignment, width,
+precision, and type options. Dynamic width and precision holes contain Carven
+expressions. Carven may precompute supported builtin formatting for all or part
+of an ordinary interpolation or directly perform supported integer conversions,
+while preserving these formatting rules, owning results, and required operand
+evaluation. Other format checks
+and formatter availability are delegated to the C++ compiler. Custom C++
+formatters receive their format specifications through the same mechanism.
 
-C string literals `c"..."` are native `const char*` values, not `str`. They can initialize constants, pass through functions, and be copied, assigned, and Taken during compile-time execution; freezing keeps their bytes and pointer type. Constant execution and interpretation read their retained bytes for printing and default text formatting. Pointer comparison, address observation, and C string literal patterns are not supported; see [C strings](/reference/interop/#c-strings).
+Hole expressions, including dynamic format arguments, are evaluated once in
+source order before formatting. Each hole has Read access. Direct `&` and `&&`
+argument markers are rejected; nested calls retain their declared access rules.
+Scalar Read values are saved, while String Read values alias their owners.
+String formatting reads the contents after all holes finish evaluating. Text
+views keep their backing borrowed throughout hole evaluation and formatting.
+The result is independent of its inputs; named views keep their usual lifetimes.
+
+`String` uses standard string formatting. A `char` is encoded as UTF-8 and also
+uses standard string formatting, including width and precision. Integer formatting
+follows the corresponding standard integer formatter's rules. Other values use
+their C++ representation and corresponding `std::formatter`; Carven supplies no
+aggregate, enum, or callable formatting protocol.
+
+Interpolation supports ordinary expression composition and failure propagation.
+An early failure skips later holes and formatting, retaining completed effects
+and destroying temporary values. Discarding the result still executes formatting.
+Static interpolation supports default integer, bool, char, unit, text, and known
+C string formatting. Integer presentations are `b`, `B`, `o`, `d`, `x`, and `X`,
+with decimal width and optional zero padding. Floating formatting uses native
+standard-library conversion for `f32`/`f64`, accepting alignment, Unicode fill,
+sign, alternate form, zero padding, width, precision, and `a/A/e/E/f/F/g/G`, but
+not locale-dependent `L`. Erased pointers accept an empty specification or `p`.
+Dynamic integer widths and floating widths/precisions must be nonnegative integers;
+width, precision, and output bytes are bounded by the static text budget. Unsupported
+specifications produce an execution diagnostic.
+
+For example,
+`const title = f"build-{42:04}";` retains an owning `String` constant, and
+`const bytes = f"{'我'}".byte_length();` produces `3usize`. Nested calls, `String {}`,
+`String::from_str(...)`, `.as_str()`, `.byte_length()` and `.is_empty()` compose before
+initializer completion. Each constant interpolation is limited to 1 MiB of
+result text; unsupported formatting is diagnosed without runtime fallback.
+Interpolation remains excluded from literal patterns and positions requiring
+an ordinary literal. Ordinary runtime interpolation retains String ownership.
+
+`destination.append_format(f"...")` appends formatted content to an existing
+writable String and returns `void`. It requires exactly one direct interpolation;
+grouping is allowed, but a String value, plain literal, or argument access marker
+is not accepted. The method does not construct an intermediate source-level
+String from the interpolation.
+
+The receiver is selected once before the holes. All holes then follow the Read
+evaluation and observation rules above, before appending begins. Formatting inputs
+must not borrow or alias the destination's storage during formatting; this includes
+String Read aliases. Existing views also prevent mutation, even when the content
+is known or empty. Scalar queries such as `text.append_format(f"{text.byte_length()}")`
+can supply a snapshot without borrowing text storage. Native callers and formatter
+providers must preserve this separation through indirect aliases and reentrant calls.
+
+A failing receiver or hole skips the append and later operands, preserving completed
+effects, including mutations performed by earlier holes. Once formatting begins,
+there is no rollback guarantee on termination. The method is also available in
+static execution under the same formatting subset and execution budgets.
+
+Formatting preserves internal NUL and produces valid UTF-8 on normal completion.
+The compiler may omit the final UTF-8 scan when operand types and supported static
+specifications prove the output valid. Other outputs retain runtime validation;
+this implementation choice does not change the source operation's contract.
+Invalid UTF-8, allocation failure, and runtime formatting errors terminate;
+they do not introduce typed failures. C++ formatter retention and reentry remain
+provider/caller responsibilities. Callable-view and Write-capture boundary
+restrictions still apply.

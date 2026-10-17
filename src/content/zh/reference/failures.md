@@ -8,109 +8,78 @@ source: docs/language/failures.md
 
 ## 失败类型与接口
 
-失败是带载荷的可恢复控制效果。载荷类型是可复制的名义结构体或枚举。失败契约是封闭类型集合，成员拼写顺序和声明顺序不影响身份；显式 `throw E + E` 非法。
+函数除了返回正常结果，也可以报告无效输入等可恢复失败。throw 子句列出调用者需要处理的失败类型；调用者用 ? 向外传播，或用 try/catch 恢复。每个失败携带一个结构体或枚举值，用来说明失败原因；这个值必须可复制，不能直接把整数或字符串当作失败类型。具体契约是闭合类型集合，成员书写与声明顺序无关，同一子句不能重复成员。`throw ()` 显式声明空集，与省略子句请求推断不同；这里 () 没有载荷，在普通值/类型位置它仍为 void 单元值。`throw void` 非法。
 
 ```carven
-struct ReadError {
-    code: i32,
-}
+fn finish() -> void throw () => ();
+```
 
-struct ParseError {
-    offset: usize,
-}
+显式 throw 是函数体失败集合上界。省略时，私有非入口函数、隐式入口及 lambda 在前向调用和递归图上推断最小不动点集合；有非空失败的裸/导出公开函数须写契约，否则 CV-EFFECT-THROW-PUBLISHED。显式入口无论可见性如何都须为向外失败写契约。测试必须处理所有失败。公开失败类型须对该受众可见。
 
-fn load() -> i32 throw ReadError + ParseError {
-    return 42;
+可复制能力要求适用于可调用值子句、Operation 成员、throw 载荷与 typed catch；在完整名义字段后递归检查。拥有 Operation 的名义值不能作失败载荷，Move 进 throw 不消除可复制能力要求；原生字段遵循委托 C++ 的复制边界。
+
+调用使用被调用函数契约：`fn source() throw Error {}` 即使体不失败，调用仍携带 Error。不可变局部中已知函数目标经过复制及 view 适配保留目标契约；更宽 view 不给该已知调用凭空添加失败。参数、可变 view 或未解目标使用 view 的契约。
+
+## 失败集合参数
+
+`throw E` 是有限声明的失败类型集合参数，可为空，不是载荷类型或值参数。
+
+```carven
+import std::async using Operation;
+async fn consume<T, throw E>(&&operation: Operation<T, throw E>) -> T throw E {
+    return (await operation)?;
 }
 ```
 
-显式 throw 子句是函数体失败集合的上界，函数体可能产生更多失败时报告 `CV-EFFECT-SIGNATURE-BOUND`。调用 load 始终使用声明集合，即使当前体只返回成功。调用者不能根据当前函数体的行为缩小这个集合。
+显式应用可传 `throw Error + IO` 或 `throw ()`。E 可进入函数 throw 或 Operation，单独或与具体成员联合；实参展开后去重。函数从公开签名、实参及直接期望结果推断；完整 `Operation<T, throw E>` 可提供 E，歧义联合 E + Error 不能唯一恢复 E 时须显式实参。名义类型应用总要求显式实参。
 
-模块私有的非入口函数、隐式入口和 lambda 省略契约时，编译器推断满足其调用关系的最小失败集合，覆盖前向调用、直接递归和相互递归。裸函数和 export 函数实际失败非空时必须声明，否则 `CV-EFFECT-THROW-PUBLISHED`。显式入口函数若向外传播失败，无论可见性都必须显式声明契约，顶层语句则自行推断；test 不能向外暴露失败。失败类型必须对接口读者可见。
+定义须对每个允许的集合安全，不能假设 E 含特定类型、非空或与另一参数相等。未标记待处理失败须可证明为空，传播须可证明在外围契约内；安全具体调用不能挽救不安全定义。
+
+typed catch 仍命名名义类型，不能构造/throw/select E 作为载荷。完整处理 Error 从受保护集合（包括依赖 E 的集合）移除 Error，剩余保留参数依赖。若定义处失败集合可能非空，? 合法，即使具体实例为空仍求值一次但无失败传递；这不允许定义检查时已证明无失败的多余 ?。
 
 ## `?` 与 `throw`
 
-仍有待处理失败的表达式不能直接作为普通成功值使用。后缀 `?` 在其出现的位置把操作数的失败传给最近的外围失败目标，成功时保留成功结果。它既可作用于调用，也可作用于复合表达式。
+有待处理失败的表达式不能在需要完成值的位置消费。后缀 ? 在该词法位置消费 operand 的失败并转到最近失败目标，operand 可为调用或携带失败的复合表达式。具体失败集合解出为空时 ? 非法。throw 转移载荷，不正常完成。
 
 ```carven
-fn sum() -> i32 throw ReadError + ParseError {
-    return (load() + load())?;
+struct Missing { key: String }
+fn lookup(key: str) -> i32 throw Missing {
+    if key == "answer" { return 42; }
+    throw Missing { key: key as String };
 }
+let answer = try { lookup("other")? } catch { Missing(_) => 0, };
+println(answer); // 0
 ```
 
-第一次 load 失败就跳过第二次与加法。待处理失败描述的是编译期对表达式组合的检查；运行时不会等所有计算完成后才检查失败。对空失败集合使用 `?` 是 `CV-EFFECT-PROPAGATE-REDUNDANT`；私有函数推断成无失败后，调用处也必须删除原有 `?`。
+`(first() + second())?` 若 first 失败，跳过 second 与加法。所有实参/操作数按选中路径从左到右求值一次。失败不回滚已完成修改或外部效果。Carven 失败与 C++ 异常独立，原生异常须在越过生成 noexcept 边界前于 C++ 内处理。
 
-`throw value;` 传递载荷，不正常完成。默认复制，显式 Take 按普通 owner 可用性规则执行。已完成修改和外部操作保留，不自动回滚。
+<span id="部分捕获与剩余集合"></span>
 
-## 部分捕获与剩余集合
+## 部分 catch 与剩余集合
 
-try 处理其保护体中的失败。catch 可以使用类型模式、通配模式、由 `|` 连接的候选模式、载荷模式和守卫条件。未覆盖的失败传给外围目标。
-
-外围 try 的保护体、lambda、推断失败的私有非入口函数或隐式入口，以及具有显式 throw 契约的函数，都允许接收剩余失败。在 test 中，或在没有显式契约的公开函数和显式入口函数中，catch 必须覆盖保护体的所有失败。最终向外传播的失败集合仍须符合外围函数或闭包的契约。
+try 处理受保护体产生的失败，可用类型、通配、或模式、载荷模式和 守卫条件。未处理成员转到外围失败目标；外围 protected body、可推断私有非入口函数/隐式入口/lambda 或显式 throw 契约可接受。测试及无显式契约的公开/显式入口边界必须全覆盖。
 
 ```carven
 struct A {}
 struct B {}
-
 fn source() throw A + B {}
-
 fn wrapper() throw B {
-    try {
-        source()?;
-    } catch {
-        A(_) => {},
-    }
+    try { source()?; } catch { A(_) => {}, }
 }
 ```
 
-该程序处理 A，向外保留 B。未覆盖失败在 `try` 边界继续向外传播，不要求给整个 `try` 语句加 `?`，也不要求补一个通配处理器。受保护体中的调用仍须写 `source()?`；`try` 不会替体内调用补上传播标记。若显式写出剩余失败的转发，同一组 A、B 和 source 声明下，wrapper 可以写为：
+此处处理 A，转发 B；加 `_ => rethrow,` 得同样向外集合。只有所有值被完整覆盖才移除该类型；守卫条件 可能拒绝不构成完整覆盖。
 
-```carven
-fn wrapper() throw B {
-    try {
-        source()?;
-    } catch {
-        A(_) => {},
-        _ => rethrow,
-    }
-}
-```
-
-两个 wrapper 定义择一使用，向外传播的失败集合相同。只有各分支合起来覆盖某个失败类型的所有可能值，并考虑守卫条件可能不成立的情况后，才能从剩余集合中移除该类型。保护体无失败时，try 仍合法，不会因多余而产生诊断。
+守卫条件 或 handler 产生的失败转到外围，不能由同一个 try 再捕获。某 arm 的第一个匹配 alternative 建立绑定后只执行一次 守卫条件，false 从下一 arm 继续。成员集合无序不影响可观察的 arm 顺序。部分载荷与拒绝守卫条件会进入非穷尽诊断；错误列出未处理类型及最近传播它们的 ?。try 包无失败体合法。
 
 ## 已知函数目标
 
-用已知函数初始化的不可变局部绑定，在复制和 view 适配后仍保留该函数作为目标。调用它时使用函数本身的契约，包括显式 throw 子句；更宽的 view 类型不会给这个已知调用增加失败。通过参数、可变 view 或无法确定目标的选择进行的调用，使用 view 的契约。
+不可变已知函数目标保留其精确失败契约，包括显式上界。可变或未解目标按 view 契约检查，不从单次运行猜测实际失败。
 
-```carven
-struct Missing {}
+## 选择顺序与 守卫条件
 
-fn parse(text: str) -> i32 => text.len() as i32;
+失败原始载荷保留到 arm 选择、守卫条件 与 rethrow 完成。绑定和模式继承普通访问、主体稳定性及穷尽规则；见[控制流](/zh/reference/control/)。不可匹配的 catch arm 或 alternative 产生对应警告。
 
-fn run(values: [str]) -> i32 {
-    let measure: fn(str) -> i32 throw Missing = parse;
-    var total = 0;
-    for value in values {
-        total += measure(value);
-    }
-    return total;
-}
+## rethrow 与寿命
 
-println(run(["ab", "cde"]));
-```
-
-`measure` 的 view 类型允许 `Missing`，但已知它调用的是不会失败的 `parse`，因此 `measure(value)` 不需要 `?`。程序打印 `5`。
-
-## 选择次序与守卫条件
-
-catch 分支的顺序影响执行结果。同一分支内的候选模式组成一个或模式；第一个匹配的候选建立绑定，然后守卫条件只求值一次。条件为 false 时进入下一分支，不会在当前分支中重试其他候选模式。
-
-守卫条件或处理分支自身产生的失败传给外围目标，不会被同一个 try 再次捕获。不可达或类型不可能匹配的处理分支不贡献可达的向外失败，但其源码仍接受检查。未穷尽诊断会列出未完全覆盖的失败类型，包括载荷模式只覆盖部分值、守卫条件可能不成立的情况。
-
-## rethrow 与生命周期
-
-rethrow 仅在 catch 处理分支中合法，转发该分支选中的原始失败，保留其身份且不接受替换载荷。要转换成另一种失败，使用 `throw NewError { ... };`。闭包体不继承外层 catch 的控制上下文。
-
-在分支选择、守卫条件求值和重抛期间，原始载荷保持自身的借用关系，不受 catch 绑定副本的影响。局部清理不得销毁仍被失败载荷引用的底层存储。处理分支可以把借用的文本复制成独立 `String` 后返回。
-
-C++ 异常不属于失败集合；try 不捕获它们。异常逃出生成 noexcept 边界会按 C++ 规则终止。需要恢复时，原生适配层在该边界前处理异常。
+rethrow 仅可在 catch handler 内使用，转移当前 handler 选中的原始失败身份。闭包是独立可调用值边界，创建闭包不执行其失败或控制转移。失败载荷与 catch 复制遵循普通 所有者/借用规则；原始载荷独立于 catch 复制保留 后备存储，Take catch所有者不消费 rethrow 的原始值。传播与清理不能销毁仍被载荷借用的存储。

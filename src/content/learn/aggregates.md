@@ -1,6 +1,6 @@
 ---
-title: "Model data with structs, arrays, and enums"
-description: "Group related data and express states with exhaustive patterns."
+title: "Organize data as records and collections"
+description: "Group related fields, represent alternative states, and keep a collection that can grow."
 section: learn
 lesson: 5
 source: docs/language/aggregates.md
@@ -31,7 +31,7 @@ Item {
 }
 ```
 
-Field names match the declaration, and each field is initialized exactly once. Named construction evaluates in written order; positional construction such as `Item { 12, 3 }` maps to declaration order. `println(item)` shows the type name and each field in declaration order, without any formatting code. Struct types have declaration identity: matching fields do not make two structs compatible. Any code in a struct's audience can read and construct its fields; when a value must keep its fields behind its own operations, use a class, introduced in the [access chapter](/learn/ownership/#keep-fields-behind-a-class).
+Field names match the declaration, and each field is initialized exactly once. Named construction evaluates in written order; positional construction such as `Item { 12, 3 }` maps to declaration order. `println(item)` shows the type name and each field in declaration order, without any formatting code. Struct types have declaration identity: matching fields do not make two structs compatible. Code that can use the struct can also read and construct its fields. To restrict field access to defined operations, use a class. The [access chapter](/learn/ownership/#keep-fields-behind-a-class) introduces classes.
 
 ## Start from defaults
 
@@ -55,7 +55,7 @@ Item {
 
 Empty braces default-initialize the whole Item, so both integers are zero. Once you specify fields, provide all of them: `Item { price: 12 }` does not fill in quantity automatically.
 
-Defaults can represent an empty state; assign meaningful business values explicitly. Integers and floats default to zero, `bool` to false, text to empty, pointers to null, and slices to empty. Fixed arrays and structs recursively default their contents; an empty array needs no element default. Enums, callables, and classes have no automatic default, so a containing struct or nonempty array must be constructed explicitly too. An empty class can be constructed only inside its own body. `i32 {}` and `String {}` also request their defaults; nonempty `String { ... }` is invalid.
+Use defaults when zero or empty is a meaningful starting state; assign business values explicitly otherwise. Numbers start at zero, bool at false, text and vectors empty. Arrays and structs apply defaults to each element or field. An enum has no automatic choice of case, so a struct containing one needs an explicit value. The [aggregate reference](/reference/aggregates/) lists defaults for the remaining types.
 
 ## Let the expected type name the struct
 
@@ -132,7 +132,43 @@ An enum with only payload-free cases is a numeric enum and may specify an intege
 
 ## Guards and coverage
 
-An arm can read `.Number(value) if value > 0 => value,`, but the guard may reject the value. A later `.Number(_)` must cover the rest. Pattern bindings are copied before the guard executes. A guard cannot modify overlapping storage being matched; the selected arm body can.
+An arm can read `.Number(value) if value > 0 => value,`, but the guard may reject the value. A later `.Number(_)` must cover the rest. Use the guard to decide whether the arm applies; make changes in the selected arm body.
+
+## Grow a collection with Vector
+
+An array's length is fixed in its type. When a filtering step decides how many results to keep, use a Vector instead:
+
+```carven
+var accepted: Vector<i32> = [];
+for reading in [18, -3, 21] {
+    if reading >= 0 {
+        accepted.push(reading);
+    }
+}
+let first = accepted.remove(0);
+println(first, accepted.length(), accepted[0]);
+```
+
+This prints `18 1 21`. The input is a fixed array of three readings. The vector starts empty, keeps the two nonnegative readings, then removes and returns its first element. The remaining value moves to index zero. The annotation `Vector<i32>` tells `[]` and push which element type to use.
+
+Use push to append, length to count, and remove to take an element out while keeping the rest in order. Copying a vector produces independent contents. The next chapter explains changing and transferring existing values. The text chapter shows how to keep independent strings in a vector.
+
+## Reuse a record shape with different value types
+
+A sensor reading always needs a sensor identifier, but its value may be an integer count or a floating voltage. A type parameter lets both records share one definition:
+
+```carven
+struct Reading<T> {
+    sensor: i32,
+    value: T,
+}
+
+let count = Reading<i32> { sensor: 101, value: 21 };
+let voltage = Reading<f64> { sensor: 102, value: 3.3 };
+println(count.value, voltage.value);
+```
+
+The output is `21 3.3`. T is a placeholder for a type. `Reading<i32>` chooses i32 for value; `Reading<f64>` chooses f64. Each is a concrete type, so the compiler still checks every field. This is useful when the surrounding structure stays the same while one kind of data varies.
 
 ## Exercise
 

@@ -1,12 +1,14 @@
 ---
 title: "使用原生地址与检查非空"
-description: 用 addressof 取地址，保存原生地址，建立局部非空证明，并保持资源所有者存活。
+description: "取得地址，在使用前检查它，并让所指数据继续存活。"
 section: learn
-lesson: 15
+lesson: 16
 source: docs/language/pointers.md
 ---
 
 ## 取一个位置的地址
+
+原生 API 有时使用已有对象的地址，而不是一个值副本。指针存放的就是这个地址。使用之前，要弄清它是否为空、是否允许写入，以及谁负责让对象继续存活。
 
 `addressof(place)` 得到只读的 `ptr<T>`；`addressof(&place)` 得到可写的 `ptr<&T>`。保存为 `address.cv`：
 

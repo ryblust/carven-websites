@@ -8,94 +8,66 @@ source: docs/language/pointers.md
 
 ## 地址值与目标访问
 
-`ptr<T>` 保存授予 Read 的地址，`ptr<&T>` 保存授予 Write 的地址。两者可空、可复制、非拥有。`let`/`var` 控制地址槽位重赋值，目标权限由指针类型决定；不可变 `let p: ptr<&T>` 可以修改目标。
+指针保存地址，用于访问其他地方的值；它不拥有目标，也不让目标额外存活。`ptr<T>` 允许读取目标，`ptr<&T>` 还允许修改目标。两者可空且可复制，不拥有目标。let/var 控制地址槽的重赋值，不改变目标权限：let p: `ptr<&T>` 仍可写目标。Read 聚合保留其指针字段的完整目标权限。
 
-目标可以是 Carven 类型、C++ 类型或嵌套指针。指针不按值包含目标，允许递归结构。`ptr<void>` 可保存和传递，不能解引用。原生别名是否合法由 C++ 检查。
+目标用普通类型解析，可为 Carven、原生类型或嵌套指针。原生别名的底层种类由 C++ 判定。指针字段不贡献按值存储环。`ptr<void>` 可存储传递，但不能解引用。
 
-`*p` 选择目标位置，`p->field` 是 `(*p).field`。地址必须可用且在当前 callable 局部证明非空。`let x = *p` 是普通拥有值初始化；原生复制能力由 C++ 检查。`&*p` 可传 Write 目标，`&&*p` 非法，因为目标不是可 Take 的 Carven owner。
+## 使用 `addressof` 取地址
 
-## 用 `addressof` 取地址
-
-`addressof(place)` 为具有 Read 访问的可寻址位置产生 `ptr<T>`；`addressof(&place)` 产生 `ptr<&T>`，要求该位置允许 Write。位置可以是局部绑定、参数、字段或元素，只求值一次。结果在创建时非空，因此直接通过它解引用不需要另做检查。
+`addressof(place)` 返回 `ptr<T>`；`addressof(&place)` 在 place 可写时返回 `ptr<&T>`。该普通内建名字可遮蔽。place 仅求值一次，不接受临时、局部常量或 Take。新地址已知非空。
 
 ```carven
-fn bump(target: ptr<&i32>) {
-    if target != nullptr {
-        *target += 1;
-    }
-}
-
 var count = 1;
-let reader = addressof(count);
-let writer = addressof(&count);
-bump(writer);
-*writer += 10;
-println(*reader, count); // 12 12
+let pointer = addressof(&count);
+if pointer != nullptr { *pointer += 2; }
+println(count); // 3
 ```
 
-| 操作数                                | 诊断                       |
-| ------------------------------------- | -------------------------- |
-| 临时值，例如 `addressof(1)`           | `CV-ACCESS-NOT-ASSIGNABLE` |
-| 编译期常量名                          | `CV-ACCESS-NOT-ASSIGNABLE` |
-| 对 `let` owner 写 `addressof(&value)` | `CV-ACCESS-IMMUTABLE`      |
-| `addressof(&&value)`                  | `CV-ACCESS-CALL-MISMATCH`  |
+对活所有者赋值保留地址；Take 结束其身份，后续重新赋值不复活旧指针。Read 数组参数返回的地址可能指向调用者存储；实参为临时数组时仅活到包含调用的完整表达式，保存地址不延长寿命。
 
-`addressof` 是通过普通名字查找得到的内建 callable，局部声明可以遮蔽它。给存活的 owner 赋新值不改变其地址。Take 结束 owner 的身份，之后重新赋值也不会让旧指针恢复有效。从 Read 数组参数取得的地址可能指向调用者的存储；若调用者传入临时数组，该存储随所在完整表达式结束。
+## 转换与实参
 
-## 转换与传参
+`*p` 为目标 place，`p->member` 等于 `(*p).member`。地址须可用并局部证明非空；权限来自指针类型。`let value = *p` 普通初始化值，原生可复制性由 C++ 检查。`&*p` 可传 Write；`&&*p` 非法，因为目标不是 Carven 拥有绑定。
 
-相同目标类型下，`ptr<&T>` 可以在值上下文中缩窄为 `ptr<T>`，包括初始化、赋值、字段/元素、Read 实参、`const` 和返回；反方向非法。没有数组、聚合、嵌套目标或函数类型的通用协变。内层指针复制保持内层权限。
+间接地址不建立跟踪借用。Read 已有可调用视图复制目标描述；把间接读出的捕获闭包适配为新 view 仍要求跟踪 后备存储。间接调用不重建捕获关联或证明其所达对象寿命。
 
-Read 指针实参保存地址快照；Write 别名地址槽位，完整类型须一致；Take 也要求精确类型，转移地址值并使源 owner 不可用，不清空其他副本或释放目标。
+相同目标 T 的 `ptr<&T>` 可在初始化、赋值、聚合元素、Read 实参、常量与返回等值上下文变 `ptr<T>`，反向无效。这不提供数组、聚合、嵌套目标或函数类型协变。每层独立，透过外层 Read 指针复制的内层指针保持自己的权限。上下文不明的混合权限数组或分支需注解；nullptr 可从相邻类型定型，但不能借此缩小嵌套元素权限。
 
-`nullptr` 需要具体指针上下文，没有独立 null 类型。与 `nullptr` 或相同目标类型指针可做 `==/!=`。没有 truthiness、排序、算术、直接索引或整数转换；`addressof` 是 Carven 唯一的取地址操作。`&p` 是传递槽位 Write 访问，不自动生成 `T**`。
+Read 指针参数保存地址快照。Write 参数别名调用方地址槽，须完整类型相同；Take 也须类型精确相同，转移地址值并令源所有者不可用，不会清空其他别名或释放目标。
 
-混合权限的无上下文数组或分支结果需要注解。相邻类型可帮助 `nullptr` 定型，但不能授权嵌套数组或分支的权限缩窄。
+## 类型擦除、比较与显示
+
+显式 `as ptr<void>` 擦除对象目标类型。Write 指针可变 `ptr<&void>` 或缩小成 `ptr<void>`；Read 只能擦成 `ptr<void>`。显式 as `ptr<T>` 按同样权限规则恢复目标，保留地址及寿命。Carven 的可调用值也是对象；已知原生 const char* 的 C 字符串也可擦成 `ptr<void>`。
+
+```carven
+var value = 42;
+let erased = addressof(&value) as ptr<&void>;
+let restored = erased as ptr<&i32>;
+if restored != nullptr { println(*restored); }
+```
+
+原生转换用 C++ static_cast。恢复后的使用要求对齐、对象类型、别名与寿命正确；转换本身不访问或构造对象。静态/解释解引用要求在保留地址上找到活跃且类型匹配的对象，否则执行诊断。
+
+nullptr 需要指针上下文，没有独立 null 类型。指针支持与 nullptr 及相同目标类型指针的 ==/!=，没有隐式 bool、排序、算术、直接索引或整数转换。比较按地址。静态/解释执行记录存储来源与子对象路径；支持 numeric/bool/char/指针及递归这类结构体的标准布局首字段同地址关系。数组容器、元组和文本 buffer 的地址关系依赖表示，不能建立关系则执行诊断；原生使用生成 C++ 的关系。
+
+擦除指针接受空格式或 p。静态非空/空分别格式化为 const@nonnull/const@null，这些字符串没有对象身份，可普通计算并冻结；非空指针本身仍不能发布。解释执行用 interp@object#N 等本次执行地址标签，同地址同标签，无法建立地址键则诊断；原生使用 C++ pointer formatter。显示不延长寿命，不证明可解引用。
 
 ## 局部非空证明
 
-```carven
-fn read(pointer: ptr<i32>) -> i32 {
-    if pointer == nullptr {
-        return 0;
-    }
+每个函数/闭包独立跟踪局部名、固定 Carven 字段路径、常量数组索引的空/非空/未知事实。与 nullptr 比较、取反、短路与提前返回可细化路径，汇合保留共同事实。bool 帮助函数、API 成功码和测试断言不是证明。泛型定义未实例化也检查同样规则。
 
-    return *pointer;
-}
-```
+地址复制与缩小权限携带当前事实但不建立持久等式；赋值替换事实，Take 删除源事实。Write 调用清除重叠槽事实；可能从 Write 参数逃逸的槽、Write 参数与 Write 捕获会被后续调用清除事实。循环在检查条件/循环体前清除可能写入的事实，不推导跨迭代关系。
 
-每个函数和闭包独立跟踪 null、nonnull、unknown，覆盖局部名字、固定 Carven 字段路径和常量数组索引。`nullptr` 比较、否定、短路、提前 return 可细化分支，合流仅保留共有事实。`bool` helper、API 成功码或 check/require 不构成证明。
+原生投影、动态索引或指针间接内存不保留跨表达式事实，先存局部 handle 再检查。缺少证明的解引用报告 CV-PTR-NONNULL，不插入运行时检查。仅传递可空地址无需证明。非空不等于存活。
 
-复制与权限缩窄把当前事实带给新槽位，不建立持续相等关系。赋值替换事实，Take 去掉源事实。Write 调用清除重叠事实。曾传给 Write 的槽位可能逃逸，后续调用会清除这些槽位、Write 参数和 Write 捕获的事实。循环进入条件和体前清除可能写入事实，不做跨迭代关系求解。
+## 原生表示与责任
 
-原生投影、动态索引、通过指针到达的内存没有跨表达式事实。先存为局部 handle，再检查。未证明解引用报 `CV-PTR-NONNULL`，不会自动插入运行时陷阱。向 API 传可空地址不需要解引用证明。刚产生的 `addressof` 结果视为非空。
+Read/Write 目标逐层降为 const T*/T*，Read 参数按值传地址，Write 为对应指针引用。后续操作数可换槽前先选定解引用地址。保存/传递地址只需目标声明；原生类型表达式自身仍遵循完整性要求。`ptr<fn(Node) ->` void> 的纯 Carven可调用值签名不形成 Node 存储完整性要求，可用于导出的递归 Node。
 
-## 原生责任与表示
+复制、传递、Take 不分配、不引用计数、不释放，外部资源的释放规则由所有者或适配器负责。T** 输出及 buffer 遍历由 C++ adapter 实现；&p 只按引用传槽，不隐式形成 T**。import(cpp)/export(cpp) 保留同样指针和访问规则。
 
-Read/Write 目标分别对应 `const T*` 和 `T*`，按指针层组合。Read 按值传地址，Write 使用对应指针引用。生成代码在后续操作可能改槽位前选定解引用地址。
+<span id="存活检查"></span>
 
-存储或传递指针通常只需目标声明，可使用不完整原生类型；形成原生目标的 C++ 类型表达式仍须满足其自身的完整性要求。指针内的纯 Carven callable 签名不对其参数类型施加该要求：`struct Node { callback: ptr<fn(Node) -> void> }` 是合法的，经生成的 C++ 接口导出时也是如此。
+## 存活性检查
 
-指针复制、传参和 Take 不做分配、引用计数或释放。非空不证明存活，见[存活检查](#存活检查)。资源 owner 和 C++ 适配器负责分配、释放、T** 输出协议、缓冲遍历和有效期。指针可通过声明式 import(cpp)/export(cpp) 契约传递；原生提供者与调用者仍负责目标生命周期。
-
-## 存活检查
-
-非空从不证明目标仍存活；普通运行时指针操作也不附加通用的借用或存活检查。外部地址沿用其提供者的生命周期契约。
-
-必需的编译期执行更严格：求值器跨调用和作用域跟踪每个局部对象，解引用一个目标已离开作用域或已被 Take 的指针会报告 `CV-CONST-EVALUATION`，即使该存储之后又被赋值。文本 backing 已失效的字节地址同样如此。
-
-```carven
-const fn escaped() -> ptr<i32> {
-    var value = 1;
-    return addressof(value);
-}
-
-const test "dangling address" {
-    let address = escaped();
-    if address != nullptr {
-        check(*address == 1);
-    }
-}
-```
-
-`carven check` 在 `*address` 处拒绝这个测试。编译期执行中，局部指针可以创建、经 Read 与 Write 参数传递，并在目标存活时解引用；但非空局部指针不能成为发布的常量值。
+静态执行在解引用时验证局部对象和文本字节后备存储的寿命，包括作用域退出和 Take。普通运行时指针没有一般借用/存活检查，原生地址由提供者保证有效期。

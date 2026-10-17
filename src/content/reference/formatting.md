@@ -32,39 +32,33 @@ A failed hole skips later holes and formatting, retains completed side effects, 
 
 `destination.append_format(f"...")` returns void and requires a direct interpolation expression, allowing parentheses. An ordinary string, a previously constructed `String`, or an access-marked argument does not satisfy this form. No intermediate source-level interpolation `String` is created.
 
-The receiver is selected once, then every hole is evaluated, then appending begins. Formatting inputs must not borrow or alias the target `String`, including `String` Read aliases. Existing views also prevent writing. `s.append_format(f"{s.len()}")` may be valid because it uses an independent scalar snapshot. Native formatters and callers must preserve this condition under indirect aliasing and reentrancy.
+The receiver is selected once, then every hole is evaluated, then appending begins. Formatting inputs must not borrow or alias the target `String`, including `String` Read aliases. Existing views also prevent writing. `s.append_format(f"{s.byte_length()}")` may be valid because it uses an independent scalar snapshot. Native formatters and callers must preserve this condition under indirect aliasing and reentrancy.
 
 A receiver or hole failure skips append and subsequent evaluation. Termination after formatting begins has no rollback guarantee. Invalid UTF-8 output, allocation failure, and runtime format errors terminate without introducing typed failures. A normally completed result preserves interior NUL and is valid UTF-8.
 
 ## Using known format information
 
-Ordinary runtime interpolation can use compile-time knowledge too. The compiler may precompute supported builtin format fragments or write mixed builtin fields directly into `String` storage. Static integer specifications, common floating specifications, and default `str`, `String`, `bool`, and `char` fields can share this path, for both interpolation and append_format. Not every hole value needs to be constant.
+The compiler may prepare known parts of a format during compilation and format the remaining values at runtime. This preserves the result's String type, each hole's evaluation order and side effects, and temporary lifetimes. A known final result does not skip an operation such as `update()` in `update() && false`.
 
-These transformations preserve each hole's required evaluation and side effects. Even if `update() && false` has a known final value, update still runs. A runtime result remains an independent owning `String`; this does not allow returning a `str` borrowed from static text.
+Optional preparation has a 64 KiB work budget. Unsupported or larger parts continue through runtime formatting; this is different from a required const initializer, which must finish during compilation. The budget does not limit the final runtime String length.
 
-When operand types and supported static formats prove the output is valid UTF-8, the compiler may omit final validation. Other output remains runtime-validated. These choices do not change format rules, evaluation order, or error boundaries.
-
-Dynamic text lengths are read after all holes finish, preserving `String` alias observations. Capacity bounds combine prepared field sizes with those lengths using checked arithmetic. A direct writer path needs no native format parser or final UTF-8 scan; unsupported remaining fields use the general formatter. These are implementation choices, not a promise that every interpolation avoids allocations.
-
-The current implementation gives optional text precomputation a 64 KiB budget. Delegated residual formats additionally budget escaped braces and retained field spellings; direct writer selection does not serialize a native format string. Excess or unsupported parts continue through runtime formatting rather than rejecting the program. This differs from required constant execution, where a `const` initializer cannot fall back to runtime. The budget limits precomputation work, not final runtime string length.
-
-A native custom formatter may inspect the entire argument set, so original arguments are retained. A known result does not remove required owner construction, temporary lifetimes, or cleanup.
+Supported formats may let the compiler prove UTF-8 validity in advance. Other outputs are checked at runtime. Either path follows the same format and error rules. Custom native formatters still receive the original arguments, and their providers must respect the arguments' access and lifetime contracts.
 
 ## Required constant formatting
 
-Constant initialization and `const fn` execution support default integer, `bool`, `char`, and text formatting (including known C string contents), plus integer `b/B/o/d/x/X`, decimal width, and zero padding. `f32`/`f64` support default formatting and `a/A/e/E/f/F/g/G`, including fill, alignment, sign, alternate form, zero padding, width, and precision; locale-dependent `L` is excluded. Dynamic width and precision evaluate first and must be nonnegative integers. Conversion uses the native standard library within compile-time resource budgets.
+Constant initialization and `const fn` execution support default integer, `bool`, `char`, unit, and text formatting (including known C string contents), plus integer `b/B/o/d/x/X`, decimal width, and zero padding. `f32`/`f64` support default formatting and `a/A/e/E/f/F/g/G`, including fill, alignment, sign, alternate form, zero padding, width, and precision; locale-dependent `L` is excluded. Dynamic width and precision evaluate first and must be nonnegative integers. Conversion uses the native standard library within compile-time resource budgets.
 
 ```carven
 const amount = f"{12.5:.2f}"; // 12.50
-const title = f"build-{42:04}"; // str containing build-0042
-const bytes = f"{'我'}".len();  // usize with value 3
+const title = f"build-{42:04}"; // String containing build-0042
+const bytes = f"{'我'}".byte_length();  // usize with value 3
 ```
 
-Each constant interpolation result is limited to 1 MiB, with additional cumulative work and format-nesting budgets. Runtime interpolation remains an owning `String`; completed constant initialization freezes it to `str`. Interpolation cannot replace an ordinary string literal or literal pattern required by syntax.
+Each constant interpolation result is limited to 1 MiB, with additional cumulative work and format-nesting budgets. Runtime interpolation remains an owning `String`; completed constant initialization preserves its owning `String` type. Interpolation cannot replace an ordinary string literal or literal pattern required by syntax.
 
 ## Printing
 
-print/`println`/eprint/eprintln need no import and follow ordinary lookup and shadowing. They accept one or more Read values and return void. void, entry arguments, and character-iteration views are not printable. `println`() and eprintln() also allow zero arguments.
+print/`println`/eprint/eprintln need no import and follow ordinary lookup and shadowing. They accept one or more Read values and return void. void and character-iteration views are not printable. `println`() and eprintln() also allow zero arguments.
 
 | Operation | Stream | Ending           |
 | --------- | ------ | ---------------- |
@@ -123,3 +117,5 @@ Entry {
 Display never calls custom formatters, stream insertion operators, or getters, including for nested fields. `println(f"{value}")` first performs explicit formatting instead. Read and backing requirements cover the complete value; printing adds no owning copy or transfer.
 
 The root has depth zero. Display expands at most eight levels, shows at most 64 elements per array or slice, and retains at most 16,384 UTF-8 bytes including layout whitespace, marking omissions with `...`. These limits also apply to structural values in assertion explanations, but not top-level verbatim text. Display is diagnostic text, not serialization. Constant blocks, `const fn`, and `const test` use the same display rules within their execution subsets.
+
+Erased pointers accept an empty format or `p`; static execution produces `const@nonnull` / `const@null`, while interpreted and native address display use their own execution context. Tuples and Vectors participate in structural display under the same depth, item, and byte limits.

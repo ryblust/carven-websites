@@ -8,50 +8,132 @@ source: docs/language/failures.md
 
 ## Failure types and interfaces
 
-A failure is a recoverable control effect with a payload. Payload types are copyable nominal structs or enums. A contract is a closed type set; spelling order and declaration order do not affect identity. Explicit `throw E + E` is invalid.
+A function can either return its normal result or report a recoverable failure, such as invalid input. The `throw` clause lists the failure types callers must handle. A caller can use `?` to pass a failure outward or `try`/`catch` to recover.
+
+Each failure carries a value of a declared struct or enum type. That value must support copying; integers and strings alone are not failure types. A concrete failure contract lists a fixed set of types. Their order in the clause or source does not change the set. An explicit clause
+may name each nominal failure type only once; `throw Error + Error` is invalid.
+`throw ()` declares the empty set. It is an explicit contract, rather than an
+omitted contract requesting inference. In a value or type position, `()` denotes
+the `void` unit instead; an empty failure set has no payload. `throw void` is
+invalid because `void` is not a nominal failure type. A callable may therefore
+return the unit value while declaring no failures:
 
 ```carven
-struct ReadError {
-    code: i32,
-}
+fn finish() -> void throw () => ();
+```
 
-struct ParseError {
-    offset: usize,
-}
+A function body may produce fewer failure types than its explicit throw clause allows, but never more. Module-private
+non-entry functions, implicit entries, and lambdas that omit it infer the least
+fixed-point failure
+set across forward calls, direct recursion, and mutual recursion. A published
+function—bare or exported—with a nonempty actual set must state an explicit
+`throw` contract;
+omitting it produces `CV-EFFECT-THROW-PUBLISHED`. Explicit entry functions also
+require an explicit `throw` contract for outward failures, regardless of
+declaration visibility. Tests must handle every failure and cannot expose a
+failure contract. Failure types in a published contract must be visible to that
+contract's audience.
 
-fn load() -> i32 throw ReadError + ParseError {
-    return 42;
+The same Copy requirement applies to function and callable failure clauses,
+`Operation<T, throw E>` members, thrown payloads, and typed catch alternatives.
+It is checked after nominal fields are complete, including nested fields and
+enum payloads. A nominal value that owns an `Operation` cannot be a failure
+payload. Empty arrays retain their ordinary Copy rule, and native C++ fields
+retain the existing delegated Copy boundary. Moving a payload into `throw`
+does not remove the requirement that its failure type be copyable.
+
+Calls use the callee's failure contract. An explicit contract determines the
+call's failure set even when the callee's body produces fewer failures:
+`fn source() throw Error {}` still makes `source()` fallible with type `Error`.
+
+An immutable local initialized from a known function preserves that target
+through copies and view adaptation. Calling it uses the function's contract,
+including any explicit `throw` clause on the function. A wider view type does
+not add failures to this known call. Calls through parameters, mutable views,
+or unresolved target selections use the view's contract.
+
+## Failure-set parameters
+
+A generic declaration can bind a scalar failure-set parameter with `throw E`.
+It represents a finite set of copyable nominal failure types, including the
+empty set. It is neither a payload type nor a value parameter. Type and
+failure-set arguments occupy distinct positions in the declaration:
+
+```carven
+import std::async using Operation;
+
+async fn consume<T, throw E>(&&operation: Operation<T, throw E>) -> T throw E {
+    return (await operation)?;
 }
 ```
 
-An explicit throw clause bounds the body's failure set; a body that can produce more reports `CV-EFFECT-SIGNATURE-BOUND`. Calls to load always use its declared set, even if the current body always succeeds. Callers do not look through an interface to narrow that set.
+An explicit application can supply `throw Error + IO` or `throw ()` for `E`.
+A parameter can appear in a callable's `throw` clause or an Operation contract,
+alone or in a union such as `E + Error`. An application normalizes that union as
+a set: a member contributed by both `E` and `Error` appears once. Functions infer
+omitted arguments from their public signature, actual argument types, and immediate
+expected result. A whole `Operation<T, throw E>` can determine `E`; an ambiguous
+union such as `E + Error` requires explicit arguments. Nominal applications require
+explicit arguments.
 
-Module-private non-entry functions, implicit entries, and lambdas without contracts infer a least fixed point across forward calls, direct recursion, and mutual recursion. Bare and export functions with nonempty actual failures must declare them, or receive `CV-EFFECT-THROW-PUBLISHED`. An explicit entry function that propagates failures outward needs an explicit contract regardless of visibility; top-level statements infer theirs. Tests cannot expose escaping failures. Failure types must be visible to interface readers.
+The definition must satisfy its failure contract for every admitted set assigned
+to each parameter. It cannot assume that `E` contains a particular type, that two
+independent parameters are equal, or that `E` is nonempty. Unmarked pending
+failures must be provably empty; propagated failures must be provably within the
+enclosing contract. A safe concrete application cannot validate an unsafe
+definition. These safety checks belong to the definition and are not repeated
+as new source checks in each instance.
+
+Typed catches still name nominal payload types. Catching all values of `Error`
+removes that type from the protected failure set, including when the set depends
+on `E`; unhandled members retain their parameter dependency. A payload cannot
+be constructed, thrown, or selected by naming `E` itself. Existing guard,
+rethrow, and payload-lifetime rules apply.
+
+A `?` whose operand has a parameter-dependent failure set is valid when that set
+can be nonempty. If a concrete application makes it empty, the operand still
+evaluates once and propagation has no failure to transfer. This does not admit
+`?` on an operand already proved infallible when the definition is checked.
 
 ## `?` and `throw`
 
-An expression with pending failures cannot be consumed directly as an ordinary completed value. Postfix ? transfers its operand's failures to the nearest enclosing failure target at that lexical position, preserving the success result on success. It can apply to a call or compound expression.
+A value with pending failures cannot be consumed where an ordinary completed
+value is required. Postfix `?` consumes the pending failures of its operand at
+that lexical position and transfers them to the nearest enclosing failure
+target. The operand may be a call or a composite expression whose selected
+evaluation path carries pending failures. Applying `?` to an operand whose
+failure set is proved empty is invalid, subject to the parameter-dependent rule
+above. `throw` transfers the supplied failure and does not complete
+normally.
 
-```carven
-fn sum() -> i32 throw ReadError + ParseError {
-    return (load() + load())?;
-}
-```
+For an ordinary concrete operand, the nonempty requirement for `?` is checked
+against the solved failure set. For `private fn source() {}`, `source()?` is invalid
+because the inferred set is empty; write the call as `source()`.
 
-If the first load fails, the second and the addition are skipped. Pending failures are a static composition fact, not a delay of runtime checking until every computation finishes. Applying ? to an empty failure set produces `CV-EFFECT-PROPAGATE-REDUNDANT`. If a private function becomes inferred as nonfallible, callers must remove the old ?.
+The compiler tracks failures through the whole expression. Execution stops at the first failure: in `(first() + second())?`, a failure from `first()` skips
+`second()` and the addition. Operands evaluate left to right, exactly once,
+along the selected path.
 
-`throw value;` transfers a payload and does not complete normally. It copies by default; explicit Take follows ordinary owner-availability rules. Completed mutations and external operations remain, without automatic rollback.
+Failure propagation does not roll back completed mutations or external effects.
+
+Carven failures are independent of C++ exceptions. Native exceptions must be
+handled in C++ before they escape a generated `noexcept` boundary to continue
+execution.
 
 ## Partial catches and residual sets
 
-try handles failures from its protected body. catch supports type, wildcard, alternative, payload, and guarded patterns. Uncovered failures go to the outer target.
+`try` handles failures produced by its protected body. Catch arms may select a
+failure type, wildcard, alternatives, payload patterns, and guards. Remaining
+failures transfer to the enclosing failure target. The remaining failures can pass to an outer try body. They can also pass to a lambda, private non-entry function, or implicit entry with inferred failures. A function with an explicit throw contract can accept them when that contract includes their types. At a test boundary or a published or explicit entry function
+without an explicit contract, catch arms must
+cover every protected failure. Outward failures remain subject to the enclosing
+callable's contract.
 
-An outer protected body, lambda, inferred private non-entry function or implicit entry, or function with an explicit throw contract may accept residual failures. At a test boundary or a published or explicit entry function without an explicit contract, every protected-body failure must be covered. The final outward set is always checked against the enclosing callable contract.
+For example, this handler consumes `A` and forwards `B`:
 
 ```carven
 struct A {}
 struct B {}
-
 fn source() throw A + B {}
 
 fn wrapper() throw B {
@@ -63,54 +145,31 @@ fn wrapper() throw B {
 }
 ```
 
-This program handles A and retains B outward. Residual forwarding happens at the `try` boundary without an extra `?` on the `try` statement or a required wildcard handler. The call inside the protected body still needs `source()?`; `try` does not insert missing propagation markers into its body. An explicit wildcard `rethrow` makes the same forwarding visible in the source. To spell the remaining propagation explicitly, use the following wrapper with the same A, B, and source declarations:
+Adding `_ => rethrow,` after the `A` arm explicitly forwards the remaining
+failure and gives the same outward set, `{B}`. A failure type remains in the
+set unless the arms collectively cover all its values, accounting for guards
+that may reject.
 
-```carven
-fn wrapper() throw B {
-    try {
-        source()?;
-    } catch {
-        A(_) => {},
-        _ => rethrow,
-    }
-}
-```
-
-Choose one of the two wrapper definitions; they have the same outward set. A type is removed from the residual set only when the arms collectively cover all its possible values, accounting for guard rejection. A try with a nonfallible protected body is valid and receives no redundancy diagnostic.
-
-## Known function targets
-
-An immutable local initialized from a known function keeps that function as its target through copies and view adaptation. Calling it uses the function's own contract, including an explicit throw clause; a wider view type does not add failures to this known call. Calls through parameters, mutable views, or unresolved target selections use the view's contract.
-
-```carven
-struct Missing {}
-
-fn parse(text: str) -> i32 => text.len() as i32;
-
-fn run(values: [str]) -> i32 {
-    let measure: fn(str) -> i32 throw Missing = parse;
-    var total = 0;
-    for value in values {
-        total += measure(value);
-    }
-    return total;
-}
-
-println(run(["ab", "cde"]));
-```
-
-`measure` has a view type that permits `Missing`, but it is known to call `parse`, which cannot fail, so `measure(value)` needs no `?`. The program prints `5`.
-
-## Selection order and guards
-
-Catch order is observable. Alternatives within an arm form one or-pattern. The first matching alternative establishes bindings, then the guard runs once. A false guard advances to the next arm rather than retrying another alternative in the same arm.
-
-Failures from guards or handlers go to the outer target and are not caught again by the same try. Unreachable or type-impossible handlers do not contribute reachable outward failures, but their source is still checked. Nonexhaustive diagnostics list types not fully covered, including partial payload coverage and possibly rejecting guards.
+Failures produced by a guard or handler propagate to the enclosing failure
+target and are never caught again by the same `try`. Alternatives in one arm
+form one or-pattern. The first matching alternative establishes its bindings,
+then the arm guard runs once. A false
+guard continues with the next arm. Catch-arm order remains observable even
+though failure-set member order does not. A non-exhaustive catch diagnostic
+identifies each failure type that is not fully covered, including partial payload
+patterns and guards that may reject. A test that leaves failures unhandled and a
+callable body that exceeds its `throw` contract name the failure types and the
+nearest `?` operands that propagate them. A `try` around an infallible body is valid
+and produces no diagnostic.
 
 ## rethrow and lifetimes
 
-rethrow is valid only inside a catch handler. It forwards that handler's selected original failure identity and accepts no replacement payload. To translate a failure, use `throw NewError { ... };`. A closure does not inherit an outer catch's control context.
+`rethrow` is valid only within a catch handler and transfers the caught failure
+identity selected for that handler. Closure bodies are separate callable
+boundaries: their failures and control transfers do not belong to evaluation of
+the expression that creates the closure.
 
-The original payload retains its borrows independently of copied catch bindings through selection, guards, and rethrow. Local cleanup must not destroy backing still referenced by a failure payload. A handler can copy borrowed text into an independent `String` before returning.
-
-C++ exceptions are not members of failure sets, and try does not catch them. An exception escaping a generated noexcept boundary terminates according to C++ rules. A native adapter must handle exceptions before that boundary when recovery is required.
+Failure payloads and copied catch bindings follow the ordinary ownership rules.
+The original payload retains its backing relationships through selection,
+guards, and rethrow, independently of copied catch bindings. Borrowed storage
+must remain alive while the failure payload refers to it.

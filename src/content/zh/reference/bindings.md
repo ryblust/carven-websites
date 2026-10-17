@@ -69,7 +69,7 @@ const fn twice(value: i32) -> i32 => value * 2;
 
 const capacity = twice(3);
 let values: [i32; capacity] = [1, 2, 3, 4, 5, 6];
-println(values.as_slice().len()); // 6
+println(values.slice().length()); // 6
 ```
 
 模块层级的常量必须有名字。`const fn`、`const` 块、静态参数、`const if` 和 `const for` 的规则见[常量与编译期计算](/zh/reference/constants/)与[函数](/zh/reference/functions/)。
@@ -117,3 +117,16 @@ println(_answer); // 42
 ## 相关条目
 
 [类型与转换](/zh/reference/types/) · [运算符与表达式](/zh/reference/operators/) · [访问与所有权](/zh/reference/ownership/) · [关键字索引](/zh/reference/keywords/)
+
+## 递归元组目标
+
+局部 let/var/const 支持按相同元素数量和嵌套层次分解元组的绑定目标。初始化器仅求值一次，各具名运行时元素成为声明可变性对应的完整独立 所有者；丢弃元素也存活到作用域结束。模块常量仍只接受单个具名目标。
+
+```carven
+fn coordinates() -> (i32, (i32, bool)) => (12, (34, true));
+var (x, (y, active)) = coordinates();
+x += y;
+println(x, active); // 46 true
+```
+
+无 && 时复制已有 所有者；`let (a, b) = &&pair;` 转移整个源。Take 一个分解名字不影响其他名字。局部 const 分解把源冻结一次再选常量元素。完整规则见[元组](/zh/reference/aggregates/#元组)。

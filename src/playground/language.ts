@@ -1,7 +1,7 @@
 import { StreamLanguage, type StringStream } from '@codemirror/language';
 
 const keywords = new Set(
-  'as break catch class const continue else enum export fn for if import in is let match private rethrow return struct test throw try using var while'.split(
+  'as async await break cancel catch class const continue else enum export fn for if import in is let match private rethrow return struct test throw try using var while'.split(
     ' ',
   ),
 );
@@ -112,7 +112,7 @@ export const carvenLanguage = StreamLanguage.define<State>({
     }
     if (
       stream.match(
-        /^(?:0[xX][0-9a-fA-F]+|0[bB][01]+|0[oO][0-7]+|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(?:[iu](?:8|16|32|64|size)|f(?:32|64))?\b/,
+        /^(?:0[xX][0-9a-fA-F]+|0[bB][01]+|0[oO][0-7]+|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(?:[iu](?:8|16|32|64|size)|f(?:32|64)|ns|us|ms|s)?\b/,
       )
     ) {
       return 'number';
@@ -123,7 +123,10 @@ export const carvenLanguage = StreamLanguage.define<State>({
       if (name === 'true' || name === 'false') return 'bool';
       if (name === 'nullptr') return 'null';
       if (keywords.has(name)) return 'keyword';
-      if (types.has(name) || (name === 'range' && stream.match(/^\s*</, false))) {
+      if (
+        types.has(name) ||
+        (['Range', 'Vector', 'Operation'].includes(name) && stream.match(/^\s*</, false))
+      ) {
         return 'typeName';
       }
       if (stream.match(/^\s*\(/, false)) return 'variableName.function';

@@ -69,7 +69,7 @@ const fn twice(value: i32) -> i32 => value * 2;
 
 const capacity = twice(3);
 let values: [i32; capacity] = [1, 2, 3, 4, 5, 6];
-println(values.as_slice().len()); // 6
+println(values.slice().length()); // 6
 ```
 
 A module constant requires a name. See [constants](/reference/constants/) and [functions](/reference/functions/) for `const fn`, constant blocks, static parameters, `const if`, and `const for`.
@@ -117,3 +117,16 @@ println(_answer); // 42
 ## Related entries
 
 [Types and conversions](/reference/types/) · [Operators and expressions](/reference/operators/) · [Access and ownership](/reference/ownership/) · [Keyword index](/reference/keywords/)
+
+## Recursive tuple targets
+
+Local `let`, `var`, and `const` accept nested tuple targets with exact arity and nesting. The initializer executes once; each named runtime element is an independent complete owner with the declaration's mutability. Discarded elements live until the scope ends. Module constants retain a single named target.
+
+```carven
+fn coordinates() -> (i32, (i32, bool)) => (12, (34, true));
+var (x, (y, active)) = coordinates();
+x += y;
+println(x, active); // 46 true
+```
+
+Read decomposition copies an existing owner; `let (a, b) = &&pair;` transfers the complete source. Taking one decomposed binding leaves siblings available. Local const decomposition freezes once and selects constant elements. See [tuples](/reference/aggregates/#tuples).

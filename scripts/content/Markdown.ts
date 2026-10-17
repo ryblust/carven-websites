@@ -7,6 +7,8 @@ import { createHighlighterCore } from 'shiki/core';
 import { createOnigurumaEngine } from 'shiki/engine/oniguruma';
 import cpp from '@shikijs/langs/cpp';
 import shellscript from '@shikijs/langs/shellscript';
+import json from '@shikijs/langs/json';
+import lua from '@shikijs/langs/lua';
 import carven from './syntax/carven.ts';
 import paper from './syntax/paper.ts';
 import vesperBlack from './syntax/vesper-black.ts';
@@ -18,6 +20,8 @@ const languageLabels: Record<string, string> = {
   cpp: 'C++',
   sh: 'Shell',
   shellscript: 'Shell',
+  json: 'JSON',
+  lua: 'Lua',
 };
 
 export class Markdown extends Context.Service<
@@ -44,7 +48,7 @@ export class Markdown extends Context.Service<
             createHighlighterCore({
               engine: createOnigurumaEngine(import('shiki/wasm')),
               themes: [paper, vesperBlack],
-              langs: [carven, shellscript, cpp],
+              langs: [carven, shellscript, cpp, json, lua],
             }),
           catch: (cause) => new ContentError({ file: 'syntax', operation: 'render', cause }),
         }),

@@ -14,6 +14,11 @@ const documents = new Map();
 const outputFiles = await Array.fromAsync(glob('**/*.{html,css}', { cwd: root }), (file) =>
   join(root, file),
 );
+if (!outputFiles.includes(join(root, 'index.html'))) {
+  throw new Error(
+    `Website build output is missing at ${root}. Run pnpm build before checking links.`,
+  );
+}
 for (const file of outputFiles.filter((file) => extname(file) === '.html')) {
   const html = await readFile(file, 'utf8');
   const dom = htmlToDOM(html);

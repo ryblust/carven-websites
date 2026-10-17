@@ -6,160 +6,419 @@ lesson: 17
 source: docs/language/constants.md
 ---
 
+## Execution stages
+
+A program has two stages. The static stage executes during compilation; the
+runtime stage is the generated program. `const fn` states that a function can
+execute in the static stage. A `const` declaration, `const { ... }`, and
+`const test` execute there. `const if` selects an arm and `const for` expands
+iterations during compilation; their remaining statements execute in the body's
+stage. A constant keeps the completed result of that execution for later use. This retention is called freezing: a String stays a String, and its bytes remain available without rerunning the initializer.
+
 ## Constant declarations
 
-Module `const` defines a named, typed compile-time value. Private and bare declarations may infer their types. `export const` requires an explicit annotation; a literal suffix is not a substitute. Module `const _` is invalid.
+A top-level `const` creates a module-scope name for one typed constant:
 
 ```carven
 private const radix = 10;
-const retries: i32 = 3;
-export const protocol: u32 = 1;
+const retry_limit: i32 = 3;
+export const protocol_version: u32 = 1;
 ```
 
-Initialization completes in dependency order, permitting forward references. A cycle of required facts produces `CV-CONST-CYCLE`. Every use denotes the same normalized value. Constants provide Read only, with no runtime binding, source address, or linkage identity. Frozen slices may have static backing, while the declaration itself still has no address identity.
+Private and bare module constants may infer a unique concrete type or state it
+explicitly. An exported constant must state its type; a literal suffix in the
+initializer is not a declaration annotation. Omitting that type produces
+`CV-CONST-EXPORTED-TYPE`. The annotation supplies the initializer's expected
+type and uses ordinary compatibility rules. The target must be a named
+identifier, so top-level `const _ = ...;` is invalid.
 
-A local `const` is a static lexical name. In a runtime body it executes once for each selected instance or expanded occurrence, and not in an unselected `const if` arm or empty `const for`. A lambda can use a visible constant without capture only when its value can be determined while constructing that lambda body; an unbound enclosing static parameter cannot cross this boundary.
+Module-constant initialization is elaborated from resolved declaration
+dependencies rather than source order. Every successful use selects the same
+normalized value; a dependency cycle produces `CV-CONST-CYCLE`. A module
+constant has Read access only and introduces no runtime binding, source address,
+or linkage. A frozen view's contents have program-lifetime backing storage; that storage
+does not give the source declaration an identity.
 
 ## Constant expression scope
 
-Supported forms include literals, numeric enum cases, completed constants, parentheses, admitted casts and pure unary/binary operations, constant text queries, all-constant payload construction, supported interpolation and `String` operations, and calls to explicitly declared `const fn` with constant arguments. Fixed arrays, structs, indexing, and fields can produce constants in the supported aggregate subset. Arrays and eligible enums support equality; structures do not. Constant initializers can also create and query frozen slices. Fallible calls require `?`; a failure escaping the static root is a compilation error.
+Carven evaluates `const` initializers and array extents during semantic analysis.
+They use ordinary expression typing, scopes, access rules, and control flow.
+`if`, `match`, and `try` may directly produce their values:
 
-Calls to ordinary `fn` and direct control-flow expressions are not constant expressions; a required constant calling an ordinary function reports `CV-CONST-ADMISSION`. Put branching or loops in a `const fn` or a constant block. A known runtime result does not make an expression constant: `(source() == 1) && false` with an ordinary call still fails constant-expression requirements.
+```carven
+const compact = true;
+const width = if compact { 4usize } else { 8usize };
+const values: [i32; if compact { 2usize } else { 4usize }] = [0, 0];
+```
 
-Integer literals are range checked for their selected type. Integer negation, addition, subtraction, multiplication, and left shift wrap to the type width, exactly as at runtime; `const wrapped = max + 1;` with `max: i32 = 2147483647` is `-2147483648`. Division by zero and invalid shift counts are diagnosed when they execute during compilation. Integer casts reduce modulo the destination width. Required constant execution supports `f32`/`f64` negation, arithmetic, comparisons, and admitted numeric casts. `const x = 1.0 + 2.0;` evaluates to `3.0`. Ordinary runtime floating arithmetic and ordering retain native execution rather than acquiring optional facts through host computation.
+Every branch receives name, type, access, and failure checks. Branch results must have compatible types. Selecting one branch cannot select a different result type. Execution evaluates only the selected path. Branch-local bindings
+and loops have their ordinary scope and lifetime. `try` can recover a source
+failure before the root completes. An array extent must complete with a
+nonnegative integer; a constant initializer must complete with a value that can
+be frozen.
+
+Freezing preserves the completed result's type, including owning `String` and
+`Vector<T>` values and aggregate components. Unit results freeze as `void`.
+Local and module constant declarations exist only in the static stage; their
+later uses denote the normalized value without creating a runtime binding or
+lambda capture. Retained owners and their projections have immutable
+program-lifetime backing, including constants declared inside functions.
+Ordinary mutable copies have their own lifetime.
+
+A body-local `const` executes where it stands in the static stage: once for
+each selected instance or expanded occurrence, and not at all in an unselected
+`const if` arm or an empty `const for`.
+
+The compiler checks types in every branch before execution. An array
+extent, C++ construction type query, or separately constructed body that names
+a local constant requires an admitted value independent of unbound static
+parameters. These dependency queries cannot sample a host clock, read input, or
+perform waiting, including through a source wrapper. They may construct
+configuration or cold values without executing their host operation. This
+restriction prevents type formation from repeating or prematurely performing
+the local declaration's host work.
+
+A completed module constant may supply a type dependency. When a value depends
+on host state and also determines a type, compute the value in a module `const`
+declaration and use that frozen result. A local `const` that needs a new host
+observation can execute at its ordinary static-stage position, but type formation
+cannot pre-read it. Constant value formation and type validity retain their
+ordinary rules.
+
+Static values do not guide ordinary control analysis. Only
+`const if` selects by a static value.
+
+A constant integer cast to an `N`-bit integer reduces the mathematical value
+modulo `2^N`. An unsigned target is that residue; a signed target interprets the
+same bits as an `N`-bit two's-complement value. Accepted constant casts remain
+constant facts.
+
+Integer literals are range checked for their selected type. Integer negation,
+addition, subtraction, multiplication, and left shift wrap to that type's width
+in both static execution and runtime execution. Division by zero and invalid
+shift counts are diagnostics when evaluated during compilation; runtime execution
+terminates for those conditions. Evaluation never relies on undefined host
+arithmetic. A wrapping operation in an ordinary `let` initializer follows the
+same rule as one in a constant initializer.
+
+Floating literals, exact widening casts, and equality can supply constant facts.
+Static execution supports floating arithmetic and ordering; for
+example, `const sum = 1.0 + 2.0;` evaluates to `3.0`. Ordinary runtime floating
+arithmetic, ordering, and integer-to-floating casts do not acquire optional
+constant facts from host execution;
+they retain the target's native operations. Negation of a numeric literal is
+normalized with its sign during literal checking, including through grouping
+parentheses.
+Thus `-(2147483648)` is a valid `i32` minimum even though the positive literal
+alone is out of range.
+
+A known runtime result does not make an expression admissible in a `const`
+initializer. For example, `(source() == 1) && false` still contains a general
+call and is not a constant expression. In a runtime expression, knowing the
+result does not remove evaluation of operands that execute under the ordinary
+short-circuit rules.
 
 ## Constant blocks
 
-`const { ... }` is a statement at module scope or inside statement blocks, without a trailing semicolon. An optional string labels diagnostics, as in `const "prepare table" { ... }`; it is not a symbol and need not be unique. A module block executes once. A body-local block executes once for each selected instance or expanded occurrence, and not in an unselected `const if` arm or empty `const for`. Runtime control does not select it: a block in an uncalled function, runtime branch, or runtime loop executes once for that body and never repeats at runtime. Blocks use supported mutable locals, control flow, text, aggregates, `const fn` calls, and failure recovery. External C++ construction and calls remain outside this executor subset.
+`const { ... }` executes a statement block during compilation. An optional
+string after `const` labels diagnostics, as in `const "prepare table" { ... }`.
+The label is not a declared symbol and need not be unique. A block may appear
+at module scope or wherever a block accepts statements:
 
-A block has its own lexical scope. It can use module constants and enclosing static bindings: local constants, `const` parameters, and `const for` indices, subject to ordinary lookup and shadowing. Enclosing runtime parameters and locals cannot be read, written, or captured. Inside the block, all locals execute in the static stage in source order; local `const` is an immutable local, and ordinary and `const` control follow that execution order. Nested blocks can read enclosing static locals and retain their own diagnostic labels. The same rules apply inside `const test`, without changing `const fn` specialization.
+```carven
+const {
+    var total = 0;
+    for index in 0..10 { total += index; }
+    println(total);
+}
 
-A block is not callable: `return` cannot leave it, and break/continue target only loops inside it. Blocks and local constants in one body execute in source order. Order between different bodies and module blocks is unspecified; imports establish no block initialization order. Declarations and lifetimes end inside the block. Output and diagnostics go to the compiler’s caller and cannot be read back by another block.
+fn resize(const width: i32) {
+    const for lane in 0..3 {
+        const {
+            assert(width > 0);
+            println(f"lane {lane} of width {width}");
+        }
+    }
+}
+```
 
-`?` may propagate to the block boundary. Escaping failures, execution errors, and exhausted budgets fail compilation; completed output remains visible. A block inside a test reports check/require/fail to that test during compilation; elsewhere these operations are rejected. Blocks execute independently of test-artifact selection, including during `check`, and create no runtime test entries.
+A block at module scope executes once. A block in a function, lambda, or test
+body is a block of that body's static stage, as a local `const` is a binding of
+it: it executes once for each selected instance or expanded occurrence and not
+at all in an unselected `const if` arm or an empty `const for`. Runtime control
+does not select it, so a block in an uncalled function, a runtime branch, or a
+runtime loop executes once for its body, and runtime execution never repeats it.
+
+Blocks use the shared static-execution type and operation rules, including
+mutable locals, control flow, aggregates, text, `const fn` calls and failure
+recovery. Type checking, ownership and lifetime validation apply to their
+statements. External C++ construction and calls are outside this execution
+subset. Execution runs in the Carven executor; it does not compile or execute
+C++ providers.
+
+A block has its own lexical scope. Module constants and the enclosing body's
+static bindings (local constants, `const` parameters, and `const for` indices)
+are available through ordinary lookup and shadowing. Runtime parameters and
+locals of the enclosing body do not exist while the block executes and cannot
+be read, written, or captured. Declarations and object lifetimes end within the
+block. All locals inside the block are static values and execute in source
+order. A local `const` is an immutable local at this stage; `const if` and
+`const for` execute as `if` and `for`, including ordinary Read and Write iteration
+over local values. Nested blocks can read enclosing static locals and retain
+their own diagnostic labels.
+These rules also apply inside `const test`; they do not change `const fn`
+body specialization.
+
+A block is not a callable: `return` cannot leave it, and `break` or `continue`
+reach only loops inside it. Blocks in one body execute in source order with its
+local constants. Execution order between bodies and module-scope blocks is
+unspecified. Imports resolve declarations and immutable values; they do not
+establish initialization ordering between blocks. Output and diagnostics are
+visible to the compiler's caller and cannot be read back by another block.
+
+Explicit `?` propagates a fallible call to the block's execution boundary.
+Escaping failures, execution errors and exhausted budgets are compilation errors.
+Completed output remains observable if execution or later validation fails.
+
+`check`, `require`, and `fail` need a test: a block in a test body reports to
+that test during compilation, and a block elsewhere rejects them. Blocks execute
+independently of test-artifact selection, including in `check`, and produce no
+runtime code or test entries.
 
 ## `const fn`
 
-`const fn` declares that a named Carven function can be called from required constant contexts: local and module constant initializers, array extents, constant blocks, and `const test`. Required contexts call only such functions. Declaration alone does not execute it, and a runtime call remains an ordinary call even when every argument is known. Entries and import(cpp) declarations cannot be `const fn`.
+The constant initializer, const block, or const test that starts one compile-time evaluation is called its static root. Calls made during that evaluation share the root's limits. Executor admission means the operations are supported during compilation; freezing means the completed result can be retained afterwards. They are separate checks.
+
+Static roots can call only explicitly declared `const fn` Carven
+functions, including in local and module constant initializers, array extents,
+`const` blocks, and static tests. Arguments follow the declared type and access
+rules. Every function body undergoes ordinary type, effect, ownership, and
+lifetime validation. A `const fn` can also run at runtime; a runtime call remains
+an ordinary call even when all arguments happen to be known.
+
+`const` declares that a callable can execute in the static stage; it does not
+promise purity or results determined solely by its arguments. Observable work
+happens in the selected execution stage. Declaring a `const fn` does not execute
+it, and an ordinary call does not move its effects into compilation.
+
+A parameter declared `const name: T` requires an admitted constant source in every
+execution mode. Executor-known values of ordinary parameters, `let`, and `var` do
+not acquire that qualification.
+The compiler checks the contract before execution; executing an entire function
+in the static stage does not make its ordinary parameters static inputs.
+
+Each `const fn` definition checks its signature and semantically reachable
+operations for executor capability. Reachable source calls, including through local
+callable bindings, must select a known `const fn`. Unsupported operations or
+unproven callees produce `CV-CONST-ADMISSION` at the definition.
+Operations after an unconditional return still receive ordinary semantic checks
+but need no executor capability. Paths
+selected by call arguments remain part of the definition's capability check.
+
+A static root can call a parameterized `const fn` once its type and failure-set
+arguments close to concrete contracts. Inferred contracts complete their
+transitive declaration dependencies before execution; an unfinished failure set
+is not an empty set. A body-local `const` initializer inside a checked generic
+definition cannot require an unresolved generic environment. It has no deferred
+parameter-dependent execution at concrete application time. The containing
+`const fn` may still execute ordinary generic calls after its arguments close.
+
+Execution checks budgets and dynamic errors. Completed static roots also
+check result publication. Language arithmetic and effects are the same in
+both stages.
+
+Builtin input and time operations, including deadline composition,
+support explicit static execution through the compiler host. They use that
+process's input and monotonic clock. Cold construction retains arguments; awaiting
+or starting the operation performs the read or wait. Cold operations remain local
+execution values and cannot be frozen as module constants. Results and failures
+follow the ordinary retention and typed failure rules.
+
+Host effects already completed remain observable after a later static failure.
+Execution budgets bound steps, text, and aggregate work. They do not impose an
+elapsed-time limit on input or waiting. Ordinary runtime calls use the program's
+host resources and preserve their required effects.
 
 ```carven
 const fn label(count: i32) -> String {
     var result = String {};
-
     for index in 0..count {
         result.append_format(f"{index:02}");
     }
-
     return result;
 }
 
-const name = label(3); // str: 000102
+const name: str = label(3); // "000102", with no runtime String owner
+const fn decorate(value: String) -> String => f"[{value}]";
+const decorated = decorate(label(3)); // "[000102]"
 ```
 
-Each `const fn` definition is checked for executor capability when it is defined, not when it is first called. Its signature and semantically reachable operations must be supported, and every reachable call, including a call through a local callable binding, must select a known `const fn`. Otherwise the definition reports `CV-CONST-ADMISSION`, even if nothing calls it:
+Function signatures follow ordinary rules, including Read, Write, and Take
+parameters. Unit values are supported in parameters, results, bindings and
+aggregate components. Retention checks the completed result and its selected enum payloads. Declaring
+a `const fn` also requires its types and reachable operations to support execution
+for the function's possible inputs. Static execution supports
+scalar arithmetic, comparisons, logical operations and casts; local
+initialization, assignment and Take; `if`, `match`, `while`, C-style loops,
+integer ranges, array and slice loops; `return`, `break`, `continue`, direct
+calls to `const fn`, and indirect calls through local bindings of named
+`const fn`. Match supports builtin and enum subjects
+with literal, integer range, enum-case, binding, wildcard and or patterns, including guards.
+Recursion is allowed when signatures and bodies can be completed without a
+construction dependency cycle; the `const fn` capability check handles its
+recursive direct-call graph without proving termination.
 
-```carven
-fn double(value: i32) -> i32 => value * 2;
+Text operations include `String {}`, `String::from_str`, the owning
+`str as String` conversion, `as_str`, `byte_length`, `is_empty`, `append`, `append_format`,
+`push`, `clear`, byte and character views and iteration, and interpolation. Formatting
+uses the static builtin text and numeric contracts; dynamic format operands evaluate
+before formatting. Invalid or unsupported specifications produce execution diagnostics.
+Widths, precisions, and output bytes are bounded by the text budget.
 
-// Compile error: CV-CONST-ADMISSION, double is not a const fn.
-const fn quadruple(value: i32) -> i32 => double(double(value));
-```
+Fixed arrays support construction, indexing, element assignment, equality,
+independent copies, Read and Write iteration, whole-binding Take, and function
+parameters and results.
+Vectors support empty and literal construction, copying from slices, checked
+indexing, Read and Write iteration, independent copies, whole-owner Take, borrowed
+slicing, and `length`, `is_empty`, `push`, `remove`, and `clear`. Removal returns
+the extracted owner. Capacity construction, queries, and reservation are also
+available. Capacity is logical execution state, independent of host allocation.
+Completed vectors preserve contents and capacity; nested String and Vector
+owners preserve their types. Retained slices require live, eligible backing at
+initializer completion. Returning a borrowed local from a function is still invalid.
+Structs support positional and named construction, field access and assignment,
+independent copies, whole-binding Take, and parameters and results.
+Tuples support construction, positional element access, destructuring, equality,
+independent copies, Take, and parameters and results. Their components follow
+the ordinary access and borrowing rules.
+Enums support case construction, payload matching, equality, copies, Take, and
+parameters and results. Fields, elements, and payloads follow the same execution
+type rules recursively; publishing a completed constant also requires each
+component to support freezing. Construction evaluates initializers in source
+order. Freezing preserves nominal identity, array extents, tuple arity and nesting, and component types;
+it retains owning String and Vector fields and elements with their original types.
+Empty array literals require an expected element type.
 
-Operations after an unconditional return still receive ordinary semantic checks but need no executor capability. A known condition does not exclude an ordinary source branch from this capability check. Paths selected only by call arguments remain checked. Recursion is allowed when signatures and bodies can be completed without a construction dependency cycle; the capability check does not prove termination.
+Read arguments containing array, Vector, or String storage observe their contents after
+all arguments have evaluated. Other supported values are snapshotted at their
+argument position. Field and index projections follow the selected value's type.
+Slice operations, including `slice().length()`, indexing, and subslicing, can
+execute against live backing storage. Slice chains preserve the selected element
+identity during execution. Completed results become frozen slices at a constant
+initializer; runtime copies use the ordinary slice API and borrowing rules.
 
-Signatures follow ordinary rules, including Read, Write, and Take parameters. A void result cannot initialize a constant; other results must be eligible for the consuming constant boundary. Result inference follows ordinary function rules.
+String values retain owning copy and Take behavior within and between constant
+function calls. Read String operands observe their contents after all arguments
+or interpolation holes have evaluated, following the ordinary evaluation order.
+The completed constant initializer preserves the owning result type. Thus
+`const text = label(3)` has type `String`; an explicit `str` destination borrows
+the completed bytes. Reads use immutable retained storage, while value copies
+construct independent owners.
 
-Supported operations include scalar arithmetic, comparisons, logical operations and casts; local initialization, assignment, and Take; if/match/while, C-style for, integer ranges, array and slice loops; return/break/continue; direct `const fn` calls, and indirect calls through local bindings of named `const fn`. match supports builtin and enum subjects, literal/integer-range/enum-case/binding/wildcard/or patterns, and guards. Local pointers can be created and dereferenced while their target is alive, and Write parameters update the caller's storage.
+Typed failure contracts use the ordinary language rules during static execution:
+`throw` creates a typed payload, `?` propagates it, and `try/catch` matches its type
+and payload. Guards, alternatives, nested recovery and `rethrow` work with the
+same execution machinery as calls and control flow. A catch binding can be taken
+without consuming the original failure retained for `rethrow`. Failure payloads
+can contain owning text and supported aggregates.
 
-```carven
-const fn total(values: [i32]) -> i32 {
-    var sum = 0;
-    for value in values {
-        sum += value;
-    }
-    return sum;
-}
+At a `const` initializer or array extent, `fallible()?` explicitly
+propagates to the evaluation entry: a successful result can form the constant;
+an escaping failure produces a diagnostic at its throw site with call context.
+An unmarked fallible call remains invalid even when it succeeds during evaluation,
+and `?` on a failure-free expression remains invalid. Inferred contracts are
+validated by the same failure solver as ordinary bodies. `const test` retains its
+static rule that no typed failure may escape the test. Evaluator errors, exhausted
+budgets and failed test assertions cannot be caught as typed failures.
 
-const fn bump(&value: i32) {
-    value += 1;
-}
+Static execution uses the same admitted Carven function bodies as
+ordinary execution, including local pointer creation, Read and Write calls,
+and dereference of live local targets. The evaluator tracks each local object's
+lifetime across calls and scopes. A pointer to an object after its scope exits
+or after Take fails on dereference with `CV-CONST-EVALUATION`, even if that
+storage is assigned again. An ordinary assignment to a live object preserves
+its identity. Non-null local pointers cannot become published constant values.
+Erased pointer formatting in static execution produces `const@nonnull` or
+`const@null`. These strings can be returned, queried, and frozen through ordinary
+text operations. Non-null erased pointers, including erased C string pointers,
+remain execution-local.
 
-const fn run() -> i32 {
-    let values = [1, 2, 3, 4];
-    var result = total(values.as_slice().slice(1, 3));
-    bump(&result);
-    let sum = total;
-    return sum(values.as_slice()) + result;
-}
+Static and interpreted execution support direct function-to-view adaptation and
+same-type callable-view copies. Widening an existing view requires a target
+borrow and is unsupported for live elements. Empty arrays require no element
+adaptation. An unresolved adaptation identity produces an execution diagnostic.
 
-const answer = run(); // 16
-```
+Native operations and calls through callable values without an executable Carven
+body remain outside the static execution subset. Ordinary type, access, ownership
+and lifetime validation applies throughout execution.
 
-`String` supports construction, copying, as_str, len/is_empty, append/append_format, push/clear, byte views and byte iteration, interpolation, and printing. Interpolation supports defaults for integers, `bool`, `char`, and text, including known C strings, plus integer `b/B/o/d/x/X`, decimal width and zero padding. Floating formats support `a/A/e/E/f/F/g/G`, fill, alignment, sign, alternate form, zero padding, width and precision; locale-dependent `L` is excluded. Dynamic widths and precisions evaluate first and must be nonnegative integers. Arrays support construction, indexing, element assignment, equality, copying, Read/Write iteration, Take, parameters, and results. Slices support indexing, subslicing, and loops against live backing. Structs support construction, field access/assignment, copying, Take, parameters, and results, without equality.
+Each evaluated call tree has a budget of 100,000 execution steps and 128 nested
+calls. Text construction is limited to 1 MiB per value and 8 MiB of accumulated
+text construction and copying work. Appending charges the added bytes, and
+queries do not copy their receiver. This is a work budget, not a live-memory limit.
+An aggregate value can contain at most 65,536 nested slots and 64 aggregate levels. Slots include sequence elements, tuple elements, struct fields, and enum payloads.
+A call tree permits
+524,288 accumulated slot constructions and copies. Direct aggregate initializers
+use the same value limits and a bounded construction-work budget.
+Constant format specifications additionally have bounded
+nesting. Exhausting a budget diagnoses the static execution; it does not
+fall back to runtime execution. Definition violations use `CV-CONST-ADMISSION`,
+execution-specific failures use `CV-CONST-EVALUATION`, and budget failures use
+`CV-CONST-LIMIT`; type, arithmetic and dependency diagnostics remain
+applicable.
 
-Enums support case construction, payload matching, equality, copying, Take, parameters, and results. Fields, elements, and payloads follow the same execution type rules recursively; publishing a completed constant also requires each component to support freezing. `String` fields or elements are not frozen into `str`. Empty arrays require element context. Nominal identity, lengths, and every member type are preserved. C strings support constant initialization, calls, local copies, assignment, and Take; freezing preserves their bytes and pointer type.
-
-Read arguments containing array or `String` storage observe their contents after all arguments have evaluated. Other supported values are saved at their argument positions. Field and index projections follow the selected value's type rules.
-
-## Compile-time failure contracts
-
-`const fn` uses ordinary failure rules: throw creates a typed payload, `?` propagates it, and try/catch matches its type and payload. Guards, alternatives, nested recovery, and rethrow share the same execution flow. Payloads support owning text and executable aggregates. Taking a catch binding does not consume the original failure retained for rethrow.
-
-In a constant initializer or array extent, `fallible()?` propagates to the evaluation entry: actual success can form a constant; an escaping failure is diagnosed at the throw with call context. Success does not permit omitting a required `?`, and a redundant `?` on a failure-free expression is still rejected. Inferred contracts remain subject to the ordinary failure solver. `const test` retains its static rule against unhandled failures. Evaluator errors, exhausted budgets, and failed assertions cannot be recovered with catch.
+`char::from_u32_unchecked` is admitted in constant initializers and `const fn`
+bodies. The executed operand must be a Unicode scalar value; surrogates and
+values above U+10FFFF produce `CV-CONST-EVALUATION`. Successful construction
+produces an ordinary `char` constant with the same publication rules as a literal.
 
 ## Admission and freezing
 
-Native operations, calls without executable Carven bodies, character iteration, unchecked borrowed text construction, and class values/operations remain outside static execution. Ordinary type, access, ownership and lifetime validation applies throughout. Local pointer dereference after scope exit or Take reports `CV-CONST-EVALUATION`; non-null local pointers cannot be published as constants. Execution and freezing are separate requirements.
-
-`char::from_u32_unchecked` is admitted in constant initializers and `const fn`. The executed operand must be a Unicode scalar; surrogates or values above U+10FFFF produce `CV-CONST-EVALUATION`. Native execution keeps the caller’s precondition. Checked [UTF scalar, codec, and validation functions](/reference/utf/#compile-time-use) and [SIMD lane operations](/reference/simd/) can also execute at compilation. Borrowed UTF text construction and the class validator remain runtime operations.
-
-`String` retains owning and Take semantics during computation. Only when the entire constant initializer completes does an owning text result freeze to `str`. `const name: String = label(3);` is invalid. Slices borrow live backing during execution; a completed constant root freezes the selected elements before releasing that backing.
-
-## Compile-time and runtime arithmetic
-
-Integer arithmetic is the same at compile time and runtime. Negation, addition, subtraction, multiplication, and left shift wrap at the type width; signed `MIN / -1` yields `MIN`. Division or remainder by zero and a negative or out-of-width shift count are diagnosed when required execution reaches them (`CV-CONST-DIVIDE-BY-ZERO`, `CV-CONST-SHIFT-RANGE`) and terminate at runtime.
+A constant initializer can retain a borrowed `str` or character view while its
+backing remains alive. The completed view keeps its type and selected UTF-8
+contents in immutable program-lifetime storage:
 
 ```carven
-const fn next(value: u8) -> u8 => value + 1;
-
-const wrapped = next(255);
-
-const test "wrapping matches runtime" {
-    check(wrapped == 0);
-}
-
-println(next(255)); // 0
+const letters = String::from_str("aé我").chars;
 ```
 
-Short-circuiting and control flow determine which operations actually execute. An unexecuted division by zero does not trigger an evaluation error, but a reachable unsupported native call in a `const fn` is still rejected at its definition.
+Ordinary borrowed views follow their source lifetime; a view into a function's
+ordinary local owner cannot escape that function. Freezing requires live backing
+when the initializer completes.
 
-Floating execution uses the compiler host's native float/double environment. Signed zero, infinities, and NaNs are retained values; floating division by zero follows native floating rules, not integer diagnostics. Frozen results are reconstructed in generated C++. Results need not match runtime expressions evaluated under different target settings, rounding environments, or optimization choices.
+A constant initializer can retain a completed array or Vector as `[T]`,
+using an explicit annotation or `slice()`:
 
-## Relationship to C++ constant facilities
+```carven
+const table: [i32] = [2, 4, 6];
+const middle = table.slice(1, 3);
+const count = middle.length();
+fn table_view() -> [i32] => table;
+```
 
-These forms are not keyword substitutions:
+The elements have program-lifetime backing storage, so these views can be copied, stored,
+and returned independently of the scope containing their constant declaration.
+The declaration and its backing have no source-level address identity; native
+code must not rely on different uses or generated artifacts sharing an address.
+Empty slices retain their element type. Indexing and half-open subslicing are
+checked during static execution; invalid evaluated bounds produce a diagnostic.
 
-| Carven rule                                                                                     | C++20 comparison                                                                                                                                         |
-| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `const fn` declares a capability checked at its definition; runtime calls remain ordinary calls | `constexpr` functions can also run during compilation or at runtime, with different admission rules                                                      |
-| A completed constant initializer freezes a `String` result into `str`                           | `constexpr` string can construct text; retaining the result must meet constant-expression and storage rules, with no automatic conversion to string_view |
-| `const test` executes a supported test body during semantic analysis                            | `static_assert` checks a constant condition, rather than replacing an entire test body                                                                   |
-| Native C++ calls cannot enter Carven's required constant execution                              | Declaring the C++ function `constexpr` does not change this boundary                                                                                     |
+Elements must be admitted during static execution and freeze without changing
+their declared type. Element types are preserved:
+`[Entry; N]` becomes `[Entry]`, and `[[i32; 2]; N]` becomes `[[i32; 2]]`.
+Struct fields keep their declared types. There is no recursive conversion of
+owning fields or nested arrays to views. Slice comparison remains unsupported.
 
-The [compile-time tutorial](/learn/constants/) includes a complete C++20 comparison for the same text construction. Freezing is a result-representation rule, not a promise to remove allocation from every runtime `const fn` call.
+Array and Vector results of static function calls can reach this initializer
+boundary.
+During static execution, slice parameters, locals, indexing, and subslicing
+borrow live backing storage. Copies and chained slices retain that backing
+relationship; they do not extend its lifetime. A completed static root freezes
+the selected elements into immutable program-lifetime backing before releasing the
+evaluation storage.
+Ordinary runtime array/Vector-to-slice conversions still borrow their source storage;
+known contents alone do not extend that storage's lifetime.
 
-## Execution budgets
-
-| Limit                                             | Value   |
-| ------------------------------------------------- | ------- |
-| Execution steps per call tree                     | 100,000 |
-| Nested call depth                                 | 128     |
-| Single text value                                 | 1 MiB   |
-| Cumulative text construction, copying, and output | 8 MiB   |
-| All nested field/element slots in one aggregate   | 65,536  |
-| Aggregate nesting depth                           | 64      |
-| Cumulative slot construction and copying          | 524,288 |
-
-Append counts added bytes. Queries do not copy their receiver. Budgets measure work, not live memory. Direct aggregate initialization is also subject to size, depth, and work limits. Format specifications have an additional nesting limit.
-
-Unsupported operations in a required expression or a `const fn` capability check use `CV-CONST-ADMISSION`, execution errors `CV-CONST-EVALUATION`, failed assertions `CV-ASSERT`, and budget failures `CV-CONST-LIMIT`. Type, arithmetic, and dependency diagnostics still apply. Failure never falls back to runtime.
+Retaining an array and constructing a constant subslice charge their number of
+element references against the initializer's 524,288-element work budget. The
+source array retains its value-size and nesting limits.

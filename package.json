@@ -8,6 +8,7 @@
   },
   "type": "module",
   "scripts": {
+    "sync": "node scripts/sync.mjs",
     "dev": "node scripts/content/main.ts && vite",
     "build": "node scripts/build.mjs",
     "preview": "vite preview",
@@ -17,7 +18,7 @@
     "test": "vitest run",
     "content": "node scripts/content/main.ts",
     "check:links": "node scripts/check-links.mjs",
-    "playground:build": ".deps/carven/xmakew build"
+    "playground:build": "node scripts/build-playground.mjs"
   },
   "dependencies": {
     "@bjorn3/browser_wasi_shim": "0.4.2",

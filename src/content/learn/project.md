@@ -1,8 +1,8 @@
 ---
 title: "Project: update stock only after success"
-description: "Build an order workflow with explicit outcomes, amount limits, selective failure recovery, and static and runtime tests."
+description: "Accept valid orders, preserve stock when an order is rejected, and prove both behaviors with tests."
 section: learn
-lesson: 16
+lesson: 17
 source: docs/language/tutorial.md
 ---
 
@@ -16,7 +16,7 @@ Save as orders.cv:
 
 ```carven
 struct Item {
-    name: str,
+    name: String,
     price: i32,
     stock: i32,
 }
@@ -122,7 +122,7 @@ purchase uses Write access, repeated as `&item` at the call site. Its `?` must o
 
 The assertions serve a different purpose. Negative catalog data is a program bug; after a successful deduction, stock must still be nonnegative. An assertion stops execution instead of producing a recoverable failure. Its interpolated message is evaluated only on failure. See [Assert program invariants](/learn/testing/#assert-program-invariants).
 
-The amount uses `i64`: both nonnegative `i32` price and positive `i32` quantity are widened **before** multiplication, so their product fits. The 100000 limit is a separate business rule. Multiplying in `i32` and casting the result afterwards would already have applied `i32` wrapping.
+The amount uses i64. Convert both i32 inputs to i64 **before** multiplying them. Their nonnegative product then fits the wider type. The 100000 limit is a separate business rule. Multiplying in `i32` and casting the result afterwards would already have applied `i32` wrapping.
 
 ## Represent outcomes and recover selectively
 
@@ -249,6 +249,40 @@ carven: tests: 3 passed; 1 failed
 ```
 
 The condition preserves the check's source text; the operand shows the observed stock without reading it again. The literal 2 is already visible in the condition, so it needs no separate operand line. Restore the expected value to 1.
+
+## Process a growing batch without hiding rejections
+
+Keep the existing declarations and replace the top-level application statements with this batch. The vector owns its inventory; the array supplies fixed requests:
+
+```carven
+var inventory: Vector<Item> = [
+    { name: "Lamp", price: 1200, stock: 3 },
+];
+let requests = [(0usize, 2), (0usize, 2), (0usize, 0)];
+var paid: Vector<Receipt> = [];
+
+for (index, quantity) in requests {
+    try {
+        match reserve(&inventory[index], quantity)? {
+            .Paid(receipt) => paid.push(receipt),
+            .Backorder(error) => println("Backorder:", error.requested, error.available),
+        }
+    } catch {
+        InvalidQuantity(error) => println("Rejected:", error.requested),
+        OrderLimit(error) => println("Limit:", error.limit),
+    }
+}
+
+var charged: i64 = 0;
+for receipt in paid {
+    charged += receipt.amount;
+}
+println("Paid:", paid.length(), charged, "Stock:", inventory[0].stock);
+```
+
+The output is `Backorder: 2 1`, `Rejected: 0`, then `Paid: 1 2400 Stock: 1`. Each tuple target names an index and quantity without an extra request type. Successful receipts become independent vector elements; no sentinel receipt represents rejection. The batch is not atomic: an earlier successful purchase remains successful when a later request fails.
+
+`Item.name` uses `String`, so each inventory element owns its name. Vector elements cannot retain borrowed text. The existing tests construct Item from literal names in that owning context. Continue with the [JSON input project](/learn/data-pipeline/) to replace fixed requests with bounded input.
 
 ## Extend it yourself
 

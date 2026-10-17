@@ -1,200 +1,86 @@
 ---
-title: 组合操作，也组合失败
-description: 保留每一种失败的类型与数据，让恢复缩小契约，让接口明确承诺。
+title: "在能够恢复的地方处理失败"
+description: "拒绝坏记录、保留错误详情，并检查每个函数留给调用者的责任。"
 section: failure-contracts
 source: docs/language/failures.md
 ---
 
-## 业务组合起来，失败仍然清楚
+## 拒绝一条记录，继续处理下一条
 
-配置缺失可以使用默认值；没有读取权限需要另行处理；端口格式错误需要保留被拒绝的文本。Carven 为这些失败保留各自的类型，调用者可以分别处理，也不会丢失失败携带的数据。
+日志处理器需要区分字段缺失和数字无效，但一条坏记录不应使后面的有效记录被丢弃。让解析函数描述可能发生的失败，再由逐条处理记录的循环恢复。
 
-**组合一组操作，无需为每一层额外定义一个汇总错误类型。** 失败集合由语言组合，原有的类型身份与载荷保留到真正需要处理它们的位置。
-
-<figure class="semantic-sketch">
-  <svg viewBox="0 0 640 190" aria-hidden="true" focusable="false">
-    <path d="M15 19q84-3 166 1l-2 119q-81 4-164-1ZM184 76q25-3 48 0m-8-6 8 6-8 6" />
-    <path d="M246 51q65-3 127 1l-1 50q-65 3-126-1ZM376 75q22-3 44 0m-8-6 8 6-8 6" />
-    <path d="M434 38q95-3 187 1l-1 75q-95 3-187-1Z" />
-    <path class="sketch-accent" d="M306 106q-2 21 2 43m-7-8 7 8 7-8M255 182q27 2 55-1" />
-    <text x="43" y="50">Missing</text><text x="43" y="85">Denied</text><text x="43" y="120">BadPort</text>
-    <text x="276" y="82">catch</text>
-    <text x="461" y="69">Denied</text><text x="461" y="100">BadPort</text>
-    <text class="sketch-accent" x="256" y="175">8080</text>
-  </svg>
-  <figcaption>Missing 恢复为默认值 8080；Denied 和 BadPort 继续向外传播。</figcaption>
-</figure>
-
-## 把结果组合的配套工作交给语言
-
-在 C++ 中，结果类型可以用一个错误类型参数表达失败，例如 C++23 的 std::expected；多种载荷可由 std::variant 汇总，传播与恢复可用分支或库组合器组织。跨层组合时，项目需要安排错误集合、载体转换以及相应的接口约定。
-
-Carven 在语义分析中保留各失败类型的身份，计算处理后剩余的失败集合，并检查实现是否超出接口声明的集合。生成的 C++ 保存当前失败的载荷并执行传播；源码用普通表达式计算成功值，用 catch 分支描述恢复方式。
-
-## 同一任务，两种表达
-
-这就是首页的端口示例。两边都在配置缺失时返回 8080，并把 Denied 与 BadPort 留给调用者。下面省略失败类型与 read、parse 的实现；C++ 是手写对照，不是编译产物。
-
-<div class="code-comparison" role="region" aria-label="切换代码语言">
-<div data-code-choice="Carven">
-
-Carven
+这里的 `RecordError` 保留应用层面的分类，`InvalidLatency` 还携带原始数字解析错误。函数签名中的 `throw RecordError` 告诉调用者可能失败的类型；每个 `?` 标记失败离开当前表达式的位置。
 
 ```carven
-// read: str throw Missing + Denied
-// parse: i32 throw BadPort
-fn port() -> i32 throw Denied + BadPort => try {
-    parse(read()?)?
-} catch {
-    Missing(_) => 8080,
-};
-```
+import std::core using NumberParseError;
+import std::utf using { split_once, TextError };
 
-</div>
-<div data-code-choice="C++">
-
-C++23 · 手写等价示例
-
-```cpp
-#include <expected>
-#include <string_view>
-#include <variant>
-
-std::expected<std::string_view,
-    std::variant<Missing, Denied>> read();
-std::expected<int, BadPort> parse(std::string_view text);
-
-std::expected<int, std::variant<Denied, BadPort>> port() {
-    auto text = read();
-    if (!text) {
-        if (std::holds_alternative<Missing>(text.error())) {
-            return 8080;
-        }
-        return std::unexpected(std::get<Denied>(text.error()));
-    }
-    auto value = parse(*text);
-    if (!value) {
-        return std::unexpected(value.error());
-    }
-    return *value;
+enum RecordError {
+    Shape,
+    InvalidLatency(NumberParseError),
+    TextProcessing(TextError)
 }
-```
 
-</div>
-</div>
+struct Record { milliseconds: u64, message: String }
 
-| 工作               | Carven 的表达              | C++ 对照的组织方式               |
-| ------------------ | -------------------------- | -------------------------------- |
-| 传播读取和解析失败 | 调用处的 `?`               | 检查 expected，再转交错误载荷    |
-| 只恢复 Missing     | `catch` 中的恢复分支       | 检查 variant 的当前备选类型      |
-| 保留剩余失败       | 检查 Denied + BadPort 契约 | 用新的 expected 错误类型承载结果 |
-
-C++ 的结果类型、variant 和控制流提供了表达这些行为的能力；组合器或其他结果库也可以封装它们。Carven 将组合与覆盖检查放进语言语义，使编译器能检查恢复后还有哪些责任。
-
-下一步进入[失败教程的完整对照](/zh/learn/failures/#用-c23-保留相同的失败信息)：用价格与服务费的可运行例子，验证相同输入与短路顺序，再尝试移除一个恢复分支。
-
-另一类责任与数据存活有关，可以继续看[所有权教程中的借用对照](/zh/learn/ownership/#借用期间谁来保证存储有效)。
-
-## 成功路径自然表达，传播位置清楚可见
-
-读取端口分成两步：先读取配置文本，再解析为端口号。下面的节选假设 read 返回 `str`，声明 Missing + Denied；parse 接收 `str`，返回 `i32`，声明 BadPort。
-
-```carven
-private fn load() -> i32 => parse(read()?)?;
-```
-
-每个 `?` 都标出一个失败出口。read 失败时，parse 不会执行。load 是私有函数，省略了 `throw` 子句，编译器为它推断 Missing + Denied + BadPort，无需额外定义汇总错误类型。私有函数的推断也覆盖前向调用、直接递归和相互递归。
-
-## 配置缺失用默认值，其余失败保留
-
-公开的 port 函数在配置缺失时使用 8080：
-
-<div class="annotated-example">
-
-```carven {1,4}
-fn port() -> i32 throw Denied + BadPort => try {
-    load()?
-} catch {
-    Missing(_) => 8080,
-};
-```
-
-<p class="code-focus-caption">关注高亮行：向外的契约，以及 Missing 的恢复分支。</p>
-<aside class="margin-note">
-  <strong>恢复会缩小契约</strong>
-  <p>高亮的两行相互对应：完整恢复 Missing 后，公开契约只剩 Denied + BadPort。</p>
-</aside>
-</div>
-
-<div class="example-entry">
-  <a href="/zh/playground/#example=typed-failures">在 Playground 运行完整例子 →</a>
-  <span>这段节选的完整程序，包含 read、parse 和四种输入。</span>
-</div>
-
-处理 Missing 后，它不再出现在向外的契约中。Denied 和 BadPort 仍携带原有数据传给调用者。首页将 load 的表达式直接写入 port，行为相同。
-
-如果 catch 只处理某些载荷，或带有守卫条件，该失败类型可能仍在集合中。编译器检查实际覆盖范围，再决定能否从契约中移除这个类型。
-
-### 剩余的失败由编译器计算
-
-剩余集合是推导出来的，不靠约定。如果 port 只声明 `throw Denied`，函数体仍会让 BadPort 传出，检查随即失败：
-
-```text
-error [CV-EFFECT-SIGNATURE-BOUND]: callable body exceeds its declared failure contract
-```
-
-调用者也必须处理剩余的失败，或在契约中声明继续传播。如果下面的调用者只恢复 `Denied`，`BadPort` 就没有得到处理：
-
-```carven
-fn report() {
+fn parse_record(text: str) -> Record throw RecordError {
     try {
-        println(port()?);
+        let fields = split_once(text, " ")?;
+        if !fields.found { throw RecordError::Shape; }
+        return {
+            milliseconds: u64::parse(fields.before)?,
+            message: fields.after as String,
+        };
     } catch {
-        Denied(_) => println("access denied"),
+        NumberParseError(error) => throw RecordError::InvalidLatency(error),
+        TextError(error) => throw RecordError::TextProcessing(error),
+    }
+}
+
+for line in ["37 token=[redacted]", "nope malformed", "42 超时"] {
+    try {
+        let record = parse_record(line)?;
+        println(f"{record.milliseconds}ms: {record.message}");
+    } catch {
+        RecordError(_) => println("rejected:", line),
     }
 }
 ```
 
-catch 诊断会指出仍未覆盖的失败类型，并带上所在模块（这里是 `config`）：
+程序输出两条有效记录，并报告被拒绝的行：
 
 ```text
-error [CV-EFFECT-CATCH-NON-EXHAUSTIVE]: catch does not cover every protected failure
-note: failure type not fully covered: config.BadPort
+37ms: token=[redacted]
+rejected: nope malformed
+42ms: 超时
 ```
 
-report 是公开函数且没有 `throw` 子句，所以编译器还会报告 `CV-EFFECT-THROW-PUBLISHED`。补上 `BadPort(error) => ...` 分支，或为 report 声明 `throw BadPort`，两个诊断都会消失。这些节选依赖前面的 port 定义；诊断只列出主要行，省略了源码片段。
+`u64::parse` 失败后，对应的 catch 分支把错误包装为 `RecordError::InvalidLatency`。外层循环处理 `RecordError`，打印被拒绝的输入，再继续下一行。有效记录的消息则被复制为拥有的 `String`，结果可以独立于输入保留。
 
-在[深入教程](/zh/learn/failures/)中，可以运行完整的 Carven 与 C++ 对照，并修改输入或契约，观察两边的行为。
+[运行解析器](/zh/playground/#example=log-analysis)。[完整日志分析器](https://github.com/ryblust/carven/tree/main/examples/log_analyzer) 还包含字节分行、UTF-8 校验、凭据脱敏、统计和 JSON 输出。这里的小例子接收已经合法的文本，重点展示解析和逐条恢复。
 
-## 内部可以推断，接口明确承诺
+## 保留独立失败，或者定义应用错误
 
-编译器根据私有辅助函数、lambda 以及顶层语句构成的隐式入口中的操作推断失败集合。模块外可见的函数和显式 `main` 若有向外传播的失败，须显式声明允许的类型；编译器检查实现是否超出这一上界。调用者根据声明理解接口，无需阅读函数体。
+一层函数可以用 `throw A + B` 保留独立的失败类型，让调用者直接分别恢复。上面的解析器采用另一种做法：把库失败映射为自己的 `RecordError` 成员。根据调用者需要的信息选择接口。
 
-因此顶层的 `println(port()?);` 不需要 `throw` 子句：失败逸出隐式入口时，局部清理完成后会在 stderr 报告失败类型和结构化载荷，程序以 `EXIT_FAILURE` 退出。应用需要自己的消息或恢复行为时，用 `catch` 处理它。
+私有辅助函数、lambda 和隐式入口会根据调用推断失败。对其他模块可见的函数，以及显式 `main`，声明允许向外传播的集合。编译器检查函数体是否落在这个范围内。调用者遵循声明，即使当前函数体并未产生声明中的某种失败。
 
-声明允许的某种失败，即使当前实现没有产生它，也仍属于调用契约。实现可以在已声明范围内调整；扩大范围则是调用者需要重新处理的接口变化。
+## 恢复一种失败，继续传播其他失败
 
-## 回调带着同一份契约进入程序
+[配置示例](/zh/playground/#example=typed-failures) 在 `Missing` 时返回默认端口，`Denied` 和 `BadPort` 仍交给调用者。编译器根据恢复行为得出剩余集合。如果函数只声明 `Denied`，实现会因 `BadPort` 仍可逃逸而被拒绝。
 
-失败检查同样覆盖函数、闭包与非拥有的可调用视图。一个只可能产生 InvalidAmount 的校验函数，可以传给允许 InvalidAmount 与 LimitExceeded 的策略接口。
+带守卫的分支，或者只覆盖部分载荷的模式，可能仍留下一种失败。完整覆盖才会移除它；`rethrow` 则传播原始失败。实现修改后仍须通过这些检查，因此删除恢复分支可能要求同步更新公开契约。
 
-```carven
-fn process(
-    amount: i32,
-    policy: fn(i32) -> i32 throw InvalidAmount + LimitExceeded,
-) -> i32 throw InvalidAmount + LimitExceeded => policy(amount)?;
-```
+## 异步工作使用相同契约
 
-这里的失败类型由策略模块提供。增加捕获了额度的策略闭包时，它可以保留输入错误，再引入带有实际金额和额度的 LimitExceeded。调用方仍按接口所声明的集合恢复。
+`async fn` 声明成功结果及可能的失败。调用创建尚未启动的工作，`await operation()?` 等待完成后再传播失败。`when_all` 组合输入的失败集合，`first_successful` 可以在候选失败后继续等待。[运行批次工作流](/zh/playground/#example=async-workflow)。
 
-**可插拔的行为，也有可检查的失败边界。** 适配检查参数、成功结果和失败集合，借用与捕获的存活要求继续生效。
+取消是独立的完成状态。请求取消要求工作停止，子任务关闭则等待工作和清理完成，再释放借用的数据。因此，超时可以选中 `Timeout`，但清理仍然可能耗时。[异步教程](/zh/learn/async/) 解释这段生命周期。
 
-## 生成具有具体类型的原生控制流
+## 区分恢复与停止执行
 
-Carven 将失败契约实现为带有具体备选类型的 C++ 结果与显式控制流，无失败契约使用直接结果。失败传播使用这条生成路径，不依赖 C++ 异常展开来承载 Carven 失败。
+类型化失败用于调用者可以处理的条件。`assert` 报告被破坏的不变量并停止执行，`check` 报告测试断言失败。执行器预算耗尽和非法运行时操作不会变成 catch 可以恢复的失败。
 
-成功路径、失败载荷、局部清理与求值顺序共同决定生成代码。失败保留已完成的副作用；业务恢复和回滚由程序定义。原生 C++ 异常继续由原生适配边界处理。
+如果需要恢复 C++ 异常，原生适配器应先捕获它，再返回明确结果或 Carven 失败。异常逃出生成的 `noexcept` 边界会终止。见[互操作](/zh/learn/interop/)中的原生边界，以及[失败参考](/zh/reference/failures/)中的传播和覆盖规则。
 
-## 也用于编译期校验
-
-`const fn` 可以在编译期执行抛出、传播、恢复和重抛，并保留普通静态契约检查。这让同一套校验函数同时用于常量配置和运行时输入；[编译期教程](/zh/learn/constants/#用相同的失败契约选择编译期配置)给出了可运行示例。
+生成的 C++ 用结果载体和分支实现这些选择。C++23 的 `std::expected`、`std::variant` 和库组合器可以提供相应的结果与控制流；Carven 把失败组合和覆盖作为语言规则检查。

@@ -19,6 +19,8 @@ const labels = {
   '/learn/closures/': ['闭包与捕获', 'Closures'],
   '/learn/testing/': ['测试', 'Testing'],
   '/learn/constants/': ['编译期计算', 'Compile-time data'],
+  '/learn/async/': ['异步工作流', 'Async workflows'],
+  '/learn/data-pipeline/': ['实践：输入与 JSON', 'Project: input to JSON'],
   '/learn/interop/': ['C++ 互操作', 'C++ interop'],
   '/learn/pointers/': ['地址与非空检查', 'Native addresses'],
   '/learn/project/': ['实践：库存更新', 'Project: inventory'],
@@ -51,6 +53,11 @@ const labels = {
   '/reference/diagnostics/': ['诊断代码', 'Diagnostics'],
   '/reference/utf/': ['UTF 标准库', 'UTF library'],
   '/reference/simd/': ['SIMD 向量与掩码', 'SIMD and masks'],
+  '/reference/async/': ['异步操作与子任务', 'Async operations'],
+  '/reference/time/': ['时间与截止时间', 'Time and deadlines'],
+  '/reference/io/': ['输入、输出与分帧', 'Input and output'],
+  '/reference/json/': ['JSON 值与序列化', 'JSON values'],
+  '/reference/net/': ['TCP 与原生宿主', 'TCP networking'],
 } satisfies Record<ChapterPath, readonly [string, string]>;
 
 export function chapterLabel(path: ArticlePath): string {

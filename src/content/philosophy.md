@@ -1,72 +1,46 @@
 ---
-title: "Let the compiler carry intent into implementation"
-description: "Higher-level expression, checkable semantics, and native execution through the C++ toolchain."
+title: "Make the program’s choices clear"
+description: "Why Carven makes data ownership, recovery, and child task lifetimes visible in source."
 section: philosophy
 source: docs/development/principles.md
 ---
 
-## Consistent semantics on a native foundation
+## Keep the algorithm in ordinary source
 
-C++ provides objects, templates, containers, algorithms, and a mature toolchain. Carven builds on those capabilities with a common set of source rules for access, ownership, evaluation, and failure. The compiler then arranges the corresponding native implementation.
+A configuration parser, a log processor, and an asynchronous collector all need answers to the same questions: who owns the data, what happens when a step fails, and when does the work run? Carven makes these decisions visible in source, checks that they fit together, and generates C++ for your native toolchain.
 
-Each language construct must define which programs are valid, what the compiler guarantees, and what storage, calls, and cleanup the running program needs.
+The [example applications](/use-cases/) show how the pieces combine. The analyzer validates records and writes JSON; the mixer processes samples with SIMD; the collector connects a C++ host to Carven logic. Each application has source and tests you can run and change.
 
-## Describe the computation. Let the compiler arrange storage.
+## Know who owns the data
 
-Building a list of enabled routes at compile time needs inputs, a loop, an order, and a choice of when to compute it. Those decisions belong in source. The resulting byte count and its static storage can be determined from the result.
+Read lets a function inspect an input, Write lets it change existing storage, and Take transfers an owned value. After Take, the original binding cannot be used until it is restored. A text view or slice borrows storage, so that storage must remain valid for every use of the view.
 
-The [compile-time feature page](/features/compile-time/) puts both implementations side by side. The handwritten C++20 version constructs the text once to determine its length, then again to copy it into a sized array. This handles varying result lengths without relying on a standard library’s short-string representation: dynamic allocation from constant evaluation cannot survive into runtime. Carven uses the same loop and freezes `String` into `str` when `const` initialization completes.
+These rules make a practical difference when a function returns text, a closure retains a reference, or a child task outlives the call that started it. The compiler follows the storage relationships it knows. C++ adapters still manage references hidden inside native libraries.
 
-Changing the input can change the result length without changing the algorithm. Carven’s language rules define how the result is stored, so programmers do not need to write storage code for each result. A C++ library can encapsulate this work too; Carven makes it available directly for supported constant construction.
+Copying an owned `String` or `Vector<T>` creates independent contents. Copying a view keeps its relationship to the original storage. A class adds private fields and operations to this value model; the fields determine whether it needs allocated storage.
 
-## Keep meaningful decisions in the source
+## Keep failures useful to the caller
 
-Reading, modifying, and transferring ownership express different intentions. Carven names them Read, Write, and Take, checking the corresponding permissions at declarations and uses. The compiler infers what it can determine. Source forms make choices about access, captures, and failure propagation explicit.
+A parser can fail because a field is missing or because a number is invalid. Those failures can carry different data and require different recovery. Carven keeps their types and payloads as functions compose.
 
-In C++, the permitted uses of an object after a move depend on the type and operation contracts. Carven's Take also changes the source owner's static availability: the compiler checks subsequent uses and restoration. The same rule participates in calls, closures, and control-flow joins.
+Private helpers infer which failures they may propagate. Shared interfaces declare the allowed set, so callers can use them without inspecting their implementation. Fully handling one failure removes it from the remaining set. The application chooses a default, retries, or translates a library error into its own error type. Recovery keeps changes already made; an operation that needs rollback must define it.
 
-The [syntax and inference article](/internals/syntax-and-inference/) follows this boundary through reserved words, contextual `self`, ordinary builtin names, and expected types. Context can determine an omitted type; it does not add a capture, a call-access marker, or failure propagation.
+## Choose when the work runs
 
-A class gathers fields and operations behind one boundary without changing that cost model. It is an encapsulated value: declaring one adds no heap allocation, inheritance, or virtual dispatch, and its fields still decide copying, ownership, and cleanup. Its operations state their receiver as `self`, `&self`, or `&&self`, using the same Read, Write, and Take rules as any other parameter.
+A fixed JSON template can be parsed once during compilation. A user-supplied configuration must be parsed while the program runs. Both can use the same library functions and data types.
 
-Known borrowing relationships constrain the lifetime of backing storage. Providers and callers remain responsible for the validity of objects reached through external C++ pointers. The scope of checking follows the information the compiler actually has.
+`const fn` says that a function supports compile-time execution. A `const` initializer or static test asks the compiler to execute it there. Ordinary calls stay at runtime. Completed constants keep their types, including owned strings, vectors, and JSON trees; later copies can be modified independently. [The configuration example](/features/compile-time/) follows this process from parsing to a runtime update.
 
-## Preserve detail through composition
+Supported input, clock reads, waits, and output use the host of the chosen stage. A static input read therefore reads from the compiler process. Knowing an argument's value does not move an ordinary call or its effects into compilation.
 
-As functions and callbacks form a business workflow, failures retain their types and payloads. Private implementations infer the combined set, shared interfaces declare its upper bound, and recovery removes failures it handles completely.
+## Finish child work before releasing its data
 
-Modules can retain their own failure types while callers handle the remaining failures declared by the interface. Combining these operations preserves their evaluation order, local cleanup, and original failure types. The application decides how to recover.
+An async call creates a cold operation: work that has not started yet. Awaiting it starts it; `async let` starts a child whose lifetime belongs to the surrounding scope. The parent must account for that child before leaving normally.
 
-The [failure-contract tutorial](/learn/failures/) shows the same division of responsibility. Choosing a default for a missing price is a programmer's decision; determining which failures remain is something the compiler can derive and check. C++23 expected and variant can express the same results, with code or libraries arranging error-set composition, conversions, and branches.
+Cancellation requests a stop. Closing waits for the child and its resource cleanup, so borrowed data remains alive until the work has actually finished. The [async scope example](/playground/#example=async-scope) runs the same flow during compilation and at runtime. Source tasks cooperate on one thread; native providers connect that driver to input, timers, and sockets.
 
-The rules also apply after edits. Removing a recovery branch may invalidate the existing public contract; Carven rejects that implementation. The compiler keeps checking that the implementation satisfies the interface as the code changes.
+## Leave the native toolchain useful
 
-## Use known facts to reduce work
+Carven checks source types, evaluation order, ownership, and failure contracts, then generates C++ interfaces and implementations. C++ checks native calls and templates, optimizes the result, and produces machine code. Existing libraries, debuggers, and profilers remain part of the workflow.
 
-Constant functions can construct data using loops and mutable locals. Required constant contexts determine when they execute and which results can be frozen. Compile-time tests check those results before the target program is generated.
-
-Static parameters can fix configuration while other arguments remain runtime inputs. Explicit `const if` and `const for` select specialized work, with the same type, ownership, and failure contract checked across all source arms. SIMD operations can use those fixed controls without exposing native register layout.
-
-Dynamic operations can still have known structure. Fixed text, integer formats, and capacity bounds can be prepared ahead of time and consumed by specialized runtime operations. A known result and permission to omit execution are separate decisions: side effects and object lifetimes remain part of the program.
-
-Some conditions are not recoverable business failures. `assert(condition, message)` is always enabled, independently of `NDEBUG`; the message is evaluated only when the condition is false, and a failure stops the program rather than becoming a typed failure that `try` could recover.
-
-Static checking and native optimization have distinct jobs. Carven establishes types, pattern coverage, evaluation order, ownership, and failure contracts. Simplification must preserve required execution and storage observations; the C++ compiler handles native optimization, including eliminating storage when it can prove that safe.
-
-## Bring existing libraries with you
-
-These language rules sit on a native ecosystem you can keep using. The [third-party library example](/learn/interop/) calls nlohmann/json, retains its native object, and invokes its methods. Those calls need no dedicated binding layer; the native project still manages dependencies and include paths.
-
-The boundary stays explicit. Carven does not automatically turn native exceptions into typed failures or prove arbitrary external pointer lifetimes. It also has no thread or synchronization operations, and its access rules do not establish cross-thread safety; code that calls Carven from several threads owns that coordination. An adapter can establish the contract the application needs; Carven then checks and composes the facts available to it.
-
-## Measure cost against equivalent handwritten C++
-
-Carven's cost baseline is skilled handwritten C++ providing the same evaluation, ownership, lifetime, and checking guarantees. Facts useful only during compilation need not become runtime state. Retained state and operations serve the behavior the program requires.
-
-Generated C++ is directly inspectable, and native tools can measure its performance. Compilation time, artifact size, allocations, and execution time are evaluated separately. Concrete benefits depend on the operation and workload.
-
-## Carry the same facts through implementation
-
-Source modules and visibility determine interface organization. Semantic access and failure contracts determine calls and storage. Known values and structure determine which work can be prepared. Later compilation stages reuse these checks, reducing the information programmers must declare again.
-
-Carven aims to let you state what a program should do, check those commitments, and generate C++ you can read, debug, and profile. Your existing libraries and tools remain part of that workflow.
+Generated C++ is inspectable. Compare costs with handwritten C++ that provides the same behavior and guarantees, measuring compilation, allocations, artifact size, and execution separately. [The native boundary](/internals/runtime-boundary/) explains how the generated program connects to runtime support and host resources.

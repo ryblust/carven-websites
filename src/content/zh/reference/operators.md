@@ -20,7 +20,7 @@ source: docs/language/control-flow.md
 | 相等   | `==` `!=`                    | 兼容且支持相等的类型，得到 `bool`                        |
 | 逻辑   | `&&` `\|\|`                  | `bool` 操作数，从左向右短路                              |
 | 转换   | `as`                         | 按[转换表](/zh/reference/types/#as-转换表)执行显式转换   |
-| 区间   | `..` `..=`                   | 整数端点，得到 `range<T>`                                |
+| 区间   | `..` `..=`                   | 整数端点，得到 `Range<T>`                                |
 | 访问   | `&` `&&`                     | Write 或 Take 访问，见[所有权](/zh/reference/ownership/) |
 | 后缀   | `(...)` `[...]` `.` `->` `?` | 调用、索引、成员访问、指针成员、失败传播                 |
 
@@ -92,11 +92,11 @@ let result = false && report();
 println(result); // false；不会输出 called。
 ```
 
-callee 在实参之前、左操作数在右操作数之前、接收者在索引之前、赋值目标在右侧之前。构造初始化器按源书写顺序求值。当前路径上的每个操作数只求值一次；失败跳过该路径后续求值。静态实参另按[静态参数规则](/zh/reference/functions/#静态参数)在特化时求值。
+被调用函数 在实参之前、左操作数在右操作数之前、接收者在索引之前、赋值目标在右侧之前。构造初始化器按源书写顺序求值。当前路径上的每个操作数只求值一次；失败跳过该路径后续求值。静态实参另按[静态参数规则](/zh/reference/functions/#静态参数)在特化时求值。
 
 ## 相等比较
 
-相等支持 `bool`、`char`、整数、浮点、`str`、`String`、元素可比较的数组、数值枚举、载荷可比较的载荷枚举，以及相同目标类型的指针。结构体、类、callable、入口参数、切片、整数区间和 chars 范围不支持相等。
+相等支持 `void`、`bool`、`char`、整数、浮点、`str`、`String`、元素可比较的数组与元组、数值枚举、载荷可比较的载荷枚举，以及相同目标类型的指针。结构体、类、可调用值、切片、整数区间和 chars 范围不支持相等。
 
 ```carven
 println("same" == "same", [1, 2] == [1, 2]); // true true
@@ -112,18 +112,18 @@ println("same" == "same", [1, 2] == [1, 2]); // true true
 
 ## 区间表达式
 
-`begin..end` 不包含上端点，`begin..=end` 包含上端点，两者都是 `range<T>`。普通表达式必须有两个整数端点；省略端点只允许用于模式。区间值保存端点的快照，不借用原始端点。
+`begin..end` 不包含上端点，`begin..=end` 包含上端点，两者都是 `Range<T>`。普通表达式必须有两个整数端点；省略端点只允许用于模式。区间值保存端点的快照，不借用原始端点。
 
 ```carven
 var end = 4;
-let values: range<i32> = 1..=end;
+let values: Range<i32> = 1..=end;
 end = 8;
 for value in values {
     println(value);
 }
 ```
 
-依次输出 1 到 4。端点各从左向右求值一次；已有期望类型 `range<T>` 时，两端使用 T；否则按[二元操作数的期望类型规则](/zh/reference/types/#期望类型)选择 T，例如 `0..text.len()` 为 `range<usize>`。不兼容的端点报告 `CV-TYPE-RANGE-BOUNDS`。不支持步长或隐式反向遍历。循环与区间模式见[控制流](/zh/reference/control/)。
+依次输出 1 到 4。端点各从左向右求值一次；已有期望类型 `Range<T>` 时，两端使用 T；否则按[二元操作数的期望类型规则](/zh/reference/types/#期望类型)选择 T，例如 `0..text.byte_length()` 为 `Range<usize>`。不兼容的端点报告 `CV-TYPE-RANGE-BOUNDS`。不支持步长或隐式反向遍历。循环与区间模式见[控制流](/zh/reference/control/)。
 
 ## 相关条目
 

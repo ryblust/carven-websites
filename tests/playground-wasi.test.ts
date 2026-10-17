@@ -11,6 +11,11 @@ import {
 const root = new URL('../public/playground-assets/', import.meta.url);
 type RunnablePreset = Extract<(typeof playgroundExamples)[number], { defaultView: 'output' }>;
 const presetOutput: Record<RunnablePreset['id'], string> = {
+  'json-config': '{"workers":8,"tags":["stable","observed"]}\n{"workers":2,"tags":["stable"]}\n',
+  'log-analysis': '37ms: token=[redacted]\nrejected: nope malformed\n42ms: 超时\n',
+  'async-workflow': 'west: 3 records, total 12\neast: 3 records, total 9\nselected 1: 21\n',
+  'async-scope': 'compile time: 1; runtime: 1\n',
+  'audio-mixer': 'samples=9 clipped=1 peak=1.00\nfirst=0.625 second=0.375 last=1.000\n',
   hello: 'Answer: 42\n',
   'structured-output': `Order {
     id: 7,
@@ -32,8 +37,7 @@ const presetOutput: Record<RunnablePreset['id'], string> = {
 describe('Playground compiler assets', () => {
   it('loads the packaged Crafts sources', () => {
     const files = {
-      'crafts/carven/runtime/runtime.hpp': '',
-      'crafts/carven/std/text.cv': 'task sample() {}',
+      'crafts/carven/std/io.cv': 'export fn sample() {}',
     };
     expect(parseCrafts({ files })).toEqual(files);
   });
@@ -85,6 +89,52 @@ describe('packaged Carven compiler through the browser WASI host', () => {
       expect(result.truncated).toBe(false);
     });
   }
+
+  it('uses the WASI host clock for static and interpreted timer operations', async () => {
+    const result = await executeWasi(
+      assets,
+      `
+import std::time using { TimePoint, sleep, RangeError };
+const { await sleep(1ms)?; }
+async fn main() throw RangeError {
+    let before = TimePoint::now();
+    await sleep(1ms)?;
+    assert(!TimePoint::now().is_before(before));
+    println("timer complete");
+}
+`,
+      'run',
+    );
+    expect(result.stderr).toBe('');
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe('timer complete\n');
+  });
+
+  it('observes the empty browser input stream as EOF', async () => {
+    const result = await executeWasi(
+      assets,
+      `
+import std::io using IOError;
+const {
+    assert(match await stdin().read_line()? {
+        .End => true,
+        .Data(_) => false,
+    });
+}
+async fn main() throw IOError {
+    let input = stdin();
+    match await input.read_line()? {
+        .End => println("end of input"),
+        .Data(_) => println("unexpected input"),
+    }
+}
+`,
+      'run',
+    );
+    expect(result.stderr).toBe('');
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe('end of input\n');
+  });
 
   it('generates the native JSON preset while reporting the browser execution boundary', async () => {
     const example = playgroundExamples.find((item) => item.id === 'native-json')!;
@@ -145,7 +195,7 @@ describe('packaged Carven compiler through the browser WASI host', () => {
     expect(result.artifacts).toEqual([]);
   });
 
-  it('formats source with Graver while preserving comments, literals, and syntax-only names', async () => {
+  it('formats source with the formatter while preserving comments, literals, and syntax-only names', async () => {
     const source = '// 保留注释\nlet   value=missing(  "你好  世界" ,2);\nprintln( value );';
     const result = await executeWasi(assets, source, 'format');
     expect(result.exitCode).toBe(0);
@@ -156,7 +206,7 @@ describe('packaged Carven compiler through the browser WASI host', () => {
     expect(result.artifacts).toEqual([]);
   });
 
-  it('returns no replacement source when Graver rejects malformed syntax', async () => {
+  it('returns no replacement source when the formatter rejects malformed syntax', async () => {
     const result = await executeWasi(assets, 'let value = ;', 'format');
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain('CV-SYNTAX');

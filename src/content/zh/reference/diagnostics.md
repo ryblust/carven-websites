@@ -8,7 +8,7 @@ source: src/diagnostics/code.cpp
 
 ## 如何使用诊断
 
-先读源位置，再按代码确认检查边界。Error 使相应编译操作失败；Warning 不使其他方面有效的程序失败。消息正文、注释、颜色和排序属于呈现，不应作为稳定机器接口。
+先找到报告中的文件、行号和标记表达式，再阅读消息和修改建议。需要确认具体规则时查下面的代码。例如 CV-ACCESS-IMMUTABLE 表示操作需要可写存储，应检查该绑定是否应该声明为 var。Error 使相应编译操作失败；Warning 不使其他方面有效的程序失败。消息正文、注释、颜色和排序属于呈现，不应作为稳定机器接口。
 
 较长的源码行围绕标记位置截取，以 `...` 表示省略文本。报告的行列坐标仍指向原始源码。
 
@@ -16,17 +16,19 @@ source: src/diagnostics/code.cpp
 
 ## 常见修复方向
 
-| 类别              | 检查内容                                                  |
-| ----------------- | --------------------------------------------------------- |
-| ACCESS            | 参数标记、可写性、Take 来源、可用性、活跃借用和类私有成员 |
-| CONST             | 常量上下文、`const fn` 能力、动态错误、依赖环和预算       |
-| EFFECT            | ? 的非空要求、声明上界、剩余捕获集合                      |
-| TYPE / MATCH      | 规范类型、构造上下文、case 载荷、模式覆盖                 |
-| CPP               | 原生提供者标识符与 API 名字冲突                           |
-| PTR               | 解引用前局部非空证明                                      |
-| ENTRY / INTERPRET | 入口个数与参数、解释执行子集                              |
-| TEST              | 条件、消息类型、参数数目与活动测试                        |
-| ASSERT            | 编译期执行中失败的 `assert`                               |
+| 类别                      | 检查内容                                                  |
+| ------------------------- | --------------------------------------------------------- |
+| ACCESS                    | 参数标记、可写性、Take 来源、可用性、活跃借用和类私有成员 |
+| ASYNC                     | 冷 operation 准入、拥有权、词法子任务观察/取消意图        |
+| GENERIC / STD / WORKSPACE | 类型/失败集合实参、标准声明与产物输入                     |
+| CONST                     | 常量上下文、`const fn` 能力、动态错误、依赖环和预算       |
+| EFFECT                    | ? 的非空要求、声明上界、剩余捕获集合                      |
+| TYPE / MATCH              | 规范类型、构造上下文、case 载荷、模式覆盖                 |
+| CPP                       | 原生提供者标识符与 API 名字冲突                           |
+| PTR                       | 解引用前局部非空证明                                      |
+| ENTRY / INTERPRET         | 入口个数与参数、解释执行子集                              |
+| TEST                      | 条件、消息类型、参数数目与活动测试                        |
+| ASSERT                    | 编译期执行中失败的 `assert`                               |
 
 ## 当前代码目录
 
@@ -48,6 +50,9 @@ source: src/diagnostics/code.cpp
 | `CV-ACCESS-NOT-ASSIGNABLE`                | Error    | Non-assignable Update target.                                               |
 | `CV-ACCESS-RANGE-BINDING`                 | Error    | Invalid Write range binding.                                                |
 | `CV-ACCESS-RANGE-ITERABLE`                | Error    | Invalid Write range iterable.                                               |
+| `CV-ASYNC-ADMISSION`                      | Error    | Unsupported async source contract.                                          |
+| `CV-ASYNC-OWNERSHIP`                      | Error    | Invalid async ownership contract.                                           |
+| `CV-ASYNC-CHILD-INTENT`                   | Error    | Child needs observation or cancellation intent.                             |
 | `CV-CATALOG`                              | Error    | Semantic catalog failure.                                                   |
 | `CV-COMPILATION-INPUT`                    | Error    | Invalid closed-compilation input.                                           |
 | `CV-CPP-IDENTIFIER`                       | Error    | Invalid C++ boundary identifier.                                            |
@@ -148,6 +153,10 @@ source: src/diagnostics/code.cpp
 | `CV-TYPE-ENUM-CASE-ARITY`                 | Error    | Invalid enum case arity.                                                    |
 | `CV-TYPE-ENUM-CONTEXT`                    | Error    | Contextual enum case requires an expected enum type.                        |
 | `CV-TYPE-EQUALITY-UNSUPPORTED`            | Error    | Type does not support equality.                                             |
+| `CV-TYPE-GENERIC-ARGUMENTS`               | Error    | Invalid generic type arguments.                                             |
+| `CV-TYPE-GENERIC-DEFINITION`              | Error    | Invalid generic definition.                                                 |
+| `CV-TYPE-GENERIC-EXPANSION`               | Error    | Unbounded generic expansion.                                                |
+| `CV-TYPE-GENERIC-LIMITS`                  | Error    | Generic construction resource limit exceeded.                               |
 | `CV-TYPE-RECURSIVE-STORAGE`               | Error    | Type has recursive by-value storage.                                        |
 | `CV-TYPE-VISIBILITY-LEAK`                 | Error    | A declaration surface exposes a narrower-visibility identity.               |
 | `CV-TYPE-IF-BRANCH`                       | Error    | Incompatible if branch types.                                               |
@@ -178,4 +187,5 @@ source: src/diagnostics/code.cpp
 | `CV-TYPE-TEXT-PROPERTY`                   | Error    | Invalid text property.                                                      |
 | `CV-TYPE-UNRESOLVED`                      | Error    | Unresolved type.                                                            |
 | `CV-TYPE-UPDATE-INTEGER`                  | Error    | Integer update target required.                                             |
+| `CV-TYPE-VECTOR-ELEMENT`                  | Error    | Invalid Vector element.                                                     |
 | `CV-TYPE-VALUE-REQUIRED`                  | Error    | A value-bearing position requires a value type.                             |

@@ -8,40 +8,43 @@ source: docs/language/grammar.md
 
 ## Keyword index
 
-The table below lists the 30 lexically reserved keywords: they cannot name ordinary variables, parameters, fields, functions, or types. Some other special spellings are contextual or resolved as ordinary names; their rules appear after the table. Module-path components accept keyword spellings under the [module-path rules](/reference/modules/).
+The table below lists the 33 lexically reserved keywords: they cannot name ordinary variables, parameters, fields, functions, or types. Some other special spellings are contextual or resolved as ordinary names; their rules appear after the table. Module-path components accept keyword spellings under the [module-path rules](/reference/modules/).
 
-| Keyword                                    | Role                                                          |
-| ------------------------------------------ | ------------------------------------------------------------- |
-| [`as`](/reference/types/)                  | Explicit type conversion                                      |
-| [`break`](/reference/control/#break)       | Leave the nearest loop                                        |
-| [`catch`](/reference/failures/)            | Handle matching typed failures                                |
-| [`class`](/reference/aggregates/)          | Declare a value class with private fields and operations      |
-| [`const`](/reference/constants/)           | Declare constants, compile-time functions, and static control |
-| [`continue`](/reference/control/#continue) | Start the next loop iteration                                 |
-| [`else`](/reference/control/#if)           | Fallback branch of an if                                      |
-| [`enum`](/reference/aggregates/)           | Declare a numeric or payload enum                             |
-| [`export`](/reference/modules/)            | Publish a module interface                                    |
-| [`false`](/reference/lexical/)             | Boolean false literal                                         |
-| [`fn`](/reference/functions/)              | Declare a function or callable-view type                      |
-| [`for`](/reference/control/#for)           | Iterate a sequence or loop with steps                         |
-| [`if`](/reference/control/#if)             | Conditional branches, value branches, and pattern guards      |
-| [`import`](/reference/modules/)            | Import a module, C++ header, or native function               |
-| [`in`](/reference/control/#for)            | Introduce a for iteration source                              |
-| [`is`](/reference/control/)                | Match a compatible type in a pattern                          |
-| [`let`](/reference/bindings/)              | Declare an immutable runtime variable                         |
-| [`match`](/reference/control/)             | Select a branch using exhaustive patterns                     |
-| [`nullptr`](/reference/pointers/)          | Null pointer literal                                          |
-| [`private`](/reference/modules/)           | Restrict module declarations or class operations              |
-| [`rethrow`](/reference/failures/)          | Rethrow the failure currently being handled                   |
-| [`return`](/reference/control/#return)     | Return from the current function or lambda                    |
-| [`struct`](/reference/aggregates/)         | Declare a value structure with named fields                   |
-| [`test`](/reference/entry-testing/)        | Declare a runtime or compile-time test                        |
-| [`throw`](/reference/failures/)            | Raise a failure or declare a function failure contract        |
-| [`true`](/reference/lexical/)              | Boolean true literal                                          |
-| [`try`](/reference/failures/)              | Establish failure recovery or produce a recovered result      |
-| [`using`](/reference/modules/)             | Select imported names                                         |
-| [`var`](/reference/bindings/)              | Declare a mutable runtime variable                            |
-| [`while`](/reference/control/#while)       | Execute a conditional or conditionless loop                   |
+| Keyword                                    | Role                                                            |
+| ------------------------------------------ | --------------------------------------------------------------- |
+| [`as`](/reference/types/)                  | Explicit type conversion                                        |
+| [`async`](/reference/async/)               | Declare a cold async function or a lexical child with async let |
+| [`await`](/reference/async/)               | Await completion within the owning execution context            |
+| [`cancel`](/reference/async/)              | Request cancellation of a lexical child                         |
+| [`break`](/reference/control/#break)       | Leave the nearest loop                                          |
+| [`catch`](/reference/failures/)            | Handle matching typed failures                                  |
+| [`class`](/reference/aggregates/)          | Declare a value class with private fields and operations        |
+| [`const`](/reference/constants/)           | Declare constants, compile-time functions, and static control   |
+| [`continue`](/reference/control/#continue) | Start the next loop iteration                                   |
+| [`else`](/reference/control/#if)           | Fallback branch of an if                                        |
+| [`enum`](/reference/aggregates/)           | Declare a numeric or payload enum                               |
+| [`export`](/reference/modules/)            | Publish a module interface                                      |
+| [`false`](/reference/lexical/)             | Boolean false literal                                           |
+| [`fn`](/reference/functions/)              | Declare a function or callable-view type                        |
+| [`for`](/reference/control/#for)           | Iterate a sequence or loop with steps                           |
+| [`if`](/reference/control/#if)             | Conditional branches, value branches, and pattern guards        |
+| [`import`](/reference/modules/)            | Import a module, C++ header, or native function                 |
+| [`in`](/reference/control/#for)            | Introduce a for iteration source                                |
+| [`is`](/reference/control/)                | Match a compatible type in a pattern                            |
+| [`let`](/reference/bindings/)              | Declare an immutable runtime variable                           |
+| [`match`](/reference/control/)             | Select a branch using exhaustive patterns                       |
+| [`nullptr`](/reference/pointers/)          | Null pointer literal                                            |
+| [`private`](/reference/modules/)           | Restrict module declarations or class operations                |
+| [`rethrow`](/reference/failures/)          | Rethrow the failure currently being handled                     |
+| [`return`](/reference/control/#return)     | Return from the current function or lambda                      |
+| [`struct`](/reference/aggregates/)         | Declare a value structure with named fields                     |
+| [`test`](/reference/entry-testing/)        | Declare a runtime or compile-time test                          |
+| [`throw`](/reference/failures/)            | Raise a failure or declare a function failure contract          |
+| [`true`](/reference/lexical/)              | Boolean true literal                                            |
+| [`try`](/reference/failures/)              | Establish failure recovery or produce a recovered result        |
+| [`using`](/reference/modules/)             | Select imported names                                           |
+| [`var`](/reference/bindings/)              | Declare a mutable runtime variable                              |
+| [`while`](/reference/control/#while)       | Execute a conditional or conditionless loop                     |
 
 ## Contextual keyword self
 
@@ -60,14 +63,14 @@ println(counter.read()); // 3
 
 ## Other special spellings
 
-| Spelling                                         | Where it is special                                                          | Outside that position                                    |
-| ------------------------------------------------ | ---------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `cpp`                                            | `import(cpp)`, `export(cpp)`, and the exact `#[cpp]` fragment marker         | Ordinary identifier, such as `let cpp = 3;`              |
-| `r`, `f`, `c`                                    | Adjacent raw, interpolated, and C string prefixes                            | Ordinary identifiers; whitespace breaks prefix adjacency |
-| `_`                                              | Discard bindings and wildcard patterns                                       | No referenceable discard variable; `_name` is ordinary   |
-| `i32`, `String`, and other builtin type names    | Builtin types in type positions; module declaration names may not reuse them | Local value names are permitted, such as `let i32 = 3;`  |
-| `ptr`, `range`                                   | Pointer syntax `ptr<T>` and the unqualified integer-range type `range<T>`    | Ordinary value names, such as `let range = 3;`           |
-| `println`, `assert`, and other builtin callables | Ordinary lookup finds the builtin when no nearer declaration shadows it      | May be shadowed by ordinary declarations                 |
+| Spelling                                         | Where it is special                                                                                 | Outside that position                                     |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `cpp`                                            | `import(cpp)`, `export(cpp)`, and the exact `#[cpp]` fragment marker                                | Ordinary identifier, such as `let cpp = 3;`               |
+| `r`, `f`, `c`                                    | Adjacent raw, interpolated, and C string prefixes                                                   | Ordinary identifiers; whitespace breaks prefix adjacency  |
+| `_`                                              | Discard bindings and wildcard patterns                                                              | No referenceable discard variable; `_name` is ordinary    |
+| `i32`, `String`, `Vector`, `Range`, SIMD names   | Default standard-module bindings; aliases retain identity                                           | Declarations, imports and type parameters can shadow them |
+| `ptr`                                            | Structural pointer syntax; reserved for module declarations, type parameters and import local names | Ordinary runtime locals may still use the name            |
+| `println`, `assert`, and other builtin callables | Ordinary lookup finds the builtin when no nearer declaration shadows it                             | May be shadowed by ordinary declarations                  |
 
 At a type position, `ptr` requires `<...>` immediately in its type form: an ordinary value binding called `ptr` does not make `ptr` a standalone type.
 

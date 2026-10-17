@@ -1,8 +1,8 @@
 ---
 title: "运行、格式化与排错"
-description: 选择执行阶段，组织项目验证，并用明确边界定位问题。
+description: "选择运行、格式化和测试命令，找到错误原因。"
 section: learn
-lesson: 17
+lesson: 19
 source: docs/toolchain/cli.md
 ---
 
@@ -22,9 +22,9 @@ source: docs/toolchain/cli.md
 | 限制解释步数  | `carven interpret --max-steps 10000 main.cv`             |
 | 查看词法/语法 | `carven dump tokens main.cv` / `carven dump ast main.cv` |
 
-解释器先做同样的语义分析，再在执行到每个操作时检查它是否受支持。不支持的操作报 `CV-INTERPRET-ADMISSION`，不会转为原生执行。类型化失败、切片、字节视图、局部指针、Write 参数，以及通过局部绑定调用具名函数，都使用这套共享执行器。允许导入 C++ 头文件，但执行到原生操作、闭包或没有 Carven 函数体的可调用值时，解释会停止；这类程序使用原生运行。
+想在不编译 C++ 的情况下尝试 Carven，或用 --trace 跟踪执行时，使用 interpret。解释器先检查源码，再执行受支持的操作。执行到原生 C++ 调用等不支持的操作时，会报告 `CV-INTERPRET-ADMISSION`，这类程序改用原生运行。输入、时钟和等待使用解释器进程，就像原生程序使用自己进程中的输入与时间一样。
 
-要逐步观察执行过程，可以用 `carven interpret main.cv` 运行[整数分类示例](/zh/learn/control/)，再加上 `--trace` 查看执行到的语句。学习完整语言和接入 C++ 库时，使用原生运行模式。
+要逐步观察执行，先使用[整数分类示例](/zh/learn/control/)，运行 `carven interpret main.cv`。再加入 --trace，即可查看执行到的语句。学习完整语言和接入 C++ 库时，使用原生运行模式。
 
 直接运行需要原生 C++ 工具链与匹配的 Crafts，不依赖 Xmake。`check`、`compile`、`interpret` 和直接运行都会收集工具链的 `crafts/carven/` 和项目可选的 `crafts/`；其他应用文件仍须显式列出，文件名主干必须是合法标识符。安装布局、临时文件和工具链选择见[命令行参考](/zh/reference/cli/)。
 
@@ -58,49 +58,49 @@ carven check --timings prices.cv
 
 stderr 报告显示总耗时，并用表格列出各阶段耗时及其占总时间的比例，例如源文件收集、语法分析和语义分析；原生运行还会列出 C++ 生成、原生编译和执行。耗时报告不会混入 stdout 上的程序输出或生成产物。在终端中，诊断会带颜色；把 `NO_COLOR` 设为非空值或设置 `TERM=dumb` 可以关闭。查看一个文件的词法和语法可直接用 `carven dump main.cv`，两种结果会依次输出。
 
-## 用 Graver 格式化源码
+## 用 `carven-format` 格式化源码
 
-Graver 是独立的 `.cv` 源码格式化工具。在 Carven 仓库根目录构建后，先预览单文件，再检查或修改整个目录：
+`carven-format` 是独立的 `.cv` 源码格式化工具。在 Carven 仓库根目录构建后，先预览单文件，再检查或修改整个目录：
 
 ```sh
-./xmakew build graver
-./xmakew run graver main.cv
-./xmakew run graver check examples
-./xmakew run graver write examples
+./xmakew build carven-format
+./xmakew run carven-format main.cv
+./xmakew run carven-format check examples
+./xmakew run carven-format write examples
 ```
 
-第一条运行命令把格式化结果写到 stdout，不修改文件。`check` 列出需要调整的路径，有差异时返回 1，适合用于 CI；`write` 原地更新有变化的文件。Windows 使用 `.\xmakew.ps1`。直接调用已构建的可执行文件时，用 `graver` 替代 `./xmakew run graver`。
+第一条运行命令把格式化结果写到 stdout，不修改文件。`check` 列出需要调整的路径，有差异时返回 1，适合用于 CI；`write` 原地更新有变化的文件。两个命令都要求显式文件或目录输入，当前目录写 `.`。用 `carven-format help check` 查看命令帮助。错误返回 2；`--help` 会被当作字面文件路径。Windows 使用 `.\xmakew.ps1`。直接调用已构建的可执行文件时，用 `carven-format` 替代 `./xmakew run carven-format`。
 
-Graver 使用固定的四空格缩进和 100 字节目标行宽。它检查词法与语法，不解析模块依赖、不做类型检查，也不执行 `const fn` 或 `const test`；格式检查通过后仍需构建和测试。命令与文件选择规则见[命令行参考](/zh/reference/cli/#graver)。
+`carven-format` 使用固定的四空格缩进和 100 字节目标行宽。它检查词法与语法，不解析模块依赖、不做类型检查，也不执行 `const fn` 或 `const test`；格式检查通过后仍需构建和测试。命令与文件选择规则见[命令行参考](/zh/reference/cli/)。
 
 ## 阅读格式化后的源码
 
 短的导入列表放在一行，花括号内留空格，末项后不加逗号：
 
 ```carven
-import std::utf.text using { from_utf8, to_string };
+import std::utf using { from_utf8, to_string };
 import <vector> using std::{ vector, allocator };
 ```
 
-较长的列表按行展开，末项也带逗号。已有尾逗号不会强制把短列表展开；让 Graver 根据行宽安排即可。
+较长的列表按行展开，末项也带逗号。已有尾逗号不会强制把短列表展开；让 `carven-format` 根据行宽安排即可。
 
 函数与闭包的块体默认展开；表达式体函数保留 `=>`。同一组 if 分支或 match/catch 分支中的简单块可以保持单行；如果某个分支较复杂、跨行或包含注释、空行，该组非空块体一起展开。循环、测试和 match/catch 列表保持多行。
 
-顶层相邻的同类单行声明可以连续排列；不同类声明或多行声明之间留一行空行。作者已有的空行数量会保留。格式化帮助读者识别结构，不改变函数体的表达方式，也不替代语义检查。
+顶层相邻的同类单行声明可以连续排列；不同类声明或多行声明之间留一行空行。作者写的空行会保留，但连续空行至多保留一行。格式化帮助读者识别结构，不改变函数体的表达方式，也不替代语义检查。
 
 ## 测试放在哪一层
 
 编译期算法使用 `const test`，运行时行为使用 test；两者都可以省略名字，失败时以文件、行和列标识测试。原生互操作在 C++ 构建中测试，同时覆盖链接、析构和异常边界。
 
-Carven 仓库使用 ./xmakew，相关组有 internal、language、crafts、interop、cli、examples。使用 Carven 的项目定义自己的 Xmake 目标，不把编译器内部测试目标当成应用 API。
+Carven 仓库使用 ./xmakew，相关组有 internal、language、crafts、interop、cli、format、workspace。使用 Carven 的项目定义自己的 Xmake 目标，不把编译器内部测试目标当成应用 API。
 
 ## 按错误边界排查
 
 1. 找不到名字：核对输入批次、模块规范路径、using 和可见性。
 2. 类型不匹配：核对字面量上下文、显式 as、精确参数访问与成功结果。
-3. owner 不可用：找之前的 Take，以及所有正常继续路径是否已恢复。
+3. 值不可用：找到它被取走的位置，随后停止使用旧变量，或在再次使用前给它赋新值。
 4. 借用冲突：查找仍在作用域中的 `str`、切片、可调用视图，以及仍持有 Write 捕获的值。
-5. 失败未处理：检查调用契约、?、处理分支未覆盖的失败集合和外围契约。
+5. 失败未处理：确认被调函数可能报告哪些错误、catch 处理了哪些，以及调用者还需要声明哪些。
 6. 原生错误：核对头文件、C++ 签名、构造与链接输入。
 
 ## 接下来怎样使用 Reference

@@ -2,6 +2,56 @@ import { homeExamples } from '../content/home-examples.ts';
 
 export const playgroundExamples = [
   {
+    id: 'json-config',
+    title: { en: 'Compile-time JSON configuration', zh: '编译期 JSON 配置' },
+    description: {
+      en: 'Parse a default configuration during compilation, then edit a runtime copy while keeping the original unchanged.',
+      zh: '在编译期解析默认配置，运行时修改一份独立副本，原配置保持不变。',
+    },
+    defaultView: 'output',
+    source: homeExamples.configuration,
+  },
+  {
+    id: 'log-analysis',
+    title: { en: 'Process log records', zh: '逐条处理日志记录' },
+    description: {
+      en: 'Read the latency and message from each record. Report a malformed line and continue with the next.',
+      zh: '把每行拆成耗时和消息；遇到格式错误时报告该行，继续处理后面的记录。',
+    },
+    defaultView: 'output',
+    source: homeExamples.logAnalysis,
+  },
+  {
+    id: 'async-workflow',
+    title: { en: 'Concurrent batches and selection', zh: '并发批次与候选选择' },
+    description: {
+      en: 'Filter negative records and total two batches concurrently, then select a result that meets the target.',
+      zh: '并发筛除两批数据中的负数并计算合计值，再选择达到目标值的结果。',
+    },
+    defaultView: 'output',
+    source: homeExamples.asyncWorkflow,
+  },
+  {
+    id: 'async-scope',
+    title: { en: 'Compile-time async and child closure', zh: '编译期异步与子任务关闭' },
+    description: {
+      en: 'Run the same async code at compile time and runtime: execute one step, cancel and close the child, then read the updated count.',
+      zh: '同一段异步代码在编译期和运行时都先执行一轮工作，再取消、关闭子任务，最后读取计数。',
+    },
+    defaultView: 'output',
+    source: homeExamples.asyncScope,
+  },
+  {
+    id: 'audio-mixer',
+    title: { en: 'SIMD audio mixing', zh: 'SIMD 音频混音' },
+    description: {
+      en: 'Mix eight float samples at a time, count clipped samples, and check the final partial block during compilation.',
+      zh: '每次混合八个浮点样本，统计限幅样本数，并在编译时检查最后不足八个样本的尾部。',
+    },
+    defaultView: 'output',
+    source: homeExamples.audioMixer,
+  },
+  {
     id: 'hello',
     title: { en: 'Hello, Carven', zh: '你好，Carven' },
     description: {
@@ -43,10 +93,10 @@ export const playgroundExamples = [
   },
   {
     id: 'specialization',
-    title: { en: 'Static specialization', zh: '静态特化' },
+    title: { en: 'Check an identifier format', zh: '按固定格式检查编号' },
     description: {
-      en: 'Specialize an identifier check for a constant pattern.',
-      zh: '为固定模式特化一个编号检查函数。',
+      en: 'Fix the INV-DDDD pattern at compile time, then validate identifiers at runtime.',
+      zh: '编译时固定 INV-DDDD 格式，再在运行时检查编号是否符合要求。',
     },
     defaultView: 'output',
     source: homeExamples.specialization,

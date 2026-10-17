@@ -8,94 +8,142 @@ source: docs/language/pointers.md
 
 ## Address values and target access
 
-`ptr<T>` stores an address granting Read access; `ptr<&T>` grants Write access. Both are nullable, copyable, and non-owning. `let`/`var` controls reassignment of the address slot; the pointer type controls target access. An immutable `let p: ptr<&T>` may mutate its target.
+A pointer stores an address so code can refer to a value elsewhere. It does not own that value or keep it alive. `ptr<T>` permits reading the target, while `ptr<&T>` also permits writing it. Both are ordinary nullable, copyable address values. `let` and `var`
+control reassignment of the address slot. For example, `let p: ptr<&T>` cannot
+be reassigned but can modify its target. A Read aggregate preserves the complete
+types of its pointer fields, including their target permissions.
 
-Targets may be Carven types, C++ types, or nested pointers. A pointer does not contain its target by value and permits recursive structures. ptr<void> may be stored and passed but not dereferenced. C++ checks native alias validity.
+Targets use ordinary type resolution and can be Carven types, external types,
+or nested pointers. C++ determines what type a native alias denotes. A pointer does not contain or own its target, so pointer fields permit
+recursive structures. `ptr<void>` can be stored and passed but cannot be
+dereferenced. Native aliases and operations remain subject to C++ legality.
 
-`*p` selects a target location; `p->field` means `(*p).field`. The address must be available and locally proven non-null in the current callable. `let x = *p` performs ordinary owning initialization, with native copyability checked by C++. `&*p` can pass a Write target. `&&*p` is invalid because the target is not a Takeable Carven owner.
-
-## Taking addresses with `addressof`
-
-`addressof(place)` produces `ptr<T>` for an addressable place with Read access; `addressof(&place)` produces `ptr<&T>` and requires that the place permits Write. The place may be a local, parameter, field, or element, and it is evaluated once. The result is non-null at its creation, so a dereference directly through it needs no separate check.
-
-```carven
-fn bump(target: ptr<&i32>) {
-    if target != nullptr {
-        *target += 1;
-    }
-}
-
-var count = 1;
-let reader = addressof(count);
-let writer = addressof(&count);
-bump(writer);
-*writer += 10;
-println(*reader, count); // 12 12
-```
-
-| Operand                              | Diagnostic                 |
-| ------------------------------------ | -------------------------- |
-| Temporary, such as `addressof(1)`    | `CV-ACCESS-NOT-ASSIGNABLE` |
-| Compile-time constant name           | `CV-ACCESS-NOT-ASSIGNABLE` |
-| `addressof(&value)` on a `let` owner | `CV-ACCESS-IMMUTABLE`      |
-| `addressof(&&value)`                 | `CV-ACCESS-CALL-MISMATCH`  |
-
-`addressof` is a builtin callable found by ordinary name lookup, so a local declaration may shadow it. Assigning a new value to a live owner preserves its address. Take ends the owner's identity; reassigning it afterwards does not revive earlier pointers. An address obtained from a Read array parameter may refer to the caller's storage; if the caller passed a temporary array, that storage ends with the containing full expression.
+`addressof(place)` obtains `ptr<T>` for an addressable place with Read access;
+`addressof(&place)` obtains `ptr<&T>` when that place permits Write access.
+The builtin follows ordinary name lookup and shadowing. It evaluates its place
+once. It does not accept a temporary, a
+local constant, or Take access. The result is non-null at its
+creation. Assignment to a live owner preserves its address; Take ends that
+owner's identity, so later assignment does not revive old pointers. An address
+returned from a Read array parameter may still refer to its caller's storage.
+If the caller supplied a temporary array, that storage lasts through the
+containing full expression; saving the address does not extend its lifetime.
 
 ## Conversions and arguments
 
-For the same target type, `ptr<&T>` may narrow to `ptr<T>` in value contexts, including initialization, assignment, fields/elements, Read arguments, `const`, and returns. The reverse is invalid. There is no general covariance through arrays, aggregates, nested targets, or function types. Copying an inner pointer preserves its inner permissions.
+`*p` accesses the target as a place; `p->member` is `(*p).member`. The address
+must be available and locally proven non-null. Target access comes from the
+pointer type, independently of the slot's binding access. `let value = *p`
+performs ordinary value initialization; C++ checks native copyability. `&*p`
+passes a writable target to an ordinary Write parameter. `&&*p` is rejected: the
+target is not an owned Carven binding. Existing callable-borrow boundaries
+remain in force; an indirect address does not establish a tracked borrow.
+Reading an existing callable view copies its target description. Adapting an
+indirectly read capturing closure into a new view still requires tracked backing
+storage. An indirect call does not reconstruct capture relationships or
+establish the lifetimes of objects reached through those captures.
 
-A Read pointer argument saves an address snapshot. Write aliases an address slot and requires an identical full type. Take also requires an exact type; it transfers the address value and makes its source owner unavailable, without clearing copies or releasing the target.
+For the same target type, `ptr<&T>` can become `ptr<T>` in a value context:
+initialization, assignment, field or element construction, Read arguments,
+constant initialization, and return. The reverse conversion is invalid. This
+does not introduce array, aggregate, nested-target, or function-type covariance.
+Each pointer layer has its own target/access pair. Copying an inner pointer
+through an outer Read pointer retains the inner pointer's target permissions.
+Context-free mixed pointer modes in array or branch results require a type
+annotation. A type inferred from a sibling can type `nullptr`, but cannot
+authorize narrowing inside nested arrays or branches. Inferred same-type copies
+retain their full type.
 
-`nullptr` requires concrete pointer context and has no independent null type. Pointers can compare with `nullptr` or same-target-type pointers using ==/!=. There is no truthiness, ordering, arithmetic, direct indexing, or integer conversion; `addressof` is the only Carven address-of operation. &p passes Write access to the slot, not an automatically produced T**.
+Read pointer arguments save an address snapshot. Write parameters alias the
+caller's slot and require the complete pointer type to match. Take parameters
+also require an exact type, transfer the address value, and make its source
+owner unavailable. Take does not zero other aliases or release the target.
 
-Arrays or branch results mixing permissions need annotations when no context exists. An adjacent type may type `nullptr` but does not authorize permission narrowing inside nested arrays or branches.
+## Erasure, comparison, and display
+
+Explicit `as ptr<void>` erases an object pointer's target type. Write pointers
+may erase to `ptr<&void>` or narrow to `ptr<void>`; Read pointers may erase only
+to `ptr<void>`. Explicit `as ptr<T>` restores a target type with the same access
+rule. Both conversions preserve the address and target lifetime. Carven callable
+values are objects and follow this rule. A C string's compiler-known external
+`const char*` type can erase to `ptr<void>`.
+
+Native conversions use C++ `static_cast`. Before using a restored pointer, ensure its alignment, object type, aliasing, and lifetime meet the target's requirements. The conversion itself
+does not access or construct an object. Static and interpreted dereference
+select a live object of the requested type at the retained address; an unavailable
+object or type relation produces an execution diagnostic.
+
+`nullptr` needs a pointer type context, including in an explicitly typed
+`const`. There is no independent null type. Pointers support `==` and `!=` with
+`nullptr` and with pointers to the same target type. They have no implicit
+boolean conversion, ordering, arithmetic, direct indexing, integer conversion.
+
+Pointer equality compares addresses. Static and interpreted execution retain
+storage origins and subobject paths, and establish address relations from known
+layout. A standard-layout struct shares its address with its first field,
+recursively. The executor establishes this property for Carven structs containing
+numeric, bool, char, pointer, and such struct fields. Array containers, tuple
+members, and text buffers have representation-dependent address relationships;
+an unestablished relation produces an execution diagnostic. Native equality uses
+the generated C++ representation.
+
+Erased pointers accept an empty format specification or `p`. Static execution
+formats non-null pointers as `const@nonnull` and null pointers as `const@null`.
+These fixed strings carry no object identity and can participate in ordinary
+text computation and constant publication. Interpreted runtime uses
+execution-local address labels such as `interp@object#N`; equal addresses have
+the same label. Interpreted address display requires an established address key;
+an unavailable key produces an execution diagnostic. Native runtime uses the C++
+pointer formatter. Formatting neither extends storage lifetime nor establishes
+that a target can be dereferenced.
 
 ## Local non-null proofs
 
-```carven
-fn read(pointer: ptr<i32>) -> i32 {
-    if pointer == nullptr {
-        return 0;
-    }
+Non-null checking is local to each function and closure. It tracks null,
+non-null, and unknown facts for local names, fixed Carven field paths, and constant
+array indices. Tests against `nullptr` refine branches,
+including negation, short-circuit expressions, and early returns. Branch joins
+keep only common facts. A bool helper, API success code, or test assertion is
+not a proof. Functions and closures establish their own conditions.
 
-    return *pointer;
-}
-```
+Parameterized function definitions use the same check even when no call forms
+an instance. A `ptr<T>` has the ordinary nullable address contract independently
+of `T`; its target must be proven non-null before dereference. Passing its slot
+to a generic Write parameter invalidates the proof just as an ordinary call does.
 
-Each function and closure independently tracks null, nonnull, and unknown for local names, fixed Carven field paths, and constant array indices. `nullptr` comparison, negation, short-circuiting, and early return refine branches; merging retains only shared facts. Bool helpers, API success codes, and check/require are not proofs.
+Address copies and permission narrowing carry the current fact to the new
+slot without creating a lasting equality relationship. Assignment replaces a
+fact; Take removes the source fact. Write calls clear facts for overlapping
+storage. A slot passed to a Write parameter may escape through that callee.
+Later calls clear facts for such slots, Write parameters, and Write captures.
+Loops clear potentially written facts before checking the condition and body;
+the checker merges normal exits without computing cross-iteration relations.
 
-Copying and permission narrowing carry the current fact to a new slot without establishing ongoing equality. Assignment replaces facts; Take removes source facts. Write calls clear overlapping facts. A slot previously passed to Write may have escaped, so subsequent calls clear facts for those slots, Write parameters, and Write captures. Loops clear possibly written facts before entering conditions and bodies; they do not solve relationships across iterations.
-
-Native projections, dynamic indices, and memory reached through pointers have no cross-expression facts. Save an address in a local handle and check it. Unproven dereference produces `CV-PTR-NONNULL`, rather than inserting a runtime trap. Passing a nullable address to an API does not require a dereference proof. A fresh `addressof` result counts as non-null.
+Native projections, dynamic indices, and memory reached through a pointer do
+not retain cross-expression facts. Save such a pointer in a local handle and
+check that handle. An unproven dereference reports `CV-PTR-NONNULL`; the compiler
+does not insert a runtime trap. Passing a nullable address to an API is allowed
+without a dereference proof. Non-nullness never proves that a target is alive.
+Static execution checks liveness when it dereferences a local
+address, including byte addresses whose text backing has expired. Ordinary runtime
+pointer operations do not add a general borrow or liveness checker; external
+addresses retain their provider's lifetime contract.
 
 ## Native representation and responsibilities
 
-Read/Write targets map to `const` T* and T*, composed at each pointer layer. Read passes addresses by value; Write uses the corresponding pointer reference. Generated code selects the dereference address before later operations can change its slot.
+Read and Write target access lower to `const T*` and `T*`, composed by layer.
+Read parameters pass the address by value; Write uses the corresponding pointer
+reference. Generated code selects the dereference address before evaluating
+later operands that could replace its slot. Saving or passing a pointer needs
+only the target's declaration, so incomplete native types remain usable.
+Forming a native target's C++ type expression still follows its own completeness
+requirements. A pure Carven callable signature inside a pointer does not impose
+that requirement on its parameter type: `struct Node { callback: ptr<fn(Node) -> void> }`
+is valid, including when exported through a generated C++ interface.
 
-Storing or passing a pointer usually requires only a target declaration and can use incomplete native types. Forming a native target's C++ type expression must still meet its own completeness requirements. A pure Carven callable signature inside a pointer does not impose that requirement on its parameter types: `struct Node { callback: ptr<fn(Node) -> void> }` is valid, including through a generated C++ interface.
-
-Pointer copying, argument passing, and Take perform no allocation, reference counting, or release. Non-null does not prove liveness; see [liveness checks](#liveness-checks). Resource owners and C++ adapters manage allocation, release, T** output protocols, buffer traversal, and validity periods. Pointers may cross declared import(cpp)/export(cpp) contracts; native providers and callers remain responsible for target lifetime.
-
-## Liveness checks
-
-Non-null never proves that a target is alive, and ordinary runtime pointer operations add no general borrow or liveness checker. External addresses keep their provider's lifetime contract.
-
-Required compile-time execution is stricter: the evaluator tracks each local object across calls and scopes, and dereferencing a pointer whose target has left its scope or been Taken reports `CV-CONST-EVALUATION`, even if that storage was assigned again. The same applies to byte addresses whose text backing has expired.
-
-```carven
-const fn escaped() -> ptr<i32> {
-    var value = 1;
-    return addressof(value);
-}
-
-const test "dangling address" {
-    let address = escaped();
-    if address != nullptr {
-        check(*address == 1);
-    }
-}
-```
-
-`carven check` rejects this test at `*address`. Local pointers may be created, passed through Read and Write parameters, and dereferenced while their targets live during compile-time execution, but a non-null local pointer cannot become a published constant value.
+Copying, passing, and taking a pointer perform no allocation, reference counting,
+or automatic release. Owners and adapters implement the external resource protocol.
+Native C++ adapters implement `T**` output protocols and buffer traversal.
+`&p` passes a pointer slot by reference and does not implicitly compute a `T**`.
+Declared `import(cpp)` and `export(cpp)` signatures preserve these same pointer
+and access rules.

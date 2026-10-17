@@ -8,7 +8,7 @@ source: docs/language/execution.md
 
 ## Builtin API overview
 
-Builtin functions and operations on builtin types are provided directly by the language and require no `import`. Global functions such as `print` use ordinary name lookup and can be shadowed by local declarations. Standard Crafts functions require imports; see the [standard library reference](/reference/library/).
+Use this page to look up functions and type methods that are available without importing a library, such as `println`, `assert`, and `String::from_str`. Their declarations belong to ordinary standard modules. Core, output, testing, and SIMD default bindings are available without `import`; other operations require explicit imports. Global functions such as `print` use ordinary name lookup and can be shadowed by local declarations. Standard Crafts functions require imports; see the [standard library reference](/reference/library/).
 
 | Category                     | Entry                                                         |
 | ---------------------------- | ------------------------------------------------------------- |
@@ -39,7 +39,7 @@ println(f"hex: {42:04x}"); // hex: 002a
 eprintln("status", "ready"); // Written to stderr.
 ```
 
-`void`, entry arguments, and character-iteration views cannot be printed. Structures, enums, arrays, and slices use structural display; classes display their type name. Printing has no typed failure and needs no `?`; native formatting or output errors terminate. `const fn`, constant blocks, and `const test` can print to the compiler host in their admitted subset. See [formatting and output](/reference/formatting/#printing) for structural display, evaluation, and buffering.
+`void` and character-iteration views cannot be printed. Structures, enums, arrays, and slices use structural display; classes display their type name. Printing has no typed failure and needs no `?`; native formatting or output errors terminate. `const fn`, constant blocks, and `const test` can print to the compiler host in their admitted subset. See [formatting and output](/reference/formatting/#printing) for structural display, evaluation, and buffering.
 
 ## assert
 
@@ -53,8 +53,8 @@ A direct call evaluates its condition once. A true condition continues execution
 ```carven
 let index: usize = 1;
 let values = [2, 4, 6];
-let view = values.as_slice();
-assert(index < view.len(), "index must be in bounds");
+let view = values.slice();
+assert(index < view.length(), "index must be in bounds");
 println(view[index]); // 4
 ```
 
@@ -97,13 +97,13 @@ let writer = addressof(&count);
 println(count); // 2
 ```
 
-`addressof` requires a direct call and cannot be adapted to a callable value. Target lifetime and non-nullness are separate conditions when pointers cross calls. Providers and callers remain responsible for external storage validity. See [pointers and external addresses](/reference/pointers/#taking-addresses-with-addressof).
+`addressof` requires a direct call and cannot be adapted to a callable value. Target lifetime and non-nullness are separate conditions when pointers cross calls. Providers and callers remain responsible for external storage validity. See [pointers and external addresses](/reference/pointers/#address-values-and-target-access).
 
 ## Text API
 
 | Call or projection                | Receiver and parameters                      | Result                             |
 | --------------------------------- | -------------------------------------------- | ---------------------------------- |
-| `text.len()`                      | Read `str` or `String`                       | `usize`, UTF-8 byte count          |
+| `text.byte_length()`              | Read `str` or `String`                       | `usize`, UTF-8 byte count          |
 | `text.is_empty()`                 | Read `str` or `String`                       | `bool`                             |
 | `text.bytes`                      | Read `str` or `String`                       | Borrowed read-only `[u8]`          |
 | `text.chars`                      | Read `str` or `String`                       | Read-only character-iteration view |
@@ -121,35 +121,45 @@ var text: String = {};
 text.append("hello");
 text.push('!');
 let view = text.as_str();
-println(view, view.len(), view.is_empty()); // hello! 6 false
+println(view, view.byte_length(), view.is_empty()); // hello! 6 false
 ```
 
-Length counts bytes: `"我".len()` is 3. Iterate characters through `.chars`. Saved text or byte views borrow their backing, preventing mutation of the source `String` while the borrow remains live. Receiver mutability comes from its variable or field; no extra `&` precedes the receiver of a member call. Members require direct calls and cannot be extracted as method values. See [text](/reference/text/) and [append formatting](/reference/formatting/#formatted-append).
+Length counts bytes: `"我".byte_length()` is 3. Iterate characters through `.chars`. Saved text or byte views borrow their backing, preventing mutation of the source `String` while the borrow remains live. Receiver mutability comes from its variable or field; no extra `&` precedes the receiver of a member call. Members require direct calls and cannot be extracted as method values. See [text](/reference/text/) and [append formatting](/reference/formatting/#formatted-append).
 
-The unchecked text factories do not validate native input: the caller must satisfy their content preconditions. Prefer checked [UTF library](/reference/utf/) functions for unvalidated input. The character factory checks scalar validity in static execution and interpretation; unchecked borrowed text construction currently requires native execution. See [unchecked text construction](/reference/text/#unchecked-text-construction).
+The unchecked text factories do not validate native input: the caller must satisfy their content preconditions. Prefer checked [UTF library](/reference/utf/) functions for unvalidated input. Both unchecked factories support static execution and interpretation, where the executor checks their content preconditions and reports invalid content as an execution error rather than a typed failure. See [unchecked text construction](/reference/text/#unchecked-text-construction).
 
 ## Array and slice API
 
-Arrays create read-only views through `as_slice()`. `len()`, `is_empty()`, and `slice()` are slice methods; they cannot be called directly on arrays.
+Arrays, owning `Vector<T>` values, and slices provide `length()`, `is_empty()`, `slice()`, and `slice(start, end)`. Arrays and vectors also create borrowed `[T]` views implicitly when a destination requires a slice.
 
-| Call                     | Receiver and parameters        | Result                    |
-| ------------------------ | ------------------------------ | ------------------------- |
-| `values.len()`           | Read slice `[T]`               | `usize`, element count    |
-| `values.is_empty()`      | Read slice                     | `bool`                    |
-| `values.as_slice()`      | Read array                     | Borrowed read-only `[T]`  |
-| `view.slice(start, end)` | Read slice; two `usize` bounds | Read-only half-open `[T]` |
+| Call                     | Receiver and parameters                          | Result                    |
+| ------------------------ | ------------------------------------------------ | ------------------------- |
+| `values.length()`        | Read array, Vector, or `[T]`                     | `usize`, element count    |
+| `values.is_empty()`      | Read array, Vector, or slice                     | `bool`                    |
+| `values.slice()`         | Read array, Vector, or slice                     | Borrowed read-only `[T]`  |
+| `view.slice(start, end)` | Read array, Vector, or slice; two `usize` bounds | Read-only half-open `[T]` |
 
 ```carven
 let values = [2, 4, 6];
-let view = values.as_slice();
-let tail = view.slice(1, view.len());
-println(tail.len(), tail[0]); // 2 4
+let view = values.slice();
+let tail = view.slice(1, view.length());
+println(tail.length(), tail[0]); // 2 4
 ```
 
 A slice does not copy elements or extend its array's lifetime; a live borrow protects the backing. `slice(len, len)` is a valid empty range. Dynamic out-of-bounds access terminates; required constant execution diagnoses it. Indexing and iteration are language syntax; see [arrays](/reference/aggregates/#fixed-arrays), [slices](/reference/slices/), and [for](/reference/control/#for).
 
 ## SIMD primitives
 
-`u8x16`, `u8x32`, `f32x4`, `f32x8`, and their masks provide APIs without imports. Vectors provide `splat`, `from_array`, `load`, `load_partial`, `to_array`, `lane`, `with_lane`, and `extract`. Masks provide `from_bits`, `prefix`, `bits`, `any`, `all`, `count`, `first_or`, and `select`. Byte vectors also provide `lookup`, `shift_left`, and `shift_right`. Floating block rearrangement and write-back helpers belong to `std::simd.floats`.
+`u8x16`, `u8x32`, `f32x4`, `f32x8`, and their masks provide APIs without imports. Vectors provide `splat`, `from_array`, `load`, `load_partial`, `to_array`, `lane`, `with_lane`, and `extract`. Masks provide `from_bits`, `prefix`, `bits`, `any`, `all`, `count`, `first_or`, and `select`. Byte vectors also provide `lookup`, `shift_left`, and `shift_right`. Floating vectors also provide static `swizzle`, finite checks, square root, absolute value, min, max, and clamp.
 
-See the [SIMD primitive reference](/reference/simd/#primitive-operations) for signatures at each width, static inputs, bounds, and mathematical rules. `std::simd.bytes` and `std::simd.floats` are standard Crafts built on these primitives and require imports; see the [standard library reference](/reference/library/).
+Float vectors also expose `is_finite`, `sqrt`, `abs`, `min`, `max`, and `clamp`; byte vectors expose `sum` and cross-width `lookup`. See the [SIMD reference](/reference/simd/) for signatures at each width, static inputs, bounds, and mathematical rules. `std::simd.bytes` and `std::simd.floats` are standard Crafts built on these primitives and require imports; see the [standard library reference](/reference/library/).
+
+## Owning vectors and numeric parsing
+
+`Vector<T>` is a default binding from `std::core`, distinct from fixed-width SIMD types. It supports empty/contextual literal construction, `new`, `with_capacity`, `from_slice`, `length`, `capacity`, `reserve`, `push`, `remove`, `clear`, and borrowed `slice`. Modification requires Write access; push can copy or Take an element. Live views prohibit storage-invalidating mutation. See [owning vectors](/reference/aggregates/#owning-vectors).
+
+Scalar integers and floats expose checked `Type::parse(text)` with `NumberParseError` from `std::core`. Floating scalars provide finite checks, square root, absolute value, min, max, and clamp; see [types](/reference/types/). Checked `char::from_u32` and `str::from_utf8` select source declarations in `std::utf`.
+
+## Async and host capabilities
+
+Import cold composition, cancellation, and closure helpers from [std::async](/reference/async/). Import durations, clocks, waits, and timeout from [std::time](/reference/time/); `stdin` is available by default, with types and framing from [std::io](/reference/io/). These use ordinary failure and ownership contracts across supported static, interpreted, and native execution. Native TCP providers require a native host. The [standard capability index](/reference/library/) links the complete API references.

@@ -8,7 +8,7 @@ source: src/diagnostics/code.cpp
 
 ## Reading diagnostics
 
-Read the source location first, then use the code to identify the checking boundary. Error fails the corresponding compilation operation. Warning does not fail an otherwise valid program. Message text, notes, colors, and ordering are presentation, not a stable machine interface.
+Start with the reported file, line, and highlighted expression. Then read the message and suggested fix; use the code below to look up the rule involved. For example, `CV-ACCESS-IMMUTABLE` means an operation needs writable storage, so check whether the binding should be `var`. Error fails the corresponding compilation operation. Warning does not fail an otherwise valid program. Message text, notes, colors, and ordering are presentation, not a stable machine interface.
 
 Long source lines are excerpted around the marked location, with `...` indicating omitted text. Reported line and column coordinates still refer to the original source.
 
@@ -16,17 +16,19 @@ Unused checks count reachable references as uses. _ is never an unused candidate
 
 ## Common areas to inspect
 
-| Category          | Check                                                                                           |
-| ----------------- | ----------------------------------------------------------------------------------------------- |
-| ACCESS            | Parameter markers, writability, Take sources, availability, active borrowing, and class privacy |
-| CONST             | Constant contexts, `const fn` capability, dynamic errors, dependency cycles, and budgets        |
-| EFFECT            | Nonempty ? operands, declared bounds, and residual catch sets                                   |
-| TYPE / MATCH      | Canonical types, construction context, case payloads, and pattern coverage                      |
-| CPP               | Native provider identifiers and API name collisions                                             |
-| PTR               | Local non-null proof before dereference                                                         |
-| ENTRY / INTERPRET | Entry count and parameters, interpreter execution subset                                        |
-| TEST              | Conditions, message types, argument counts, and active tests                                    |
-| ASSERT            | A failed `assert` during compile-time execution                                                 |
+| Category                  | Check                                                                                           |
+| ------------------------- | ----------------------------------------------------------------------------------------------- |
+| ACCESS                    | Parameter markers, writability, Take sources, availability, active borrowing, and class privacy |
+| ASYNC                     | Cold-operation admission, ownership and lexical child observation/cancellation intent           |
+| GENERIC / STD / WORKSPACE | Type and failure-set arguments, standard-module declarations and artifact inputs                |
+| CONST                     | Constant contexts, `const fn` capability, dynamic errors, dependency cycles, and budgets        |
+| EFFECT                    | Nonempty ? operands, declared bounds, and residual catch sets                                   |
+| TYPE / MATCH              | Canonical types, construction context, case payloads, and pattern coverage                      |
+| CPP                       | Native provider identifiers and API name collisions                                             |
+| PTR                       | Local non-null proof before dereference                                                         |
+| ENTRY / INTERPRET         | Entry count and parameters, interpreter execution subset                                        |
+| TEST                      | Conditions, message types, argument counts, and active tests                                    |
+| ASSERT                    | A failed `assert` during compile-time execution                                                 |
 
 ## Current code catalog
 
@@ -48,6 +50,9 @@ The following preserves registered codes, default severities, and English defaul
 | `CV-ACCESS-NOT-ASSIGNABLE`                | Error            | Non-assignable Update target.                                               |
 | `CV-ACCESS-RANGE-BINDING`                 | Error            | Invalid Write range binding.                                                |
 | `CV-ACCESS-RANGE-ITERABLE`                | Error            | Invalid Write range iterable.                                               |
+| `CV-ASYNC-ADMISSION`                      | Error            | Unsupported async source contract.                                          |
+| `CV-ASYNC-OWNERSHIP`                      | Error            | Invalid async ownership contract.                                           |
+| `CV-ASYNC-CHILD-INTENT`                   | Error            | Child needs observation or cancellation intent.                             |
 | `CV-CATALOG`                              | Error            | Semantic catalog failure.                                                   |
 | `CV-COMPILATION-INPUT`                    | Error            | Invalid closed-compilation input.                                           |
 | `CV-CPP-IDENTIFIER`                       | Error            | Invalid C++ boundary identifier.                                            |
@@ -148,6 +153,10 @@ The following preserves registered codes, default severities, and English defaul
 | `CV-TYPE-ENUM-CASE-ARITY`                 | Error            | Invalid enum case arity.                                                    |
 | `CV-TYPE-ENUM-CONTEXT`                    | Error            | Contextual enum case requires an expected enum type.                        |
 | `CV-TYPE-EQUALITY-UNSUPPORTED`            | Error            | Type does not support equality.                                             |
+| `CV-TYPE-GENERIC-ARGUMENTS`               | Error            | Invalid generic type arguments.                                             |
+| `CV-TYPE-GENERIC-DEFINITION`              | Error            | Invalid generic definition.                                                 |
+| `CV-TYPE-GENERIC-EXPANSION`               | Error            | Unbounded generic expansion.                                                |
+| `CV-TYPE-GENERIC-LIMITS`                  | Error            | Generic construction resource limit exceeded.                               |
 | `CV-TYPE-RECURSIVE-STORAGE`               | Error            | Type has recursive by-value storage.                                        |
 | `CV-TYPE-VISIBILITY-LEAK`                 | Error            | A declaration surface exposes a narrower-visibility identity.               |
 | `CV-TYPE-IF-BRANCH`                       | Error            | Incompatible if branch types.                                               |
@@ -178,4 +187,5 @@ The following preserves registered codes, default severities, and English defaul
 | `CV-TYPE-TEXT-PROPERTY`                   | Error            | Invalid text property.                                                      |
 | `CV-TYPE-UNRESOLVED`                      | Error            | Unresolved type.                                                            |
 | `CV-TYPE-UPDATE-INTEGER`                  | Error            | Integer update target required.                                             |
+| `CV-TYPE-VECTOR-ELEMENT`                  | Error            | Invalid Vector element.                                                     |
 | `CV-TYPE-VALUE-REQUIRED`                  | Error            | A value-bearing position requires a value type.                             |

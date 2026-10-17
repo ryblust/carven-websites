@@ -39,13 +39,13 @@ for index in 0..3 {
 println(report);
 ```
 
-输出 `[0][1][2]`。`{}` 按注解类型构造空 `String`。append_format 直接接收 f 字面量，可以避免创建中间的源级 `String`。把已有 `String` 变量传给它不符合该方法语法；普通文本追加使用 append。
+输出 `[0][1][2]`。`{}` 按注解类型构造空 `String`。append_format 把格式化结果直接写进 report，调用时需要写 f 字面量。把已有 `String` 变量传给它不符合该方法语法；普通文本追加使用 append。
 
 ## 顺序会影响观察
 
 插值字段从左到右各求值一次，然后开始格式化。标量字段保存求值时的值；`String` 字段按 Read 访问保留原存储，等所有字段求值完成后才读取其中的内容进行格式化。需要在多个字段中修改同一个对象时，用单独的语句写清副本的创建和修改顺序。
 
-append_format 的输入不能借用追加目标自身。长度查询返回独立 `usize`，因此 `report.append_format(f"{report.len()}")` 可以使用；`report.append_format(f"{report}")` 形成目标别名冲突。
+append_format 的输入不能借用追加目标自身。长度查询返回独立 `usize`，因此 `report.append_format(f"{report.byte_length()}")` 可以使用；`report.append_format(f"{report}")` 形成目标别名冲突。
 
 ## 练习
 

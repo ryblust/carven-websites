@@ -1,6 +1,6 @@
 ---
-title: "Combine failures and narrow contracts"
-description: "Define failures with data, propagate at calls, and recover where business context is available."
+title: "Handle rejected input and other failures"
+description: "Report what went wrong, decide where to recover, and make the remaining failures clear to callers."
 section: learn
 lesson: 10
 source: docs/language/failures.md
@@ -8,7 +8,7 @@ source: docs/language/failures.md
 
 ## Start with validation
 
-Save this as quantity.cv:
+An order quantity of zero is invalid input, but the caller may be able to ask for another quantity and continue. Report it as a typed failure carrying the rejected value. Save this as quantity.cv:
 
 ```carven
 struct InvalidQuantity {
@@ -35,11 +35,11 @@ let total = try {
 println("Total:", total);
 ```
 
-Run `carven quantity.cv`. The output is `Invalid quantity: 0` followed by `Total: 0`. The failure type is a struct carrying the rejected value. `throw InvalidQuantity` in the signature is an upper bound; the `throw ...;` statement actually produces a failure. A throw statement does not supply an expected type, so it names the failure type instead of using contextual `{ value: quantity }` construction.
+Run `carven quantity.cv`. The output is `Invalid quantity: 0` followed by `Total: 0`. The failure type is a struct carrying the rejected value. `throw InvalidQuantity` tells callers which failure this function may report; `throw ...;` in the body reports a particular occurrence. A throw statement does not supply an expected type, so it names the failure type instead of using contextual `{ value: quantity }` construction.
 
 ## Success values and propagation
 
-Calling a fallible function creates a pending failure obligation. `?` yields the success value or transfers failure to the nearest enclosing try or callable failure target. The first failure skips the rest of the current evaluation path: `(first() + second())?` does not call second if first fails.
+Calling a function that may fail requires a decision about that failure. With `?`, a successful call supplies its value. A failed call leaves the current expression. The surrounding try handles the failure, or the function passes it to its caller under its declared contract. The first failure skips the rest of the current evaluation path: `(first() + second())?` does not call second if first fails.
 
 Applying ? to an expression that cannot fail is a compile error. When a private function changes to infer an empty set, callers must remove their ?. Even if a function explicitly declaring E currently always succeeds, callers still obey the E contract.
 
@@ -111,9 +111,9 @@ total recovers MissingPrice with a default total. Its public contract contains o
 
 Try `(true, true)` in main to get `17`, then `(true, false)` to get `0`. `(false, false)` still gives `12`: the missing price stops evaluation before the service call. The contract lists possible failures; it does not force all operations to run.
 
-Adding `_ => rethrow,` after the MissingPrice arm preserves the same residual set. Omitting it is valid here because total declares a contract accepting Offline. This example uses an explicit main, which has no throw clause, so main must handle all its own failures.
+Adding `_ => rethrow,` after the MissingPrice arm also forwards Offline to the caller. Omitting it is valid here because total declares a contract accepting Offline. This example uses an explicit main, which has no throw clause, so main must handle all its own failures.
 
-Save the complete program above as quote.cv and run `carven quote.cv`. Change the two arguments to total in main and check the results below. Use the same inputs in the C++ comparison that follows.
+Save the complete program above as quote.cv and run `carven quote.cv`. Change the two arguments to total in main and check the results below. Use the table to check the selected recovery path.
 
 | has_price | online | Output | Path                                 |
 | --------- | ------ | ------ | ------------------------------------ |
@@ -154,70 +154,48 @@ note: failure type not fully covered: quote.Offline
 
 The note names the uncovered type with its module. The same run also reports `CV-EFFECT-THROW-PUBLISHED` at main, because the residual Offline would escape an explicit entry without a throw clause. Add an `Offline(_) => 0,` arm, or declare `fn main() throw Offline`, to resolve both. At the top level, the same try would instead forward Offline out of the implicit entry. Restore the original main before continuing.
 
-## Preserve the same failures in C++23
+## Parse external data before applying policy
 
-This complete program preserves the preceding example's results, failure types, and operation order. price and fee each have one failure; quote combines them; total handles only MissingPrice:
+Save this separate program as ports.cv. Standard numeric parsing validates spelling and representation, then the application applies its own zero-port policy:
 
-```cpp
-#include <expected>
-#include <iostream>
-#include <variant>
+```carven
+import std::core using NumberParseError;
 
-struct MissingPrice {};
-struct Offline {};
-
-std::expected<int, MissingPrice> price(bool has_price) {
-    if (!has_price) {
-        return std::unexpected(MissingPrice{});
-    }
-    return 15;
+struct InvalidPort {
+    value: u16,
 }
 
-std::expected<int, Offline> fee(bool online) {
-    if (!online) {
-        return std::unexpected(Offline{});
+const fn port(text: str) -> u16 throw NumberParseError + InvalidPort {
+    let value = u16::parse(text)?;
+    if value == 0 {
+        throw InvalidPort { value };
     }
-    return 2;
+    return value;
 }
 
-using Error = std::variant<MissingPrice, Offline>;
+fn display(text: str) => try {
+    println("Port:", port(text)?);
+} catch {
+    NumberParseError(_) => println("Not a complete u16 number"),
+    InvalidPort(error) => println("Reserved port:", error.value),
+};
 
-std::expected<int, Error> quote(bool has_price, bool online) {
-    auto item = price(has_price);
-    if (!item) {
-        return std::unexpected(item.error());
-    }
-    auto extra = fee(online);
-    if (!extra) {
-        return std::unexpected(extra.error());
-    }
-    return *item + *extra;
-}
-
-std::expected<int, Offline> total(bool has_price, bool online) {
-    auto result = quote(has_price, online);
-    if (result) {
-        return *result;
-    }
-    if (std::holds_alternative<MissingPrice>(result.error())) {
-        return 12;
-    }
-    return std::unexpected(std::get<Offline>(result.error()));
-}
-
-int main() {
-    auto result = total(false, true);
-    std::cout << result.value_or(0) << '\n';
-}
+display("443");
+display("65536");
+display("0");
 ```
 
-Save as quote.cpp, compile with `c++ -std=c++23 quote.cpp -o quote` using a toolchain with C++23 expected support, and run `./quote` to get `12`. Try the four input pairs from the Carven example: the results match.
+The output is:
 
-Follow the call order: C++ quote checks price before calling fee, placing each error into Error. Carven's composed expression and `?` describe the same short-circuit path. In total, C++ extracts the remaining Offline into a new expected; Carven checks the residual failure set against catch coverage.
+```text
+Port: 443
+Not a complete u16 number
+Reserved port: 0
+```
 
-C++ combinators or result libraries can encapsulate these branches too. Explicit code makes the correspondence between types and control flow visible here. Carven makes the composition rules part of the language, so private functions need no separately declared aggregate error type.
+`u16::parse` checks the entire text and range; it does not truncate or wrap. It rejects leading whitespace, a leading plus, and trailing content. A valid u16 zero passes representation checks but fails this application's policy. The two failure types preserve that distinction for callers.
 
-Keep total's interface limited to Offline: replace its Carven body with `=> quote(has_price, online)?;` and remove the MissingPrice if branch in C++. Carven reports `CV-EFFECT-SIGNATURE-BOUND`: the body exceeds the declared contract. The C++ above still compiles, but the remaining `std::get<Offline>` throws std::bad_variant_access when the price is missing: the return type does not prove which alternative the variant holds. Carven checks both the failure types and the coverage of the recovery branches.
+The explicit failure contract names NumberParseError, so it imports the type from `std::core`. A call can infer and propagate the failure without naming it. `port` is a const fn because the same checked parser and policy can run during preparation; a runtime call remains runtime. The [compile-time chapter](/learn/constants/) uses parsing to prepare configuration and recover only where a fallback is appropriate.
 
 ## Side effects and entry status
 

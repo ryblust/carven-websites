@@ -1,104 +1,62 @@
 ---
-title: "Start with a piece of C++ logic"
-description: "Explore explicit access, ownership, and failure contracts within a familiar native project."
+title: "Run a log analyzer, mixer, or C++ collector"
+description: "Try three complete applications and follow the source and tests behind their behavior."
 section: use-cases
-source: README.md
+source: examples/README.md
 ---
 
-Carven translates `.cv` source files into C++ for a native toolchain to compile and link. Start with a module that has one clear responsibility and is easy to test, then try implementing it in Carven.
+Start with a task you can run: turn logs into a report, mix sample data, or call a Carven module from C++. These applications show how ownership, typed failures, compile-time work, and async fit together.
 
-The following scenarios draw on examples already present in the repository. They are starting points for understanding and trying current capabilities. Carven is under active development; language and toolchain changes may be incompatible.
+Run the commands below from the Carven compiler repository root. The first command block builds the compiler and all three applications. Each application directory includes sample input, source, and tests.
 
-## Integrate one module at a time
+## Analyze a stream of logs
 
-Suppose a C++ application needs to calculate a quantity discount. Write the calculation in Carven and expose a native interface with `export(cpp)`.
+The [log analyzer](https://github.com/ryblust/carven/tree/main/examples/log_analyzer) parses records with levels, numeric latency, and Unicode messages. It rejects malformed records independently, redacts credentials before retaining messages, gathers slow events into `Vector<String>`, and produces a JSON report.
 
-```carven
-export(cpp) fn price_cents(quantity: i32) -> i32 {
-    assert(quantity >= 0, "quantity must be nonnegative");
-    let unit_price: i32 = if quantity >= 10 { 90 } else { 100 };
-    return quantity * unit_price;
-}
+The implementation separates parsing and reporting in `analysis.cv` from command-line arguments and asynchronous standard input in `main.cv`. It parses its owned JSON report template at compile time. Static tests verify redaction and configuration; runtime tests cover malformed fields, invalid UTF-8, CRLF, final lines without delimiters, and preserved record order.
+
+```sh
+./xmakew build
+./xmakew build examples
+./xmakew run carven-example-log-analyzer
 ```
 
-The program entry remains in C++. The build generates a public header declaring `carven::api::pricing::price_cents` and an implementation; C++ includes the header and links the implementation together with the generated UTF and SIMD Craft sources. A negative quantity is a caller bug here, so `assert` reports the condition and message to stderr and aborts the process, whatever the native build's `NDEBUG` setting. It is not a recoverable failure; a caller that needs to handle bad input should receive a typed failure instead. The calculation does not guard against integer overflow; large quantities wrap.
+Run [record parsing](/playground/#example=log-analysis) and [JSON template updates](/playground/#example=json-config) in your browser to explore the underlying contracts. The complete application can also read up to its explicit input limit with `--stdin`.
 
-Explicit `import(cpp)` and `export(cpp)` boundaries use ordinary Carven types, Read/Write/Take access, and declared failure contracts. Scope and naming follow the native interoperation rules.
+## Mix audio with floating SIMD
 
-**A useful starting point:** calculation rules, small modules with clear boundaries, and experiments checked alongside existing C++ tests.
+The [audio mixer](https://github.com/ryblust/carven/tree/main/examples/audio_mixer) mixes two embedded tracks with configurable gains. Its `const fn` processes eight floating samples per block, rejects nonfinite results, and clips the mixed signal to −1 through 1. The report includes the number of clipped samples, peak amplitude, and root mean square (RMS) level. An active-lane mask marks which positions in the final block contain input, so padding does not affect the result.
 
-## Reuse native libraries
-
-Header imports make C++ types and functions available in Carven.
-
-```carven
-import <vector> using std::vector;
-
-fn count() -> usize {
-    var values = vector<i32> { 1, 2, 3 };
-    values.push_back(4);
-    return values.size();
-}
+```sh
+./xmakew run carven-example-audio-mixer --voice=1.0 --music=0.5
+./xmakew run -q carven-example-audio-mixer --logs > mixer.log
+./xmakew run -q carven-example-log-analyzer --stdin < mixer.log
 ```
 
-C++ checks native declarations, members, overloads, and conversions. Carven continues to check its access and ownership contracts. The native build supplies header search paths, libraries, and compiler options.
+The last two commands connect the mixer to the analyzer using their shared log format. The samples are embedded in the source; running the application prints calculated results rather than playing audio. [Run its core mixing algorithm](/playground/#example=audio-mixer), including a static test of the final sample.
 
-The repository's native parser example shows a fuller boundary: a C++ adapter calls `std::stoi` and handles expected exceptions, then Carven interprets the native result as its own success or failure value.
+SIMD selects NEON, explicitly enabled AVX2, or portable implementation during native compilation, with no runtime dispatch. Keep backend flags consistent across translation units and measure the actual workload.
 
-**A useful starting point:** existing utility functions, native containers, or a narrowly scoped adapter for a dependency.
+## Let C++ host a Carven module
 
-## Express recoverable business failures
+The [stream collector](https://github.com/ryblust/carven/tree/main/examples/stream_collector) keeps the application entry and stream provider in C++. C++ calls an `export(cpp)` Carven function, which reads two host-owned memory streams, deduplicates records, and returns an owned report with counts.
 
-An order quote may fail because a quantity is invalid, stock is insufficient, or delivery is unavailable. Separate failure types let callers respond to their business meaning while retaining the relevant data.
-
-Carven's quote example combines stock and delivery logic, tries an alternative for one delivery failure, and preserves other failures with their original data. The configuration example demonstrates validation and fallback. The callback example lets callers introduce additional failure conditions.
-
-Private functions can infer failures introduced by composition. Published boundaries declare the allowed set. Callers propagate at a suitable expression boundary and use pattern arms to recover or pass failures outward.
-
-**A useful starting point:** configuration validation, composed rules, recoverable parsing workflows, and callback interfaces with explicit failure boundaries.
-
-Each example has a defined scope. The quote example does not actually deduct stock or initiate payment; the configuration example does not read files or environment variables. They show how functions declare possible failures and how callers handle or propagate them.
-
-## Reduce C++ interface maintenance
-
-A class groups state with the methods that provide access to it. Only the class body can read its fields or construct it, and it stays a plain value: no heap allocation, inheritance, or virtual dispatch.
-
-```carven
-class Cart {
-    count: i32,
-    total_cents: i32,
-    fn empty() -> Cart => { count: 0, total_cents: 0 };
-    fn add(&self, price_cents: i32) {
-        self.count += 1;
-        self.total_cents += price_cents;
-    }
-    fn total(self) -> i32 => self.total_cents;
-}
-
-var cart = Cart::empty();
-cart.add(250);
-cart.add(120);
-println(cart.total());
+```sh
+./xmakew run carven-example-stream-collector
 ```
 
-Run it with `carven cart.cv` to print `370`. Generated C++ holds the fields in a struct and lowers each operation to an ordinary function. A class has no implicit equality, and `println(cart)` prints only its name, `Cart`, without exposing the fields. Classes cannot be used in required constant evaluation.
+This demonstrates both directions of the native boundary: `import(cpp)` for provider work and `export(cpp)` for the checked workflow. C++ includes the generated API header and links generated implementations through the Xmake rule. The provider reuses its line buffer on the next read, so the collector copies retained records into String. The host keeps its streams alive for the call, and the returned report owns its records. See [C++ generation](/features/cpp-generation/#connect-to-an-existing-c-project).
 
-For logic involving several types and mutually calling functions, maintain their definitions in `.cv` source. The compiler generates interfaces and implementations from visibility and type dependencies, arranging forward declarations and definition order. Dependencies used only in function bodies do not merge interfaces.
+## Compose asynchronous application work
 
-**A useful starting point:** modules that benefit from less manual synchronization of declarations and implementations, with a generated public interface for C++ consumers.
+If several tasks can make progress independently, `when_all` starts them together and returns their results as a tuple in input order. Each result can own strings and vectors. `first_successful` accepts alternative operations and selects a successful result, continuing after another candidate fails.
 
-## Validate fixed data and process byte blocks
+A child started with `async let` belongs to its surrounding scope. Cancellation and closure let that scope stop the work and wait for cleanup before releasing the data it borrowed. The [scope example](/playground/#example=async-scope) also checks this flow during compilation.
 
-Compile-time UTF helpers can encode Unicode scalars and check a fixed byte buffer before a program runs. For byte processing at runtime, SIMD Crafts provide bounded block traversal, comparisons, masks, and byte search. A tail block carries an active-lane mask so padding cannot become input.
+[Run the in-memory batch workflow](/playground/#example=async-workflow). For native I/O, combine bounded `stdin` reads, line framing, checked time intervals, and timeout composition. `std::net` adds read and write operations over connections adopted by a C++ host. It does not establish connections, listen, resolve names, or provide TLS.
 
-The [compile-time tutorial](/learn/constants/) runs both tasks with complete examples. Static parameters let a function fix controls such as extraction offsets while retaining runtime data inputs. Native SIMD selects a portable, NEON, or consumer-enabled AVX2 backend during compilation, without runtime dispatch; all relevant translation units must agree on backend flags. Measure the target workload before assuming a speedup.
+## Evaluate against your actual boundary
 
-**A useful starting point:** validating embedded UTF-8 data or counting and finding bytes in a buffer with explicit bounds.
+Use the same revision of compiler, Crafts, examples, and documentation. Build the compiler with `./xmakew build`; use `carven check` for analysis and static tests, then execute and test the complete native application. Native C++ names, overloads, templates, and provider implementations still require native compilation.
 
-## Choose a scope you can verify
-
-Carven currently fits learning, language exploration, and controlled integration experiments. For an evaluation, use the same revision of the compiler, support headers, documentation, and examples, and verify the capabilities your target project actually needs. `carven check` runs semantic analysis and compile-time tests without generating C++, which makes it a quick way to check the code before a full build.
-
-Carven has no thread or synchronization operations, and its Read/Write/Take rules do not establish cross-thread safety. If C++ calls generated code from several threads, the C++ side owns synchronization and shared data.
-
-The toolchain has separate host and target requirements: building the compiler requires an LLVM/Clang toolchain with C++26 support; generated programs and support libraries use C++20. The repository's validated host toolchain is LLVM 23.
+The Playground runs these supported source operations through an interpreter. External C++ calls and TCP operations need a native host. Source tasks run on one thread; a C++ host that shares data across threads remains responsible for synchronization and external resource lifetimes.

@@ -11,7 +11,7 @@ source: docs/language/README.md
 <div class="reference-entry-grid">
 <a class="reference-entry" href="#find-syntax-and-rules"><strong>Language syntax</strong><span>Keywords, variables, types, expressions, and control flow</span></a>
 <a class="reference-entry" href="/reference/builtins/"><strong>Builtin functions and type APIs</strong><span>Output, assertions, text, and sequence operations without imports</span></a>
-<a class="reference-entry" href="/reference/library/"><strong>Standard library reference</strong><span>UTF and SIMD signatures and contracts, organized by module</span></a>
+<a class="reference-entry" href="/reference/library/"><strong>Standard library reference</strong><span>Async execution, collections, text, time, input, JSON, and native networking</span></a>
 </div>
 
 ## Find syntax and rules
@@ -68,21 +68,27 @@ Unless noted otherwise, save each complete example separately as `main.cv` and r
 
 Rule pages use these terms where needed. A type describes a value; access describes use of storage; ownership determines lifetime; a failure contract lists the failures a call may propagate.
 
-| Term                | Meaning                                                            |
-| ------------------- | ------------------------------------------------------------------ |
-| Nominal type        | Type determined by a struct, class, or enum declaration's identity |
-| Value               | Result of a computation                                            |
-| Storage location    | Readable or writable object, field, element, or pointer target     |
-| Owner               | Binding owning an immediate value and its scoped lifetime          |
-| Read / Write / Take | Reading, non-owning writable access, ownership transfer            |
-| Backing             | Object providing actual storage for a slice or text view           |
-| Full expression     | Usual evaluation and cleanup boundary for temporaries              |
-| Normal completion   | Producing a success result or reaching the next statement          |
-| Typed failure       | Recoverable control effect carrying a nominally typed payload      |
-| Published interface | Declaration surface visible to readers outside its module          |
+| Term                | Meaning                                                                 |
+| ------------------- | ----------------------------------------------------------------------- |
+| Nominal type        | Type determined by a struct, class, or enum declaration's identity      |
+| Value               | Result of a computation                                                 |
+| Storage location    | Readable or writable object, field, element, or pointer target          |
+| Owner               | Binding that keeps its value alive until its scope ends                 |
+| Read / Write / Take | Reading, non-owning writable access, ownership transfer                 |
+| Backing             | Object providing actual storage for a slice or text view                |
+| Full expression     | An expression together with the temporary values kept until it finishes |
+| Normal completion   | Producing a success result or reaching the next statement               |
+| Typed failure       | A declared struct or enum value reported instead of a successful result |
+| Published interface | Declaration surface visible to readers outside its module               |
 
 ## Boundaries of the rules
 
 Carven checks availability, access markers, and borrows of known Carven storage. Providers and callers remain responsible for external address lifetimes, C++ pointer retention, iterator invalidation, reentrancy, and native undefined behavior.
 
-The current source language has no async/await, thread creation or synchronization, atomics, concurrent memory model, user-defined generics, traits, inheritance, virtual dispatch, source-level destructors or custom copy/move hooks, or general reference types. Read/Write/Take do not establish cross-thread safety. Pointers and C++ integration do not confer those features. This manual describes implemented synchronous evaluation and lifetime rules.
+The language supports structured async execution, lexical children, cooperative cancellation, parameterized functions and data types, tuples, and owning vectors. Native threads, synchronization, traits, inheritance, virtual dispatch, source destructors, custom copy/move hooks, and general reference types remain outside these source contracts. Read/Write/Take do not establish cross-thread safety.
+
+## Modern library capabilities
+
+[Structured async](/reference/async/) · [Time and deadlines](/reference/time/) · [Input and framing](/reference/io/) · [Owning JSON](/reference/json/) · [Native TCP](/reference/net/)
+
+Use [tuples and Vector](/reference/aggregates/) and [type/failure-set parameters](/reference/functions/#parameterized-functions) to express reusable application data and operations.

@@ -34,16 +34,10 @@ let message = """
       Carven
     World
 """;
-let build = 42;
-let summary = f"""
-    Build {build:04}
-    Ready
-""";
 
 println(path);
 println(quoted);
 println(message);
-println(summary);
 ```
 
 The output is:
@@ -54,13 +48,11 @@ C:\tools\bin\
 Hello
   Carven
 World
-Build 0042
-Ready
 ```
 
-Raw `r"..."` preserves backslashes and braces. Matching `#` delimiters let raw text contain quotes. Triple quotes put text on several source lines: the opening delimiter requires a line ending, and the closing delimiter starts a separate line with only spaces or tabs before it; punctuation such as `;` can follow it. Carven removes the common space/tab prefix of nonblank body lines, excludes the opening and final line endings, and normalizes physical CRLF to LF. The closing line's indentation does not set the text indentation.
+Raw `r"..."` preserves backslashes and braces. Matching `#` delimiters let raw text contain quotes. Use triple quotes for text that spans source lines. Start the text on the next line. Put the closing delimiter on a separate line. Only spaces or tabs may precede it; punctuation such as `;` may follow it. Carven removes the common indentation from nonblank text lines. It also removes the opening and final line endings. Physical CRLF line endings become LF. The closing line's indentation does not set the text indentation.
 
-Ordinary and raw literals produce `str`, or owning text in a `String` context. `f"""..."""` interpolates into an independent `String`, just as `f"..."` does. Inserted values keep their whitespace. Raw interpolation and combined prefixes such as `rf` are unsupported. See [text Reference](/reference/text/) for blank lines, tabs, and delimiter details.
+Ordinary and raw literals produce `str`, or owning text in a `String` context. The next chapter introduces interpolation, including multiline `f"""..."""` text. Raw interpolation and combined prefixes such as `rf` are unsupported. See [text Reference](/reference/text/) for blank lines, tabs, and delimiter details.
 
 ## A borrow protects its source storage
 
@@ -73,7 +65,7 @@ text.append("!");
 println(view);
 ```
 
-view points to text's backing and prevents text from being modified while the view lives. Even moving `println` earlier does not end a named view's borrow: it lasts until the scope ends, rather than ending automatically at the last use. Put the view in a smaller branch scope or copy it into an owning `String`.
+view points to text's backing and prevents text from being modified while the view lives. Moving println earlier does not release the borrow. A named view keeps its borrow until its scope ends, even after its last use. Put the view in a smaller branch scope or copy it into an owning `String`.
 
 Self-append, `text.append(text.as_str())`, also conflicts. First write `let copy = text;`, then `text.append(copy);` so the input has independent storage.
 
@@ -81,14 +73,14 @@ Self-append, `text.append(text.as_str())`, also conflicts. First write `let copy
 
 ```carven
 let text = "A我";
-println(text.len());
+println(text.byte_length());
 
 for scalar in text.chars {
     println(scalar);
 }
 
 let bytes = text.bytes;
-for index in 0..text.len() {
+for index in 0..text.byte_length() {
     println(index, bytes[index]);
 }
 ```
@@ -105,7 +97,7 @@ A
 3 145
 ```
 
-len counts UTF-8 bytes and returns `usize`; chars decodes Unicode scalars; bytes is a read-only `[u8]` view of the same storage. The range `0..text.len()` takes its type from the length, so it is `range<usize>` and indexes the byte view without a cast or a `0usize` suffix. `String` has no direct indexing or direct iteration: select bytes or chars explicitly. `str`/`String` can contain interior NUL; NUL does not determine text length.
+byte_length counts UTF-8 bytes and returns `usize`; chars decodes Unicode scalars; bytes is a read-only `[u8]` view of the same storage. The range `0..text.byte_length()` takes its type from the length, so it is `Range<usize>` and indexes the byte view without a cast or a `0usize` suffix. `String` has no direct indexing or direct iteration: select bytes or chars explicitly. `str`/`String` can contain interior NUL; NUL does not determine text length.
 
 ## Array slices
 
@@ -121,13 +113,29 @@ fn sum(values: [i32]) -> i32 {
 }
 
 let values = [2, 4, 6];
-let middle = values.as_slice().slice(1, 3);
+let middle = values.slice(1, 3);
 println(sum(values), sum(middle));
 ```
 
-The output is `12 10`. Arrays borrow automatically in slice argument context without copying elements. The half-open slice bounds are `usize`; unsuffixed literals such as `1` and `3` take that type from the parameter. The view is read-only and protects the whole backing. A view of a local array cannot be returned because it would escape its source lifetime.
+The output is `12 10`. Arrays borrow automatically in slice argument context without copying elements. The half-open slice bounds are `usize`; unsuffixed literals such as `1` and `3` take that type from the parameter. The view reads the selected elements without copying them. While it exists, keep the original array alive and unchanged. Returning a view of a local array would leave the caller looking at data that has already been destroyed, so the compiler rejects it.
 
-A byte view is an ordinary slice, so the same operations apply to text: `text.bytes.slice(1, text.len())` selects the three bytes of 我 from `"A我"`, and `for byte in text.bytes` visits each byte.
+A byte view is an ordinary slice, so the same operations apply to text: `text.bytes.slice(1, text.byte_length())` selects the three bytes of 我 from `"A我"`, and `for byte in text.bytes` visits each byte.
+
+## Split text into independent owned fields
+
+A report may arrive as one String, while its lines need to be kept and processed separately. The standard lines function makes independent Strings for those lines:
+
+```carven
+import std::utf using lines;
+
+let result = lines("alpha\n\ngamma\n");
+println(result.length(), result[0], result[2]);
+println(result[1].is_empty());
+```
+
+This prints `3 alpha gamma`, then `true`. The empty line is kept, and a final newline does not add an extra line. Each result owns its text, so the collection does not depend on the original input staying alive. The import selects lines from the standard UTF module; the modules chapter explains that syntax.
+
+For separators other than line endings, use split. It can report an invalid separator, so we will need the failure-handling syntax from a later chapter. See the [UTF reference](/reference/utf/) when choosing between a copied collection and borrowed substrings.
 
 ## Exercise
 

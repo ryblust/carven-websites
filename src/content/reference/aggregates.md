@@ -1,187 +1,354 @@
 ---
-title: "Structs, classes, arrays, and enums"
-description: "Construction order, value classes, contextual construction, bounds checks, enum payloads, and recursive storage."
+title: "Structs, tuples, enums, and collections"
+description: "Tuples, Vector, structures, class operations, array construction, enums, and recursive storage."
 section: reference
 lesson: 10
 source: docs/language/aggregates.md
 ---
 
+Choose a struct for named fields, a tuple for a small ordered group, an array for a fixed number of elements, or `Vector<T>` for a growable sequence. An enum describes alternatives, while a class controls access to its fields. The sections below give each form's construction, access, and lifetime rules.
+
 ## Structs
 
-A struct is an ordered nominal product type with unique field names. Construct it positionally in declaration order or by field name. Nonempty construction must initialize every field exactly once; named and positional forms cannot mix. Empty `T {}` requests whole-value default initialization. Struct bodies contain fields only; operations with private fields belong to a [class](#ordinary-value-classes).
+A struct groups related values into named fields. Each struct declaration defines its own type, even when another struct has the same fields. Field access selects by name. Positional construction maps supplied values to fields
+in declaration order; named construction maps each initializer to its declared
+field. Nonempty construction requires every field exactly once. Supplied
+expressions execute once in source order. An empty `T {}` requests default
+initialization of the whole value, with fields initialized in declaration order.
+Duplicate, unknown, extra, or incompatible initializers are invalid.
 
 ```carven
-struct Point {
-    x: i32,
-    y: i32,
-}
-
-fn origin() -> Point => Point { 0, 0 };
-
-fn sample() -> Point => { y: 2, x: 1 };
+struct Config { attempts: i32, enabled: bool, label: String }
+let empty = Config {};                    // 0, false, empty String
+let named = Config { attempts: 3, enabled: true, label: {} };
+let positional = Config { 3, true, String {} };
 ```
-
-Named construction maps to field declarations but evaluates initializers in written order. Repeated, missing, excess, unknown, or incompatible fields in nonempty construction are errors. Nonempty Carven `T { ... }` constructs structs, and classes only inside their own body; empty construction also accepts builtin types with a default. The type may be omitted when context supplies it; see [contextual construction](#contextual-construction). Enums and callables use their own expression forms. External C++ types have separate construction rules.
-
-The positional construction in `origin` keeps the type name. The declared `Point` result supplies the type for `sample`'s named construction.
-
-Structures do not support `==` or `!=`; compare their fields explicitly. Arrays and enums support equality only when their elements or payloads support it.
-
-## Default initialization
-
-`T {}` requests whole-value default initialization for types accepted by construction syntax, such as `i32 {}`, `String {}`, and a named struct. The table also describes defaults of nested fields and elements; it does not introduce array or slice construction syntax. Struct fields initialize in declaration order, recursively; a nonempty construction cannot omit fields to request partial defaults.
-
-| Type                              | Default                                        |
-| --------------------------------- | ---------------------------------------------- |
-| Integers and floats               | Zero; floating zero is positive                |
-| SIMD byte / float vectors / masks | Zero lanes / positive-zero lanes / false lanes |
-| `bool` / `char`                   | false / U+0000                                 |
-| `str` / `String`                  | Empty text; `String` owns independent storage  |
-| Pointers                          | Null, subject to ordinary non-null checks      |
-| Slices                            | Empty read-only view                           |
-| Integer ranges                    | Empty exclusive range from zero to zero        |
-| Fixed arrays                      | Each element initialized independently         |
-| Structs                           | Every field initialized recursively            |
-| External C++ types                | Native value initialization, checked by C++    |
-
-Ordinary classes, numeric and payload enums, callable values/views, void, and entry or iteration-only opaque types have no default. A struct or nonempty array containing them also has no default. A zero-length array needs no element default. Unsupported requests report `CV-TYPE-DEFAULT-INITIALIZATION`.
-
-Local declarations still require an initializer; array literals still require their exact element count. Default construction does not extend borrows or relax access. Runtime, interpretation, and constant execution share defaults within each mode's supported subset; native defaults remain delegated to C++.
 
 ## Ordinary value classes
 
-A `class` is an encapsulated nominal value: private fields plus operations declared in its body. It adds no heap allocation, reference identity, inheritance, virtual dispatch, or custom copy, move, or destruction hooks. Field types determine copying, ownership, stored borrows, and destruction under the same rules as structs.
+Use a class when callers should work through operations rather than read or write its fields. A struct exposes its fields; a class keeps them private. Both hold ordinary values that can be copied or transferred.
+
+An ordinary `class` is an encapsulated nominal value. Declaring one adds no heap
+allocation, reference identity, inheritance, virtual dispatch, or custom
+copy/move/destruction hooks.
+Field types determine copying, ownership, stored borrows, and destruction through
+the nominal product rules.
 
 ```carven
 class Counter {
     value: i32,
-
-    fn create(value: i32) -> Counter => { value: value };
+    fn new(value: i32) -> Counter => { value: value };
     fn read(self) -> i32 => self.value;
-
-    fn increment(&self) {
-        self.value += 1;
-    }
+    fn increment(&self) { self.value += 1; }
 }
-
-var counter = Counter::create(3);
+var counter = Counter::new(3);
 counter.increment();
-println(counter.read(), counter); // 4 Counter
+assert(counter.read() == 4);
 ```
 
-Fields end in commas (the last may omit it) and may be interleaved with operations. A class body cannot contain nested declarations, `const fn`, or C++ import/export operations.
+Fields can be selected and the representation can be constructed only within the
+lexical body of the defining class. This authority applies to other values of
+that same class and to lambdas written in its operations. It does not extend to
+module peers or called free functions. Ordinary `fn` follows the class audience;
+`private fn` is accessible only within that exact class body. Operations do not
+enter the module namespace, and fields and operations share one unique-name
+namespace. There is no member overloading or implicit `self` lookup.
 
-| Form                   | Meaning                                                                                    |
-| ---------------------- | ------------------------------------------------------------------------------------------ |
-| `fn name(params)`      | Associated operation, called as `Type::name(...)`; `Type::name` is also its callable value |
-| `fn name(self, ...)`   | Instance operation with a Read receiver                                                    |
-| `fn name(&self, ...)`  | Instance operation with a Write receiver; preserves the original updatable place           |
-| `fn name(&&self, ...)` | Instance operation that Takes the complete owner                                           |
-| `private fn ...`       | Accessible only inside this class body                                                     |
+A factory such as `Type::new(...)` returns a completed value. The name `new` is a convention for an ordinary associated function; other factories can use names such as `parse`, `open`, or `from_str`.
 
-A first parameter named `self` must omit its type annotation; `self` cannot name a later class-operation parameter. A free-function parameter or ordinary local binding named `self` does not acquire receiver meaning.
+Associated operations use `Type::name(...)`; synchronous associated operations
+also permit `Type::name` to select their ordinary callable value. Instance operations use
+`expression.name(...)`. The receiver is evaluated once, before explicit arguments,
+and binds through the ordinary Read/Write/Take rules according to untyped
+`self`, `&self`, or `&&self`. The fixed name is contextual to the first class
+operation parameter; `self` remains an ordinary identifier elsewhere. An
+operation without this receiver is associated; there is no `static` keyword.
+An associated operation may be `async fn` and uses ordinary cold-operation and
+await rules with its explicit inputs. Async operations with an instance receiver
+are not admitted.
+Write preserves the original updatable place. Take consumes the complete owner.
+Explicit arguments still require matching access markers. An instance operation
+cannot be selected as a standalone value.
 
-Instance operations are called as `expression.name(...)`. The receiver evaluates once, before the explicit arguments, and binds by ordinary Read, Write, or Take rules; explicit arguments still need their own access markers. An instance operation cannot be selected as a standalone value. There is no `static` keyword, member overloading, or implicit `self` lookup: inside an operation, fields are reached only as `self.field`.
+In-body representation construction supplies every field explicitly; an empty
+class permits `ClassName {}` within its body. There is no automatic default or
+implicit factory invocation, including through a containing struct or nonempty
+array. Empty arrays and default pointers/slices do not construct an element.
+Valid existing class values remain copyable or transferable under their field
+contracts. A type name is not callable.
 
-Selecting fields and constructing the representation are allowed only in the lexical body of the defining class. That authority covers other values of the same class and lambdas written inside its operations, but not module peers or free functions they call. Outside the body, `counter.value`, `Counter { value: 1 }`, and `let c: Counter = {};` report `CV-ACCESS-CLASS-PRIVATE`; calling a `private fn` from outside reports the same code. Ordinary operations follow the class's own `private`/`export` audience. Operations do not enter the module namespace, and fields and operations share one namespace in which each name is unique.
+The compiler uses private fields for type contents, ownership, and cleanup. A
+class does not support `==` or `!=`; its operations can expose named comparisons.
+Structural display prints the class name without expanding its fields. Generated
+C++ represents checked operations as ordinary functions. External C++
+implementations follow their explicit interoperation contracts.
 
-Construction inside the body must supply every field; there is no automatic default, including through a containing struct or nonempty array. `{}` in a class returning itself therefore reports `CV-TYPE-DEFAULT-INITIALIZATION` unless the class has no fields. A type name is not callable.
-
-A class has no implicit equality: `a == b`, including through a struct containing a class field, reports `CV-TYPE-EQUALITY-UNSUPPORTED`. Write an operation when a comparison is needed. [Structural display](/reference/formatting/#structural-display) prints only the class name. Required constant evaluation rejects class values and operations with `CV-CONST-ADMISSION`. Class representation patterns do not exist. Generated C++ represents class operations as ordinary functions taking the receiver as a parameter.
+A class operation may be `const fn` under ordinary execution capability rules.
+Const operations can be called in module and local constant initializers,
+type-forming constant expressions, `const fn` bodies, `const` blocks, and static
+tests. Calls retain private-operation visibility and declared argument access.
+Local constant expressions retain their defining class's representation access;
+constant results remain subject to ordinary freezing rules. Class representation
+patterns, nested class declarations, and C++ import/export methods are invalid.
 
 ## Contextual construction
 
-When an expression has a known expected type, a construction may omit that type: `{ field: value }` constructs it by name, and `{}` requests its default. Field checking, class representation access, ownership, borrowing, and constant-execution admission are the same as for the spelled form. Named fields require `field: value`; shorthand such as `{ quantity, amount }` is unsupported. Positional construction keeps its explicit type; `{ 1, 2 }` is a syntax error.
+A construction can omit its type when the expression already has a known
+expected type: `return { value: 1 };` in a function returning a record is checked
+as construction of that record. Named fields and empty initialization are
+supported; positional construction retains its explicit type. Empty initialization
+follows the [default-initialization rules](#fixed-arrays), including
+in-class construction of an empty class. Contextual construction checks class
+representation access, fields, ownership, borrowing, and static-execution admission.
 
-```carven
-struct Point {
-    x: i32,
-    y: i32,
-}
+Expected types flow from declared function and callable results, annotated
+bindings, assignment destinations, resolved Carven parameters, record fields,
+and known array element types. Value-control branches receive their surrounding
+expected type. An already established type from forward analysis
+of array elements or branches may also supply context; no later expression or
+use is searched to infer an earlier construction. Missing context is an error.
+There is no structural field-name search, failure-set selection, or native
+constructor/overload inference. Native construction keeps its explicit type.
+For `-> T throw E`, a return construction uses `T`, not the failure carrier.
 
-struct Segment {
-    start: Point,
-    end: Point,
-}
+In expression positions, `{}` means empty initialization. At the start of a
+match or catch arm body, `{ field: value }` is a construction but `{}` remains
+an empty branch block; write `({})` for an empty construction arm. A function,
+if, or try body retains its required block, whose final expression may itself
+be a contextual construction.
 
-fn origin() -> Point => { x: 0, y: 0 };
+## Default initialization
 
-fn width(segment: Segment) -> i32 => segment.end.x - segment.start.x;
+Default initialization is a type operation with these values:
 
-var text: String = {};
-text.append("ok");
-let points: [Point; 2] = [origin(), { x: 3, y: 4 }];
-let segment = Segment { start: {}, end: points[1] };
-println(text, width(segment), width({ start: origin(), end: { x: 5, y: 0 } }));
-```
+| Type                      | Default                                               |
+| ------------------------- | ----------------------------------------------------- |
+| Integer or floating-point | Zero (positive floating-point zero)                   |
+| `bool`                    | `false`                                               |
+| `char`                    | Unicode scalar U+0000                                 |
+| `str` or `String`         | Empty text; String owns its independent storage       |
+| `ptr<T>` or `ptr<&T>`     | Null pointer, subject to ordinary non-null checks     |
+| `[T]`                     | Empty read-only slice                                 |
+| `Vector<T>`               | Empty owning sequence; no element default is required |
+| `Range<T>`                | Empty exclusive range from zero to zero               |
+| `[T; N]`                  | N independently default-initialized elements          |
+| `void`                    | The unit value `()`                                   |
+| Tuple                     | Each element recursively default-initialized          |
+| Structure                 | All fields recursively default-initialized            |
+| External C++ type         | Native value initialization, validated by C++         |
 
-This prints `ok 3 5`. Expected types come from declared function and callable results, annotated bindings, assignment destinations, resolved Carven parameters, record fields, and known array element types; value-control branches receive their surrounding expected type. A type already established by forward analysis of array elements or branches may also supply context. No later use is searched, and `let point = { x: 1, y: 2 };` reports `CV-TYPE-CONSTRUCT-CONTEXT`.
+A zero-length array requires no element default. Ordinary classes, numeric and payload enums,
+callable values and views, and entry or iteration-only opaque types have
+no default value. A structure or nonempty array containing such a type also has
+no default value and must be constructed explicitly. Carven does not select an enum
+case or invent a callable target. `CV-TYPE-DEFAULT-INITIALIZATION` identifies a
+requested default that is unavailable. External constructors and their effects
+follow the native boundary's requirements.
 
-There is no structural search by field names and no failure-type selection: `throw { code: 404 };` also reports `CV-TYPE-CONSTRUCT-CONTEXT`, so spell the failure type. For `-> T throw E`, a returned construction uses `T`. Native C++ types never infer construction; `{}` for an external result reports `CV-TYPE-CONSTRUCT-CONTEXT`.
+Generic definitions use the same structural rules: `Vector<T>` and `[T; 0]`
+have defaults without requiring a default for the unknown `T`. Structures derive
+this capability from their fields.
 
-At the start of a match or catch arm body, `{ field: value }` is a construction but `{}` is an empty branch block. Write `({})` for an empty construction arm:
+An empty `T {}` requests this operation for types accepted by construction
+syntax, including builtin types such as `i32 {}` and `String {}`. Nonempty Carven
+construction requires a structure or authorized class representation; enum-case
+construction and callable adoption retain their separate forms. Every completed
+structure construction still initializes every field exactly once. Local binding
+declarations continue to require an initializer, and array literals retain their
+exact element-count rules.
 
-```carven
-fn pick(flag: bool) -> Point => match flag {
-    true => { x: 1, y: 0 },
-    false => ({}),
-};
-```
-
-This fragment uses `Point` from the previous example. The braces of a block-bodied function, an if arm, or a try body still delimit a block; its final expression may itself be a contextual construction.
+The same defaults apply during runtime, interpretation and static
+execution, within each execution mode's admitted type and operation subset.
+Default construction does not extend borrowed lifetimes or relax access rules.
+Constant results follow the freezing rules; default owning text remains
+an owning value during execution. Native defaults remain delegated to C++ and
+are outside Carven's interpreter and constant executor.
 
 ## Fixed arrays
 
-The length of `[T; N]` is a nonnegative constant expression. Element type and length both contribute to type identity. Zero-length arrays retain their element type and its constraints.
+An array type has one element type and a constant nonnegative extent. A
+zero-length array type is valid and still carries its element type. A
+comma-separated literal has an extent equal to its element count. Without an
+expected array, slice, or Vector type, it must be nonempty; its element type is inferred
+from an unambiguous element, and every element must be compatible. An expected
+`[T; N]` supplies the element type and requires exactly N elements. An expected
+`[T]` supplies the element type and borrows the resulting array under ordinary
+lifetime rules. An expected `Vector<T>` constructs an owning vector. Empty `[]` is valid with
+an expected `[T; 0]`, `[T]`, or `Vector<T>`.
+An empty slice constructed from a zero-length array retains no backing storage.
+
+Arrays provide `length() -> usize` and `is_empty() -> bool` directly. These queries
+use the fixed extent while evaluating the receiver once, including its effects
+and failures; no slice conversion is required.
+
+`[expression; N]` constructs an array with N elements. N follows the same
+constant nonnegative extent rules as `[T; N]`. An expected array, slice, or Vector supplies
+the element type; otherwise it is inferred from the expression. An expected
+array extent must equal N. Each element evaluates the expression afresh in
+index order, with ordinary access and lifetime rules. For N = 0, the expression
+is checked and determines the element type but is not executed. No element
+default is required. If an element fails, construction stops and already
+constructed elements follow ordinary cleanup rules. Literal expansion is bounded
+by the compiler's construction budgets.
+
+Array indexing accepts an integer index. A constant negative index or one
+greater than or equal to the extent is diagnosed before lowering. A dynamic
+out-of-bounds index terminates deterministically. Receiver and index are each
+evaluated once, receiver first. Element mutation requires a mutable receiver.
+Indexing a consumed complete array transfers the selected element into an
+independent value. Indexing existing array storage reads the element under its
+ordinary copying rules. A slice always selects its borrowed element storage,
+including after the slice descriptor itself is consumed.
+
+Structures do not support `==` or `!=`. Array equality is available only when its
+element type supports equality, including for zero-length arrays. Nominal
+declarations may not form a by-value storage cycle through structure fields,
+enum payloads, or arrays; a zero-length array still contributes its element
+edge. Function parameter and result types do not contribute storage edges.
+Every nominal type exposed by a declaration surface must be visible to that
+surface's audience, including types nested in fields and payloads.
+
+## Tuples
+
+A tuple is an ordered product with a type for each position. Both values and
+types use parentheses: `(20, "answer")` and `(i32, str)`. Nesting is preserved;
+`(i32, (bool, str))` differs from `(i32, bool, str)`. Elements are evaluated from
+left to right, once each. A known tuple type supplies an expected type to each
+element.
+
+`(value)` groups an expression; `(value,)` constructs a one-element tuple.
+The same distinction applies to types and binding targets. The empty product
+`()` is the unique `void` value and also spells the `void` type. A `void`
+element keeps its logical position in a nonempty tuple.
+
+Local `let`, `var`, and `const` declarations accept recursive tuple targets:
 
 ```carven
-let values = [1, 2, 3];
-let empty: [i32; 0] = [];
-const extent = 3;
-let typed: [i32; extent] = [4, 5, 6];
+var (number, _, (text,)): (i32, void, (str,)) = (42, (), ("ready",));
+number += 1;
+assert(text == "ready");
 ```
 
-Without an expected array or slice type, an array literal must be nonempty, derive its type from unambiguous elements, and have compatible elements. `[T; N]` context requires N elements. `[T]` context creates a read-only view of the produced array, subject to borrow lifetimes. Empty `[]` needs `[T; 0]` or `[T]` context.
+The target must match the initializer's arity and nesting. Each named runtime
+element becomes a complete owner with the declaration's mutability. Taking one
+element binding makes that binding unavailable and leaves its siblings
+available. `let (a, b) = owner;` follows ordinary owning-copy rules;
+`let (a, b) = &&owner;` transfers the complete source owner. The initializer is
+evaluated once, and its element storage remains stable for the bindings' scope.
+Discarded elements remain alive until that scope ends. A local `const` freezes
+the source once and binds the selected constant elements.
 
-Indexing accepts integers. Statically known negative or out-of-bounds indices are diagnosed; dynamic violations terminate. The receiver is evaluated first, then the index, once each. Element mutation requires a writable receiver. Arrays support equality only when their element type does.
+Tuples support elementwise equality when all elements do, and default
+initialization when all elements have defaults. Positional fields use zero-based
+decimal names: `pair.0`, `nested.1.0`, or `pair.0.method()`. A position has no
+leading zeros, underscores, suffix, or exponent. Out-of-bounds positions are
+rejected during analysis, including any position on `()`. Arrays and slices
+retain expression indexing with `[]`; tuples do not accept dynamic indexing.
+Pointer access `pointer->0` abbreviates `(*pointer).0` under the ordinary
+pointer validity and access rules.
 
-## Two enum forms
+A positional field follows the source's Read or Write access, evaluates its
+receiver once, and has the selected element's type. Taking `&&pair.0` from a
+still-available whole owner is invalid, just like taking a structure field.
+`(&&pair).0` instead consumes the complete product before selecting its result;
+the remaining elements retain ordinary full-expression cleanup.
 
-An enum has at least one case. If all cases have no payload, it is numeric. Its default backing type is `i32`; an explicit backing type must be an integer.
+Function and lambda parameters accept tuple targets while retaining one parameter
+with the complete product type. Read and Write targets project the parameter's
+existing storage under its ordinary snapshot or borrowing policy. Take targets
+give their named slots independent owner identities without relocating the
+complete product. Static parameter targets retain static value semantics.
+
+Range loops accept recursive tuple targets for tuple-valued array or slice
+elements. Their names follow the current element's Read or Write access and
+cannot be taken. Tuple patterns in `match` and enum payloads recursively match
+each position; `()` matches unit, `(pattern)` groups, and `(pattern,)` matches a
+singleton. Pattern names retain ordinary match binding and guard rules.
+
+## Owning vectors
+
+`Vector<T>` owns a growable ordered collection of initialized contiguous elements.
+It supports deep copying, whole-owner Take, checked Read and Write indexing, and
+iteration. Recursive products and enums may contain vectors of their own values.
+Copying creates independent owned contents; raw pointer elements still copy their
+addresses. Taking a complete vector makes the source unavailable.
 
 ```carven
-enum Status: u8 {
-    Ready = 1,
-    Busy,
-    Done,
-}
+var numbers: Vector<i32> = [10, 20, 30];
+numbers.push(40);
+let removed = numbers.remove(1);
+assert(removed == 20);
+let tail: [i32] = numbers.slice(1, 3);
+assert(tail[0] == 30);
 ```
 
-Omitted values begin at zero or use checked increment of the preceding value. Initializers must be representable, and normalized values cannot repeat. Cases are constants and may explicitly convert to integers; integers cannot convert back to the enum.
+An expected Vector type supplies the element type for comma-separated and repeat
+literals, including `[]` and `[value; 0]`. Each repeat element evaluates its
+expression independently, under the array literal evaluation rules. Without
+Vector context, literals retain their fixed-array type. Existing arrays and
+slices require `Vector<T>::from_slice(values)` to copy their elements into an owner.
 
-Any payload case makes the entire enum a payload enum. It may mix in payload-free cases, but cannot declare an integer backing type, numeric initializers, or integer casts. It has no default value.
+| Operation                                  | Access and result                                            |
+| ------------------------------------------ | ------------------------------------------------------------ |
+| `Vector<T>::new()`                         | Empty owner, zero capacity                                   |
+| `Vector<T>::from_slice(values: [T])`       | Independent owning copy of the elements                      |
+| `Vector<T>::with_capacity(minimum: usize)` | Empty owner with at least the requested capacity             |
+| `v.length()` / `v.is_empty()`              | Read; `usize` / `bool`                                       |
+| `v.capacity()`                             | Read; capacity in elements                                   |
+| `v.reserve(minimum: usize)`                | Write; ensure minimum total capacity, preserving contents    |
+| `v.push(value)` / `v.push(&&value)`        | Write; copy or transfer an element into the end              |
+| `v.remove(index)`                          | Write; return the removed owner and preserve remaining order |
+| `v.clear()`                                | Write; destroy all elements and retain capacity              |
+| `v.slice()`                                | Read; borrowed `[T]`                                         |
+| `v.slice(start: usize, end: usize)`        | Read; borrowed half-open subrange                            |
 
-```carven
-enum Reply {
-    Empty,
-    Number(i32),
-    Pair(i32, bool),
-}
+`Vector<T> {}` and contextual empty construction also produce the empty default;
+no element default is required. Capacity growth factors are unspecified. Appending
+within capacity does not reallocate. Removal and clear retain capacity; copying
+preserves contents without promising the same spare capacity. Allocation failure
+and capacity overflow terminate without a nominal throw effect.
 
-fn reply(value: i32) -> Reply => .Number(value);
+A Vector supplies `[T]` directly in a slice destination context, including Read
+arguments. Borrowing copies no elements and extends no lifetime. A live slice
+protects the whole owner from mutation, replacement, Take, and destruction.
+Structural mutation is rejected while element storage is borrowed, even when
+reserved capacity would avoid reallocation. Read and Write iteration retain the
+owner and prohibit structural mutation; Write iteration can update elements.
+Taking an indexed element is invalid; `remove` extracts it without leaving a hole.
+An admitted self-element push copies the argument before modifying storage.
 
-let empty: Reply = .Empty;
-println(reply(3) == .Number(3), empty == .Empty); // true true
-```
+Elements require Carven-defined owning value semantics. Borrowed text, slices,
+callable values and views, external C++ values, async operations, and products
+containing them are invalid elements. Raw pointers keep their ordinary target
+contracts. `Vector<bool>` uses ordinary elements and supports `[bool]` views.
+There is no raw pointer extraction or uninitialized-storage API.
 
-Payload cases are first-class constructors; payload-free cases are values. A payload constructor requires exactly its parameter count. Do not append `()` to a payload-free case.
+Logical construction, copying, transfer, mutation, extraction, and slicing work
+in native, interpreted, and constant execution, including capacity queries,
+reservation, and capacity construction. Completed constants preserve Vector
+ownership, element types, contents, and capacity. A slice retained at initializer
+completion has immutable static backing; ordinary runtime slices still borrow.
+Copying a retained Vector creates independent owned contents before mutation.
+Execution limits bound aggregate storage, reserved capacity, and work.
 
-`.Case` and `.Case(...)` need an enum type from a binding, return, assignment, argument, aggregate position, or unambiguous adjacent operand. Case names are not searched globally and cannot be imported alone. A full name such as `Reply::Number(3)` specifies the owner explicitly.
+## Enums
 
-The declared result of `reply` supplies the owner for `.Number(value)`; the annotated binding supplies it for `.Empty`.
+Every enum is a closed nominal sum and has at least one case. An enum whose
+cases are all nullary has the numeric profile. Its omitted underlying type is
+`i32`; an explicit underlying type must be an integer. Every numeric case has a
+normalized integer value. Explicit initializers must be representable, and
+omitted initializers start at zero or use checked increment from the preceding
+case. Duplicate normalized case values are invalid. Numeric cases are constant
+facts and may be cast to integers; integer-to-enum conversion is unavailable.
 
-Equality compares the case first. Different cases are unequal; matching cases compare payload positions with short-circuiting. A payload enum supports equality only when every payload supports it.
+If any case declares positional payload types, the enum has the payload
+profile. It may mix payload and nullary cases, but cannot declare an underlying
+type, numeric initializer, or integer cast. It has no default value. A payload
+case is a first-class constructor function; a nullary case is a value.
 
-## Recursive storage and visibility
-
-The by-value storage graph formed by struct fields, enum payloads, and array elements must be acyclic. Even zero-length arrays retain an element-type edge. Function parameters and results do not form storage edges. Pointers do not own their targets and can support recursive structures. Published field and payload types must be visible to the declaration's audience. Class fields are private to the class body and may use module-private types; class operations remain subject to their declared audience.
+Contextual `.Case(arguments)` and `.Case` forms require an expected enum type
+that identifies the owner. Such context may come from a typed binding, return,
+assignment, call argument, aggregate position, or an unambiguous sibling or
+equality operand. Cases are never found by global case-name search and cannot
+be imported independently. Calling a nullary case or using a payload case
+without its exact payload arity is invalid.

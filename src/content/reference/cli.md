@@ -1,151 +1,435 @@
 ---
-title: "Compiler commands and Graver"
-description: "Native execution, interpretation, generated artifacts, and Graver source formatting."
+title: "Compiler commands and carven-format"
+description: "Native execution, interpretation, generated artifacts, and carven-format source formatting."
 section: reference
 lesson: 24
 source: docs/toolchain/cli.md
 ---
 
-## Commands
+To run a source program locally, use `carven main.cv`. Use `carven check main.cv` to check it without running its runtime code, `carven compile` to obtain C++, and `carven interpret` to execute supported Carven operations without a native C++ build. Required compile-time work still runs during checking. The sections below explain input collection, output directories, and reuse of checked programs.
 
-```sh
-carven main.cv
-carven --tests main.cv
-carven check --timings main.cv
-carven main.cv -- argument
-carven compile --stdout main.cv
-carven compile -o generated main.cv
-carven interpret --trace --max-steps 100000 main.cv
-carven interpret --tests main.cv
-carven dump main.cv
-carven dump tokens main.cv
-carven dump ast main.cv
+## Invocation
+
+```text
+carven [--tests] [--timings] <source-file>... [-- <arguments>...]
+carven compile [options...] [<input>...]
+carven check [options...] [<input>...]
+carven interpret [--tests] [--timings] [--trace] [--max-steps N] <source-file>... [-- <arguments>...]
+carven dump [tokens|ast] [--timings] <source-file>
 ```
 
-`--help/-h`, `--version/-V`, and command help for compile/check/interpret/dump are available. No arguments prints top-level help and succeeds.
+`carven --help`, `carven compile --help`, `carven check --help`,
+`carven interpret --help`, and `carven dump --help` print help (`-h` is also
+accepted). Top-level help lists commands; each command has its own usage and
+options. `carven --version` and `carven -V` print `carven v<version>` followed by
+a newline. With no arguments, `carven` prints the top-level help and succeeds.
 
 ## Source collection
 
-`check`, `compile`, direct native execution, and `interpret` combine explicit application `.cv` inputs with `.cv` and `.cpp` files recursively collected from the matching toolchain's `crafts/carven/` and the working directory's optional `crafts/`. At least one explicit `.cv` input is required. Imports resolve within this batch; they do not discover or download files. Directory symlinks are not recursively followed. Files are deduplicated by canonical filesystem path and sorted by path spelling; distinct files with conflicting module identities are errors.
+By default, `check`, source compilation, native execution, and `interpret` combine
+explicit application inputs with `.cv` and `.cpp` files collected recursively from the toolchain's
+`crafts/carven/` and the working directory's optional `crafts/`. Other application
+files must be named explicitly. The collector assigns module identities relative
+to each Crafts root, deduplicates files by canonical path, and retains absolute
+physical source paths for diagnostics and generated source mapping. It sorts the
+batch by these paths. Distinct files with conflicting module identities are errors.
+Directory symlinks are not recursively followed.
 
-All collected `.cv` modules receive semantic checks, required constant evaluation, and static tests, even when unimported. Test mode selects all ordinary tests. Collected `examples/` and `tests/` subdirectories are included too. Installed library sources must build together and leave entry selection to the application. Keep independent examples, intentionally invalid tests, and alternative targets outside these roots.
+The installed layout is `<prefix>/bin/carven` with matching resources in
+`<prefix>/crafts/carven/`. Discovery checks that the `carven` directory exists.
+Development binaries locate Crafts in their containing source checkout, identified
+by `src/carven.cppm`, `xmake.lua`, and `crafts/carven/`. Additional native libraries,
+compiler flags, dependency downloads, and build scheduling belong to an external
+build system.
 
-For custom integration, keep external repositories in a directory such as `thirdparty/`, explicitly supply selected `.cv` inputs, and configure native sources, headers, defines, flags, and libraries in the external build. Official and third-party Crafts follow the same collection rules.
+### Installed Crafts
 
-## Checking
+The project's `crafts/` directory holds installed source packages. Every `.cv`
+and `.cpp` under the collected roots participates, including files in `examples/`
+and `tests/`. Carven analyzes all `.cv` files, executes their static roots and
+`const test` bodies, and emits runtime tests from owned modules when requested.
+Native execution compiles collected `.cpp` files alongside generated implementations;
+those sources include their headers. Official and third-party Crafts follow the
+same rules.
 
-`carven check main.cv` completes semantic analysis, including required constants, constant blocks, and `const test`, without generating artifacts or requiring an entry. Ordinary functions and runtime tests are checked but not executed. Native overloads, templates, and native type properties still require C++ compilation.
+Package authors or users select sources for the target platform and configuration
+before placing them in `crafts/`. Packaging tools can prepare the same installed
+layout. Installed sources must build together, with distinct module identities
+and available native dependencies. Library sources must leave
+program entry selection to the application. Keep independent examples, intentional
+compilation-failure tests, and alternative build targets outside the collected
+roots. Analysis errors and static-test failures in any collected module fail the
+command, including modules the application does not import.
 
-Success returns 0 and prints `carven: check passed` on stderr; invocation, input, or analysis errors return 1. Warnings do not change success status. `--timings` adds the duration to the success report without duplicating it.
+For custom integration, place external repositories outside the collected roots,
+for example in `thirdparty/`. Supply selected `.cv` files explicitly to Carven.
+Supply C++ sources, include paths, defines, compiler options, and libraries to the
+native build through its ordinary target configuration. Explicit `.cv` inputs
+follow the ordinary module-path rules and are combined with the automatically
+collected Crafts.
+
+## Native execution
+
+Carven analyzes all collected modules, generates C++, compiles and links a native
+program, then executes it. Program execution requires one entry point.
+`carven --tests` compiles and runs ordinary runtime tests, requires at least
+one runtime test, and leaves the program entry unexecuted. Static tests run during
+analysis. Failed checks accumulate; `require` and `fail` stop the current test,
+then later tests continue. Assertion failures and runtime traps abort the process.
+Any test failure produces a nonzero exit status.
+Native header lookup includes the generated directory, both Crafts include roots, and the
+working directory. Before `--`, arguments are source paths, `--tests`, or
+`--timings`; arguments after it are passed unchanged to the executable.
+Artifact output and external test-runner options belong to `compile`.
+
+`CXX` selects one compiler executable name or path, defaulting to `clang++`.
+GCC-style drivers use `-std=c++20`; `cl` and `clang-cl` use MSVC-style arguments
+and separate temporary object files. The compiler, SDK, and linker must be
+available in the current environment. POSIX and Windows process adapters invoke
+children directly, inheriting the working directory, environment, and standard
+streams. `CXX` is not split into shell words.
+Windows native execution links Winsock for the installed TCP craft (`ws2_32.lib`
+for MSVC-style drivers and `-lws2_32` otherwise).
+
+Generated files and the executable reside in a unique temporary directory,
+removed when the driver returns after execution or a handled failure. Carven
+returns the native compiler's failure status or the program's exit status. On
+POSIX, termination by signal yields `128 + signal`.
+Native compilation failures identify the failed phase, compiler, and exit status
+after the compiler's own diagnostics.
 
 ## Timing reports
 
-`--timings` is available for check, compile, interpret, dump, and native execution. It reports outcome, total wall time, and attempted stages on stderr, including failed commands. Analysis includes required constant execution and static tests; native runs also report C++ compilation and linking. Execution and artifact streams stay separate. Total time includes setup, diagnostics, and cleanup, so it can exceed the stage sum. Invalid options produce no timing report. `--` ends option parsing for native and interpreted runs.
+`--timings` enables a human-readable report on standard error for `check`,
+`compile`, `interpret`, `dump`, and direct native execution:
 
-```sh
+```shell
 carven check --timings main.cv
+carven compile --timings main.cv -o emit
+carven interpret --timings main.cv
+carven dump --timings main.cv
+carven --timings main.cv -- argument
 ```
 
-```text
-carven: check passed in 86.9 ms
-  Stage                          Time  % total
-  ---------------------- ------------ --------
-  Source collection            2.6 ms     3.0%
-  Source loading               1.0 ms     1.2%
-  Lexing                       1.0 ms     1.1%
-  Parsing                      4.5 ms     5.1%
-  Semantic analysis           74.5 ms    85.8%
-```
+The report shows the outcome, total wall-clock duration, and the stages executed,
+in a table with duration and percentage of total time. Durations use milliseconds
+or seconds; values below display precision use `<0.1 ms` or `<0.1%`.
+Lexing and parsing accumulate across sources. Semantic analysis includes
+compile-time execution and static tests.
+Checking, compilation, and runtime commands also report source collection.
+Native runs report C++ compilation and linking. Native and interpreted runs label
+their runtime phase `Execution`; `compile` ends with C++ artifact output.
 
-Durations vary by machine. The first line states the outcome, such as `interpretation finished`, `compilation finished`, or `run exited with code 0`. Checking, compilation, and runtime commands report source collection; compile adds `C++ generation` and `Artifact writing`; native runs add `Native compilation`; native and interpreted runs label the runtime phase `Execution`. Reports are for human reading.
+Total time includes pipeline setup, diagnostics and command-resource cleanup.
+Stage percentages use the unrounded durations. Semantic detail intervals are
+included in the semantic total; these nested intervals must not be added to it.
+Failed commands report the stages attempted. Native runs report the program's
+exit code. Invalid command options
+produce diagnostics without a timing report.
 
-Each stage lists its duration and share of total time. Percentages use unrounded durations and may sum to less than 100%, since total time also includes setup, diagnostics, and cleanup. Values below display precision appear as `<0.1 ms` or `<0.1%`.
+Timing reports use stderr and leave program and artifact streams intact.
+`interpret --trace --timings` includes both execution traces and the final report.
+For interpretation and native runs, `--` ends command-option parsing. Reports
+are intended for human reading.
 
-## Direct native execution
+## Checking
 
-A source invocation analyzes the collected batch, generates C++, compiles and links generated implementations together with collected `.cpp` files, then runs the program. It does not depend on Xmake or another build tool.
+`check` collects the fixed Crafts roots and analyzes the resulting source batch
+through the same semantic pipeline as `compile`, including compile-time
+execution and `const test` execution. Ordinary
+functions and runtime tests receive semantic checks without execution. An entry
+point is optional.
 
-`CXX` selects one compiler executable name or path, defaulting to `clang++`; it is not split into shell arguments. The driver requests C++20, using MSVC-style arguments for `cl` and `clang-cl`, and GCC-style arguments for other drivers. The user supplies the required SDK, linker, and toolchain environment. The driver uses platform process interfaces to launch the toolchain and generated program.
+The command completes after semantic analysis. Without `-o`, it produces no
+artifacts. `-o <dir>` saves retained semantics and a manifest for later C++
+generation. Checking does not generate C++ or select a native linkage domain.
+Native overload resolution, template instantiation, and native type properties
+are checked by the C++ compiler.
 
-For a standalone installation, place `bin/carven` (`bin/carven.exe` on Windows) and matching `crafts/carven/` under one installation root. A development binary can also locate Crafts in its enclosing source checkout. Header search includes the generated directory, toolchain and project Crafts directories, and the working directory.
-
-Every run creates a separate `carven-run-*` directory under the system temporary directory for generated files and the native executable, without caching previous builds. It is removed after execution or a handled failure. Forced termination may leave it behind; cleanup failures produce a warning. Child processes inherit the working directory and standard streams, so relative file paths still resolve from the user's working directory.
-
-Source paths, `--tests`, and `--timings` are accepted before `--`. Subsequent arguments are passed without a shell, including empty arguments, spaces, quotes, and backslashes. Program mode requires an entry; Carven diagnoses multiple entries first. Native compilation failures and program status are passed through; POSIX signal termination maps to `128 + signal`. External build systems handle complex native dependencies and incremental builds.
-
-After the native compiler's own diagnostics, Carven identifies the failed compilation or linking phase, compiler executable, and exit status.
-
-`carven --tests main.cv` runs ordinary runtime tests instead of the program entry and requires at least one runtime test. Static tests still execute during analysis. Failed checks accumulate; require/fail stop the current test and later tests continue. Assertions and runtime traps abort the process. Any test failure produces nonzero status. Top-level statements and main are not executed in test mode.
+`check` accepts source inputs or a retained semantic directory. It requires at least
+one input and accepts `--source` mappings, `-o <dir>`, `--timings`, and standalone
+`--help` and `-h`. Invocation, input, and analysis
+errors return status 1; success returns 0, including when warnings are reported.
+Successful checks print `carven: check passed` on stderr. With `--timings`, the
+timing report adds the duration to this success message instead of printing it twice.
 
 ## Interpretation
 
-Interpretation executes supported source operations directly with ordinary Carven semantics. Use native compilation for the full language and C++ integration. The interpreter subset does not restrict language-required compile-time evaluation, which calls only explicit `const fn` functions and their `const fn` dependencies.
+Interpretation executes Carven's semantic operations using runtime arithmetic and
+execution rules. It diagnoses an unsupported operation when execution reaches it.
+Native C++ implementations require native execution.
 
-interpret uses the same source collection as check, compile, and native execution. Required constant initializers, `const {}` blocks, and `const test` execute during analysis. The interpreter then executes the published semantic operations and checks each operation's support when its operands complete and execution reaches it. It supports numeric, `bool`, `char`, `str`, and `String` locals; supported structs, enums, fixed arrays, slices, SIMD vectors and masks; byte views and iteration; typed failures and recovery; direct calls and calls through local bindings of named Carven functions; local mutation, local pointers, and Write parameters; branches, loops, matching, printing, and formatting. Retained C string values support text printing and default text formatting.
+`interpret` collects and analyzes sources normally, including execution of
+`const` initializers, blocks, and tests. It then executes the published program,
+checking operation support after operands complete. Program execution requires
+one entry: top-level executable statements or `main`. Declaration-only and empty
+files remain valid for `check` but supply no entry.
 
-Program execution requires an entry supplied by top-level executable statements or `main`. Use `check` for declaration-only, empty, or static-test-only files.
+Unused functions receive ordinary language checks; only `const fn` declarations
+require executor capability checking before execution. Source functions called
+during static execution must be declared `const fn`. Interpretation writes no C++
+artifacts or native executable.
 
-Typed failures use the shared executor: throw, propagation, typed catches, guards, and rethrow work across ordinary calls. An escaping entry failure reports an execution error.
+`interpret --tests` selects ordinary runtime tests instead of the program entry.
+It requires at least one runtime test and does not execute top-level statements or
+`main`. Static tests still execute during analysis. Runtime tests run in canonical
+module order and source order within each module, each with fresh local storage
+and an independent execution budget. `check` failures accumulate;
+`require` and `fail` stop the current test through helper calls and cannot be caught
+as typed failures. Unsupported operations and exhausted budgets stop the current
+test; later tests still run. An assertion failure or runtime trap aborts execution,
+skips remaining tests, and produces no pass/fail summary. Otherwise the command
+reports failures and a pass/fail summary to stderr. It returns 1 if any test fails.
+Interpreter and compile-time diagnostics show up to eight call sites and report
+the number of additional sites omitted.
 
-The driver rejects collected `.cpp` files, and native source fragments are rejected in every collected module, including unimported modules. C++ header imports are permitted. Reached native operations and callable values without an executable Carven body report `CV-INTERPRET-ADMISSION`; unreached ones do not. Unused functions still receive ordinary language checks but need not fit the interpreter subset unless declared `const fn`, which has its own capability check. The entry must be parameterless; arguments after `--` are ignored, as for a parameterless native entry.
+Interpretation uses the shared structured executor for supported Carven calls,
+local storage, aggregates, text, control flow, and typed failures. Integer
+arithmetic follows the language's wrapping rules. Floating arithmetic and
+formatting use the compiler host's native environment and standard library,
+within execution budgets.
 
-Admission failures use `CV-INTERPRET-ADMISSION`, without native fallback. Other execution failures use `CV-INTERPRET-EXECUTION`; budget failures use `CV-INTERPRET-LIMIT`. Invocation, admission, and execution errors return 1; normal completion follows the entry-result convention. Completed output remains visible. Assertions and runtime traps use source-positioned reports and abort the whole interpreted run.
+The interpreter supports input configuration, reads, clock sampling, waits, and
+deadline composition. Explicit `const` execution performs the same supported host work
+during analysis in `check`, `compile`, native-run preparation, and `interpret`.
+Ordinary calls perform it during program execution. In one compiler process,
+the input cursor preserves prefetched bytes, EOF, and system errors from static
+roots into subsequent interpretation.
 
-`--trace` writes interpreted statement locations, calls, and successful returns to stderr, indented by call depth. It does not trace preceding constant execution or every expression value. Program stderr shares that stream.
+Collected `.cpp` files, C++ header imports, and native source fragments do not
+prevent interpretation. They remain native build inputs; the interpreter does
+not compile or load them. Reached native operations and callable implementations
+outside the supported subset report `CV-INTERPRET-ADMISSION` at the operation.
+C++ global initialization and destruction do not run. Programs that depend on
+those effects require native execution.
+The interpreted entry must take no parameters. Arguments after `--` are ignored
+by such an entry.
 
-`--max-steps N` is a nonnegative decimal step count, defaulting to 100,000. Nested calls share the entry budget. It limits steps, not elapsed time or blocked output. Value size, call depth, aggregate work, and text work limits still apply. Each preceding constant root has an independent budget unaffected by this option. Repeating `--max-steps`, `--trace`, or `--tests` is an error.
+`--trace` reports executed statement locations and function calls and successful
+returns to stderr, indented by call depth. It describes interpreted execution after
+analysis, not compile-time execution, and does not record every expression or variable
+value. Program stderr shares that stream. Combined stdout/stderr display order is
+not a complete execution log.
 
-Integer arithmetic uses the same wrapping rules in required constant execution and runtime interpretation. Interpretation writes no C++ artifacts or native executable. Floating arithmetic uses the host native environment; floating printing and formatting follow native standard-library format rules.
+`--max-steps N` supplies a nonnegative decimal step budget, defaulting to 100,000.
+Steps charge expression evaluation, statements, and loop progress using the shared
+executor; nested calls share the root budget. It does not limit elapsed time,
+input waiting, timer waiting, or blocking output. Existing per-value, call-depth, aggregate, and cumulative text-work
+limits also apply. Each compile-time root keeps its own analysis budget;
+this option changes only interpreted execution, with a fresh budget for each
+runtime test. Repeating `--max-steps`, `--trace`, or `--tests` is an error.
 
-`interpret --tests` requires at least one runtime test and skips the program entry. Tests execute in canonical module order, then source order, each with fresh storage and an independent max-steps budget. Failed checks accumulate; require/fail stop the current test through helpers and cannot be caught as typed failures. Later tests continue after recoverable test stops, unsupported operations, other execution errors, or budget exhaustion. A failed assert or runtime trap aborts execution, skips remaining tests, and prints no completion summary. Otherwise reports and `carven: tests: N passed; M failed` go to stderr; any failed test returns 1. See [reported locations](/reference/entry-testing/#reported-locations).
+Assertions, test reports, and runtime traps use the runtime report layout with
+source locations and call context. Other execution errors report
+`CV-INTERPRET-EXECUTION`; exhausted budgets report `CV-INTERPRET-LIMIT`. Completed
+output remains observable. Invocation, admission, and execution failures return
+status 1; normal completion follows the entry-result convention.
 
-## Input paths
+## Source inputs
 
-Paths use UTF-8, `/` separators, and the `.cv` extension. Relative paths must not escape the working directory after lexical normalization. Removing the extension and joining components with dots produces the canonical module name. Collected files derive module identity from their known Crafts root, independently of the installation prefix; explicit aliases retain that identity. Other absolute inputs require a crafts hierarchy and derive identity from its first crafts component. The operating system resolves symbolic links when opening a file.
+Native execution, `check`, and `interpret` require one or more explicit `.cv`
+inputs. Source compilation requires positional sources or mappings, unless its
+input is a retained artifact directory.
 
-Each component, including the file stem, must have identifier shape: `my-file.cv` is rejected with `invalid module file stem`. Module components may be keywords. A batch cannot contain duplicate canonical module names. Imports resolve only these inputs.
+Source paths use UTF-8, `/` separators, and a `.cv` extension. Relative paths
+determine module identities after lexical normalization:
 
-## compile artifacts
+```text
+src/main.cv       -> src.main
+crafts/json/io.cv -> crafts.json.io
+```
 
-| Option                                             | Behavior                                                         |
-| -------------------------------------------------- | ---------------------------------------------------------------- |
-| No destination                                     | Write into the working directory                                 |
-| `-o dir` / `--output-dir dir` / `--output-dir=dir` | Write into the specified directory                               |
-| `--stdout`                                         | Print filename headings and content to stdout, with no file sink |
+The project `crafts/` directory is the package root: `json::parser` selects
+`crafts.json.parser`. The reserved `std::` prefix selects the standard-library
+modules of the official `carven` craft, such as `crafts.carven.std.utf`.
 
-Select at most one destination option, without repetition. After successful analysis, files are written in canonical path order, parent directories are created, and existing files are overwritten. Writing stops at the first I/O failure; earlier files may already have been written. Stale-file cleanup, isolated output directories, and failure protection belong to the build system. `--stdout` displays only artifacts belonging to explicit source inputs, plus requested test runner and entry artifacts; collected dependencies such as the bundled UTF Craft remain includes but still participate in analysis. A shared interface is shown when it contains an explicit input. stdout output is for inspection, not a single directly compilable C++ file.
+Explicit absolute Crafts paths are also accepted. For files collected from a
+known Crafts root, that root determines the module identity independently of the
+installation prefix. Other absolute inputs use the path starting at the first
+`crafts/` component: `/opt/packages/crafts/json/parser.cv` becomes
+`crafts.json.parser`. Explicit aliases of collected files retain their identity.
 
-Generated `.cpp` files retain source module paths. Internal headers use `carven/generated/<module-path>.hpp`; exported C++ interfaces use `carven/api/<module-path>.hpp`. These prefixes identify Carven headers to C++ consumers. With `-o generated`, `generated/carven/generated/…` therefore combines the selected output root with the header include path.
+Application paths must be relative and stay within the working directory.
+Their hierarchy is normalized lexically. Canonical filesystem paths identify
+duplicate files.
 
-compile uses the shared source collector and does not invoke native compilation or linking. It writes generated implementations for collected Crafts modules too, such as `crafts/carven/std/utf/*.cpp`, but does not compile or copy collected `.cpp` sources; see [builds and artifacts](/reference/toolchain/#build-responsibilities) for manual builds. Test emission is omitted by default. `--tests` aliases `--tests=default`; this mode emits module tests, the runner, and a default test entry while suppressing the program entry wrapper, so all generated sources can link into one test executable. `--tests=external` emits tests and `carven/generated/carven-test-runner.hpp`, retains the program entry wrapper, and leaves entry selection and an optional reporter to the consumer. Modes and aliases cannot repeat or combine. Generation permits an empty test suite; commands that execute tests require at least one runtime test.
+Every derived component must match `[A-Za-z_][A-Za-z0-9_]*`; language keywords
+are permitted as module components. Two inputs cannot derive the same canonical
+module path.
 
-## Linkage domains
+`compile` and `check` accept repeatable
+`--source=<canonical-module>=<path.cv>` arguments alongside positional inputs.
+Both commands require at least one positional input or mapping.
+A mapping supplies module identity independently of its physical path, for example
+`--source=app.main=/work/src/main.cv`. Mapped invocations select their complete
+owned input set and load the toolchain sources without discovering project Crafts.
+Identical physical files are deduplicated. Conflicting identities for one file
+and duplicate module identities across different files are rejected.
 
-`--linkage-domain=value` requires the equals sign and a nonempty value, and may appear only once. It supplies caller-controlled identity for private generated namespaces. The default derives from the absolute normalized artifact root; stdout uses the working directory as a virtual root. Explicit and path-derived domains remain distinct even when their strings match.
+## Artifact destinations
 
-Reuse a domain for the same logical target; use different domains for distinct targets that may link into one image. Moving the output root changes default identity. Source text, module membership and order, and source locations do not contribute to domain computation. A linkage domain neither changes Carven nominal identity nor defines a public C++ ABI.
+`check -o <dir>` writes retained semantics and a manifest. `compile` writes C++
+and a manifest, defaulting to the current directory. Use `-o <dir>` to select its
+directory or `--stdout` to inspect C++. Select at most one destination.
 
-## Diagnostics and compile-time output
+| Option     | Destination                                         |
+| ---------- | --------------------------------------------------- |
+| `-o <dir>` | Generated artifacts below a directory               |
+| `--stdout` | Human-oriented inspection output on standard output |
 
-Invocation, reading, source, or writing failures report to stderr and return nonzero. Warnings do not change successful compilation to a nonzero result. Carven-rendered diagnostics use color when stderr is a terminal, unless `NO_COLOR` is nonempty or `TERM=dumb`; redirected stderr is never styled. dump parses one file without semantic analysis, constant tests, or artifact generation. With no kind, dump prints tokens followed by the AST under `Tokens` and `AST` headings. tokens prints tokens after successful lexing; ast prints the tree after successful parsing. In combined mode, lexical errors stop parsing, while parsing errors leave printed tokens intact without an AST. `--timings` reports attempted loading, lexing, and parsing stages.
+Repeating or mixing destination options is an error. The default mode does not
+create an implicit output directory.
 
-Required constant execution sends print/`println` to stdout and eprint/eprintln to stderr. With `compile --stdout`, all compile-time program output goes to stderr, leaving stdout for artifacts. Later compilation failures do not undo output. An incremental build reusing artifacts does not rerun or replay compile-time output.
+After successful analysis or generation, Carven writes the operation's artifacts
+and `carven/manifest.json` below the destination: it creates parent directories,
+truncates existing files, and writes their new contents. The first I/O failure stops the write; files earlier
+in the order may already have changed. Directory isolation, stale cleanup, failure protection, and
+content-stable incremental promotion belong to the caller or build system.
 
-Source diagnostics appear in source order within each file. Each function, test, and const block reports its first error, allowing independent body errors in one run. A body depending on failed inferred results or failures stays silent until that dependency is fixed. Failure contracts, ownership, and static tests run only after all bodies are accepted. Reports name expected/actual types, undeclared failure types, or a nearby spelling; same-line labels share the line, while note and help lines supply context and a contract-specific source change.
+`--stdout` selects no filesystem sink. It displays C++ artifacts belonging to explicit
+source inputs, or owned inputs from a supplied artifact directory, in canonical order.
+Dependencies remain as includes. In source compilations, all collected sources
+participate in analysis. Shared interfaces are displayed when they
+contain an explicit input, so an interface can include declarations from other
+modules. Requested test runner and entry artifacts are also displayed.
+Each artifact has a heading of this form:
 
-Compile-time and interpreter execution diagnostics show up to eight call sites and report how many additional sites were omitted.
+```text
+==> logical/path <==
+```
 
-## Graver
+The headings make this an inspection format. Compile the files written by a
+filesystem destination when building generated C++.
 
-Graver is a separate source formatter, not a `carven` subcommand. Build it with `./xmakew build graver` from the Carven repository root; the commands below can also be invoked through `./xmakew run graver`.
+Compilation generates implementations for its owned inputs. Explicit sources and
+project Crafts are owned; automatically loaded toolchain sources are dependencies.
+Supplying an installed source explicitly makes it an owned input for that invocation.
 
-| Command                     | Behavior                                                |
-| --------------------------- | ------------------------------------------------------- |
-| `graver [FILE or -]`        | Format one input to stdout; omitted input reads stdin   |
-| `graver check FILE/DIR ...` | List paths needing formatting on stdout without writing |
-| `graver check -`            | Check stdin; report a difference as `stdin`             |
-| `graver write FILE/DIR ...` | Replace changed files silently                          |
-| `graver help [COMMAND]`     | Show general or command-specific help                   |
+`compile` also accepts an existing analysis directory. With that input
+alone, it generates C++ from the retained program without parsing or analyzing
+sources or repeating static execution. Ordinary and test generation can share
+the same analysis result:
+
+```sh
+carven check main.cv -o build/checked
+carven compile build/checked -o build/program
+carven compile build/checked --tests -o build/tests
+```
+
+An artifact directory containing only standard-library sources can accompany new
+source inputs. Its checked definitions supply generic and staged bodies; new
+instances and checks involving consumer types belong to the consuming analysis.
+The new batch cannot redefine those standard modules. The build system owns
+dependency freshness, including changes to source files and the compiler executable.
+
+`carven/manifest.json` describes the operation's inputs, outputs, ownership,
+runtime-test count, and cacheability. Analysis that observes host input, time, or
+waiting reports `cacheable: false`. `--stdout` writes no manifest or semantic IR.
+
+Use staging paths and check the exit status before publishing outputs. Changing
+an owned source batch invokes analysis using the selected standard definitions;
+all selected modules participate, including their static effects and tests.
+
+## Test emission
+
+Test emission is omitted by default. One explicit mode may be selected:
+
+| Option           | Generated test artifacts                                                         |
+| ---------------- | -------------------------------------------------------------------------------- |
+| `--tests`        | Module test functions, the generated runner header, and the generated test entry |
+| `--tests=runner` | Module test functions and the generated runner header, without a generated entry |
+
+Test mode options are mutually exclusive and cannot be repeated. `--tests`
+suppresses the program entry wrapper so all generated sources
+can be linked into one test executable. Compilation permits an empty test suite;
+commands that run tests require at least one runtime test. Runner mode retains
+the program entry wrapper; the consuming build owns entry selection. Runner mode
+supplies the generated runner function through
+`carven/generated/carven-test-runner.hpp`; its consumer owns the process entry
+point and may pass a custom reporter.
+
+## Toolchain sources
+
+The driver locates the matching `crafts/carven/` inventory from the compiler
+installation. These modules have a toolchain-owned generated
+identity independent of application domains and native build-cache keys.
+Project files are identified by their actual source ownership, including project
+Crafts whose module names begin with `crafts.carven`.
+
+Consumers use checked toolchain definitions or analyze toolchain sources, then
+generate the interfaces and generic instances they require. Explicitly owned
+toolchain sources also generate implementations. Toolchain program entries and
+interfaces merging toolchain and application modules are rejected.
+
+## Diagnostics and status
+
+Invalid invocation, input loading failure, source errors, and artifact-sink
+failure produce diagnostics on standard error and a nonzero status. Invocation
+errors include a command help hint. Source
+warnings are printed on standard error while a successful compilation and
+materialization still return zero.
+
+Source diagnostics are printed in source order within each file. Each function,
+test, and `const` block reports its first error, so one run shows every
+independent body error. A body that depends on the inferred result or failures
+of a failed function reports nothing until that function is corrected. Failure
+contracts, ownership, and constant tests are checked only after every body is
+accepted.
+
+A diagnostic names the rejected facts: expected and actual types, undeclared
+failure types, or the nearest similarly spelled name. Labels on one source line
+share that line. Trailing `note:` lines add context, and `help:` lines suggest a
+source change for the rejected contract.
+
+Carven-rendered diagnostics use color when standard error supports terminal
+styling, unless `NO_COLOR` is nonempty or `TERM=dumb`. Carven does not add styling
+when standard error is redirected.
+
+## Syntax inspection
+
+The developer commands inspect one source file without performing semantic
+analysis or producing artifacts:
+
+```shell
+carven dump path/to/file.cv
+carven dump tokens path/to/file.cv
+carven dump ast path/to/file.cv
+```
+
+Without a kind, `dump` prints tokens followed by the syntax tree, separated by
+`Tokens` and `AST` headings. It loads and lexes the source once. `--timings`
+reports source loading, lexing, and parsing (when attempted) on stderr, including
+on failure. Invalid options do not produce a timing report.
+
+`dump tokens` prints the token stream after lexing. Lexical diagnostics are
+reported on standard error and make the command fail. `dump ast` lexes and
+parses the source, then prints the syntax tree when both stages succeed. In the
+combined dump, lexical errors stop parsing, and parsing errors leave the already
+printed tokens intact without printing an AST. Dump formatting is intended for
+human inspection.
+
+## Compile-time program output
+
+Compile-time execution, including `const {}` blocks and `const test`, may
+use the builtin print operations.
+The driver sends `print`/`println` to stdout and `eprint`/`eprintln` to stderr.
+With `--stdout`, all compile-time program output goes to stderr so stdout contains
+only generated artifacts. Output is emitted as execution proceeds, including on
+compilations that later fail. Parsing and dump commands do not execute tests.
+An incremental build that reuses generated artifacts does not rerun Carven or
+replay compile-time output.
+
+## carven-format
+
+carven-format is a separate source formatter, not a `carven` subcommand. Build it with `./xmakew build carven-format` from the Carven repository root; the commands below can also be invoked through `./xmakew run carven-format`.
+
+| Command                            | Behavior                                                |
+| ---------------------------------- | ------------------------------------------------------- |
+| `carven-format [FILE or -]`        | Format one input to stdout; omitted input reads stdin   |
+| `carven-format check FILE/DIR ...` | List paths needing formatting on stdout without writing |
+| `carven-format check -`            | Check stdin; report a difference as `stdin`             |
+| `carven-format write FILE/DIR ...` | Replace changed files silently                          |
+| `carven-format help [COMMAND]`     | Show general or command-specific help                   |
 
 `check` and `write` require inputs; use `.` for the current directory. Stdin must be used alone and cannot be written. Only the first argument recognizes command names. Use `./help`, `./check`, or `./write` for command-named files in default mode. There are no flags: dash-prefixed arguments, including `--help` and `--`, are literal paths.
 
@@ -153,8 +437,10 @@ Directory inputs recursively select `.cv` files, skipping nested hidden/build di
 
 Exit status is 0 for success, 1 for check differences, and 2 for an error. Diagnostics use stderr. All selected sources pass lexical and syntax validation before changes are reported or written. Each changed file is staged beside its destination, retains permission bits, and is compared against its original bytes before replacement. A later I/O failure can leave earlier files updated; the byte comparison does not lock files. Unchanged files are not rewritten.
 
-The fixed style uses four-space indentation and a target width of 100 bytes. UTF-8 may wrap early; indivisible tokens, comments, C++ fragments, and type arguments may exceed it. Token/literal spelling, punctuation except import trailing commas, comment text and token-gap placement, interpolation text/specifications, and fenced C++ bytes are preserved. Expressions inside interpolation holes are formatted. Multiline string token bytes retain their semantic layout. Constant blocks and static control use the same block/header style as ordinary forms. Authored blank-line counts remain; blank-line spaces are removed outside preserved tokens, ordinary line endings become LF, and nonempty output ends in a newline. Output is re-lexed, compared, and parsed before return.
+The fixed style uses four-space indentation and a target width of 100 bytes. UTF-8 may wrap early; indivisible tokens, comments, C++ fragments, and type arguments may exceed it. Token/literal spelling, punctuation except import trailing commas, comment text and token-gap placement, interpolation text/specifications, and fenced C++ bytes are preserved. Expressions inside interpolation holes are formatted. Multiline string token bytes retain their semantic layout. Constant blocks and static control use the same block/header style as ordinary forms. Authored blank lines are preserved up to one consecutive blank line; blank-line spaces are removed outside preserved tokens, ordinary line endings become LF, and nonempty output ends in a newline. Output is re-lexed, compared, and parsed before return.
 
 Single-line import selections use one space inside each brace and omit the trailing comma, as in `using { Point, length }` and `using std::{ vector, allocator }`. Multiline selections put one name per line and include a trailing comma; an existing trailing comma alone does not force wrapping. The opening brace stays attached to `::`. These are formatting rules; the parser still accepts an optional trailing comma.
 
 Formatting does not resolve imports, type-check programs, or execute compile-time functions and tests. Successful formatting establishes only the formatter's syntax and preservation checks.
+
+The formatter now expands nonempty struct/enum declarations and multi-field named constructions, aligns adjacent matching single-line construction rows when they fit, and separates top-level item categories. It preserves at most one authored blank line and removes unannotated blank lines immediately inside delimiters. See the compiler repository’s tools/format/README.md for the fixed style.

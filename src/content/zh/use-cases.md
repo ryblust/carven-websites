@@ -1,104 +1,62 @@
 ---
-title: 从一段 C++ 逻辑开始
-description: 在熟悉的原生工程中，探索更明确的访问、所有权和失败契约。
+title: "运行日志分析器、混音器和 C++ 收集器"
+description: "尝试三个完整应用，阅读对应源码和测试，理解它们如何实现。"
 section: use-cases
-source: README.md
+source: examples/README.md
 ---
 
-Carven 将 `.cv` 源文件生成 C++，再由原生工具链编译和链接。可以先选一个职责单一、便于测试的模块，尝试用 Carven 实现。
+先从可以运行的任务开始：把日志变成报告、混合样本数据，或者从 C++ 调用 Carven 模块。这些应用展示所有权、类型化失败、编译期工作和异步如何组合。
 
-以下场景来自当前仓库已经提供的示例，用于理解和试验现有能力。Carven 正在积极开发，语言与工具链可能发生不兼容变化。
+以下命令均在 Carven 编译器仓库根目录执行。第一组命令构建编译器和三个应用。每个应用目录都包含示例输入、源码和测试。
 
-## 逐步接入现有工程
+## 分析日志流
 
-假设一个 C++ 应用需要计算数量折扣。可以用 Carven 编写计算，并通过 `export(cpp)` 提供一个原生调用接口。
+[日志分析器](https://github.com/ryblust/carven/tree/main/examples/log_analyzer) 解析级别、数字延迟和 Unicode 消息；逐条拒绝坏记录，在保留消息前脱敏凭据，把慢事件放入 `Vector<String>`，最终输出 JSON 报告。
 
-```carven
-export(cpp) fn price_cents(quantity: i32) -> i32 {
-    assert(quantity >= 0, "quantity must be nonnegative");
-    let unit_price: i32 = if quantity >= 10 { 90 } else { 100 };
-    return quantity * unit_price;
-}
+`analysis.cv` 负责解析与报告，`main.cv` 负责命令行参数和异步标准输入。拥有所有权的 JSON 报告模板在编译期解析。静态测试验证脱敏和配置；运行时测试覆盖非法字段、无效 UTF-8、CRLF、没有末尾分隔符的行及记录顺序。
+
+```sh
+./xmakew build
+./xmakew build examples
+./xmakew run carven-example-log-analyzer
 ```
 
-在这个示例里，程序入口仍在 C++ 中。构建步骤生成声明 `carven::api::pricing::price_cents` 的公共头文件与实现；C++ 包含该头文件，再把实现与生成的 UTF 和 SIMD Craft 源码一起链接。这里的负数数量属于调用方的错误，所以 `assert` 会把条件与消息输出到 stderr 并终止进程，不受原生构建 `NDEBUG` 设置的影响。它不是可恢复的失败；需要处理错误输入的调用方应当得到类型化失败。这段计算没有防范整数溢出，数量过大时会回绕。
+在浏览器中运行[记录解析](/zh/playground/#example=log-analysis)和[JSON 模板修改](/zh/playground/#example=json-config)，探索其中的契约。完整程序也能通过 `--stdin` 在显式输入上限内读取数据。
 
-显式 `import(cpp)` 与 `export(cpp)` 边界使用普通 Carven 类型、Read/Write/Take 访问和声明失败契约。具体作用域和命名规则见原生互操作文档。
+## 用浮点 SIMD 混音
 
-**适合的起点：** 计算规则、边界清楚的小型逻辑模块，以及与已有 C++ 测试并行验证的实验。
+[音频混音器](https://github.com/ryblust/carven/tree/main/examples/audio_mixer) 根据可配置增益混合两条内嵌轨道。它的 `const fn` 每块处理八个浮点样本，拒绝非有限结果，并将混合信号限制在 −1 到 1。报告给出限幅样本数量、峰值和均方根（RMS）电平。有效通道掩码标记最后一块中哪些位置来自输入，避免补零影响结果。
 
-## 复用原生库
-
-通过头文件导入，可以在 Carven 中使用 C++ 类型与函数。
-
-```carven
-import <vector> using std::vector;
-
-fn count() -> usize {
-    var values = vector<i32> { 1, 2, 3 };
-    values.push_back(4);
-    return values.size();
-}
+```sh
+./xmakew run carven-example-audio-mixer --voice=1.0 --music=0.5
+./xmakew run -q carven-example-audio-mixer --logs > mixer.log
+./xmakew run -q carven-example-log-analyzer --stdin < mixer.log
 ```
 
-C++ 检查原生声明、成员、重载和转换；Carven 继续检查自身的访问与所有权契约。原生构建负责头文件搜索路径、库和编译选项。
+后两条命令通过共享的日志格式连接混音器与分析器。样本直接写在源码中，运行应用会打印计算结果，不播放音频。[运行核心混音算法](/zh/playground/#example=audio-mixer)，其中静态测试验证最后一个样本。
 
-仓库的原生解析器示例展示了更完整的边界：C++ 适配层调用 `std::stoi` 并处理预期异常，Carven 再把原生结果解释成自己的成功值或失败值。
+原生编译时选择 NEON、显式启用的 AVX2 或可移植实现，没有运行时分派。各翻译单元保持一致的后端选项，并测量实际负载。
 
-**适合的起点：** 复用已有工具函数、原生容器，或为依赖库编写范围明确的适配层。
+## 让 C++ 托管 Carven 模块
 
-## 表达可恢复的业务失败
+[流收集器](https://github.com/ryblust/carven/tree/main/examples/stream_collector) 把程序入口和流提供方保留在 C++ 中。C++ 调用 `export(cpp)` Carven 函数，读取两条宿主拥有的内存流、去重记录，并返回含计数的拥有报告。
 
-订单报价可能遇到数量不合法、库存不足或配送失败。将不同失败保存为不同类型，可以让上层按照业务含义处理，而不必把所有情况压缩成一个错误码。
-
-Carven 的报价示例将库存和配送逻辑组合起来，对一种配送失败尝试替代方式，同时保留其他失败及其原始数据。配置示例展示输入校验和回退，回调示例展示调用者引入的额外失败条件。
-
-私有函数可以推导组合带来的失败，公开边界声明允许的集合；调用方在合适的表达式边界传播，并用模式分支恢复或继续向外传播。
-
-**适合的起点：** 配置验证、规则组合、可恢复的解析流程，以及需要明确失败边界的回调接口。
-
-这些示例各有范围：报价示例不真正扣减库存或发起支付，配置示例不读取文件或环境变量。它们演示的是：函数怎样声明可能发生的失败，调用者怎样处理或继续传播。
-
-## 减少 C++ 接口维护
-
-类把状态和操作放在一起，通过方法对外提供访问。只有类体能读取字段或构造它；它仍是普通的值，不带堆分配、继承或虚派发。
-
-```carven
-class Cart {
-    count: i32,
-    total_cents: i32,
-    fn empty() -> Cart => { count: 0, total_cents: 0 };
-    fn add(&self, price_cents: i32) {
-        self.count += 1;
-        self.total_cents += price_cents;
-    }
-    fn total(self) -> i32 => self.total_cents;
-}
-
-var cart = Cart::empty();
-cart.add(250);
-cart.add(120);
-println(cart.total());
+```sh
+./xmakew run carven-example-stream-collector
 ```
 
-用 `carven cart.cv` 运行，输出 `370`。生成的 C++ 用 struct 保存字段，每个操作都成为普通函数。类没有隐式相等比较；`println(cart)` 只打印类名 `Cart`，不暴露字段。类不能用于必需的常量求值。
+这个程序展示两个方向的边界：`import(cpp)` 连接提供方，`export(cpp)` 暴露受检查的工作流。C++ 包含生成的 API 头文件，通过 Xmake 规则链接生成实现。提供方在下一次读取时复用行缓冲区，因此收集器将需要保留的记录复制成 String。宿主在调用期间保留流资源，返回报告则拥有自己的记录。见 [C++ 生成](/zh/features/cpp-generation/)。
 
-当一段逻辑包含多个类型和相互调用的函数时，在 Carven 中维护一份 `.cv` 声明即可。编译器根据可见性和类型依赖生成接口与实现，安排前置声明与定义顺序；仅用于函数体的依赖不会因此合并接口。
+## 组合异步应用工作
 
-**适合的起点：** 希望减少声明与实现同步维护、并通过生成的公共接口接入 C++ 的模块。
+多项任务可以独立推进时，`when_all` 一起启动它们，按输入顺序将结果放入元组。每个结果都可以拥有字符串和向量。`first_successful` 接受备选操作，跳过失败候选，选择成功结果。
 
-## 验证固定数据，处理字节块
+`async let` 启动的子任务属于外围作用域。取消和关闭让作用域停止工作并等待清理，再释放子任务借用的数据。[作用域示例](/zh/playground/#example=async-scope) 还会在编译期检查这个流程。
 
-编译期 UTF 辅助函数能在程序运行前编码 Unicode 标量并检查固定字节缓冲区。运行时字节处理可使用 SIMD Crafts 提供的有界块遍历、比较、掩码与字节查找；尾块带有效通道（lane）掩码，避免把填充算成输入。
+[运行内存批次工作流](/zh/playground/#example=async-workflow)。原生 I/O 可组合有界 `stdin` 读取、行分帧、受检查的时间间隔及超时。`std::net` 为 C++ 宿主接管的连接提供读写；它不建立连接、不监听、不解析域名，也不提供 TLS。
 
-[编译期教程](/zh/learn/constants/)提供这两项任务的完整例子。静态参数让函数固定提取偏移等控制值，同时保留运行时数据输入。原生 SIMD 在编译时选择可移植、NEON 或使用方启用的 AVX2 后端，不做运行时派发；相关翻译单元必须采用一致的后端选项。是否更快需要针对目标工作负载测量。
+## 根据实际边界验证
 
-**适合作为起点：**验证内嵌 UTF-8 数据，或在明确边界内统计、查找缓冲区字节。
+使用同一版本的编译器、Crafts、示例和文档。先用 `./xmakew build` 构建编译器，通过 `carven check` 检查语义并运行静态测试，再运行和测试完整原生应用。C++ 名称、重载、模板及提供方实现仍需要原生编译。
 
-## 选择一个可验证的小范围
-
-目前更适合把 Carven 用于学习、语言探索和受控的集成实验。正式评估时，应使用同一修订版本的编译器、支持头文件、文档与示例，并验证目标工程实际需要的功能。`carven check` 执行语义分析和编译期测试而不生成 C++，适合作为第一道快速检查。
-
-Carven 没有线程或同步操作，Read/Write/Take 规则也不保证跨线程安全。如果 C++ 从多个线程调用生成的代码，同步与共享数据由 C++ 一侧负责。
-
-当前工具链文档区分了两个要求：构建编译器需要支持 C++26 的 LLVM/Clang 工具链，生成程序与支持库使用 C++20。仓库验证的宿主工具链为 LLVM 23。
+Playground 通过解释器运行这些受支持的源操作，外部 C++ 调用和 TCP 操作需要原生宿主。源任务在一个线程上执行；C++ 宿主如果跨线程共享数据，仍须负责同步及外部资源的生命周期。

@@ -25,11 +25,11 @@ println(saved(3), live(3)); // 5 8
 
 A lambda requires a capture list, including [] when empty. Its body is a block or `=> expression`; expression bodies return under named-function rules. Creation does not run its body. Captures are established in list order, each name once, from visible runtime bindings. Module declarations and constants cannot be explicit captures. A visible local constant is usable without capture only if its value can be determined while constructing the lambda body; one depending on an unbound enclosing static parameter cannot cross this boundary. A runtime let initialized from that value can be explicitly captured.
 
-| Form        | Captured content                   | Body access   |
-| ----------- | ---------------------------------- | ------------- |
-| `[value]`   | Owning copy of the immediate value | Read          |
-| `[&value]`  | Alias of writable source storage   | Write         |
-| `[&&value]` | Unsupported                        | Compile error |
+| Form        | Captured content                       | Body access   |
+| ----------- | -------------------------------------- | ------------- |
+| `[value]`   | Copy of the selected value at creation | Read          |
+| `[&value]`  | Alias of writable source storage       | Write         |
+| `[&&value]` | Unsupported                            | Compile error |
 
 Value captures cannot be assigned or Taken. Write capture bindings cannot be Taken either. Each nested lambda has its own capture boundary. An unused explicit capture produces `CV-LAMBDA-CAPTURE-UNUSED`. Creation does not contribute the body’s failures; actual calls use its failure contract.
 

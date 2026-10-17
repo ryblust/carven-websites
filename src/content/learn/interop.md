@@ -2,7 +2,7 @@
 title: "Call C++ and export an interface"
 description: "Move from `printf` to declared function contracts, with explicit native types, exceptions, and build responsibilities."
 section: learn
-lesson: 14
+lesson: 15
 source: docs/language/interop.md
 ---
 
@@ -35,31 +35,27 @@ println(count, values[3]);
 
 The output is `4 4`. C++ performs the braced construction, including class template argument deduction; `vector<i32> { 1, 2, 3 }` states the element type explicitly. C++ decides construction, methods, and conversion validity; the `usize` annotation requests destination construction. Native indexing follows provider rules and does not automatically gain Carven array bounds checks.
 
-## Use a third-party library
+## Choose a standard capability or a native dependency
 
-The same import mechanism works with [nlohmann/json](https://json.nlohmann.me/integration/). Save this as config.cv:
+For growable Carven data use `Vector<T>` from the data chapter. For JSON use the owning `std::json` API; neither requires a third-party C++ dependency:
 
 ```carven
-import <nlohmann/json.hpp> using nlohmann::json::parse;
+import std::json using { Value, JSONError, ValueError };
 
-let config = parse(c"{\"port\":9000}");
-let port: i32 = config.value(c"port", 8080);
-println(f"Port: {port}");
+fn configure(text: str) -> String throw JSONError + ValueError {
+    var config = Value::parse(text)?;
+    if !config.has("port")? {
+        config.set("port", &&Value::integer(8080))?;
+    }
+    return config.to_json()?;
+}
+
+println(configure(r#"{"enabled":true}"#)?);
 ```
 
-parse creates the library's native JSON object. Its value method reads port, using 8080 if the key is missing. The `i32` annotation gives the native result a Carven destination type; `println` then uses that value normally. No binding code is needed for these calls.
+The output is `{"enabled":true,"port":8080}`. Parsing, mutation, and writing preserve checked Carven failures and work in native, interpreted, and explicit static execution. The [input project](/learn/data-pipeline/) builds a streaming workflow on this API.
 
-For a self-contained local trial, put the single header beside config.cv under nlohmann/. These commands pin the version used to verify the example:
-
-```sh
-mkdir -p nlohmann
-curl --fail --location https://raw.githubusercontent.com/nlohmann/json/v3.12.0/single_include/nlohmann/json.hpp -o nlohmann/json.hpp
-carven config.cv
-```
-
-Expect `Port: 9000`. Change the JSON text to `{}` and run again: the output becomes `Port: 8080`. In an existing project, keep managing the dependency through its native build and include paths. Header import does not download the library.
-
-[value's default](https://json.nlohmann.me/api/basic_json/value/) handles a missing key, not malformed JSON or the wrong value type. This example assumes a valid object and an in-range integer port. Parsing or type errors can throw native exceptions; see the exception boundary below before using untrusted input.
+Use header imports when a dependency supplies a native capability or an existing C++ type that your application needs. Header import does not install a library or configure linking. Keep include paths, versions, flags, and linked libraries in the native build. External exceptions must be converted at a provider boundary if callers need typed recovery.
 
 ## Declare a native function contract
 
@@ -149,13 +145,11 @@ int main() {
 }
 ```
 
-Compile it with the generated implementations, including the bundled UTF and SIMD Craft sources that `compile` writes under `generated/crafts/`:
+Compile the caller together with generated/labels.cpp. This example uses header-only runtime support, so no other generated standard-library implementation is needed:
 
 ```sh
 clang++ -std=c++20 -Igenerated -I/path/to/carven/crafts \
-    consumer.cpp generated/labels.cpp generated/crafts/carven/std/utf/*.cpp \
-    generated/crafts/carven/std/simd/*.cpp \
-    -o consumer
+    consumer.cpp generated/labels.cpp -o consumer
 ./consumer
 ```
 

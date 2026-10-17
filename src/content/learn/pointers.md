@@ -1,12 +1,14 @@
 ---
 title: "Use native addresses and non-null checks"
-description: "Take addresses with addressof, store native addresses, establish local non-null facts, and keep resource owners alive."
+description: "Get an address, check it before use, and keep the pointed-to data alive."
 section: learn
-lesson: 15
+lesson: 16
 source: docs/language/pointers.md
 ---
 
 ## Take the address of a place
+
+A native API may work with the address of an existing object rather than a value copy. A pointer stores that address. Before using one, you need to know whether it is null, whether writing is allowed, and who keeps the object alive.
 
 `addressof(place)` produces a read-only `ptr<T>`; `addressof(&place)` produces a writable `ptr<&T>`. Save this as `address.cv`:
 

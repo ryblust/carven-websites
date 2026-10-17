@@ -2,7 +2,7 @@
 title: "调用 C++ 与导出接口"
 description: 从 `printf` 到声明式函数契约，了解原生类型、异常与构建要求。
 section: learn
-lesson: 14
+lesson: 15
 source: docs/language/interop.md
 ---
 
@@ -35,31 +35,27 @@ println(count, values[3]);
 
 输出 `4 4`。花括号构造交给 C++ 完成，包括类模板实参推导；`vector<i32> { 1, 2, 3 }` 则显式写出元素类型。C++ 检查构造、方法调用和转换是否合法；`usize` 注解要求用调用结果构造一个 `usize` 值。原生索引遵守提供者规则，不自动获得 Carven 数组越界检查。
 
-## 使用第三方库
+## 选择标准能力或原生依赖
 
-同样的导入方式也适用于 [nlohmann/json](https://json.nlohmann.me/integration/)。将下面的代码保存为 config.cv：
+Carven 可增长数据使用数据章节的 `Vector<T>`，JSON 使用拥有内容的 `std::json` API；两者都不需要第三方 C++ 依赖：
 
 ```carven
-import <nlohmann/json.hpp> using nlohmann::json::parse;
+import std::json using { Value, JSONError, ValueError };
 
-let config = parse(c"{\"port\":9000}");
-let port: i32 = config.value(c"port", 8080);
-println(f"Port: {port}");
+fn configure(text: str) -> String throw JSONError + ValueError {
+    var config = Value::parse(text)?;
+    if !config.has("port")? {
+        config.set("port", &&Value::integer(8080))?;
+    }
+    return config.to_json()?;
+}
+
+println(configure(r#"{"enabled":true}"#)?);
 ```
 
-parse 创建库提供的原生 JSON 对象；它的 value 方法读取 port，键不存在时使用 8080。`i32` 标注为原生结果指定 Carven 目标类型，随后就能用 `println` 输出。这些调用无需另写绑定代码。
+输出 `{"enabled":true,"port":8080}`。解析、修改和写出保持受检查的 Carven 失败，支持原生、解释与显式静态执行。[输入项目](/zh/learn/data-pipeline/)会用这个 API 构造流式工作流。
 
-本地试运行时，将单头文件放在 config.cv 旁边的 nlohmann/ 目录中。本例使用以下版本：
-
-```sh
-mkdir -p nlohmann
-curl --fail --location https://raw.githubusercontent.com/nlohmann/json/v3.12.0/single_include/nlohmann/json.hpp -o nlohmann/json.hpp
-carven config.cv
-```
-
-输出应为 `Port: 9000`。把 JSON 文本改成 `{}` 再运行，输出变为 `Port: 8080`。接入已有项目时，继续通过原生构建系统管理依赖与包含路径；导入头文件不会自动下载库。
-
-[value 的默认值](https://json.nlohmann.me/api/basic_json/value/)只处理键缺失，不处理 JSON 格式错误或值类型不符。这个例子假定输入是合法对象，port 存在时为范围内的整数。解析和类型错误可能抛出原生异常；处理外部输入前，请先阅读下面的异常边界说明。
+依赖提供所需原生能力或已有 C++ 类型时，使用头文件导入。头文件导入不安装库或配置链接。包含路径、版本、标志和链接库都放在原生构建里。调用者需要类型化恢复时，应在 provider 边界转换外部异常。
 
 ## 声明原生函数契约
 
@@ -149,13 +145,11 @@ int main() {
 }
 ```
 
-编译时加入生成的实现，包括 `compile` 写到 `generated/crafts/` 下的内置 UTF 与 SIMD Craft 源文件：
+把调用者与 generated/labels.cpp 一起编译。这个例子只需头文件中的运行时支持，无须加入其他生成的标准库实现：
 
 ```sh
 clang++ -std=c++20 -Igenerated -I/path/to/carven/crafts \
-    consumer.cpp generated/labels.cpp generated/crafts/carven/std/utf/*.cpp \
-    generated/crafts/carven/std/simd/*.cpp \
-    -o consumer
+    consumer.cpp generated/labels.cpp -o consumer
 ./consumer
 ```
 

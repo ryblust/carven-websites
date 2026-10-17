@@ -1,6 +1,6 @@
 ---
-title: "组合失败与缩小契约"
-description: 定义带数据的失败，在调用处传播，在有业务上下文的位置恢复。
+title: "报告失败并选择恢复位置"
+description: "说明哪里出错，决定在哪里恢复，并向调用者交代仍可能发生的失败。"
 section: learn
 lesson: 10
 source: docs/language/failures.md
@@ -8,7 +8,7 @@ source: docs/language/failures.md
 
 ## 从一个校验函数开始
 
-保存为 quantity.cv：
+零数量是无效输入，但调用者可以提示用户改正后继续。我们把它报告成一种携带被拒绝数值的失败。保存为 quantity.cv：
 
 ```carven
 struct InvalidQuantity {
@@ -35,11 +35,11 @@ let total = try {
 println("Total:", total);
 ```
 
-运行 `carven quantity.cv`，输出 `Invalid quantity: 0` 和 `Total: 0`。失败类型是结构体，携带被拒绝的值。`throw InvalidQuantity` 是函数签名中的上界，体内 `throw ...;` 才实际产生失败。throw 语句不提供预期类型，所以要写出失败类型名，不能使用上下文构造 `{ value: quantity }`。
+运行 `carven quantity.cv`，输出 `Invalid quantity: 0` 和 `Total: 0`。失败类型是结构体，携带被拒绝的值。签名中的 `throw InvalidQuantity` 告诉调用者可能收到哪种失败；函数体里的 `throw ...;` 则报告一次具体失败。throw 语句不提供预期类型，所以要写出失败类型名，不能使用上下文构造 `{ value: quantity }`。
 
 ## 成功值与传播
 
-调用可失败函数产生待处理失败。`?` 成功时给出成功值，失败时转移到最近外围 try 或 callable 失败目标。第一次失败会跳过当前求值路径剩余操作；`(first() + second())?` 不会在 first 失败后继续调用 second。
+调用可能失败的函数时，必须决定怎样处理失败。使用 `?`，成功调用给出结果，失败调用则离开当前表达式。失败由外围 try 处理，或在函数声明允许时继续传给调用者。第一次失败会跳过当前求值路径剩余操作；`(first() + second())?` 不会在 first 失败后继续调用 second。
 
 对不会失败的表达式写 ? 是编译错误。私有函数改成推断空集合后，调用者要删除 ?。即使显式声明 E 的函数当前总成功，调用者仍按 E 契约处理。
 
@@ -111,9 +111,9 @@ total 用默认总价恢复 MissingPrice，公开契约只剩 Offline，main 也
 
 把 main 中的实参改成 `(true, true)` 得到 `17`，改成 `(true, false)` 得到 `0`。`(false, false)` 仍得到 `12`：价格缺失让求值在服务调用前停止。契约列出可能失败，不要求每项操作都执行。
 
-在 MissingPrice arm 后增加 `_ => rethrow,` 也会保留同一剩余集合。这里省略该 arm 是合法的，因为 total 声明的契约可以接收 Offline。本例使用没有 throw 子句的显式 main，因此 main 必须处理自己的全部失败。
+在 MissingPrice 分支后增加 `_ => rethrow,`，同样会把 Offline 继续传给调用者。这里省略该 arm 是合法的，因为 total 声明的契约可以接收 Offline。本例使用没有 throw 子句的显式 main，因此 main 必须处理自己的全部失败。
 
-把上面的完整程序保存为 quote.cv，运行 `carven quote.cv`。依次修改 main 中 total 的两个实参，用下面的表检查结果；后面的 C++ 对照使用相同输入。
+把上面的完整程序保存为 quote.cv，运行 `carven quote.cv`。依次修改 main 中 total 的两个实参，用下面的表检查结果；据此确认选中的恢复路径。
 
 | has_price | online | 输出 | 路径                     |
 | --------- | ------ | ---- | ------------------------ |
@@ -154,70 +154,48 @@ note: failure type not fully covered: quote.Offline
 
 note 带模块名指出未覆盖的失败类型。同一次运行还会在 main 处报告 `CV-EFFECT-THROW-PUBLISHED`：剩下的 Offline 会逃出没有 throw 子句的显式入口。增加 `Offline(_) => 0,` 分支，或声明 `fn main() throw Offline`，两个错误都会消失。若同样的 try 写在顶层，Offline 会传出隐式入口。继续之前先恢复原来的 main。
 
-## 用 C++23 保留相同的失败信息
+## 先解析外部数据，再应用业务策略
 
-下面的完整程序保留前例的返回值、失败类型和先后顺序。price 与 fee 各有一种失败；quote 将它们组合；total 只恢复 MissingPrice：
+把这个独立程序保存为 ports.cv。标准数值解析检查拼写与表示范围，应用再判断自己的零端口策略：
 
-```cpp
-#include <expected>
-#include <iostream>
-#include <variant>
+```carven
+import std::core using NumberParseError;
 
-struct MissingPrice {};
-struct Offline {};
-
-std::expected<int, MissingPrice> price(bool has_price) {
-    if (!has_price) {
-        return std::unexpected(MissingPrice{});
-    }
-    return 15;
+struct InvalidPort {
+    value: u16,
 }
 
-std::expected<int, Offline> fee(bool online) {
-    if (!online) {
-        return std::unexpected(Offline{});
+const fn port(text: str) -> u16 throw NumberParseError + InvalidPort {
+    let value = u16::parse(text)?;
+    if value == 0 {
+        throw InvalidPort { value };
     }
-    return 2;
+    return value;
 }
 
-using Error = std::variant<MissingPrice, Offline>;
+fn display(text: str) => try {
+    println("Port:", port(text)?);
+} catch {
+    NumberParseError(_) => println("Not a complete u16 number"),
+    InvalidPort(error) => println("Reserved port:", error.value),
+};
 
-std::expected<int, Error> quote(bool has_price, bool online) {
-    auto item = price(has_price);
-    if (!item) {
-        return std::unexpected(item.error());
-    }
-    auto extra = fee(online);
-    if (!extra) {
-        return std::unexpected(extra.error());
-    }
-    return *item + *extra;
-}
-
-std::expected<int, Offline> total(bool has_price, bool online) {
-    auto result = quote(has_price, online);
-    if (result) {
-        return *result;
-    }
-    if (std::holds_alternative<MissingPrice>(result.error())) {
-        return 12;
-    }
-    return std::unexpected(std::get<Offline>(result.error()));
-}
-
-int main() {
-    auto result = total(false, true);
-    std::cout << result.value_or(0) << '\n';
-}
+display("443");
+display("65536");
+display("0");
 ```
 
-保存为 quote.cpp，用支持 C++23 expected 的工具链执行 `c++ -std=c++23 quote.cpp -o quote`，再运行 `./quote`，得到 `12`。把 total 的实参换成前面的四组输入，两边结果一致。
+输出：
 
-按调用顺序比较：C++ 的 quote 先检查 price，再调用 fee，并把两种错误分别放入 Error；Carven 的组合表达式与 `?` 表达同样的短路路径。到 total，C++ 取出剩余的 Offline 放入新的 expected；Carven 根据 catch 的覆盖范围检查剩余失败集合。
+```text
+Port: 443
+Not a complete u16 number
+Reserved port: 0
+```
 
-C++ 的组合器或结果库也能封装这些分支。这里保留显式写法，方便观察类型与控制流如何对应。Carven 把这套组合规则放进语言中，私有函数不必另行声明汇总类型。
+u16::parse 检查完整文本与范围，不截断或回绕。它拒绝前导空白、前导加号与尾随内容。合法 u16 的零通过表示检查，却违反本应用策略。两个失败类型为调用者保留这个区别。
 
-保持 total 的接口只允许 Offline：把 Carven 中 total 的函数体改成 `=> quote(has_price, online)?;`，并删除 C++ 中处理 MissingPrice 的 if 分支。Carven 会报告 `CV-EFFECT-SIGNATURE-BOUND`：函数体超出了声明的契约。上面的 C++ 写法仍能编译，但缺少价格时，剩下的 `std::get<Offline>` 会抛出 std::bad_variant_access：返回类型并不能证明当前 variant 一定保存 Offline。Carven 的检查同时利用了失败类型与处理分支的覆盖范围。
+显式失败契约命名 NumberParseError，因此从 std::core 导入该类型。调用本身可在不命名类型的情况下推断并传播失败。port 是 const fn，让同一个受检查解析器与策略也能用于准备；运行时调用仍在运行时。[编译期章节](/zh/learn/constants/)会用解析准备配置，只在适合回退的位置恢复。
 
 ## 副作用与入口状态
 

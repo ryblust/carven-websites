@@ -51,7 +51,7 @@ carven interpret --tests totals.cv
 
 check 失败报告后继续，适合一组独立断言。require 失败停止当前整个测试，适合后续代码依赖的条件。fail 无条件停止当前测试。消息是 `str` 或 `String`，条件必须 `bool`。
 
-check 与 require 的消息只在条件为 false 时求值，因此可以放心构造 `f"quantity {quantity} gives no total"` 这样的详细说明，成功时没有额外开销。fail 总会求值消息。测试停止会穿过同步调用的 Carven 辅助函数和可调用视图，并清理局部值；try 无法捕获测试停止。
+check 与 require 的消息只在条件为 false 时求值。检查成功时，不会构造 `f"quantity {quantity} gives no total"` 这样的说明文本。fail 总会求值消息。测试停止会穿过同步调用的 Carven 辅助函数和可调用视图，并清理局部值；try 无法捕获测试停止。
 
 把第一条断言的 36 临时改成 35，再运行 `carven --tests totals.cv`。报告写到 stderr：
 
@@ -131,13 +131,45 @@ test "reject zero" {
 }
 ```
 
-汇总变为 `carven: tests: 3 passed; 0 failed`。test 不允许剩余失败逃出。上例同时确认调用发生了失败、恢复分支得到选择，且载荷带回了被拒绝的值。测试成功输入时也必须处理契约中声明的失败，而不是根据当前输入假设不会失败。
+汇总变为 `carven: tests: 3 passed; 0 failed`。测试必须处理其中调用可能报告的每种失败。上例同时确认调用发生了失败、恢复分支得到选择，且载荷带回了被拒绝的值。测试成功输入时也必须处理契约中声明的失败，而不是根据当前输入假设不会失败。
 
 ## 读诊断
 
 先看原始 .cv 位置，再读诊断代码与说明。类型、所有权、失败集合、C++ 编译和链接是不同边界；Carven 分析通过后，原生构造或提供者仍可能出错。在终端中 Carven 会为诊断着色，设置 `NO_COLOR` 可关闭。
 
 有意不用的值写 `_`。警告不会让一个其他方面合法的程序失败。遇到原生错误时，检查 include、提供者签名与构造要求。
+
+## 检查元组与集合边界
+
+元组元素支持相等时，测试可直接比较元组结果。把这个独立测试文件保存为 batches.cv：
+
+```carven
+fn bounds(values: [i32]) -> (i32, i32) {
+    assert(!values.is_empty(), "bounds needs at least one sample");
+    var (lower, upper) = (values[0], values[0]);
+    for value in values {
+        if value < lower { lower = value; }
+        if value > upper { upper = value; }
+    }
+    return (lower, upper);
+}
+
+test "mixed signs" {
+    check(bounds([7, -2, 4]) == (-2, 7));
+}
+
+test "growing runtime batch" {
+    var values: Vector<i32> = [7];
+    values.push(-2);
+    values.push(4);
+    check(bounds(values) == (-2, 7));
+    let removed = values.remove(1);
+    check(removed == -2);
+    check(bounds(values) == (4, 7));
+}
+```
+
+`carven check batches.cv` 检查源码，不运行测试。`carven --tests batches.cv` 原生执行两条测试；`carven interpret --tests batches.cv` 在解释器中运行同样的案例。案例覆盖正负混合、增长、移除顺序与重新求界。空输入违反显式不变量并终止执行，不应放在预期类型化恢复的测试里。下一章将介绍静态执行。
 
 ## 练习
 

@@ -1,25 +1,15 @@
 ---
-title: Where syntax ends and inference begins
-description: Reserved words, contextual names, expected types, and the choices a program states explicitly.
+title: "What Carven infers and what you write"
+description: "Understand contextual names, expected types, explicit access, and where inference stops."
 section: internals
 source: docs/language/grammar.md
 ---
 
 ## Give each spelling a defined role
 
-Carven distinguishes grammatical structure from names resolved by the compiler. This matters when choosing identifiers and when reading code: a familiar spelling is not necessarily a globally reserved keyword.
+Why can a local variable be called `self`, while `fn` cannot be a variable name? Why can `.Ready` omit its enum type, while a Write argument still needs `&`? Carven treats syntax, name lookup, and type inference as different steps.
 
-| Form                                                                                | How its role is selected                                                                                                                                               |
-| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `fn`, `if`, `let`, `throw`, and the other [reserved keywords](/reference/keywords/) | The lexer emits dedicated tokens; ordinary declarations cannot use them as names                                                                                       |
-| `self`, `&self`, `&&self`                                                           | In class operation parameters, `self` must be the first, untyped receiver and selects its access. Ordinary bindings and free-function parameters may use the same name |
-| `cpp`                                                                               | The identifier selects a native boundary inside `import(cpp)` or `export(cpp)`, or an opaque source fragment in `#[cpp]`                                               |
-| `ptr<T>`                                                                            | In type position the parser recognizes the ordinary identifier `ptr` and requires the pointer-type form, rather than ordinary type-name lookup                         |
-| `r`, `f`, `c`                                                                       | Adjacency to the appropriate string delimiter selects a literal prefix; a standalone spelling is an identifier                                                         |
-| `println`, `assert`, and the other [builtin callables](/reference/builtins/)        | Ordinary name lookup selects them; a user declaration can shadow them                                                                                                  |
-| `i32`, `String`, and other builtin type names                                       | Semantic analysis resolves the builtin types and reserves their names against module declarations                                                                      |
-
-The current grammar specifically calls `self` a **contextual keyword**. Within class operation parameters it must occur first and without a type annotation; a free function's typed parameter or a local binding may use the same name. The other context-sensitive forms above have their own parsing or lookup rules; being meaningful in a context does not make every such name a keyword. Module paths are a further defined exception: their components admit reserved keyword spellings too.
+Start with a contextual name:
 
 ```carven
 class Counter {
@@ -33,11 +23,25 @@ let cpp = Counter::create(self);
 println(cpp.read()); // 4
 ```
 
-The receiver form provides its type from the enclosing class and uses the existing Read, Write, and Take rules. An operation without a receiver is associated with the class; it needs no `static` modifier. Keeping special interpretation at the relevant construct lets ordinary names remain ordinary elsewhere.
+Inside the class operation's first parameter, `self` names the receiver and gets its type from the enclosing class. In `let self = 4`, it is an ordinary local name. The associated `create` operation has no receiver and is called through `Counter::create`.
+
+Other spellings follow equally specific rules:
+
+| Form                             | What selects its meaning                                               |
+| -------------------------------- | ---------------------------------------------------------------------- |
+| `fn`, `async`, `await`, `cancel` | Reserved syntax tokens; ordinary bindings cannot use them              |
+| `self`, `&self`, `&&self`        | First, untyped class-operation parameter selects receiver access       |
+| `cpp`                            | Selects a native boundary in `import(cpp)`, `export(cpp)`, or `#[cpp]` |
+| `ptr<T>`                         | Structural pointer syntax in type position                             |
+| `r`, `f`, `c`                    | A prefix only when adjacent to its string delimiter                    |
+| `println`, `assert`, `when_all`  | Ordinary name lookup, with the required default binding or import      |
+| `i32`, `String`, `Vector`        | Standard type declarations selected through ordinary lookup            |
+
+Module paths and qualified name components have their own accepted token forms. The [keyword reference](/reference/keywords/) collects the reservation and shadowing rules.
 
 ## Let context fill in a type, within a boundary
 
-An annotation, assignment destination, parameter, return type, or field can provide an expected type. That type can select an unsuffixed literal's numeric type, an enum's `.Case`, or the type of a named-field construction. The [type reference](/reference/types/) specifies the admitted sources and conversions.
+A declaration, parameter, return type, or destination field can supply the expected type of an expression. This is enough to select an enum case or a numeric literal without repeating its type:
 
 ```carven
 enum State { Ready, Busy }
@@ -49,30 +53,34 @@ let next = 1 + count;
 println(next); // 4
 ```
 
-Here the direct unsuffixed `1` adopts the right operand's `usize` type. This is literal typing, not promotion of an existing `i32` value. If `1` had first been stored in an unannotated binding, that binding would already be `i32`; its later uses would not revise its type. Grouping receives an expected type but does not qualify as a direct literal for this sibling-selection rule.
+`State` supplies the type of `.Ready`. In `1 + count`, the direct unsuffixed literal `1` is checked as `usize`, matching count. If that literal had first been stored in an unannotated binding, the binding would already be `i32`; using it later would not revise its type.
 
-This boundary keeps inference local. Ordinary Carven values do not gain general numeric promotions, truthiness, or structural conversions. When context cannot determine a contextual form, write its type explicitly. Native C++ operations retain their separately delegated conversion rules.
+This makes inference predictable: the surrounding expression supplies defined evidence, and established bindings keep their types. Use an annotation when the available context is insufficient. The [type reference](/reference/types/) defines the detailed literal and conversion rules, including the separate conversions delegated to C++.
 
 ## Keep behavior-changing choices visible
 
-Type context supplies neither a missing call-access marker nor a closure capture. A Write argument repeats `&`; a Take argument repeats `&&`. Returning a named owner requests a copy and must meet the applicable copy-construction requirements; transferring it requires `return &&owner;`. Copying a view retains its backing relationship rather than extending the referent's lifetime.
+A type can tell the compiler what kind of value is expected. It does not decide whether the caller should lend mutable storage or give the value away. A Write argument therefore repeats `&`, a Take argument repeats `&&`, and closure captures remain explicit. A named return copies; `return &&owner` transfers.
 
-These rules also define choices that need no extra token at every use. Ordinary calls evaluate the callee, then runtime arguments once from left to right. Write access permits aliases; it is not an exclusive borrow. A Read argument may observe changes through another alias when its representation retains the original storage. An explicit owning copy creates a separate immediate value, but contained views and Write captures still refer to their original backing. The [ownership reference](/reference/ownership/) explains the storage and lifetime consequences.
+Calls evaluate the callee and runtime arguments once, from left to right. Read values that retain an owner's storage can observe changes made through an admitted Write alias. An explicit owning copy creates separate contents, while any views inside it keep their original relationships. The [ownership reference](/reference/ownership/) explains those lifetimes.
 
-For failures, `?` selects propagation and `try` establishes recovery. Recovery preserves mutations and external effects already completed; it does not imply a transaction. Rollback belongs to the application's algorithm. The failure contract tells the caller what may remain after recovery.
+Failure choices are visible too: `?` propagates and `try` establishes recovery. Recovery preserves changes already made. A workflow that needs rollback must implement it.
 
 ## Separate permission from execution stage
 
-`const fn` permits required static execution; it does not move every call to compilation. A `const` parameter fixes an input for specialization while the residual function may still execute at runtime. `let` alone does not require compile-time execution; its stage comes from the enclosing execution context. A runtime `let` cannot supply a static parameter, even when initialized by a literal. In a `const` block or `const test`, local bindings execute with the block at compilation.
+`const fn` makes a function available for compile-time execution. A `const` initializer, block, or static test selects that stage; ordinary calls remain at runtime. A `const` parameter fixes one input for specialization while other inputs remain runtime values.
 
-`const if` selects the generated arm, but every source arm still receives name, type, access, ownership, and failure-contract checking. It is a specialization mechanism with one source contract, rather than a way to hide ill-typed code. The [compile-time article](/features/compile-time/) develops the construction model; the [function reference](/reference/functions/) states the stage-selection rules.
+`const if` selects the generated branch. Every source branch still receives type, access, ownership, and failure checks. The [compile-time article](/features/compile-time/) shows how this prepares data and runtime work.
 
-## Build on the mechanisms already available
+## Make asynchronous execution visible
 
-Three concrete directions fit this division without adding syntax:
+An async call creates a cold operation: a value describing work that has not started. Its `Operation<T, throw E>` type records the successful result `T` and failures `E`. `await` starts or observes the operation, `async let` starts a child owned by the current scope, and `cancel child` requests cancellation.
 
-- Compose the existing UTF and SIMD APIs into scanning algorithms in ordinary Crafts. The library chooses its algorithm; builtin operations retain their lane, memory, and execution-stage contracts.
-- Generate bounded tables or text with `const fn`, static execution roots such as constant initializers and `const` blocks, and the admitted construction and freezing rules. Resource limits and static result restrictions remain part of the contract.
-- Put native recovery policy in a C++ adapter, then expose the chosen result through an explicit boundary. The adapter catches native exceptions before a terminating boundary and establishes the external lifetime obligations.
+`when_all` returns results as a tuple in input order. A selection operation requires a common successful result type. Closing children waits for their work and cleanup before releasing borrowed data. The [scope example](/playground/#example=async-scope) shows why requesting cancellation alone is insufficient.
 
-Further language extensions need a concrete use that these forms cannot adequately express. Settle where context comes from, what changes to access or lifetime are visible, and how static and native execution agree. A small accepted example, a nearby rejected example, and its generated implementation make those choices testable. This follows Carven's [design principles](https://github.com/ryblust/carven/blob/main/docs/development/principles.md): source states meaningful commitments, inference derives defined facts, and later stages realize them.
+Names such as `when_all`, `yield_once`, and `close` require imports and use ordinary lookup. A duration literal such as `100ms` can construct a checked duration without importing its type name; an explicit `Duration` annotation does require the import. See [async](/reference/async/), [time](/reference/time/), and [modules](/reference/modules/) for the full rules.
+
+## Infer generic shape from the interface
+
+A generic function such as `fn relay<T>(&&value: T) -> T` can transfer a value without assuming that an unknown `T` can be copied, compared, default-constructed, or formatted. Its body is checked against those limits even when unused. Type parameters and failure-set parameters represent different kinds of information.
+
+At a call, inference uses the declared parameter shapes, actual argument types, and immediate expected result. An `Operation<T, throw E>` can provide evidence for both the result type and the failure set. If the evidence is ambiguous, write explicit arguments. The compiler does not inspect a generic body or earlier calls to guess a missing type.

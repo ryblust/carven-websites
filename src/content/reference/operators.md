@@ -20,7 +20,7 @@ An expression computes a value. Assignment and increment/decrement update storag
 | Equality   | `==` `!=`                    | Compatible equality-capable types, producing `bool`                               |
 | Logical    | `&&` `\|\|`                  | `bool` operands, short-circuiting left to right                                   |
 | Conversion | `as`                         | Explicit conversion from the [conversion table](/reference/types/#as-conversions) |
-| Range      | `..` `..=`                   | Integer bounds, producing `range<T>`                                              |
+| Range      | `..` `..=`                   | Integer bounds, producing `Range<T>`                                              |
 | Access     | `&` `&&`                     | Write or Take access; see [ownership](/reference/ownership/)                      |
 | Postfix    | `(...)` `[...]` `.` `->` `?` | Calls, indexing, members, pointer members, failure propagation                    |
 
@@ -96,7 +96,7 @@ The callee precedes arguments, the left operand precedes the right, the receiver
 
 ## Equality comparisons
 
-Equality supports `bool`, `char`, integers, floating point, `str`, `String`, arrays with comparable elements, numeric enums, payload enums with comparable payloads, and pointers with the same target type. Structures, classes, callables, entry arguments, slices, integer ranges, and chars ranges do not support equality.
+Equality supports `void`, `bool`, `char`, integers, floating point, `str`, `String`, arrays and tuples with comparable elements, numeric enums, payload enums with comparable payloads, and pointers with the same target type. Structures, classes, callables, slices, integer ranges, and chars ranges do not support equality.
 
 ```carven
 println("same" == "same", [1, 2] == [1, 2]); // true true
@@ -112,18 +112,18 @@ Division or remainder by zero and negative or out-of-width shift counts terminat
 
 ## Range expressions
 
-`begin..end` excludes the upper bound; `begin..=end` includes it. Both have type `range<T>`. An ordinary expression requires both integer bounds; omitted bounds occur only in patterns. A range saves a snapshot of its bounds rather than borrowing their source storage.
+`begin..end` excludes the upper bound; `begin..=end` includes it. Both have type `Range<T>`. An ordinary expression requires both integer bounds; omitted bounds occur only in patterns. A range saves a snapshot of its bounds rather than borrowing their source storage.
 
 ```carven
 var end = 4;
-let values: range<i32> = 1..=end;
+let values: Range<i32> = 1..=end;
 end = 8;
 for value in values {
     println(value);
 }
 ```
 
-This prints 1 through 4. Bounds evaluate once, left to right. An expected `range<T>` supplies T to both; otherwise the [binary expected-type rule](/reference/types/#expected-types) selects T, as in `0..text.len()` producing `range<usize>`. Incompatible bounds report `CV-TYPE-RANGE-BOUNDS`. Step and implicit reverse traversal are unsupported. See [control flow](/reference/control/) for loops and range patterns.
+This prints 1 through 4. Bounds evaluate once, left to right. An expected `Range<T>` supplies T to both; otherwise the [binary expected-type rule](/reference/types/#expected-types) selects T, as in `0..text.byte_length()` producing `Range<usize>`. Incompatible bounds report `CV-TYPE-RANGE-BOUNDS`. Step and implicit reverse traversal are unsupported. See [control flow](/reference/control/) for loops and range patterns.
 
 ## Related entries
 

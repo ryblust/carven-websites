@@ -1,6 +1,6 @@
 ---
 title: "Run your first program"
-description: "Set up the toolchain, run a .cv file, and distinguish native execution, interpretation, and C++ generation."
+description: "Prepare the toolchain, run a .cv file, and see how it becomes a C++ program."
 section: learn
 lesson: 1
 source: docs/language/tutorial.md
@@ -25,11 +25,12 @@ On Windows, the repository wrapper is `.\xmakew.ps1`. Direct native execution us
 Save this as `main.cv` in the compiler repository root:
 
 ```carven
-let answer = 20 + 22;
-println("Answer:", answer);
+let unit_price = 1200;
+let quantity = 3;
+println("Order total:", unit_price * quantity);
 ```
 
-`let` names a value that cannot be reassigned. `println` is available without an import, separates arguments with a space, and ends with a newline. These top-level statements execute in order as an implicit program entry. No function declaration is needed for this first program.
+`let` names a value that cannot be reassigned. `println` is available without an import, separates arguments with a space, and ends with a newline. These top-level statements execute in order as an implicit program entry. The calculation uses integer minor currency units, keeping this first example exact. No function declaration is needed for the implicit entry.
 
 Run:
 
@@ -40,7 +41,7 @@ Run:
 Output:
 
 ```text
-Answer: 42
+Order total: 3600
 ```
 
 Direct execution generates C++, compiles it, links it, and runs the executable. Set CXX to select the native compiler executable; the default is clang++.
@@ -63,7 +64,7 @@ This program also fits the interpreter's supported subset:
 ./xmakew run carven interpret main.cv
 ```
 
-The output is still Answer: 42. The interpreter does not implement every language feature. Later chapters use native execution throughout; typed failures can also be interpreted, while closures and C++ operations require native execution.
+The output is still Order total: 3600. Use this command when you want to run supported Carven code without compiling C++. Later chapters use native execution by default, so their examples also work when they call C++ or create capturing closures.
 
 ## Check without running
 
@@ -71,7 +72,7 @@ The output is still Answer: 42. The interpreter does not implement every languag
 ./xmakew run carven check main.cv
 ```
 
-check runs the same semantic analysis as the other commands, including required compile-time evaluation, then stops. It writes no C++, invokes no native compiler, and does not run the program. A successful check prints `carven: check passed` on stderr. Add `--timings` to any command to see how long each stage took; the report also goes to stderr:
+check asks the compiler to check the source without building or launching an executable. It also performs any work the source explicitly requests during compilation. It writes no C++, invokes no native compiler, and does not run the program. A successful check prints `carven: check passed` on stderr. Add `--timings` to any command to see how long each stage took; the report also goes to stderr:
 
 ```sh
 ./xmakew run carven check --timings main.cv
@@ -79,9 +80,9 @@ check runs the same semantic analysis as the other commands, including required 
 
 ## Saving and running later examples
 
-Unless stated otherwise, save each complete example as main.cv, replacing the preceding example, and run `./xmakew run carven main.cv`. If a chapter contains several complete programs, run them separately rather than joining them in one file or batch. File names must be valid identifiers: `main.cv` and `order_items.cv` work, `my-file.cv` does not.
+Unless a lesson gives another filename, save each complete example as main.cv. Replace the previous example. Run `./xmakew run carven main.cv`. If a chapter contains several complete programs, run them separately rather than joining them in one file or batch. File names must be valid identifiers: `main.cv` and `order_items.cv` work, `my-file.cv` does not.
 
-Local syntax fragments need the surrounding example context. Multi-file examples name their files and full input batch. Run ordinary tests with `carven --tests main.cv`, or `carven interpret --tests main.cv` for the supported subset; a plain program run does not execute them. `const test` executes during semantic analysis.
+A fragment that extends an earlier program says which declarations to keep. Multi-file examples list every file to pass to the compiler. The testing chapter introduces the separate commands for running tests; ordinary execution runs the application, not its tests.
 
 Later command tables use `carven` as shorthand for the executable. If it is not installed, use `./xmakew run carven` in the source repository. Native compilation commands still use clang++.
 
@@ -91,13 +92,14 @@ Top-level statements suit short programs. When you want the entry to stand apart
 
 ```carven
 fn main() {
-    let answer = 20 + 22;
-    println("Answer:", answer);
+    let unit_price = 1200;
+    let quantity = 3;
+    println("Order total:", unit_price * quantity);
 }
 ```
 
-It prints the same output. `fn main()` declares the program entry; its braces contain the statements to execute. A batch may have only one entry: use either top-level executable statements or main. The next chapters keep using top-level statements and add functions and types above them; later chapters use main where a named entry helps.
+It prints the same output. `fn main()` declares the program entry; its braces contain the statements to execute. A program may have only one entry: use either top-level executable statements or main. The next chapters keep using top-level statements and add functions and types above them; later chapters use main where a named entry helps.
 
 ## Exercise
 
-Change `20 + 22` to `20 + 2`; expect `Answer: 22`. Then remove the string from `println`; expect only `22`. Run `check`, `compile --stdout`, and direct execution, and confirm that only execution performs this print. Try the top-level and explicit-main versions as separate files, one at a time.
+Change quantity from `3` to `4`; expect `Order total: 4800`. Then remove the string from `println`; expect only `4800`. Run `check`, `compile --stdout`, and direct execution, and confirm that only execution performs this print. Try the top-level and explicit-main versions as separate files, one at a time.

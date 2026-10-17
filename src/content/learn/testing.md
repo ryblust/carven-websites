@@ -51,7 +51,7 @@ To integrate tests into your own C++ build, use `carven compile --tests -o gener
 
 A failed check reports and continues, suitable for independent assertions. A failed require stops the whole current test, suitable for a prerequisite of later code. fail always stops the current test. Messages are `str` or `String`; conditions must be `bool`.
 
-A check or require message is evaluated only when the condition is false, so it can build a detailed description such as `f"quantity {quantity} gives no total"` without cost on success. fail always evaluates its message. Test stopping propagates through synchronous Carven helpers and views, cleaning up locals. try cannot catch a test stop.
+A check or require message is evaluated only when the condition is false. A message such as `f"quantity {quantity} gives no total"` is not constructed on success. fail always evaluates its message. Test stopping propagates through synchronous Carven helpers and views, cleaning up locals. try cannot catch a test stop.
 
 Temporarily change 36 in the first assertion to 35, then run `carven --tests totals.cv`. The report goes to stderr:
 
@@ -131,13 +131,45 @@ test "reject zero" {
 }
 ```
 
-The summary becomes `carven: tests: 3 passed; 0 failed`. test permits no residual escaping failure. This example checks that a failure occurred, that the recovery arm was selected, and that the payload carries the rejected value. A successful-input test must still handle failures declared by the contract, rather than assume the current input cannot fail.
+The summary becomes `carven: tests: 3 passed; 0 failed`. A test must handle every failure its calls can report. This example checks that a failure occurred, that the recovery arm was selected, and that the payload carries the rejected value. A successful-input test must still handle failures declared by the contract, rather than assume the current input cannot fail.
 
 ## Read a diagnostic
 
 Start with the original .cv location, then read the diagnostic code and explanation. Types, ownership, failure sets, C++ compilation, and linking are distinct boundaries. Native construction or provider errors may still occur after Carven analysis succeeds. On a terminal, Carven colors its diagnostics; set `NO_COLOR` to disable this.
 
 Use `_` for an intentionally unused value. Warnings do not fail an otherwise valid program. For native errors, inspect includes, provider signatures, and construction requirements.
+
+## Check products and collection boundaries
+
+Tests can compare tuple results directly when their elements support equality. Save this independent test file as batches.cv:
+
+```carven
+fn bounds(values: [i32]) -> (i32, i32) {
+    assert(!values.is_empty(), "bounds needs at least one sample");
+    var (lower, upper) = (values[0], values[0]);
+    for value in values {
+        if value < lower { lower = value; }
+        if value > upper { upper = value; }
+    }
+    return (lower, upper);
+}
+
+test "mixed signs" {
+    check(bounds([7, -2, 4]) == (-2, 7));
+}
+
+test "growing runtime batch" {
+    var values: Vector<i32> = [7];
+    values.push(-2);
+    values.push(4);
+    check(bounds(values) == (-2, 7));
+    let removed = values.remove(1);
+    check(removed == -2);
+    check(bounds(values) == (4, 7));
+}
+```
+
+`carven check batches.cv` checks the source without running the tests. `carven --tests batches.cv` runs both tests natively; `carven interpret --tests batches.cv` runs the same cases in the interpreter. The cases exercise mixed signs, growth, removal order, and recomputed bounds. An empty input violates the explicit invariant and aborts; do not call it from a test that expects typed recovery. We introduce static execution in the next chapter.
 
 ## Exercise
 

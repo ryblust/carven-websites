@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { readFileSync } from 'node:fs';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import react from '@vitejs/plugin-react';
 import { contentPlugin } from './scripts/content/vite.ts';
@@ -9,10 +10,19 @@ import { siteUrl } from './src/lib/site-url.ts';
 const basePath = `/${(process.env.BASE_PATH || '').replace(/^\/+|\/+$/g, '')}/`.replace('//', '/');
 const siteOrigin = siteUrl('', '/', process.env.SITE_URL)?.replace(/\/$/, '');
 const sitemapHost = siteUrl('', basePath, siteOrigin)?.replace(/\/$/, '');
+const compilerRevision = readFileSync(
+  new URL('./public/playground-assets/compiler-revision.txt', import.meta.url),
+  'utf8',
+).trim();
+if (!/^[0-9a-f]{40}(?:-dirty)?$/.test(compilerRevision))
+  throw new Error('Invalid packaged compiler revision. Run pnpm playground:build.');
 
 export default defineConfig({
   base: basePath,
-  define: { 'import.meta.env.SITE_ORIGIN': JSON.stringify(siteOrigin ?? '') },
+  define: {
+    'import.meta.env.SITE_ORIGIN': JSON.stringify(siteOrigin ?? ''),
+    'import.meta.env.COMPILER_REVISION': JSON.stringify(compilerRevision),
+  },
   plugins: [
     contentPlugin(),
     tanstackStart({

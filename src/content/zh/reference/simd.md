@@ -1,60 +1,90 @@
 ---
-title: SIMD 向量、掩码与块辅助函数
-description: 固定逻辑通道、静态控制、受限加载、字节与浮点辅助函数及原生后端要求。
+title: "SIMD 向量、掩码与扫描"
+description: "逻辑向量、浮点方法、安全尾块、字节集合与静态特化。"
 section: reference
 lesson: 23
-source: crafts/carven/std/simd/README.md
+source: docs/language/simd.md
 ---
 
-## 类型与后端
+SIMD 让一次运算同时处理多个值。每个位置称为一个通道（lane）：u8x16 包含 16 个字节通道，f32x4 包含 4 个浮点通道。比较的结果是掩码（mask），为每个通道保存一个真假结果。这些类型用于成块计算；需要可增长集合时使用 `Vector<T>`。
 
-向量类型与原语操作内建于 Carven，无需导入。块和算法辅助函数来自 `std::simd.bytes` 或 `std::simd.floats`。向量拥有自己的通道（lane）值，不暴露可取地址的通道或原生寄存器布局。
+## 类型与模块
 
-| 向量    | 元素  | 通道数 | 掩码     | 打包位        |
-| ------- | ----- | ------ | -------- | ------------- |
-| `u8x16` | `u8`  | 16     | `mask16` | `u16`         |
-| `u8x32` | `u8`  | 32     | `mask32` | `u32`         |
-| `f32x4` | `f32` | 4      | `mask4`  | `u8` 的低四位 |
-| `f32x8` | `f32` | 8      | `mask8`  | `u8`          |
+向量和掩码类型默认可用，属于 `std::simd`；显式导入与别名选择同一类型。块操作从 `std::simd.bytes` 或 `std::simd.floats` 导入，字节集合从 `std::simd.scan` 导入。源码辅助函数 按普通所有权和执行规则组合内建原语。
 
-静态执行保存各通道的值，不依赖宿主指令集。每个原生翻译单元在可用时选择 AArch64 NEON，在使用方启用时选择 x86 AVX2，否则使用可移植 C++20 通道实现。各后端遵循同一通道契约，没有运行时分派。AVX2 宽值使用 256 位寄存器，窄操作可使用 128 位；NEON 宽值使用两个 128 位寄存器。逻辑宽度不依赖硬件寄存器宽度。
+| 向量    | 元素  | lane 数 | 比较掩码 | 打包位      |
+| ------- | ----- | ------- | -------- | ----------- |
+| `u8x16` | `u8`  | 16      | `mask16` | `u16`       |
+| `u8x32` | `u8`  | 32      | `mask32` | `u32`       |
+| `f32x4` | `f32` | 4       | `mask4`  | `u8` 低四位 |
+| `f32x8` | `f32` | 8       | `mask8`  | `u8`        |
 
-Carven 和使用方构建规则都不会启用 AVX2。x86 使用方可用 `-mavx2`、`/arch:AVX2` 或 Xmake 的 `add_vectorexts("avx2")` 选择它。使用 SIMD 或运行时文本支持的翻译单元必须选择同一后端。后端专属 inline namespace 赋予运行时类型不同身份，可在链接时检测部分不一致；仅返回类型或包含这些类型的结构体可能不在符号中暴露差异。原生选项与后端一致性由使用方负责。
+逻辑宽度独立于原生寄存器宽度；不暴露可取地址的 lane 或寄存器布局。
 
 ## 运算符与掩码
 
-字节向量默认全零。`+`、`-` 按通道回绕；`&`、`|`、`^`、`~` 按位操作。浮点向量默认正零，支持 `+`、`-`、`*`、`/` 与一元 `-`，以及对应复合赋值。精确的标量元素类型可在任一操作数位置广播，无后缀字面量取得元素上下文；其他标量类型需要显式转换。
+字节向量默认零，`+ -` 逐 lane 回绕，支持 `& | ^ ~`。浮点默认正零，支持 `+ - * /` 与一元负号及对应复合赋值。精确元素类型的标量可在任一侧广播；字面量接受元素上下文，其他数值类型须显式转换。
 
-六种比较都产生对应掩码类型。掩码默认 false，使用 `&`、`|`、`^`、`~` 组合，不隐式转为标量 bool。`.any()`、`.all()` 返回 bool，`.count()` 返回 usize；`.first_or(fallback)` 返回第一个为 true 的通道索引或 usize 后备值。`.bits()` 的第 i 位表示第 i 个通道，与内存字节序无关。
+六种比较均返回同形掩码。掩码默认全 false，支持 `& | ^ ~`，不能隐式转 bool。用 `.any()`、`.all()`、`.count()`、`.first_or(fallback)`、`.bits()` 查询。bit i 表示 lane i，与字节序无关；first_or 返回首个 true lane 或 usize 回退值。
 
-`mask.select(yes, no)` 选择匹配向量的各通道。两个向量实参都按源顺序立即求值。宽度和掩码类型之间不隐式转换。SIMD 值不为外围聚合提供标量结构化相等，应显式比较各通道。
+`.select(yes, no)` 接受两个匹配向量，按源码顺序立即求值两者。不同宽度和掩码不会隐式转换。包含 SIMD 的复合值没有自动标量结构相等，需显式比较 lane。
 
-## 原语操作
+## 构造与加载
 
-下表中 Vector 表示上述向量之一，Mask 是对应掩码，T 是标量元素类型，N 是通道数。
+下表中 Vector 表示上述任一向量，Mask 为对应掩码，T 为元素类型，N 为 lane 数；它与拥有序列 `Vector<T>` 不同。
 
-| 操作                                                    | 契约                                             |
-| ------------------------------------------------------- | ------------------------------------------------ |
-| `Vector::splat(value)`                                  | 广播一个 T。                                     |
-| `Vector::from_array(values)` / `value.to_array()`       | 从 `[T; N]` 复制或复制为它。                     |
-| `Vector::load(values, offset)`                          | 恰好读取 N 个元素，无对齐前置条件。              |
-| `Vector::load_partial(values, offset, fill)`            | 最多读取 N 个元素，其余填充；offset 不超过长度。 |
-| `value.lane(index)` / `value.with_lane(index, element)` | 读取一个通道或返回更新的副本；index 小于 N。     |
-| `left.extract(right, offset)`                           | 从拼接值中选 N 个元素，静态 offset 在 `0..=N`。  |
-| `Mask::from_bits(bits)`                                 | 展开低 N 位，忽略更高位。                        |
-| `Mask::prefix(count)`                                   | 前 count 个通道为 true，count 不超过 N。         |
-| `mask.bits()` / `.count()`                              | 打包位 / usize 计数。                            |
-| `mask.select(yes, no)`                                  | 按通道选择匹配向量。                             |
+| 操作                                         | 契约                                   |
+| -------------------------------------------- | -------------------------------------- |
+| `Vector::splat(value)`                       | 广播一个 T                             |
+| `Vector::from_array(values)`                 | 复制 `[T; N]`                          |
+| `Vector::load(values, offset)`               | 无对齐前提，读恰好 N 项                |
+| `Vector::load_partial(values, offset, fill)` | 最多 N 项，其余填充；offset 不大于长度 |
+| `Mask::from_bits(bits)`                      | 展开低 N 位                            |
+| `Mask::prefix(count)`                        | 前 count lane 为 true；count 不大于 N  |
 
-字节 `.lookup(indices)` 接受匹配的字节索引向量，每个不小于 N 的索引产生零。查找使用完整逻辑表，包括跨 128 位硬件边界的位置，不同于 AVX2 的通道局部字节 shuffle。`.shift_left(count)`、`.shift_right(count)` 将每个字节移位 `0..7` 位，补零并丢弃移出的位。
+关联操作写 `Type::function(...)`，类型别名保留相同操作；值方法写 `value.method(...)`。
 
-extract 偏移与字节移位数是静态输入，由编译器检查并生成原生模板实参。通道索引可动态变化。动态边界非法时终止，静态执行时诊断。部分加载不会读取填充存储或越过输入切片，包括空输入。浮点偏移按元素计数，不按字节。
+## 向量与掩码方法
 
-## Craft 辅助函数
+| 操作                                                   | 契约                                          |
+| ------------------------------------------------------ | --------------------------------------------- |
+| `value.to_array()`                                     | 复制到 `[T; N]`                               |
+| `value.lane(index)`、`value.with_lane(index, element)` | 读取或返回修改副本；index 小于 N              |
+| `value.swizzle(indices)`                               | 用静态 `[u8; N]` 重排，索引均小于 N，允许重复 |
+| `left.extract(right, offset)`                          | 从拼接值取 N 项；静态 offset 位于 `0..=N`     |
+| `mask.bits()`、`.count()`                              | 打包位、usize 数量                            |
+| `mask.select(yes, no)`                                 | 逐 lane 选择匹配向量                          |
 
-`std::simd.bytes` 使用 32 字节块（`u8x32`、`mask32`），`std::simd.floats` 使用每块 8 个浮点数（`f32x8`、`mask8`）。两者提供 `block_count`、`load_block`、`store`、`store_partial`、静态 `extract` 与静态 `swizzle`。
+字节向量 `.sum() -> usize` 精确求和，上限 N×255，不回绕。`.lookup(indices)` 接受任一字节向量宽度，表宽决定有效索引，索引向量决定结果宽；超表宽返回零，支持跨原生寄存器边界索引。
 
-`block_count` 向上取整而不溢出。`load_block` 返回拥有的块，包含 value、active、offset、len。尾部通道补零且不活动：填充值可能匹配时必须包含 active。offset 等于输入长度时产生空块。store 要求与块同宽的可写固定数组，只读切片不给写权限；store_partial 只更新前 count 个元素。
+`.shift_left(count)`、`.shift_right(count)` 每字节移 `0..7` 位、零填充；移位与 extract 输入为静态值，编译器检查边界。swizzle 控制可由 const fn、显式常量或 const for 索引提供，不能依赖普通运行时局部值。
+
+动态越界终止，静态执行诊断。部分加载不读 padding 或切片外数据，包括空输入；浮点 offset 计元素。
+
+## 浮点方法
+
+f32x4 与 f32x8 在静态、解释和原生执行中提供：
+
+| 方法                         | 契约                                              |
+| ---------------------------- | ------------------------------------------------- |
+| `.is_finite()`               | 逐 lane 返回有限性掩码                            |
+| `.sqrt()`                    | 保留带符号零和正无穷；负非零、负无穷和 NaN 为 NaN |
+| `.abs()`                     | 正幅值，两种零均转正零，NaN 保持 NaN              |
+| `.min(other)`、`.max(other)` | 任一 NaN 即传播；相等保留接收者，包括零符号       |
+| `.clamp(lower, upper)`       | 逐 lane 检查界限，保留值的 NaN，其余选择值或界限  |
+
+other、lower、upper 接受同形向量或 f32 广播；字面量接受 f32 上下文，其他类型需转换。clamp 每 lane 都要求 lower <= upper；逆序或 NaN 界限触发断言，即使丢弃结果。接收者和实参按源码顺序各求值一次。
+
+```carven
+let samples = f32x8::splat(-4.0);
+let magnitudes = samples.abs().sqrt();
+let bounded = magnitudes.clamp(0.0, 1.0);
+assert(bounded.is_finite().all());
+```
+
+## 块与字节 helper
+
+`ByteBlock` 包含 u8x32、mask32，`FloatBlock` 包含 f32x8、mask8。两类 helper 提供 `block_count` 和 `load_block`。load_block 返回 `value`、`active`、`offset`、`length`；尾部补零且标记不活动，padding 可能匹配时必须结合 active。offset 等于输入长度时得到空块。
 
 ```carven
 import std::simd.bytes using { block_count, load_block };
@@ -67,18 +97,26 @@ const fn count_spaces(bytes: [u8]) -> usize {
     }
     return count;
 }
-
-const spaces = count_spaces("a b c".bytes);
-const test "space count" { check(spaces == 2); }
-println(count_spaces("a b c".bytes)); // 2
 ```
 
-字节辅助函数还包括 count_byte、find_byte（未找到时返回长度）、first_or、ascii_digit、JSON 的四个 ascii_whitespace 字节、ascii_lower 与 ascii_prefix。前缀扫描使用 64 字节组，再检查一个 32 字节块及受限标量尾部。原生 UTF 块扫描共享这些向量操作。
+字节 helper 包括 `count_byte`、`find_byte`（未找到为长度）、`ascii_digit`、`ascii_lower`、`ascii_prefix`（首个非 ASCII 偏移）。它们处理编码字节。用 `.to_array()` 得到拥有型固定数组，再通过普通赋值写入可变目标。
 
-辅助函数的控制值是普通[静态参数](/zh/reference/functions/#静态参数)。extract 接受 `0..=N`；字节 `shift_in(previous, current, const count)` 在当前值前加入前一个值的末尾 count 字节，count 在 `0..=32`。字节移位数小于八。swizzle 要求常量 `[u8; N]` 索引，各项小于 N。控制值可来自 const fn、显式常量或 const for 索引；普通 let 和 for 索引不满足要求，转发包装器须保留 const。
+## 字节集合扫描
 
-普通辅助函数位于独立生成的 C++ 翻译单元，跨模块内联取决于使用方构建设置；静态特化有共享 inline 定义。见[手动构建要求](/zh/reference/toolchain/#构建责任)。
+`std::simd.scan` 的 `one_of([u8])` 构造 ByteSet；`byte_range(lower, upper)` 包含两端，要求 lower <= upper。支持全部字节，包括 NUL 与 FF。`set_union(left, right)` 合并集合，重复无影响。文本 `.bytes` 表示编码字节。
+
+`match_set(value, const set)` 分类 u8x32。`count_where`、`find_where`、`prefix_where` 查询完整切片，分别返回数量、首个匹配偏移、开头匹配长度；未找到为输入长度，空输入都为零。
+
+```carven
+import std::simd.scan using { one_of, count_where, find_where };
+
+const punctuation = one_of("{}[]:,".bytes);
+const fn count_punctuation(text: str) -> usize => count_where(text.bytes, punctuation);
+const fn first_punctuation(text: str) => find_where(text.bytes, punctuation);
+```
+
+查询均为 const fn，静态集合特化匹配工作，结果保持普通成员与位置契约。完整切片查询安全处理尾部。`find_from(bytes, start, set)` 从 start 搜索，`prefix_end(bytes, start, set)` 返回从该处起连续匹配的结束位置；允许 start 等于长度，不能更大。find_where 与 prefix_where 从零开始。
 
 ## 浮点执行
 
-每个通道遵循标量 f32 算术。有符号零比较相等，NaN 与任何值都不相等，并使有序比较为 false。常量身份保留浮点位模式，包括零的符号与 NaN 表示。静态算术使用编译器宿主，运行时算术使用目标浮点环境。不保证不同环境下结果相同、NaN 载荷传播或非默认舍入模式。没有融合运算、近似运算、min/max 或水平归约。
+逐 lane 遵循标量 f32。两种零相等，NaN 与任意值不等且有序比较为 false。常量身份保留浮点位，包括零符号和 NaN 表示。静态算术使用编译器宿主环境，普通运行时使用目标环境；跨环境一致性、NaN 载荷 传播、非默认舍入未指定。不提供融合运算、近似指令或浮点横向归约。

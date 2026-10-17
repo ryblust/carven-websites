@@ -1,115 +1,147 @@
 ---
-title: "The UTF standard library"
-description: "Scalar conversion, UTF-8 encoding and decoding, owning and borrowed text, and incremental validation."
+title: "UTF-8 and text processing"
+description: "Validate, decode, borrow, split, and own Unicode text in every supported execution stage."
 section: reference
 lesson: 22
-source: crafts/carven/std/utf/README.md
+source: docs/language/utf.md
 ---
 
-## Modules and interfaces
+Use `std::utf` when byte input needs to become valid text, or when text needs splitting and slicing. UTF-8 uses one to four bytes for each Unicode scalar, so byte offsets and character counts differ. The API states whether it returns an independent String or a view that still borrows the input.
 
-The `carven`, `check`, `compile`, and `interpret` commands collect the official library sources automatically. Select capabilities with imports such as `import std::utf.text using to_string;`.
+## Encoding, decoding, and validation
 
-| Module              | Contents                                                     |
-| ------------------- | ------------------------------------------------------------ |
-| std::utf.scalar     | UnicodeScalarError and scalar conversion                     |
-| std::utf.codec      | UTF8Encoded, UTF8DecodeResult, prefix decoding, and encoding |
-| std::utf.validation | UTF8Validator and whole-buffer validation                    |
-| std::utf.error      | Shared UTF8ErrorKind and UTF8Error                           |
-| std::utf.text       | Borrowed and owning text construction                        |
+Import types and functions from `std::utf`.
 
-| Operation                                                             | Result                                                           |
-| --------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `validate_utf8(bytes: [u8]) throw UTF8Error`                          | Validate all input without allocation                            |
-| `from_utf8(bytes: [u8]) -> str throw UTF8Error`                       | Validate, then borrow the same storage                           |
-| `to_string(bytes: [u8]) -> String throw UTF8Error`                    | Validate, then make an independent copy                          |
-| `decode_utf8_prefix(bytes: [u8]) -> UTF8DecodeResult throw UTF8Error` | End for empty input; otherwise the first Scalar(`char`, `usize`) |
-| `encode_utf8(character: char) -> UTF8Encoded`                         | Four-byte bytes array and effective width                        |
-| `char_from_u32(value: u32) -> char throw UnicodeScalarError`          | Validate the scalar range                                        |
-| `character as u32`                                                    | Scalar number                                                    |
-| `UTF8Validator::create() -> UTF8Validator`                            | Fresh validation state                                           |
-| `state.push(byte: u8) throw UTF8Error`                                | Accept one byte                                                  |
-| `state.feed(bytes: [u8]) throw UTF8Error`                             | Accept a chunk; its end is not EOF                               |
-| `state.check_complete() throw UTF8Error`                              | Check completeness without ending the stream                     |
-| `state.processed_bytes() -> usize`                                    | Accepted byte count                                              |
-| `state.is_complete() -> bool`                                         | Whether no partial scalar is pending                             |
+Use `char::from_u32(value)` to construct a Unicode scalar and
+`str::from_utf8(bytes)` to construct a borrowed text view. These associated
+entries select ordinary source functions from `std::utf`. Import `char_from_u32`
+or `from_utf8` from that module to call the same declaration directly.
+`char_from_u32` rejects surrogates and values above U+10FFFF with
+`UnicodeScalarError { value }`. `from_utf8` validates the complete byte slice,
+throws `UTF8Error` on invalid input, and otherwise borrows the unchanged storage.
+Empty input is valid; keep the backing alive while using the view.
 
-Arrays can implicitly become byte slices or use explicit as_slice. Text `.bytes` supplies a slice. from_utf8 borrows its input, so the backing must remain alive and unchanged. to_string produces an independent result that can safely be returned from a local array.
+| Operation                                                             | Result                                                                                      |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `validate_utf8(bytes: [u8]) throw UTF8Error`                          | Validate the entire input without allocation                                                |
+| `to_string(bytes: [u8]) -> String throw UTF8Error`                    | Validate and copy into independent storage                                                  |
+| `decode_utf8_prefix(bytes: [u8]) -> UTF8DecodeResult throw UTF8Error` | `.End` for empty input; otherwise `.Scalar(char, usize)` for the first scalar and its width |
+| `encode_utf8(character: char) -> UTF8Encoded`                         | Four-byte array `bytes` and valid `width`                                                   |
+| `encoded_bytes(encoded: UTF8Encoded) -> [u8]`                         | Borrow exactly the valid encoding prefix                                                    |
+| `UTF8Validator::new() -> UTF8Validator`                               | Start an incremental validation attempt                                                     |
+| `state.push(byte: u8) throw UTF8Error`                                | Accept one byte                                                                             |
+| `state.feed(bytes: [u8]) throw UTF8Error`                             | Accept one block; its end is not EOF                                                        |
+| `state.check_complete() throw UTF8Error`                              | Check that no partial scalar remains; does not end the stream                               |
+
+Array arguments create byte views implicitly; text exposes them through `.bytes`.
+Use `str::from_utf8` when the caller controls the backing lifetime and a copy is
+unnecessary.
 
 ```carven
-import std::utf.text using to_string;
-import std::utf.error using UTF8Error;
+import std::utf using { to_string, UTF8Error };
 
-fn text() -> String throw UTF8Error {
+fn example() -> String throw UTF8Error {
     let bytes: [u8; 4] = [0xf0, 0x9f, 0x98, 0x80];
     return to_string(bytes)?;
 }
 ```
 
-## Compile-time use
+## Text processing
 
-`char_from_u32`, `encode_utf8`, `decode_utf8_prefix`, and `validate_utf8` are const fn. The same Carven implementation runs at compilation and in ordinary runtime calls; encoded arrays can become frozen constant slices.
+`std::utf` reuses `str`, `String`, slices, and ordinary typed failures.
+All operations below are `const fn` and also run at runtime.
+
+| Operation                                                  | Result and ownership                                                                                    |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `substring(text, start, end) -> str throw TextError`       | Borrow `[start, end)` UTF-8 bytes; both offsets must be scalar boundaries                               |
+| `starts_with(text, prefix) -> bool`                        | Compare the prefix without allocation                                                                   |
+| `split_once(text, separator) -> Split throw TextError`     | Borrow `before` and `after`; `found` distinguishes a separator from an absent one                       |
+| `split(text, separator) -> Vector<String> throw TextError` | Independent owning fields, including leading, adjacent, and trailing empty fields                       |
+| `lines(text) -> Vector<String>`                            | Independent lines delimited by LF or CRLF, including empty lines; no extra line after a final delimiter |
+
+Substring offsets count bytes, not Unicode scalars or grapheme clusters. A
+reversed or out-of-range selection reports `TextError::OutOfBounds`; an offset
+inside a scalar reports `NotCharBoundary`. Splitting uses an exact, nonempty
+UTF-8 separator and reports `EmptySeparator` for an empty separator. It performs
+no whitespace normalization. An absent separator returns `found: false`, the
+entire input as `before`, and an empty `after`.
+
+`Split` and substring results borrow the original input, including results
+returned through helper functions. Their lifetimes and mutations follow ordinary
+ownership checks. `split` and `lines` return owners and copy the fields, so callers
+can retain the collection independently of the input. Empty text yields one empty
+split field and zero lines. A lone CR is content; only CR immediately before LF is
+stripped.
 
 ```carven
-import std::utf.codec using { encode_utf8, decode_utf8_prefix, UTF8DecodeResult };
-import std::utf.validation using validate_utf8;
+import std::utf using { split_once, TextError };
+
+fn setting(text: str) -> String throw TextError {
+    let pair = split_once(text, "=")?;
+    return if pair.found { pair.after as String } else { "" };
+}
+```
+
+## Static execution
+
+The source functions and methods on this page are `const fn` declarations. They
+share values, failures, and ownership rules across execution stages. Static calls
+use the language's execution budgets and result-retention checks.
+Encoded arrays can become frozen constant slices:
+
+```carven
+import std::utf using { encode_utf8, encoded_bytes, validate_utf8 };
 
 const encoded = encode_utf8('😀');
-const bytes: [u8] = encoded.bytes;
-const {
-    validate_utf8(bytes.slice(0, encoded.width))?;
-    assert(encoded.width == 4);
-}
-const decoded = decode_utf8_prefix(bytes.slice(0, encoded.width))?;
-const test "UTF round trip" {
-    match decoded {
-        .Scalar(value, width) => {
-            check(value == '😀');
-            check(width == 4);
-        },
-        .End => fail("missing scalar"),
-    }
-}
+const bytes = encoded_bytes(encoded);
+const { validate_utf8(bytes)?; }
 ```
 
-UTF8Encoded.bytes always has four bytes. Only its first width bytes form the encoding; the rest are zero. Keep width when making a byte view, or padding introduces extra NUL scalars. Static calls follow ordinary typed-failure contracts and execution budgets.
+`UTF8Encoded.bytes` contains four bytes; only the first `width` bytes belong to
+the encoding, and the remainder is zero. `encoded_bytes(encoded)` borrows that
+prefix. Bind the encoding before retaining its view; the usual backing lifetime
+and mutation checks apply.
 
-`from_utf8` and `to_string` require runtime execution because unchecked borrowed text construction is not admitted by the executor. `UTF8Validator` is also runtime-only because class values are outside static execution. Whole-buffer validation uses internal struct state. Native UTF validation and the SIMD craft share the selected backend; see [SIMD requirements](/reference/simd/#types-and-backends).
+## Error and streaming contract
 
-## Error locations
+`UTF8Error` contains `kind`, `offset`, and `sequence_start`. Positions are
+zero-based byte offsets in the logical stream. `offset` identifies the rejected
+byte; EOF truncation points at the input end. `sequence_start` identifies the
+start of the invalid sequence, so bytes before it form a valid prefix.
+`UTF8Error` and `UTF8ErrorKind` are ordinary source declarations from `std::utf`.
+Text construction, library algorithms, and standard input use the same error
+values.
 
-UTF8Error contains kind, offset, and sequence_start. Offsets are zero-based byte positions in the logical stream. offset identifies the rejected byte, or the end for EOF truncation. sequence_start identifies the invalid sequence's beginning; preceding bytes form a valid prefix.
+Kinds are `InvalidLead`, `InvalidContinuation`, `Overlong`, `Surrogate`,
+`TooLarge`, and `Truncated`. Illegal lead bytes C0/C1 and F5..FF report
+`InvalidLead`. Empty input, embedded NUL, and Unicode noncharacters are valid.
+There is no normalization or replacement decoding. Prefix decoding does not
+inspect bytes after the first complete scalar.
 
-Kinds are InvalidLead, InvalidContinuation, Overlong, Surrogate, TooLarge, and Truncated. C0/C1 and F5..FF report InvalidLead. Empty input, embedded NUL, and Unicode noncharacters are valid. There is no normalization or replacement decoding. Prefix decoding does not inspect bytes after the first complete scalar.
+A rejected `push` leaves the state unchanged. A rejected `feed` preserves the
+progress of accepted bytes before the rejection. Stop that validation attempt on error;
+retrying with different bytes describes a different stream. An incomplete block
+is accepted, and only `check_complete` reports truncation. Logical stream length
+must fit `usize`.
 
-## Incremental protocol
+Copies of a validator are independent validation attempts.
+Initialize `UTF8Validator` through `UTF8Validator::new()` and change it through
+`push` or `feed`. It stores no input. `processed_bytes()` returns the accepted byte count,
+and `is_complete()` reports whether no partial scalar is pending. Both queries
+and `check_complete()` use Read access; checking completeness does not consume
+or close the validator. Call it at logical EOF to detect truncation; subsequent
+input is still permitted.
 
-`UTF8Validator` is a [class](/reference/aggregates/#ordinary-value-classes): start with `UTF8Validator::create()` and change it through the Write operations `push` and `feed`. Its private fields track byte positions and the incomplete sequence without retaining input; `state.state` outside the class reports `CV-ACCESS-CLASS-PRIVATE`. `check_complete`, `processed_bytes`, and `is_complete` use Read access, so checking completeness neither consumes nor closes the validator; later input is permitted. A rejected push leaves state unchanged. A rejected feed preserves progress for previously accepted bytes. End the current validation attempt after an error; changing bytes and retrying describes a different stream.
+## Borrowed splitting cursor
 
-A chunk boundary is not EOF. An incomplete sequence can span chunks; only check_complete reports truncation. The total logical stream length must fit `usize`.
+`SplitCursor::new()` creates an offset-only cursor. Call
+`cursor.next(text, separator)?` explicitly; `SplitField::Value(str)` borrows the
+original input, while `SplitField::End` marks exhaustion. Empty input yields one
+empty field, and leading, adjacent, and trailing empty fields are preserved.
+Separators may contain multiple UTF-8 bytes; an empty separator reports
+`TextError::EmptySeparator`, including after exhaustion.
 
-```carven
-import std::utf.validation using UTF8Validator;
-import std::utf.error using UTF8Error;
-
-let bytes: [u8; 2] = [0x41, 0xe6];
-var state = UTF8Validator::create();
-try {
-    state.feed(bytes)?;
-    state.check_complete()?;
-} catch {
-    UTF8Error(error) => println(error),
-}
-println(state.processed_bytes());
-```
-
-The chunk ends inside a three-byte sequence, so `feed` succeeds and `check_complete` reports truncation:
-
-```text
-UTF8Error {
-    kind: UTF8ErrorKind::Truncated,
-    offset: 2,
-    sequence_start: 1,
-}
-2
-```
+Keep the same text and separator for a traversal. The cursor owns no text and
+cannot identify a replacement input. Returned fields require the original backing
+to remain alive and valid. Copies of a cursor traverse independently from the
+same offset. The cursor and its methods support static execution.

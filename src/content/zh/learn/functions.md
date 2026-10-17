@@ -48,7 +48,7 @@ println(delivery(36), delivery(120));
 
 ## 执行动作的函数
 
-不返回值的函数推断为 void：
+有些函数主要执行动作，不需要算出一个有用的结果，它们的结果类型是 void：
 
 ```carven
 fn show_total(total: i32) => println("Total:", total);
@@ -56,7 +56,9 @@ fn show_total(total: i32) => println("Total:", total);
 show_total(36);
 ```
 
-输出 `Total: 36`。表达式体也可以返回 `void` 调用，无需显式写 `-> void`。把 show_total 调用写成语句；它没有可保存到局部变量的结果。动作需要多步操作或用单独的 `return;` 提前结束时，使用块体。
+输出 `Total: 36`。show_total 的目的是打印，直接把调用写成语句即可。编译器推断结果类型为 void，因此可以省略 `-> void`。动作需要多条语句或用 `return;` 提前结束时，使用块体。
+
+精确地说，void 有一个值 `()`，称为 unit，也能像其他值一样存放；这个打印函数不需要保留它。[类型参考](/zh/reference/types/)介绍它在数据结构中的用法。异步章节会说明，unit 怎样为不返回业务结果的操作保留一个结果位置。
 
 ## 声明顺序与调用
 
@@ -65,6 +67,21 @@ show_total(36);
 函数看不到顶层的 `let` 和 `var` 绑定：它们属于程序入口。所需值应作为参数传入。
 
 相互递归的函数应写明结果类型，避免推断一个结果时又依赖另一个结果。完整推断规则见[函数参考](/zh/reference/functions/)；[访问章节](/zh/learn/ownership/)将展示参数何时读取保存的值，何时保留调用者的存储。
+
+## 一起返回相关结果
+
+相关结果可以用元组一起返回。函数也可以接收一个元组，并在参数列表里为各部分命名：
+
+```carven
+fn delivery(total: i32) -> i32 => if total >= 100 { 0 } else { 8 };
+fn amount((price, quantity): (i32, i32)) -> i32 => price * quantity;
+fn price_and_delivery(total: i32) -> (i32, i32) => (total, delivery(total));
+
+let (items, shipping) = price_and_delivery(amount((12, 3)));
+println(items, shipping, items + shipping);
+```
+
+把它另存为一个独立程序，输出 `36 8 44`。`(i32, i32)` 写明两个位置的类型。传给 amount 的一对值是一个参数，不是两个参数。若 price、quantity 这样的名字应一直随数据保留，使用结构体；只是局部组合几个值时，元组就够了。
 
 ## 练习
 

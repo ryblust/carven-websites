@@ -13,7 +13,7 @@ src/.content-*/
 build/
 
 # Local compiler-to-website synchronization notes
-/docs/content-sync.md
+/content-sync.md
 
 # Reproducible WASM compiler and bundled Crafts
 /public/playground-assets/

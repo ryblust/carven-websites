@@ -36,7 +36,7 @@ The output is `10`. `1..5` includes 1, 2, 3, and 4, but not 5. Each endpoint is 
 
 ```carven
 var end = 4;
-let values: range<i32> = 1..=end;
+let values: Range<i32> = 1..=end;
 end = 8;
 
 var total = 0;
@@ -46,7 +46,7 @@ for value in values {
 println(values, total);
 ```
 
-The output is `1..=4 10`. Creating values saved the bounds 1 and 4; changing end to 8 does not change it. `println` shows a range by its bounds. `range<i32>` is the integer range type. Ranges can be stored like other values and, once you introduce functions, passed as arguments or returned.
+The output is `1..=4 10`. Creating values saved the bounds 1 and 4; changing end to 8 does not change it. `println` shows a range by its bounds. `Range<i32>` is the integer range type. Ranges can be stored like other values and, once you introduce functions, passed as arguments or returned.
 
 The loop also snapshots its source range before traversal. Reassigning that range inside the body does not change the sequence being visited.
 
@@ -54,7 +54,7 @@ The loop also snapshots its source range before traversal. Reassigning that rang
 
 ```carven
 let code = "A-17";
-let positions = 0..code.len();
+let positions = 0..code.byte_length();
 println(positions);
 
 for index in positions {
@@ -62,7 +62,7 @@ for index in positions {
 }
 ```
 
-This prints `0..4`, then 0 through 3 on separate lines. `code.len()` returns a `usize` byte count, so the literal 0 is also checked as `usize` and positions has type `range<usize>`. No cast or suffixed zero is needed. Two unsuffixed bounds still default to `i32`, and an explicit `range<i32>` annotation here is rejected because the bounds cannot share that type. Existing bindings keep their types: an `i32` variable and a `usize` length cannot form one range.
+This prints `0..4`, then 0 through 3 on separate lines. `code.byte_length()` returns a usize byte count. This gives the literal 0 the same type, so positions has type `Range<usize>`. No cast or suffixed zero is needed. Two unsuffixed bounds still default to `i32`, and an explicit `Range<i32>` annotation here is rejected because the bounds cannot share that type. Existing bindings keep their types: an `i32` variable and a `usize` length cannot form one range.
 
 ## Choose a result by interval
 
@@ -80,26 +80,6 @@ println(label);
 The output is `pass`. Read the arms in order: below 0 is invalid; 0 through 59 needs a retry; 60 through 100 passes; above 100 is invalid. The patterns `..0` and `101..` omit one bound. This is allowed only in patterns, not when creating a range value.
 
 match selects the first matching arm and checks coverage of all inputs. Removing the `101..` arm produces a missing-coverage error. Use match to classify a value; use if to decide actions from general conditions.
-
-### Equivalent C++20
-
-```cpp
-#include <iostream>
-#include <string_view>
-
-int main() {
-    const int score = 85;
-    const std::string_view label = [&]() -> std::string_view {
-        if (score < 0) return "invalid";
-        if (score < 60) return "retry";
-        if (score <= 100) return "pass";
-        return "invalid";
-    }();
-    std::cout << label << '\n';
-}
-```
-
-This handwritten C++ produces the same result with straightforward conditions. Carven's value here is expressing intervals directly and checking that they cover the integer input. A C++ if chain does not provide the same interval coverage check.
 
 Bounds can also be runtime values; then a `_` fallback is usually needed. See the [control-flow Reference](/reference/control/) for bound evaluation and dynamic-pattern coverage rules.
 
@@ -125,11 +105,9 @@ This prints 0, 1, 2, 0, and 2 on separate lines. In a C-style for, continue exec
 
 ## Evaluate only the selected path
 
-`&&` skips its right operand when the left is false; `||` skips it when the left is true. Only the chosen branch runs, but all source branches undergo semantic checks. Placing invalid code inside `if false` does not make it valid. Literal and `const` conditions do not prune analysis: ordinary `if false`, `while true`, and short-circuit operands still contribute their possible paths to ownership, failure, and return checks. Only conditionless `while { ... }` has no implicit exit path. Static control explicitly selects generated work, while checking every source arm.
+`&&` and `||` can skip work: `&&` stops when its left side is false; `||` stops when its left side is true. Likewise, only the selected if or match branch runs.
 
-Use a statement-form if, as in the loop above, for break or continue. Value-producing branches have additional control-transfer rules described in the [control-flow Reference](/reference/control/).
-
-Source after a terminal `return`, failure, or loop transfer is still type-checked, but contributes no runtime work or reachable ownership and failure paths.
+Checking the source is separate from running it. Every branch must still contain valid code, even inside `if false`. Use ordinary conditions to choose runtime actions; the compile-time chapter introduces const if when the choice should affect the generated program. The [control-flow reference](/reference/control/) covers return, break, and ownership checks across those paths.
 
 ## Exercise
 

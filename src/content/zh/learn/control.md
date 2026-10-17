@@ -36,7 +36,7 @@ println(total);
 
 ```carven
 var end = 4;
-let values: range<i32> = 1..=end;
+let values: Range<i32> = 1..=end;
 end = 8;
 
 var total = 0;
@@ -46,7 +46,7 @@ for value in values {
 println(values, total);
 ```
 
-输出 `1..=4 10`。创建 values 时已经保存了 1 和 4；后来把 end 改成 8 不会改变它。`println` 按端点显示区间。`range<i32>` 表示整数区间的类型。区间可以像其他值一样保存，后续学到函数时也可以把它用作参数和返回值。
+输出 `1..=4 10`。创建 values 时已经保存了 1 和 4；后来把 end 改成 8 不会改变它。`println` 按端点显示区间。`Range<i32>` 表示整数区间的类型。区间可以像其他值一样保存，后续学到函数时也可以把它用作参数和返回值。
 
 循环开始时还会保存源区间的快照，因此在循环体里重新赋值源区间，也不会改变正在遍历的序列。
 
@@ -54,7 +54,7 @@ println(values, total);
 
 ```carven
 let code = "A-17";
-let positions = 0..code.len();
+let positions = 0..code.byte_length();
 println(positions);
 
 for index in positions {
@@ -62,7 +62,7 @@ for index in positions {
 }
 ```
 
-先输出 `0..4`，再逐行输出 0 到 3。`code.len()` 返回 `usize` 字节数，因此字面量 0 也按 `usize` 检查，positions 的类型是 `range<usize>`，不需要 cast 或带后缀的 0。两个无后缀端点仍默认 `i32`；这里若显式注解 `range<i32>` 会被拒绝，因为两个端点无法统一到该类型。已有变量保持原类型：`i32` 变量和 `usize` 长度不能组成一个区间。
+先输出 `0..4`，再逐行输出 0 到 3。`code.byte_length()` 返回 usize 字节数。字面量 0 由此得到相同类型，因此 positions 是 `Range<usize>`，不需要转换或带后缀的 0。两个无后缀端点仍默认 `i32`；这里若显式注解 `Range<i32>` 会被拒绝，因为两个端点无法统一到该类型。已有变量保持原类型：`i32` 变量和 `usize` 长度不能组成一个区间。
 
 ## 按区间选择结果
 
@@ -80,26 +80,6 @@ println(label);
 输出 `pass`。从上往下读：小于 0 无效；0 到 59 需要重试；60 到 100 通过；大于 100 无效。这里 `..0` 和 `101..` 省略一侧边界；这种写法只用于模式，不能用来创建区间值。
 
 match 按顺序选择匹配的分支，并检查是否覆盖所有输入。删除 `101..` 这一分支，会因缺少覆盖而报错。用 match 给一个值分类；用 if 根据一般条件决定动作。
-
-### 等价的 C++20
-
-```cpp
-#include <iostream>
-#include <string_view>
-
-int main() {
-    const int score = 85;
-    const std::string_view label = [&]() -> std::string_view {
-        if (score < 0) return "invalid";
-        if (score < 60) return "retry";
-        if (score <= 100) return "pass";
-        return "invalid";
-    }();
-    std::cout << label << '\n';
-}
-```
-
-这份手写 C++ 输出相同结果，条件也不复杂。Carven 在这里的价值是直接写出区间，并检查这些区间是否覆盖了整数输入。C++ 的 if 链不提供同样的区间覆盖检查。
 
 端点也可以是运行时值；此时通常需要 `_` 兜底。端点何时求值，以及动态模式的覆盖边界，见[控制流参考](/zh/reference/control/)。
 
@@ -125,11 +105,9 @@ for var i = 0; i < 3; ++i {
 
 ## 只执行选中的路径
 
-`&&` 左侧为 false 时不执行右侧；`||` 左侧为 true 时不执行右侧。只有所选分支运行，但所有源分支都接受语义检查。把错误代码写在 `if false` 里不使它合法。字面量与 `const` 条件不会裁剪分析：普通 `if false`、`while true` 与短路操作数仍为所有权、失败与返回检查贡献可能路径。只有无条件的 `while { ... }` 没有隐式退出路径。静态控制明确选择生成工作，同时检查所有源码分支。
+`&&` 和 `||` 可以跳过不需要的工作：`&&` 左侧为 false 时停止，`||` 左侧为 true 时停止。同样，if 或 match 只执行选中的分支。
 
-像上面的循环一样，用语句形式的 if 组织 break 或 continue。值分支还有额外的控制转移规则，详见[控制流参考](/zh/reference/control/)。
-
-终止当前路径的 `return`、失败或循环转移之后，源码仍要检查类型，但不贡献运行时工作或可达的所有权与失败路径。
+检查源码和运行源码是两件事。每个分支仍须包含合法代码，即使写在 `if false` 里面。普通条件用来选择运行时动作；编译期章节会介绍在生成程序时作选择的 const if。跨分支的 return、break 与所有权规则见[控制流参考](/zh/reference/control/)。
 
 ## 练习
 

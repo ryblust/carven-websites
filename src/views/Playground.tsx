@@ -234,7 +234,9 @@ export default function Playground({ locale }: { locale: Locale }) {
   return (
     <section className="playground container" aria-labelledby="playground-title">
       <div className="playground-intro">
-        <h1 id="playground-title">{t('写一点，运行看看。', 'A little code. A real result.')}</h1>
+        <h1 id="playground-title">
+          {t('在浏览器中验证程序。', 'Explore Carven in your browser.')}
+        </h1>
         <p>
           {t(
             '选个例子，改一改，在浏览器里检查、运行，或查看生成的 C++。',
@@ -282,7 +284,7 @@ export default function Playground({ locale }: { locale: Locale }) {
                 <button
                   disabled={busy || !supported || !source.trim()}
                   onClick={() => void run('format')}
-                  title={t('使用 Graver 格式化源码', 'Format source with Graver')}
+                  title={t('格式化 Carven 源码', 'Format Carven source')}
                 >
                   <UIIcon icon={AlignLeft} />
                   {t('格式化', 'Format')}

@@ -7,7 +7,7 @@ set_exceptions("no-cxx")
 
 local site = os.projectdir()
 local playground = path.join(site, "src/playground")
-local source = path.join(site, ".deps/carven")
+local source = path.absolute(os.getenv("CARVEN_SOURCE_DIR") or path.join(site, ".deps/carven"), site)
 local sdk = os.getenv("WASI_SDK_PATH")
 local destination = path.join(site, "public/playground-assets")
 
@@ -21,8 +21,8 @@ target("carven-wasm")
     add_files(path.join(source, "src/**.cppm"))
     add_files(path.join(source, "src/**.cpp|carven.cpp|driver/process.cpp|driver/run.cpp|driver/cli.cpp"))
     for _, component in ipairs({"source", "layout", "format"}) do
-        add_files(path.join(source, "tools/graver/src", component, "*.cppm"))
-        add_files(path.join(source, "tools/graver/src", component, "*.cpp"))
+        add_files(path.join(source, "tools/format/src", component, "*.cppm"))
+        add_files(path.join(source, "tools/format/src", component, "*.cpp"))
     end
     add_files(path.join(playground, "carven-wasm.cpp"))
     -- std.cppm includes <csignal> and <csetjmp>, whose WASI headers require these.
@@ -32,11 +32,15 @@ target("carven-wasm")
         import("core.base.json")
         local files = {}
         for _, file in ipairs(os.files(path.join(source, "crafts/carven/**.cv"))) do
-            files[path.relative(file, source)] = io.readfile(file)
+            files[path.unix(path.relative(file, source))] = io.readfile(file)
         end
-        files["crafts/carven/runtime/runtime.hpp"] = ""
         io.writefile(path.join(destination, "crafts.json"), json.encode({files = files}, {pure = true, orderkeys = true}))
         os.cp(path.join(source, "LICENSE"), path.join(destination, "LICENSE.txt"))
         os.cp(path.join(playground, "third-party-notices.txt"), path.join(destination, "THIRD-PARTY-NOTICES.txt"))
+        local revision = os.iorunv("git", {"-C", source, "rev-parse", "HEAD"}):trim()
+        if os.iorunv("git", {"-C", source, "status", "--porcelain"}):trim() ~= "" then
+            revision = revision .. "-dirty"
+        end
+        io.writefile(path.join(destination, "compiler-revision.txt"), revision .. "\n")
     end)
 target_end()

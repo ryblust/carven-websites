@@ -1,90 +1,63 @@
 ---
-title: How generated programs connect to C++
-description: Understand language runtime support, standard and user Crafts, native libraries, compilation, and linking.
+title: "What generated C++ needs to run"
+description: "Connect Carven libraries and runtime support to input, timers, sockets, and C++ hosts."
 section: internals
 source: docs/compiler/README.md
 ---
 
-## What supports the generated code
+## What supports the generated program
 
-Carven generates C++ from checked semantics. Numbers, text, failure results, and callable objects in a generated program need native implementations. Shared facilities live in `crafts/carven/runtime/`. Standard and user Crafts organize library APIs, algorithms, and optional C++ implementation support.
+Generated C++ needs concrete implementations for text storage, vectors, failure results, printing, and async execution. These live in `crafts/carven/runtime/`. Standard modules combine compiler-provided declarations with checked Carven source in `crafts/carven/std/`, plus native support for capabilities that access the host.
 
-<figure class="architecture-map">
-  <div class="runtime-map">
-    <div class="runtime-map-source"><strong>Carven programs · Standard & user Crafts</strong><span>.cv source modules</span></div>
-    <div class="runtime-map-generated"><strong>Generated C++</strong><span>Interfaces, implementations, and required dependencies</span></div>
-    <div class="runtime-map-dependencies"><div><strong>Language runtime</strong><span>Shared native operation support</span></div><div><strong>Native libraries & providers</strong><span>Existing C++ types and calls</span></div></div>
-  </div>
-  <figcaption>The native toolchain compiles generated files, Crafts’ .cpp support, and other required C++ sources, then links library dependencies.</figcaption>
-</figure>
+For example, JSON parsing is a source algorithm. Reading a socket needs a native provider: C++ code that performs the host operation under a declared Carven contract. The compiler checks source uses of that contract; it does not build against the provider's headers or native libraries.
 
-Compiler source does not include runtime headers. Backend symbol metadata describes the dependencies of generated code; artifacts include the corresponding headers. Runtime support provides language facilities. It does not depend on standard Crafts or solve source types, ownership, and failure contracts.
+| Layer            | Responsibility                                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| Compiler         | Check source contracts, execute admitted static work, and generate C++                                       |
+| Language runtime | Implement native values, formatting, result carriers, tests, and the coroutine driver                        |
+| Standard modules | Supply public APIs and checked algorithms for core data, UTF, SIMD, JSON, input, time, async, and networking |
+| Native providers | Perform host operations and keep their hidden resources valid                                                |
+| Native build     | Compile and link the selected generated sources, native support, and dependencies                            |
 
-## Responsibilities at each layer
+`Read<T>`, `Duration`, `Timeout`, UTF errors, and input handles are standard-source declarations found through ordinary module lookup. Checked text construction, input error mapping, and public waits also have source bodies. Their host access uses module-local provided operations.
 
-| Layer                       | Responsibility                                                                                                                   |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Compiler                    | Check semantics, perform admitted static execution, publish facts, and generate C++                                              |
-| Language runtime            | Shared native support for numbers, arrays and slices, text and String, formatting, failure results, callables, checks, and tests |
-| Standard Crafts             | Ordinary Carven modules organizing library APIs and algorithms, currently including UTF and SIMD helpers                         |
-| User Crafts                 | Own their APIs and implementations under the same type, ownership, static-execution, and publication rules as standard Crafts    |
-| C++ libraries and providers | Supply native types, functions, and implementations, with contracts for external objects and calls                               |
-| Native build system         | Prepare sources, include paths, libraries, and options; compile, link, and manage incremental builds                             |
+## Keep owned data and views distinct
 
-A library can enter through Craft declarations and native implementations, following ordinary semantic checking and generation, without becoming a compiler builtin.
+An owned `String` or `Vector<T>` can be copied into independent storage. A `str` or slice is a view: copying it still refers to its original data. These relationships apply during static execution as well as runtime execution. Completed constants retain their owning types; a frozen view has immutable program-lifetime backing.
 
-## Explore generated code’s runtime interactions
+Native parameter passing preserves the checked observations. Pure snapshot values may pass by value; Read inputs containing owner storage retain access to that storage. Write uses mutable references, and Take changes the source binding's availability while delivering ownership.
 
-<details class="architecture-detail">
-<summary>Failure results: static sets, concrete native carriers</summary>
+The semantic executor tracks typed values and lifetimes within its budgets. Generated C++ supplies the corresponding storage, evaluation order, and cleanup. Compiler-host addresses are never copied into target constants as raw addresses.
 
-Semantic analysis computes failure sets and checks contracts after recovery. A fallible function uses a concrete `Outcome<Result, Failures...>` representation; a function unaffected by failures or test stop returns its result directly.
+## Wait for work and its cleanup
 
-Internal callables admitting test stop also use a separate `TestStopped` transport, which is outside the declared failure set. Native export façades remove it; an escaping test stop terminates the program.
+Calling a source async function creates a cold operation. Awaiting or starting it as a child runs it through the driver. Native execution uses C++ coroutines; ready continuations, provider events, and timers are serviced on one thread.
 
-The current runtime’s `Outcome` storage uses `std::variant`. The backend arranges propagation, payload delivery, cleanup, and recovery branches. This container is an implementation detail. Source semantics preserve failure types, data, and evaluation behavior.
+A native async provider returns `AsyncOperation<Result, Failures...>`. It commits success, a declared failure, or cancellation, then queues the continuation that resumes source execution. A native host drives an exported root with `drive_root(operation, &source)` and retains its event source and resources until the root and children finish.
 
-C++ exceptions do not automatically become Carven failures. An exception escaping generated functions or their corresponding bridges across a `noexcept` boundary terminates the program. A native adapter that needs recovery catches the exception and explicitly chooses a recovery value or failure result.
+Requesting cancellation does not mean that a callback has stopped using its state. `close` waits for the child and provider cleanup before releasing the child's active borrow. Joins, selection, and timeout compositions also close their children before delivering an outcome. Work that never accepts cancellation can delay that wait.
 
-</details>
+## Connect input, timers, and TCP to a host
 
-<details class="architecture-detail">
-<summary>Reading and transfer: source permissions, native storage and passing</summary>
+`std::io` provides bounded cold standard-input reads and byte framing. `std::time` provides checked durations, monotonic points, waits, and timeout composition. Static calls use compiler-process resources; ordinary calls use runtime-process resources. The browser's input stream is empty, and external native providers require a local native host.
 
-Carven checks Read, Write, and Take before selecting native passing according to storage properties. Read preserves array, String, and closure backing; pure Carven snapshot values can pass by value. C++ copy and destruction properties participate in representation choices for native-containing values. Write uses a mutable reference; Take receives an owned value and constructs it according to transfer policy.
+For `std::net`, the C++ host creates a `Network`, adopts already-connected sockets into address-stable `Connection` objects, and supplies named views to Carven. It keeps these objects and hidden state alive until pending operations and cleanup finish. One read and one write may be active per connection. Windows consumers link `ws2_32`.
 
-Temporary storage in constant execution also has explicit completion rules. A constructed String can freeze into a canonical `str`. Slice elements become constant identities, and the backend creates module-owned constant array backing. Addresses in compiler host memory do not become target-program constant addresses directly.
+This source API handles reads and writes on existing connections. Connection establishment, listening, name resolution, and TLS belong to the host or its libraries. The [network reference](/reference/net/) gives the full contract.
 
-These choices preserve source observation points and lifetimes. The validity of an external C++ pointer and a library’s retention of references still depend on the native boundary’s contract.
+## Bring C++ code across a declared boundary
 
-</details>
+| Form          | How it connects                                                                        |
+| ------------- | -------------------------------------------------------------------------------------- |
+| Header import | Makes an ordered C++ include and delegated native name lookup available                |
+| `import(cpp)` | Declares a Carven callable implemented by a C++ provider                               |
+| `export(cpp)` | Generates an API header and function façade under the module's `carven::api` namespace |
+| `#[cpp]`      | Places authored C++ source in an implementation artifact                               |
 
-<details class="architecture-detail">
-<summary>SIMD: logical lanes, target-selected implementation</summary>
+C++ checks external names, overloads, templates, and conversions. Adapters manage hidden references, callback retention, synchronization, and native exceptions. If recovery from an exception is needed, catch it before it escapes a generated `noexcept` boundary.
 
-Carven separates logical vector shape from a particular hardware register. Static execution handles owned lanes. Native execution selects NEON, explicitly consumer-enabled AVX2, or portable lanes during compilation.
+## Build the complete native application
 
-A wide vector can use two NEON registers or one AVX2 register. The current implementation has no runtime dispatch; related translation units need consistent backend options. Benefits depend on the target machine and workload.
+`carven compile` emits generated interfaces and implementations. The native build also supplies the required provider sources, include paths, and libraries. The Xmake rule arranges source discovery, generation, compilation, and linking; see [toolchain reference](/reference/toolchain/).
 
-</details>
-
-## Four different C++ entry points
-
-| Entry         | Participation in generation and checking                                                                                                                                               |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Header import | Generate includes; explicit `using` introduces external names or namespace lookup. Carven does not parse headers, while C++ checks external names, members, templates, and conversions |
-| `import(cpp)` | Declare a Carven capability implemented by a C++ provider; Carven neither emits its provider declaration nor compares its C++ signature                                                |
-| `export(cpp)` | Generate an API header and façade for an ordinary Carven function in its module namespace under `carven::api`                                                                          |
-| `#[cpp]`      | Place opaque C++ source in implementation artifacts, without publishing header declarations or wrapping generated Carven bodies                                                        |
-
-Native calls retain C++ overload, template, and construction rules. Carven checks the access and lifetime relationships it knows. Unknown aliases, retention, reentry, and external lifetimes remain provider and caller contracts.
-
-## From artifacts to an executable
-
-`carven compile` writes generated interfaces and implementations, including collected Crafts module artifacts. It does not compile or copy collected native `.cpp` files. A manual build supplies those sources and dependencies to the C++ toolchain too.
-
-When running `carven main.cv` directly, the driver compiles and links generated implementations with collected native sources, then executes the result. Generated programs and installed Crafts have a C++20 minimum baseline; consumers may select a newer standard. The host toolchain requirements for building the Carven compiler belong to a separate layer.
-
-- The [C++ host example](/features/cpp-generation/#connect-to-an-existing-c-project) shows API headers and linking.
-- The [C++ interoperation tutorial](/learn/interop/) starts with a third-party library call.
-- The repository’s [interoperation rules](https://github.com/ryblust/carven/blob/main/docs/language/interop.md), [builds and artifacts](https://github.com/ryblust/carven/blob/main/docs/toolchain/artifacts.md), and [standard Crafts](https://github.com/ryblust/carven/blob/main/crafts/carven/std/README.md) describe further boundaries.
+Generated programs use C++20. Building the compiler has a separate C++26 host requirement. The [stream collector](https://github.com/ryblust/carven/tree/main/examples/stream_collector) contains a complete C++ host calling Carven and receiving an owned report; the [interop tutorial](/learn/interop/) starts with a third-party library call.

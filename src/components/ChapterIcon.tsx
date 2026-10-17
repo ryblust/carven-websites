@@ -69,6 +69,12 @@ const aliases: Record<string, string> = {
   learn: 'reference',
   keywords: 'lexical',
   bindings: 'values',
+  async: 'control',
+  time: 'constants',
+  io: 'formatting',
+  json: 'aggregates',
+  net: 'interop',
+  'data-pipeline': 'project',
   'syntax-and-inference': 'lexical',
 };
 

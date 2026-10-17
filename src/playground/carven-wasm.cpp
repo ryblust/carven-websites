@@ -1,12 +1,11 @@
 module carven:wasm.main;
 
-import :driver.check;
 import :driver.compile;
 import :driver.dump;
 import :driver.interpret;
 import :driver.process;
 import :diagnostics.report;
-import :graver.format;
+import :format;
 import :source.manager;
 import std;
 
@@ -28,7 +27,7 @@ extern "C++" auto main(int argc, const char* const* argv) noexcept -> int {
         auto sources = SourceManager();
         const auto source = sources.append_file("main.cv");
         if (!source) {
-            std::println(std::cerr, "graver: {}", source.error().message);
+            std::println(std::cerr, "carven-format: {}", source.error().message);
             return 2;
         }
         const auto formatted = format_source(sources, *source);
@@ -40,7 +39,7 @@ extern "C++" auto main(int argc, const char* const* argv) noexcept -> int {
         return 0;
     }
     if (command == "check") {
-        return run_check_command("/bin/carven", args);
+        return run_compilation_command("/bin/carven", args, CompilationCommand::Check);
     }
     if (command == "dump") {
         return run_dump_command(args);
@@ -49,7 +48,7 @@ extern "C++" auto main(int argc, const char* const* argv) noexcept -> int {
         return run_interpret_command("/bin/carven", args);
     }
     if (command == "compile") {
-        return run_compile_command("/bin/carven", args);
+        return run_compilation_command("/bin/carven", args, CompilationCommand::Compile);
     }
     return 1;
 }

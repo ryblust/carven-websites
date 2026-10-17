@@ -29,15 +29,15 @@ export function parseCrafts(value: unknown): Record<string, string> {
   const files: Record<string, string> = Object.create(null) as Record<string, string>;
   for (const [path, content] of Object.entries(value.files)) {
     if (
-      !/^crafts\/carven\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_.-]+\.(?:cv|hpp)$/.test(path) ||
+      !/^crafts\/carven\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_.-]+\.cv$/.test(path) ||
       typeof content !== 'string'
     ) {
       throw new Error('Crafts package contains an invalid file.');
     }
     files[path] = content;
   }
-  if (!('crafts/carven/runtime/runtime.hpp' in files)) {
-    throw new Error('Crafts package has no runtime discovery header.');
+  if (Object.keys(files).length === 0) {
+    throw new Error('Crafts package has no sources.');
   }
   return files;
 }
@@ -231,6 +231,38 @@ export async function executeWasi(
     );
     const status = directory.path_filestat_get(0, path);
     return status.ret === 0 ? wasiDefinitions.ERRNO_INVAL : status.ret;
+  };
+  // Standard input is a closed in-memory file. The shim handles clock polling
+  // only, while the compiler's input cursor polls for readability before reading.
+  const poll = wasi.wasiImport.poll_oneoff!;
+  wasi.wasiImport.poll_oneoff = (
+    subscriptions: number,
+    events: number,
+    count: number,
+    completed?: number,
+  ) => {
+    const memory = new DataView(wasi.inst.exports.memory.buffer);
+    for (let index = 0; index < count; index++) {
+      const subscription = subscriptions + index * 48;
+      if (
+        memory.getUint8(subscription + 8) === wasiDefinitions.EVENTTYPE_FD_READ &&
+        memory.getUint32(subscription + 16, true) === 0
+      ) {
+        new wasiDefinitions.Event(
+          memory.getBigUint64(subscription, true),
+          wasiDefinitions.ERRNO_SUCCESS,
+          wasiDefinitions.EVENTTYPE_FD_READ,
+        ).write_bytes(memory, events);
+        memory.setBigUint64(events + 16, 0n, true);
+        memory.setUint16(events + 24, wasiDefinitions.EVENTRWFLAGS_FD_READWRITE_HANGUP, true);
+        if (completed !== undefined) memory.setUint32(completed, 1, true);
+        return wasiDefinitions.ERRNO_SUCCESS;
+      }
+    }
+    const result = poll(subscriptions, events, count);
+    if (result === wasiDefinitions.ERRNO_SUCCESS && completed !== undefined)
+      memory.setUint32(completed, 1, true);
+    return result;
   };
   const write = wasi.wasiImport.fd_write!;
   let artifactBytes = 0;

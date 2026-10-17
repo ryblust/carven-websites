@@ -179,6 +179,19 @@ export default function Site({ children }: Props) {
                 'Carven 开发中，语言与工具可能有不兼容变更。',
                 'Carven is in development; breaking changes are possible.',
               )}
+              {import.meta.env.COMPILER_REVISION && (
+                <>
+                  {' '}
+                  <a
+                    href={`${repository}/commit/${import.meta.env.COMPILER_REVISION.slice(0, 40)}`}
+                    title={import.meta.env.COMPILER_REVISION}
+                  >
+                    {t('编译器', 'Compiler')} {import.meta.env.COMPILER_REVISION.slice(0, 8)}
+                    {import.meta.env.COMPILER_REVISION.endsWith('-dirty') &&
+                      t('（本地改动）', ' (local changes)')}
+                  </a>
+                </>
+              )}
             </p>
           </div>
           <nav className="footer-columns" aria-label={t('页脚导航', 'Footer navigation')}>

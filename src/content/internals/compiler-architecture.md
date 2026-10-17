@@ -1,13 +1,13 @@
 ---
-title: A program’s journey through the Carven compiler
-description: Follow a source batch through syntax, checked semantics, C++ target structures, and native compilation.
+title: "How a program passes through the compiler"
+description: "Follow source through parsing, checking, execution, and C++ generation."
 section: internals
 source: docs/compiler/README.md
 ---
 
 ## From source to a native program
 
-Carven establishes what a program means before arranging its C++ implementation. Each stage owns its input, output, and responsibilities. Later stages consume facts that have already been checked.
+Before generating a call, the compiler needs to know its argument types, possible failures, and the storage that must remain alive. Those facts determine which values to pass, where failure exits go, and what to clean up. Carven establishes them before it builds the C++ implementation.
 
 <figure class="architecture-map">
   <ol class="architecture-pipeline">
@@ -20,70 +20,78 @@ Carven establishes what a program means before arranging its C++ implementation.
   <figcaption>Carven checks source contracts and generates C++; the C++ toolchain compiles, links, and optimizes the native program.</figcaption>
 </figure>
 
-The driver collects source files and Crafts into a closed source batch, within which imports resolve. The frontend builds syntax trees. Semantic analysis completes declarations and bodies, solves types and failure sets, and checks ownership and other contracts. On success, the backend receives an immutable semantic program and produces inspectable C++ files.
+The driver collects project files and standard-library sources into a source batch. Imports resolve within that batch. Parsing builds syntax trees; semantic analysis determines what the declarations and expressions mean and checks their contracts. The backend then uses the checked result to generate C++. The native toolchain checks delegated C++ operations, compiles, links, and optimizes the program.
 
-**C++ retains its native responsibilities:** overload resolution and template instantiation, object layout, optimization, and machine code. Source semantic checking and subsequent native compilation each have their own boundary.
+## One analysis pipeline, several command exits
+
+The commands differ in what they do after checking:
+
+| Command            | Work after source checking                                                   |
+| ------------------ | ---------------------------------------------------------------------------- |
+| `carven check`     | Stop after analysis, required constant execution, and static tests           |
+| `carven interpret` | Execute the checked operations through the interpreter                       |
+| `carven compile`   | Plan and emit C++ artifacts                                                  |
+| `carven main.cv`   | Generate C++, build it with the required native sources, and run the program |
+
+This shared analysis gives the commands the same source rules. It also means `check` can run static tests without invoking a C++ compiler. Interpreter execution still needs support for the operations it reaches; external C++ implementations require native execution.
 
 ## Explore three important handoffs
 
 <details class="architecture-detail">
-<summary>Syntax → semantics: complete the facts before handing them over</summary>
+<summary>Syntax → semantics: settle the source contracts</summary>
 
-`ProgramDraft` is mutable construction state. It reserves declaration identities for forward references and recursion. After completing declarations and bodies, it solves types and failure sets, then finalizes signatures, declarations, and bodies.
+`ProgramDraft` is the mutable state used to complete declarations and function bodies. It reserves identities before completing bodies, allowing forward references and recursion. It then solves types and failure sets and checks complete bodies, async use, ownership, and local pointer nullability.
 
-Publication also checks body contracts, global semantic contracts, ownership, and local pointer nullability. Errors prevent delivery of a program; warnings may accompany a successful result.
+Successful analysis publishes a `SemIRProgram`: an immutable program of resolved types, structured operations, storage relationships, and source origins. Publishing means these facts have passed the required checks and are ready for other stages to consume. Errors prevent that handoff; warnings can accompany success.
 
-`SemIRProgram` holds resolved types, structured operations, storage relationships, and provenance. The backend no longer queries an AST. Source templates and completed static tests may retain declarations and provenance without a runtime body. Later stages read these facts and derive their own implementation plans.
-
-</details>
-
-<details class="architecture-detail">
-<summary>Semantic operations → static execution or interpretation: shared machinery, distinct admission</summary>
-
-Constant roots, `const` blocks, static tests, and interpretation share a structured semantic executor. It handles typed values, control flow, and storage within resource budgets.
-
-Required constant contexts call only explicit `const fn` functions and their admitted dependencies. Definitions receive executor-capability checks; published results also meet freezing and representation requirements. For example, a `String` built during constant initialization can freeze into a `str` with stable storage.
-
-The interpreter checks support for operations on the paths it executes. Its supported subset does not replace native C++ calls or a complete native build. Sharing operations does not give these execution modes identical admission rules.
+After bodies are finalized, analysis also determines which calls and awaits may complete as cancelled. Templates and completed static tests can retain declarations and source origins without keeping runtime bodies. The backend reads the published program and no longer needs to query the source syntax tree.
 
 </details>
 
 <details class="architecture-detail">
-<summary>Semantics → C++: plan, prepare, realize, then render text</summary>
+<summary>Checked operations → execution: run them in the selected stage</summary>
 
-`PlannedCompilation` owns a semantic program and its matching immutable `TargetPlan`. Planning selects names, interfaces, failure representations, and artifact schedules.
+Constant initializers, `const` blocks, static tests, and interpretation share an executor for typed values, control flow, and storage. The executor applies resource budgets and checks operations such as indexing against the values present during execution.
 
-`BodyPreparation` borrows published body facts to classify operand demands and select implementations. `BodyRealizer` composes these operations into target structures while preserving evaluation order, required storage, cleanup, and failure exits. A known result does not erase required effects or observable lifetimes.
+Explicit compile-time execution calls admitted `const fn` functions. A completed constant keeps its type, including owned strings, vectors, and nested JSON values. A retained view keeps immutable program-lifetime storage. Source async composition and supported input, clocks, and waits use the selected execution host.
 
-A completed `TargetUnit` is verified and collects header requirements, native imports, and artifact dependencies. Only then does `emit` serialize it into C++ text. Filesystem output and native compilation are subsequent consumers.
+Sharing the executor keeps the operation rules aligned, while each entry still has its own capability checks. A runtime interpretation request does not make an unsupported native call executable, and knowing a runtime result does not turn it into an admitted constant initializer.
 
 </details>
 
-## Designs worth noticing
+<details class="architecture-detail">
+<summary>Semantics → C++: plan the implementation, then write its text</summary>
 
-| Problem                                                    | Compiler organization                                                                    | Consequence for a program                                                          |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Calls combine different failures                           | Preserve failure identities and payloads, solve sets, and check contracts after recovery | Recovering one failure leaves the remaining responsibilities explicit              |
-| Reading, mutation, and transfer have distinct requirements | Retain access, storage, and lifetime relationships in semantic operations                | Parameter delivery and cleanup follow checked relationships                        |
-| Static specialization changes control flow                 | Publish selected arms, expanded iterations, and distinct local identities                | The backend handles specialized results through ordinary storage and cleanup paths |
-| A known value does not always permit removing evaluation   | Preserve effects, storage observations, and lifetimes while selecting implementations    | Static facts reduce work while retaining program behavior                          |
-| Errors need a meaningful source location                   | Source operations carry origins; implicit operations retain expansion origins            | Language-rule diagnostics can point to the corresponding source                    |
+`PlannedCompilation` borrows the immutable semantic program and owns a `TargetPlan`. The plan selects names, interface groups, result representations, and artifact placement. The semantic program stays alive and unmoved while planning and lowering use it.
 
-These responsibilities belong to construction, publication, execution, or C++ generation. The backend derives implementation plans without modifying semantic stores. Runtime support implements native operations without solving source contracts.
+`BodyPreparation` reads checked body facts to determine what operands need from their storage. `BodyRealizer` builds target statements and expressions, arranging evaluation, temporaries, failure exits, and cleanup. For example, if a later field initializer fails, an earlier completed field still needs the correct destruction path.
 
-## One analysis pipeline, several command exits
+A completed `TargetUnit` is verified and collects headers, native imports, and artifact dependencies. Emission then serializes that structure into C++ text. Writing files and invoking the native toolchain happen afterward.
 
-| Command            | Where its work finishes                                                                    |
-| ------------------ | ------------------------------------------------------------------------------------------ |
-| `carven check`     | After successful semantic analysis, including required constant execution and static tests |
-| `carven interpret` | After analysis, execute semantic operations through the interpreter                        |
-| `carven compile`   | After analysis, plan and emit C++ artifacts                                                |
-| `carven main.cv`   | Generate C++, compile and link it with collected native sources, then execute the program  |
+</details>
 
-The driver owns source collection, options, file output, diagnostic presentation, and process launching. Semantic execution reports structured results; the driver transports them to the terminal. Lexical and syntax dumps consume the corresponding frontend results directly.
+## Keep implementation choices separate from source rules
+
+| Source behavior                                | What generation must preserve                                           |
+| ---------------------------------------------- | ----------------------------------------------------------------------- |
+| A handler recovers one failure                 | Keep the other failure types and their payloads available to the caller |
+| A value borrows an owner's storage             | Keep that storage alive through every required use and cleanup          |
+| A static branch or loop specializes a function | Generate the selected work with distinct locals for expanded iterations |
+| An expression has a known value and an effect  | Preserve the effect even when the value needs no runtime calculation    |
+| An implicit operation fails a check            | Retain a source origin that makes the diagnostic understandable         |
+
+Semantic analysis establishes what is valid. Backend preparation and realization choose an implementation that preserves it. Runtime support supplies native operations, and the C++ toolchain handles the remaining native checks and optimization.
+
+## Standard definitions, artifacts, and workspace queries
+
+Build systems need reusable analysis results; editors need current source information. Both use the same analysis pipeline.
+
+Standard-library analysis can retain `CheckedDefinitions` for generic and staged functions alongside the executable program. A consumer uses those definitions to construct its own instances. `compiler.artifact` packages the program, optional definitions, module ownership, and whether the result can be cached. Multiple generation requests can reuse one checked program without repeating compile-time work.
+
+The workspace layer manages document revisions, parsed snapshots, navigation indexes, and bounded analysis caches. Each uncached selection runs the complete semantic checks. Queries can retain known source information after an error, but that information does not establish that the program is valid. Reached input, clock reads, and waits produce workspace diagnostics so editor analysis does not perform those host effects.
 
 ## Continue into the implementation
 
-- [C++ runtime, Crafts, and native boundaries](/internals/runtime-boundary/): what generated code depends on and how existing libraries enter the program.
-- [Let semantics shape the C++](/features/cpp-generation/): concrete examples of generated interfaces, storage, cleanup, and failures.
-- The repository’s [semantic representation](https://github.com/ryblust/carven/blob/main/docs/compiler/analysis/semir.md) and [backend architecture](https://github.com/ryblust/carven/blob/main/docs/compiler/backend/README.md) documents describe internal representations and phase contracts.
+- [Runtime support and native hosts](/internals/runtime-boundary/) explains what the generated program needs to run.
+- [C++ generation](/features/cpp-generation/) follows a real module into generated interfaces and implementations.
+- The repository's [semantic representation](https://github.com/ryblust/carven/blob/main/docs/compiler/analysis/semir.md) and [backend architecture](https://github.com/ryblust/carven/blob/main/docs/compiler/backend/README.md) describe the internal types and phase contracts.

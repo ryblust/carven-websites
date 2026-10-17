@@ -1,12 +1,14 @@
 ---
 title: "Capture state and pass behavior"
-description: "Move from value captures to Write captures, and distinguish owning closures from non-owning views."
+description: "Keep state with a function, share updates deliberately, and pass a policy as a callback."
 section: learn
 lesson: 11
 source: docs/language/functions.md
 ---
 
 ## Capture a snapshot
+
+Sometimes the operation stays the same but its settings vary: multiply every item by a chosen factor, for example. A closure is a small function that keeps the state it needs. The bracketed capture list says which outside values it remembers.
 
 ```carven
 var factor = 2;
@@ -15,7 +17,7 @@ factor = 10;
 println(scale(21), factor);
 ```
 
-The output is `42 10`. `[factor]` copies the value when the closure is created. Reassigning the outer factor later does not replace that capture. The expression after `=>` is the lambda's result, which suits a short lambda with one calculation; use a block body when it needs several statements, as in the next example. A lambda must have a capture list; use `[]` when it captures nothing.
+The output is `42 10`. `[factor]` copies the value when the closure is created. Reassigning the outer factor later does not replace that capture. The expression after => is the result. This form suits a short calculation. For several statements, use a block body, as in the next example. A lambda must have a capture list; use `[]` when it captures nothing.
 
 ## Modify outer storage
 
@@ -45,11 +47,34 @@ The output is `42`. The parameter type `fn(i32) -> i32` describes a callable tak
 
 ## Owning closures and views
 
-`let copy = scale;` retains the concrete closure type and copies its captures. `let view: fn(i32) -> i32 = scale;` creates a non-owning view that borrows the capturing closure object. The view neither copies captures nor extends the owner's life. While the view borrow exists, the source closure cannot be Taken.
+Copying a closure and borrowing it solve different problems. `let copy = scale;` makes another closure with copied captures. `let view: fn(i32) -> i32 = scale;` only borrows scale so it can be called through a common signature. The view does not keep scale alive; scale must remain in scope and cannot be transferred away while the view exists.
 
-A capturing lambda temporary may be passed as a direct argument; its storage lasts for the whole call. A view cannot be returned from a function, stored in a struct or enum, or captured by another lambda. Arrays of views share these restrictions. A concrete closure result can be inferred when returning a closure, but any Write referent must survive.
+A callback parameter is a good use for such a short-lived view. To return a closure from a function, let the compiler infer its concrete type instead of returning a view of a local closure. Any variables accessed through a Write capture must still outlive the returned closure.
 
-A callable parameter can also declare the [failure contract](/learn/failures/) its caller must handle, such as `fn(i32) -> i32 throw InvalidQuantity`. A callback with fewer failures can fit a wider contract. An immutable local initialized directly from a known function keeps that function's own contract: after `let widened: fn(i32) -> i32 throw InvalidQuantity = double;`, where double never fails, `widened(21)` needs no `?`. A parameter of the same type uses the view's contract. Copying a view and widening an existing view have different borrowing behavior; see the [callable-view Reference](/reference/closures/) before retaining or rebinding such views.
+A callback signature can include a [failure contract](/learn/failures/), such as `fn(i32) -> i32 throw InvalidQuantity`. The calling function must handle or propagate that contract. For storing views, adapting failure contracts, or returning closures, consult the [callable-view reference](/reference/closures/) for the additional restrictions.
+
+## Filter an owned result through a borrowed callback
+
+Use a callable view to keep the collection algorithm independent from application policy:
+
+```carven
+fn select(values: [i32], accept: fn(i32) -> bool) -> Vector<i32> {
+    var result: Vector<i32> = [];
+    for value in values {
+        if accept(value) {
+            result.push(value);
+        }
+    }
+    return &&result;
+}
+
+let minimum = 20;
+let enough = [minimum](value: i32) => value >= minimum;
+let selected = select([18, 21, 32], enough);
+println(selected.length(), selected[0]);
+```
+
+The output is `2 21`. The array and callback are borrowed for the call; selected owns its numbers and survives that call. The policy closure owns its captured threshold. This function does not retain the callable view in the result. Capturing runtime state still requires a native run; the semantic interpreter does not execute capturing closures. The [input project](/learn/data-pipeline/) uses named pure helpers when the same validation must run during compilation.
 
 ## Exercise
 
