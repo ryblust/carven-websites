@@ -224,6 +224,10 @@ describe('Homepage examples and Playground navigation', () => {
       const ids = new Set<string>();
       for (const choice of choices) {
         await act(() => choice.click());
+        await vi.waitFor(async () => {
+          await act(async () => {});
+          expect(choice.getAttribute('aria-pressed')).toBe('true');
+        });
         const link = host.querySelector<HTMLAnchorElement>(
           '.showcase-caption-item[aria-hidden="false"] .showcase-try',
         )!;

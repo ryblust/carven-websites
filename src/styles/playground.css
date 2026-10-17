@@ -24,6 +24,7 @@
   min-width: 0;
   gap: 8px;
   max-width: 100%;
+  flex: 1 1 220px;
 }
 .playground-select {
   position: relative;
@@ -58,7 +59,8 @@
   padding-block: 6px;
 }
 .playground-example .playground-select {
-  width: 200px;
+  width: 100%;
+  max-width: 360px;
   min-width: 0;
 }
 .playground-actions {
@@ -163,7 +165,8 @@
   font: var(--code-weight) var(--text-sm)/1.5 var(--mono);
 }
 .playground-source-header {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  padding-block: 6px;
 }
 .playground-source-actions {
   display: flex;
@@ -443,7 +446,7 @@
     padding-block: 4px;
   }
   .playground-example {
-    flex: 1 1 132px;
+    flex-basis: 200px;
   }
   .playground-source-actions {
     gap: 0;

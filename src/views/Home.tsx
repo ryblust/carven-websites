@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { MorphingCode } from '../components/MorphingCode';
 import { Link } from '@tanstack/react-router';
 import { localizedPath, translate, type Locale } from '../lib/i18n';
@@ -9,12 +9,60 @@ import { ArrowUpRight, Play } from 'lucide-react';
 import { UIIcon } from '../components/UIIcon';
 import { repository } from '../lib/site';
 import { homeExamples } from '../generated/home-examples';
+import { homeCodeLoaders } from '../generated/home-tokens';
+import initialStep from '../generated/home-tokens/asyncWorkflow';
+import { homeShowcase } from '../content/home-showcase';
+import type { CodeStep } from '../lib/code-tokens';
 import '../styles/home.css';
+
+type CodeLanguage = 'carven' | 'cpp' | 'cpp26';
+
+function codeName(index: number, language: CodeLanguage) {
+  const example = homeShowcase[index]!;
+  return language === 'carven'
+    ? example.code
+    : language === 'cpp26' && 'cpp26' in example
+      ? example.cpp26
+      : example.cpp;
+}
 
 export default function Home({ locale }: { locale: Locale }) {
   const t = translate(locale);
-  const [selected, setSelected] = useState(0);
-  const [language, setLanguage] = useState<'carven' | 'cpp' | 'cpp26'>('carven');
+  const [{ selected, language, step }, setSelection] = useState<{
+    selected: number;
+    language: CodeLanguage;
+    step: CodeStep;
+  }>({ selected: 0, language: 'carven', step: initialStep });
+  const intent = useRef({ selected, language });
+  const request = useRef(0);
+  const [committing, startTransition] = useTransition();
+  const [loading, setLoading] = useState(false);
+  const pending = loading || committing;
+  const [loadError, setLoadError] = useState(false);
+
+  async function choose(index: number, nextLanguage: CodeLanguage) {
+    intent.current = { selected: index, language: nextLanguage };
+    const generation = ++request.current;
+    setLoadError(false);
+    setLoading(true);
+    try {
+      const next = await homeCodeLoaders[codeName(index, nextLanguage)]();
+      if (generation !== request.current) return;
+      startTransition(() => {
+        setSelection({ selected: index, language: nextLanguage, step: next });
+        setLoading(false);
+      });
+    } catch {
+      if (generation === request.current) {
+        setLoadError(true);
+        setLoading(false);
+      }
+    }
+  }
+
+  function prefetch(index: number, nextLanguage: CodeLanguage) {
+    void homeCodeLoaders[codeName(index, nextLanguage)]().catch(() => {});
+  }
   const examples = [
     {
       label: t('异步组合', 'Compose async work'),
@@ -30,8 +78,7 @@ export default function Home({ locale }: { locale: Locale }) {
         '把两个候选的目标值都从 20 改为 30，观察 BelowTarget 如何传播到入口。',
         'Raise both targets from 20 to 30 and see BelowTarget propagate to the entry point.',
       ),
-      code: 'asyncWorkflow',
-      cpp: 'asyncWorkflowCpp',
+      ...homeShowcase[0],
       standard: 'C++23',
       result: 'west: 3 records, total 12\neast: 3 records, total 9\nselected 1: 21',
       comparison: t(
@@ -39,7 +86,6 @@ export default function Home({ locale }: { locale: Locale }) {
         'West and east each keep three records, totaling 12 and 9. The first candidate falls below 20; the combined total succeeds with 21. Both programs print the three lines above.\n\nThe C++23 version uses standalone Asio coroutines and a single-thread io_context: && joins successful results; || selects the first success and cancels the other task. When both candidates fail, Asio throws multiple_exceptions with an original failure available through first_exception; Carven propagates the first selected typed failure.\n\nUses Asio 1.38.2: clang++ -std=c++23 -pthread -I/path/to/asio/include example.cpp -o example.',
       ),
       path: '/reference/async/',
-      playground: 'async-workflow',
     },
     {
       label: t('编译期异步', 'Async before runtime'),
@@ -55,8 +101,7 @@ export default function Home({ locale }: { locale: Locale }) {
         '取消提出停止请求。这里用 await close 等待结束，再取走数据；把 Take 提到 close 前会得到借用冲突诊断。',
         'Cancellation requests a stop. Here await close waits for completion before the data is taken. Move Take before close to see the borrow-conflict diagnostic.',
       ),
-      code: 'asyncScope',
-      cpp: 'asyncScopeCpp',
+      ...homeShowcase[1],
       standard: 'C++23',
       result: 'compile time: 1; runtime: 1',
       comparison: t(
@@ -64,7 +109,6 @@ export default function Home({ locale }: { locale: Locale }) {
         'Both programs run one child step, cancel, close, and return its count: 1 during compilation and at runtime. Carven’s FIFO scheduling and explicit yield determine the order without timing assumptions; close waits for cancellation to finish before Take is allowed.\n\nThe C++23 version explicitly drives a constexpr state machine: resume steps or accepts cancellation, close finishes it, and destruction can safely close it again. static_assert checks the result. Those explicit calls model the schedule; Carven supplies an async driver and checks active borrows.\n\nCompile with clang++ -std=c++23 example.cpp -o example.',
       ),
       path: '/learn/async/',
-      playground: 'async-scope',
     },
     {
       label: t('JSON 配置', 'Customize JSON'),
@@ -80,8 +124,7 @@ export default function Home({ locale }: { locale: Locale }) {
         '修改工作单元数量或追加标签；第二行始终显示未修改的模板。',
         'Change the worker count or append a tag. The second line still prints the original template.',
       ),
-      code: 'configuration',
-      cpp: 'configurationCpp',
+      ...homeShowcase[2],
       result: '{"workers":8,"tags":["stable","observed"]}\n{"workers":2,"tags":["stable"]}',
       comparison: t(
         '副本变成八个工作单元、两个标签，模板仍是两个工作单元、一个标签。Carven 的 Value 和 C++ 的 ordered_json 都复制独立内容；Carven 的 get 也返回独立子值，因此修改 tags 后要 set 回配置。\n\nCarven 在编译期解析模板并检查初始值；C++20 对照在 main 中使用 nlohmann/json 解析。两份程序输出相同两行，C++ 版本需要该库头文件。',
@@ -89,7 +132,6 @@ export default function Home({ locale }: { locale: Locale }) {
       ),
       standard: 'C++20',
       path: '/reference/json/',
-      playground: 'json-config',
     },
     {
       label: t('编译期生成', 'Build at compile time'),
@@ -102,8 +144,7 @@ export default function Home({ locale }: { locale: Locale }) {
         '启用 trace，先不改测试预期：const test 会在编译时指出差异。',
         'Enable trace without updating the expected text. const test catches the difference at compile time.',
       ),
-      code: 'constants',
-      cpp: 'constantsCpp',
+      ...homeShowcase[3],
       result: 'Commands:\n  build: Compile the project\n  run: Run the program',
       comparison: t(
         '只有 build 和 run 启用，因此两份程序都在编译期生成相同两项帮助。\n\nCarven 的显式 str 标注保留静态文本视图；C++20 的 freeze 根据结果长度创建数组，再由 string_view 引用。const test 和 static_assert 分别核对完整内容。这里生成的是帮助文本，修改命令定义后需要重新编译。',
@@ -111,7 +152,6 @@ export default function Home({ locale }: { locale: Locale }) {
       ),
       standard: 'C++20',
       path: '/features/compile-time/',
-      playground: 'static-text',
     },
     {
       label: t('静态特化', 'Specialize runtime code'),
@@ -124,9 +164,7 @@ export default function Home({ locale }: { locale: Locale }) {
         '把 invoice 改成 INV-20x8，观察第一个结果变为 false。',
         'Change invoice to INV-20x8. The first result becomes false.',
       ),
-      code: 'specialization',
-      cpp: 'specializationCpp',
-      cpp26: 'specialization26Cpp',
+      ...homeShowcase[4],
       result: 'INV-2048 → true\nINV-20x8 → false',
       comparison: t(
         'D 匹配一个 ASCII 数字，其余字节按字面匹配；检查长度后才访问输入，所以三个版本都输出 true false。\n\nCarven 的 const for 展开位置，const if 选择每个位置的检查。C++20 对照用 index_sequence 和参数包，C++26 对照用 template for；两者用 if constexpr 选择检查。Carven 的所有源分支仍接受类型、所有权和失败检查。这个模式只支持数字占位与字面字节，C++26 版本使用 Clang 23 验证。',
@@ -134,7 +172,6 @@ export default function Home({ locale }: { locale: Locale }) {
       ),
       standard: 'C++20',
       path: '/reference/functions/',
-      playground: 'specialization',
     },
     {
       label: t('浮点 SIMD 混音', 'Mix audio with SIMD'),
@@ -150,8 +187,7 @@ export default function Home({ locale }: { locale: Locale }) {
         '修改最后一个音乐样本，看看静态测试如何检查不足一块的尾部。',
         'Change the final music sample and see how the static test checks the partial tail.',
       ),
-      code: 'audioMixer',
-      cpp: 'audioMixerCpp',
+      ...homeShowcase[5],
       result: 'samples=9 clipped=1 peak=1.00\nfirst=0.625 second=0.375 last=1.000',
       comparison: t(
         '九个输入样本中，最后一个需要限幅，因此输出 clipped=1、peak=1.00。两份程序使用相同增益、有限值检查和限幅规则。\n\nCarven 用浮点 SIMD 与有效通道掩码，C++20 对照用标量循环。Carven 还在编译期执行同一算法并保留 Vector，静态测试检查第九个样本；C++ 对照在运行时计算，并用异常报告非法输入。原生 Carven 根据目标使用 NEON、启用的 AVX2 或可移植后端，性能需实际测量。这里计算内嵌样本，不播放音频。',
@@ -159,7 +195,6 @@ export default function Home({ locale }: { locale: Locale }) {
       ),
       standard: 'C++20',
       path: '/use-cases/',
-      playground: 'audio-mixer',
     },
     {
       label: t('失败处理', 'Handle failures'),
@@ -172,8 +207,7 @@ export default function Home({ locale }: { locale: Locale }) {
         '试着删掉 port 契约里的 BadPort，点击“检查”，看看编译器如何指出遗漏。',
         'Remove BadPort from the port contract, then choose Check to see how the compiler reports the omission.',
       ),
-      code: 'failures',
-      cpp: 'failuresCpp',
+      ...homeShowcase[6],
       result: 'ok 9000 · missing 8080 · Denied: denied · Bad port: 9x00',
       comparison: t(
         '内存配置表提供正常、缺失、拒绝访问和错误文本四种输入。parse 接受 1–65535 的 ASCII 十进制端口；port 将 Missing 恢复为 8080，继续传播 Denied 和 BadPort，因此两个版本输出相同四行。\n\nC++23 用 expected、variant 和显式分支组织剩余失败；Carven 根据传播和恢复检查声明集合。C++ 编译命令为 clang++ -std=c++23 example.cpp -o example。',
@@ -181,7 +215,6 @@ export default function Home({ locale }: { locale: Locale }) {
       ),
       standard: 'C++23',
       path: '/features/failure-contracts/',
-      playground: 'typed-failures',
     },
     {
       label: t('调用 C++', 'Use C++ libraries'),
@@ -197,8 +230,7 @@ export default function Home({ locale }: { locale: Locale }) {
         '这个例子可以在浏览器中生成 C++；实际调用第三方库需要在本地运行。',
         'Generate C++ for this example in the browser. Run it locally to execute the third-party library calls.',
       ),
-      code: 'native',
-      cpp: 'nativeCpp',
+      ...homeShowcase[7],
       result: '{"server":{"host":"localhost","port":9000}}',
       comparison: t(
         'patch 把 port 改成 9000，用 null 删除 debug，保留 host。两个版本都调用 nlohmann/json 3.12.0 的 parse、merge_patch 和 dump，输出相同 JSON；合并规则由库提供。\n\nCarven 三引号文本去除公共缩进，C++ 原始字符串保留缩进，这些空白不影响 JSON 解析。原生构建需要库头文件，C++ 检查重载和模板。需要恢复解析异常时，在 C++ 适配层捕获；链接教程给出接入步骤。',
@@ -206,7 +238,6 @@ export default function Home({ locale }: { locale: Locale }) {
       ),
       standard: 'C++20',
       path: '/learn/interop/',
-      playground: 'native-json',
     },
   ] as const;
   const example = examples[selected]!;
@@ -270,25 +301,42 @@ export default function Home({ locale }: { locale: Locale }) {
             )}
           </p>
         </header>
-        <div className="showcase-grid">
-          <div
-            className="showcase-tabs"
-            role="group"
-            aria-label={t('选择示例', 'Choose an example')}
-          >
-            {examples.map((item, index) => (
-              <button
-                key={item.playground}
-                type="button"
-                aria-pressed={selected === index}
-                onClick={() => setSelected(index)}
-              >
-                <span className="showcase-index" aria-hidden="true">
-                  {String(index + 1).padStart(2, '0')}
-                </span>
-                <span className="showcase-tab-label">{item.label}</span>
-              </button>
-            ))}
+        <div className="showcase-grid" aria-busy={pending}>
+          <div className="showcase-selector">
+            <div className="showcase-selector-head">
+              <span>{t('选择示例', 'Choose an example')}</span>
+              <span role="status">
+                {loadError
+                  ? t(
+                      '示例加载失败，请重新选择。',
+                      'Could not load the example. Select it to retry.',
+                    )
+                  : pending
+                    ? t('正在载入…', 'Loading…')
+                    : t('Carven 与 C++ 对照', 'Carven and C++, side by side')}
+              </span>
+            </div>
+            <div
+              className="showcase-tabs"
+              role="group"
+              aria-label={t('选择示例', 'Choose an example')}
+            >
+              {examples.map((item, index) => (
+                <button
+                  key={item.playground}
+                  type="button"
+                  aria-pressed={selected === index}
+                  onClick={() => choose(index, intent.current.language)}
+                  onPointerEnter={() => prefetch(index, intent.current.language)}
+                  onFocus={() => prefetch(index, intent.current.language)}
+                >
+                  <span className="showcase-index" aria-hidden="true">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <span className="showcase-tab-label">{item.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
           <div className="showcase-caption" aria-live="polite" aria-atomic="true">
             {examples.map((item, index) => (
@@ -329,14 +377,18 @@ export default function Home({ locale }: { locale: Locale }) {
                 <button
                   type="button"
                   aria-pressed={codeLanguage === 'carven'}
-                  onClick={() => setLanguage('carven')}
+                  onClick={() => choose(intent.current.selected, 'carven')}
+                  onPointerEnter={() => prefetch(selected, 'carven')}
+                  onFocus={() => prefetch(selected, 'carven')}
                 >
                   Carven
                 </button>
                 <button
                   type="button"
                   aria-pressed={codeLanguage === 'cpp'}
-                  onClick={() => setLanguage('cpp')}
+                  onClick={() => choose(intent.current.selected, 'cpp')}
+                  onPointerEnter={() => prefetch(selected, 'cpp')}
+                  onFocus={() => prefetch(selected, 'cpp')}
                 >
                   {example.standard}
                 </button>
@@ -344,19 +396,20 @@ export default function Home({ locale }: { locale: Locale }) {
                   <button
                     type="button"
                     aria-pressed={codeLanguage === 'cpp26'}
-                    onClick={() => setLanguage('cpp26')}
+                    onClick={() => choose(intent.current.selected, 'cpp26')}
+                    onPointerEnter={() => prefetch(selected, 'cpp26')}
+                    onFocus={() => prefetch(selected, 'cpp26')}
                   >
                     C++26
                   </button>
                 )}
               </div>
-              <span>
-                {codeLanguage === 'carven'
-                  ? t('Carven 源码', 'Carven source')
-                  : t('手写对照', 'Handwritten comparison')}
+              <span className="showcase-code-label">
+                {String(selected + 1).padStart(2, '0')} · {example.label}
               </span>
             </div>
             <MorphingCode
+              step={step}
               example={
                 codeLanguage === 'carven'
                   ? example.code

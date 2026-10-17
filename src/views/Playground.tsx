@@ -33,7 +33,7 @@ const assetsBase = href('/playground-assets/');
 const initialExample =
   examples.find((example) => example.id === 'structured-output') ?? examples[0]!;
 const activeExampleKey = 'carven.playground.v1.active';
-const draftKey = (id: string) => `carven.playground.v1.${id}`;
+const draftKey = (id: string) => `carven.playground.v2.${id}`;
 
 function PlaygroundSelect(props: ComponentProps<'select'>) {
   return (
@@ -46,7 +46,19 @@ function PlaygroundSelect(props: ComponentProps<'select'>) {
 
 function readDraft(id: string, fallback: string) {
   try {
-    return localStorage.getItem(draftKey(id)) ?? fallback;
+    const stored = localStorage.getItem(draftKey(id));
+    if (!stored) return fallback;
+    const draft: unknown = JSON.parse(stored);
+    // A draft belongs to the preset it was edited from. Old source must not
+    // silently replace a newer example after a compiler or website update.
+    return typeof draft === 'object' &&
+      draft !== null &&
+      'base' in draft &&
+      draft.base === fallback &&
+      'source' in draft &&
+      typeof draft.source === 'string'
+      ? draft.source
+      : fallback;
   } catch {
     return fallback;
   }
@@ -93,7 +105,9 @@ export default function Playground({ locale }: { locale: Locale }) {
 
   function persist(id: string, text: string) {
     try {
-      localStorage.setItem(draftKey(id), text);
+      const base = examples.find((item) => item.id === id)!.source;
+      if (text === base) localStorage.removeItem(draftKey(id));
+      else localStorage.setItem(draftKey(id), JSON.stringify({ base, source: text }));
       setSaved(true);
     } catch {
       setSaved(false);
@@ -319,12 +333,14 @@ export default function Playground({ locale }: { locale: Locale }) {
             </div>
             <div className="playground-pane-footer" id="playground-editor-help">
               <span>
-                {saved
-                  ? t('草稿保存在此浏览器', 'Drafts saved in this browser')
-                  : t(
-                      '浏览器无法保存草稿，请复制源码保存',
-                      'Browser storage unavailable; copy to keep your source',
-                    )}
+                {source === example.source
+                  ? t('原始示例', 'Original example')
+                  : saved
+                    ? t('已修改 · 草稿保存在此浏览器', 'Edited · Draft saved in this browser')
+                    : t(
+                        '浏览器无法保存草稿，请复制源码保存',
+                        'Browser storage unavailable; copy to keep your source',
+                      )}
               </span>
               <span className="sr-only">
                 {t('Tab 缩进 · Esc 后 Tab 离开', 'Tab to indent · Esc then Tab to leave')} · ⌘ /

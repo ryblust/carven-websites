@@ -24,6 +24,7 @@ interface Hole {
 }
 interface State {
   contexts: (Quoted | Hole)[];
+  importPath: boolean;
 }
 
 function opening(stream: StringStream): Quoted | undefined {
@@ -96,14 +97,20 @@ function quotedToken(stream: StringStream, state: State): string {
 /** Presentation highlighting only; compiler diagnostics remain authoritative. */
 export const carvenLanguage = StreamLanguage.define<State>({
   name: 'carven',
-  startState: () => ({ contexts: [] }),
-  copyState: (state) => ({ contexts: state.contexts.map((context) => ({ ...context })) }),
+  startState: () => ({ contexts: [], importPath: false }),
+  copyState: (state) => ({ ...state, contexts: state.contexts.map((context) => ({ ...context })) }),
   token(stream, state) {
     if (state.contexts.length) return quotedToken(stream, state);
     if (stream.eatSpace()) return null;
     if (stream.match('//')) {
       stream.skipToEnd();
       return 'lineComment';
+    }
+    if (state.importPath) {
+      state.importPath = false;
+      if (stream.match(/^\.?[A-Za-z_][A-Za-z0-9_]*(?:\s*(?:::|\.)\s*[A-Za-z_][A-Za-z0-9_]*)*/)) {
+        return 'namespace';
+      }
     }
     const quoted = opening(stream);
     if (quoted) {
@@ -120,6 +127,7 @@ export const carvenLanguage = StreamLanguage.define<State>({
     const identifier = stream.match(/^[A-Za-z_][A-Za-z0-9_]*/);
     if (identifier && typeof identifier !== 'boolean') {
       const name = identifier[0];
+      if (name === 'import') state.importPath = true;
       if (name === 'true' || name === 'false') return 'bool';
       if (name === 'nullptr') return 'null';
       if (keywords.has(name)) return 'keyword';

@@ -173,7 +173,7 @@ pre code {
 }
 .shiki,
 .shiki span[style],
-.shiki-magic-move-container span[style] {
+.code-morph-token[style] {
   color: light-dark(var(--shiki-light), var(--shiki-dark)) !important;
 }
 .prose pre code {
@@ -198,7 +198,7 @@ pre code {
 @media (forced-colors: active) {
   .shiki,
   .shiki span[style],
-  .shiki-magic-move-container span[style] {
+  .code-morph-token[style] {
     color: CanvasText !important;
   }
 }

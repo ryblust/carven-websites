@@ -1,5 +1,6 @@
 import { Effect } from 'effect';
 import { homeExamples } from '../../src/content/home-examples.ts';
+import { homeShowcase } from '../../src/content/home-showcase.ts';
 import { ContentRepository } from './ContentRepository.ts';
 import { Markdown } from './Markdown.ts';
 import { ContentError, parseArticle } from './model.ts';
@@ -86,25 +87,31 @@ export const generateContent = Effect.fn('generateContent')(function* (root: str
       }
     }
   }
-  const examples = yield* Effect.forEach(Object.entries(homeExamples), ([name, code]) =>
+  const names = Array.from(
+    new Set(
+      homeShowcase.flatMap((example) => [
+        example.code,
+        example.cpp,
+        ...('cpp26' in example ? [example.cpp26] : []),
+      ]),
+    ),
+  );
+  const examples = yield* Effect.forEach(names, (name) =>
     Effect.gen(function* () {
       const language = name.endsWith('Cpp') ? 'cpp' : 'cv';
-      const html =
-        name === 'quickstart'
-          ? yield* markdown.render(
-              `home-examples/${name}`,
-              '```' + language + '\n' + code + '\n```',
-              { codeBlockFrame: false },
-            )
-          : undefined;
-      const tokens = yield* markdown.tokens(`home-examples/${name}`, code, language);
-      return { name, html, tokens };
+      const tokens = yield* markdown.tokens(`home-examples/${name}`, homeExamples[name], language);
+      return { name, tokens };
     }),
+  );
+  const quickstart = yield* markdown.render(
+    'home-examples/quickstart',
+    '```cv\n' + homeExamples.quickstart + '\n```',
+    { codeBlockFrame: false },
   );
   yield* repository.publish(
     root,
     articles,
-    Object.fromEntries(examples.flatMap(({ name, html }) => (html ? [[name, html]] : []))),
+    { quickstart },
     Object.fromEntries(examples.map(({ name, tokens }) => [name, tokens])),
   );
   yield* Effect.logInfo(`Prepared ${articles.length} articles.`);

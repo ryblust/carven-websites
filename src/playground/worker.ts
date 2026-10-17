@@ -1,4 +1,4 @@
-import { executeWasi, loadCompilerAssets, validateInput } from './wasi';
+import { executeWasi, loadCompilerAssets, validateInput, type CompilerAssets } from './wasi';
 
 interface WorkerScope {
   location: Location;
@@ -28,7 +28,11 @@ scope.onmessage = (event) => {
       }
       stage = 'assets';
       report('progress', { phase: 'loading' });
-      const compiler = await loadCompilerAssets(base);
+      // Cached modules came from a previous worker's validated asset load.
+      // Structured cloning shares compiled code without sharing WASI or memory.
+      const compiler =
+        (request.compiler as CompilerAssets | undefined) ?? (await loadCompilerAssets(base));
+      if (!request.compiler) report('assets', { compiler });
       stage = 'execution';
       report('progress', { phase: 'running' });
       report('result', { result: await executeWasi(compiler, input.source, input.action) });

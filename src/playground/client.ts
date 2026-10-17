@@ -1,4 +1,5 @@
 import { isExecutionResult, type Action, type ExecutionResult } from './protocol';
+import type { CompilerAssets } from './wasi';
 
 export type Progress = 'loading' | 'running';
 export class PlaygroundError extends Error {
@@ -21,6 +22,7 @@ const createWorker: WorkerFactory = () =>
 export class ExecutionSession {
   private generation = 0;
   private pending?: { worker: WorkerPort; finish: () => void };
+  private readonly compilers = new Map<string, CompilerAssets>();
 
   constructor(private readonly workerFactory: WorkerFactory = createWorker) {}
 
@@ -39,6 +41,7 @@ export class ExecutionSession {
     if (new TextEncoder().encode(source).byteLength > 64 * 1024) {
       return Promise.reject(new PlaygroundError('too-large'));
     }
+    const base = new URL(assetsBase, globalThis.location?.href ?? import.meta.url).href;
     const id = this.generation;
     return new Promise((resolve, reject) => {
       const worker = this.workerFactory();
@@ -70,7 +73,22 @@ export class ExecutionSession {
           !('type' in data)
         )
           return;
-        if (
+        if (data.type === 'assets' && 'compiler' in data) {
+          const compiler = data.compiler as CompilerAssets | null;
+          if (
+            compiler?.module instanceof WebAssembly.Module &&
+            compiler.files &&
+            typeof compiler.files === 'object' &&
+            !Array.isArray(compiler.files) &&
+            Object.values(compiler.files).every((source) => typeof source === 'string')
+          ) {
+            // Only cache assets after the worker has loaded and validated them.
+            // Modules share compiled code; each worker still owns its runtime state.
+            this.compilers.set(base, compiler);
+          } else {
+            finish(undefined, new PlaygroundError('assets'));
+          }
+        } else if (
           data.type === 'progress' &&
           'phase' in data &&
           (data.phase === 'loading' || data.phase === 'running')
@@ -103,7 +121,13 @@ export class ExecutionSession {
       worker.addEventListener('error', onError);
       timeout(120000);
       try {
-        worker.postMessage({ id, source, action, assetsBase });
+        worker.postMessage({
+          id,
+          source,
+          action,
+          assetsBase: base,
+          compiler: this.compilers.get(base),
+        });
       } catch {
         finish(undefined, new PlaygroundError('unsupported'));
       }

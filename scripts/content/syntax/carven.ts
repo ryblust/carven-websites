@@ -37,6 +37,14 @@ export default {
     },
     { name: 'entity.name.function.carven', match: '\\b(?<=fn )\\w+' },
     {
+      match:
+        '\\b(import)(\\s+)(\\.?[A-Za-z_][A-Za-z0-9_]*(?:\\s*(?:::|\\.)\\s*[A-Za-z_][A-Za-z0-9_]*)*)',
+      captures: {
+        1: { name: 'keyword.control.carven' },
+        3: { name: 'entity.name.namespace.carven' },
+      },
+    },
+    {
       name: 'keyword.control.carven',
       match:
         '\\b(async|await|cancel|fn|struct|class|enum|let|var|const|return|if|else|for|in|while|break|continue|match|throw|try|catch|rethrow|import|export|private|using|test|as|is)\\b',

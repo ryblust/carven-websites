@@ -29,20 +29,26 @@ fn read(key: str) -> str throw Missing + Denied {
     if key == "denied" { throw Denied { key: key }; }
     if key == "ok" { return "9000"; }
     if key == "bad" { return "9x00"; }
+
     throw Missing { key: key };
 }
 
 fn parse(text: str) -> i32 throw BadPort {
     if text.is_empty() { throw BadPort { text: text }; }
+
     var value: i32 = 0;
+
     for byte in text.bytes {
         if byte < 0x30 || byte > 0x39 {
             throw BadPort { text: text };
         }
+
         value = value * 10 + (byte as i32 - 0x30);
         if value > 65535 { throw BadPort { text: text }; }
     }
+
     if value == 0 { throw BadPort { text: text }; }
+
     return value;
 }
 
@@ -65,11 +71,13 @@ for key in ["ok", "missing", "denied", "bad"] {
 const fn help_text(commands: [Command; 3]) -> String {
     var text: String = {};
     text.append("Commands:\\n");
+
     for command in commands {
         if command.enabled {
             text.append(f"  {command.name}: {command.summary}\\n");
         }
     }
+
     return &&text;
 }
 
@@ -93,10 +101,12 @@ println(help);`,
 
 const fn count_delimiters(bytes: [u8], delimiter: u8) -> usize {
     var count: usize = 0;
+
     for index in 0..block_count(bytes) {
         let block = load_block(bytes, index * 32);
         count += ((block.value == delimiter) & block.active).count();
     }
+
     return count;
 }
 
@@ -109,6 +119,7 @@ let row = "name,age,city";
 println(count_delimiters(row.bytes, 0x2c));`,
   specialization: `fn matches(text: str, const pattern: str) -> bool {
     if text.byte_length() != pattern.byte_length() { return false; }
+
     const for index in 0..pattern.byte_length() {
         const if pattern.bytes[index] == "D".bytes[0] {
             let byte = text.bytes[index];
@@ -118,12 +129,14 @@ println(count_delimiters(row.bytes, 0x2c));`,
             if text.bytes[index] != pattern.bytes[index] { return false; }
         }
     }
+
     return true;
 }
 
 const id_format = "INV-DDDD";
 let invoice = "INV-2048";
 let wrong = "INV-20x8";
+
 println(matches(invoice, id_format), matches(wrong, id_format));`,
   native: `import <nlohmann/json.hpp> using nlohmann::json::parse;
 
@@ -145,6 +158,7 @@ let patch = parse("""
         }
     }
     """);
+
 config.merge_patch(patch);
 
 println(f"{config.dump()}");`,
@@ -206,20 +220,26 @@ std::expected<std::string_view, ReadError> read(std::string_view key) {
     if (key == "denied") { return std::unexpected(Denied{key}); }
     if (key == "ok") { return "9000"; }
     if (key == "bad") { return "9x00"; }
+
     return std::unexpected(Missing{key});
 }
 
 std::expected<std::int32_t, BadPort> parse(std::string_view text) {
     if (text.empty()) { return std::unexpected(BadPort{text}); }
+
     std::int32_t value = 0;
+
     for (unsigned char byte : text) {
         if (byte < 0x30 || byte > 0x39) {
             return std::unexpected(BadPort{text});
         }
+
         value = value * 10 + (byte - 0x30);
         if (value > 65535) { return std::unexpected(BadPort{text}); }
     }
+
     if (value == 0) { return std::unexpected(BadPort{text}); }
+
     return value;
 }
 
@@ -236,6 +256,7 @@ std::expected<std::int32_t, PortError> port(std::string_view key) {
     if (!value) {
         return std::unexpected(value.error());
     }
+
     return *value;
 }
 
@@ -262,6 +283,7 @@ struct Command { std::string_view name, summary; bool enabled; };
 
 constexpr std::string help_text(const std::array<Command, 3>& commands) {
     std::string text = "Commands:\\n";
+
     for (const auto& command : commands) {
         if (command.enabled) {
             text += "  ";
@@ -271,6 +293,7 @@ constexpr std::string help_text(const std::array<Command, 3>& commands) {
             text += '\\n';
         }
     }
+
     return text;
 }
 
@@ -279,7 +302,9 @@ consteval auto freeze() {
     constexpr auto size = build().size();
     std::array<char, size> data{};
     const auto text = build();
+
     std::copy(text.begin(), text.end(), data.begin());
+
     return data;
 }
 
@@ -311,9 +336,11 @@ using ByteView = std::span<const Byte>;
 
 constexpr std::size_t count_delimiters(ByteView bytes, Byte delimiter) {
     std::size_t count = 0;
+
     for (auto byte : bytes) {
         count += byte == delimiter;
     }
+
     return count;
 }
 
@@ -370,6 +397,7 @@ constexpr char id_format[] = "INV-DDDD";
 int main() {
     const Text invoice = "INV-2048";
     const Text wrong = "INV-20x8";
+
     std::cout << std::boolalpha
         << matches<id_format>(invoice) << ' '
         << matches<id_format>(wrong) << '\\n';
@@ -412,6 +440,7 @@ constexpr char id_format[] = "INV-DDDD";
 int main() {
     const Text invoice = "INV-2048";
     const Text wrong = "INV-20x8";
+
     std::cout << std::boolalpha
         << matches<id_format>(invoice) << ' '
         << matches<id_format>(wrong) << '\\n';
@@ -450,9 +479,11 @@ const defaults = Value::parse(r#"{"workers":2,"tags":["stable"]}"#)?;
 fn configure(workers: i64) -> String throw ValueError {
     var config = defaults;
     config.set("workers", &&Value::integer(workers))?;
+
     var tags = config.get("tags")?;
     tags.push(&&Value::string("observed"))?;
     config.set("tags", &&tags)?;
+
     return config.to_json()?;
 }
 
@@ -479,6 +510,7 @@ fn parse_record(text: str) -> Record throw RecordError {
     try {
         let fields = split_once(text, " ")?;
         if !fields.found { throw RecordError::Shape; }
+
         return {
             milliseconds: u64::parse(fields.before)?,
             message: fields.after as String,
@@ -504,18 +536,22 @@ struct Batch { name: String, records: Vector<i32>, total: i32 }
 
 async fn collect(&&name: String, &&input: [i32; 4]) -> Batch {
     var batch: Batch = { name: &&name, records: [], total: 0 };
+
     for value in input {
         await yield_once();
         if value < 0 { continue; }
+
         batch.records.push(value);
         batch.total += value;
     }
+
     return &&batch;
 }
 
 async fn eligible(value: i32, target: i32) -> i32 throw BelowTarget {
     await yield_once();
     if value < target { throw BelowTarget { actual: value, required: target }; }
+
     return value;
 }
 
@@ -524,9 +560,11 @@ async fn main() throw BelowTarget {
         collect(&&("west" as String), &&[2, -1, 4, 6]),
         collect(&&("east" as String), &&[1, 3, -1, 5]),
     );
+
     let (index, chosen) = await first_successful(
         eligible(west.total, 20), eligible(west.total + east.total, 20),
     )?;
+
     println(f"{west.name}: {west.records.length()} records, total {west.total}");
     println(f"{east.name}: {east.records.length()} records, total {east.total}");
     println(f"selected {index}: {chosen}");
@@ -551,27 +589,33 @@ struct Batch {
 
 asio::awaitable<Batch> collect(std::string name, std::array<int, 4> input) {
     Batch batch{std::move(name), {}};
+
     for (int value : input) {
         co_await asio::post(asio::use_awaitable);
         if (value < 0) continue;
+
         batch.records.push_back(value);
         batch.total += value;
     }
+
     co_return batch;
 }
 
 asio::awaitable<int> eligible(int value, int target) {
     co_await asio::post(asio::use_awaitable);
     if (value < target) throw BelowTarget{value, target};
+
     co_return value;
 }
 
 asio::awaitable<void> run() {
     auto [west, east] = co_await (
         collect("west", {2, -1, 4, 6}) && collect("east", {1, 3, -1, 5}));
+
     auto winner = co_await (
         eligible(west.total, 20) || eligible(west.total + east.total, 20));
     int chosen = std::visit([](int value) { return value; }, winner);
+
     std::println("{}: {} records, total {}", west.name, west.records.size(), west.total);
     std::println("{}: {} records, total {}", east.name, east.records.size(), east.total);
     std::println("selected {}: {}", winner.index(), chosen);
@@ -580,6 +624,7 @@ asio::awaitable<void> run() {
 int main() {
     asio::io_context loop;
     auto result = asio::co_spawn(loop, run(), asio::use_future);
+
     loop.run();
     result.get();
 }`,
@@ -597,12 +642,15 @@ const async fn run_one() -> i32 {
     var processed = 0;
     async let worker = count(&processed);
     await yield_once();
+
     cancel worker;
     await close(worker);
+
     return &&processed;
 }
 
 const preview = await run_one();
+
 const test "a child closes before its backing is taken" {
     check(preview == 1);
 }
@@ -622,11 +670,14 @@ struct Counter {
         if (stop_requested) closed = true;
         else ++processed;
     }
+
     constexpr void cancel() { stop_requested = true; }
+
     constexpr void close() {
         cancel();
         resume();
     }
+
     constexpr ~Counter() { close(); }
 };
 
@@ -634,8 +685,10 @@ constexpr int run_one() {
     int processed = 0;
     Counter worker{processed};
     worker.resume();
+
     worker.cancel();
     worker.close();
+
     return processed;
 }
 
@@ -652,26 +705,33 @@ struct Mix { samples: Vector<f32>, clipped: usize, peak: f32 }
 
 const fn mix(voice: [f32], music: [f32]) -> Mix throw MixError {
     if voice.length() != music.length() { throw MixError::Length; }
+
     var result: Mix = {};
     result.samples.reserve(voice.length());
+
     for index in 0..block_count(voice) {
         let left = load_block(voice, index * 8);
         let right = load_block(music, index * 8);
         let combined = left.value + right.value * 0.5;
+
         if ((~combined.is_finite()) & left.active).any() { throw MixError::NonFinite; }
+
         result.clipped += ((combined.abs() > 1.0) & left.active).count();
         let samples = combined.clamp(-1.0, 1.0).to_array();
+
         for lane in 0..left.length {
             result.samples.push(samples[lane]);
             result.peak = result.peak.max(samples[lane].abs());
         }
     }
+
     return &&result;
 }
 
 const voice: [f32; 9] = [0.5; 9];
 const music: [f32; 9] = [0.25, -0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0];
 const preview = mix(voice, music)?;
+
 const test "clip only active lanes, including the final sample" {
     check(preview.samples.length() == 9);
     check(preview.clipped == 1 && preview.samples[8] == 1.0);
@@ -687,9 +747,11 @@ int main() {
     // This comparison parses at runtime.
     const auto defaults = nlohmann::ordered_json::parse(
         R"({"workers":2,"tags":["stable"]})");
+
     auto config = defaults;
     config["workers"] = 8;
     config["tags"].push_back("observed");
+
     std::cout << config.dump() << '\\n';
     std::cout << defaults.dump() << '\\n';
 }`,
@@ -712,18 +774,24 @@ Mix mix(std::span<const float> voice, std::span<const float> music) {
     if (voice.size() != music.size()) {
         throw std::invalid_argument("track length");
     }
+
     Mix result;
     result.samples.reserve(voice.size());
+
     for (std::size_t index = 0; index < voice.size(); ++index) {
         const float combined = voice[index] + music[index] * 0.5f;
+
         if (!std::isfinite(combined)) {
             throw std::invalid_argument("nonfinite sample");
         }
+
         result.clipped += std::abs(combined) > 1.0f;
         const float sample = std::clamp(combined, -1.0f, 1.0f);
+
         result.samples.push_back(sample);
         result.peak = std::max(result.peak, std::abs(sample));
     }
+
     return result;
 }
 
@@ -732,6 +800,7 @@ int main() {
         0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f};
     const std::array<float, 9> music{0.25f, -0.25f, 0, 0, 0, 0, 0, 0, 2};
     const auto output = mix(voice, music);
+
     std::cout << std::format("samples={} clipped={} peak={:.2f}\\n",
         output.samples.size(), output.clipped, output.peak);
     std::cout << std::format("first={:.3f} second={:.3f} last={:.3f}\\n",

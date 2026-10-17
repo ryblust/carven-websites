@@ -3,7 +3,7 @@ import { homeExamples } from '../content/home-examples.ts';
 export const playgroundExamples = [
   {
     id: 'json-config',
-    title: { en: 'Compile-time JSON configuration', zh: '编译期 JSON 配置' },
+    title: { en: 'JSON configuration', zh: '编译期 JSON 配置' },
     description: {
       en: 'Parse a default configuration during compilation, then edit a runtime copy while keeping the original unchanged.',
       zh: '在编译期解析默认配置，运行时修改一份独立副本，原配置保持不变。',
@@ -23,7 +23,7 @@ export const playgroundExamples = [
   },
   {
     id: 'async-workflow',
-    title: { en: 'Concurrent batches and selection', zh: '并发批次与候选选择' },
+    title: { en: 'Concurrent batches', zh: '并发批次与候选选择' },
     description: {
       en: 'Filter negative records and total two batches concurrently, then select a result that meets the target.',
       zh: '并发筛除两批数据中的负数并计算合计值，再选择达到目标值的结果。',
@@ -33,7 +33,7 @@ export const playgroundExamples = [
   },
   {
     id: 'async-scope',
-    title: { en: 'Compile-time async and child closure', zh: '编译期异步与子任务关闭' },
+    title: { en: 'Compile-time async', zh: '编译期异步' },
     description: {
       en: 'Run the same async code at compile time and runtime: execute one step, cancel and close the child, then read the updated count.',
       zh: '同一段异步代码在编译期和运行时都先执行一轮工作，再取消、关闭子任务，最后读取计数。',
@@ -93,7 +93,7 @@ export const playgroundExamples = [
   },
   {
     id: 'specialization',
-    title: { en: 'Check an identifier format', zh: '按固定格式检查编号' },
+    title: { en: 'Identifier format', zh: '按固定格式检查编号' },
     description: {
       en: 'Fix the INV-DDDD pattern at compile time, then validate identifiers at runtime.',
       zh: '编译时固定 INV-DDDD 格式，再在运行时检查编号是否符合要求。',

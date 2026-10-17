@@ -176,13 +176,14 @@ export default function Site({ children }: Props) {
             <p>{t('C++ 的力量，从容表达。', 'The power of C++, clearly expressed.')}</p>
             <p className="footer-note">
               {t(
-                'Carven 开发中，语言与工具可能有不兼容变更。',
+                'Carven 开发中，可能有不兼容变更。',
                 'Carven is in development; breaking changes are possible.',
               )}
               {import.meta.env.COMPILER_REVISION && (
                 <>
                   {' '}
                   <a
+                    className="footer-compiler"
                     href={`${repository}/commit/${import.meta.env.COMPILER_REVISION.slice(0, 40)}`}
                     title={import.meta.env.COMPILER_REVISION}
                   >

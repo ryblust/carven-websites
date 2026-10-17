@@ -76,7 +76,10 @@ Diagnostics includes captured standard output. Output shows stdout from Check,
 Run or Generate C++; syntax dumps and formatted source use their respective views.
 
 Each request owns a worker, WASI instance and filesystem. Cancellation terminates
-the worker, and only the current request publishes results. Formatting replaces
+the worker, and only the current request publishes results. The execution session
+keeps the validated compiler module and Crafts in memory after the first load.
+Later workers receive these assets through structured cloning, so they can reuse
+compiled code while keeping mutable runtime state separate. Formatting replaces
 source after a successful, complete result. Resource limits and deadlines are
 defined in `carven-wasm.cpp`, `wasi.ts` and `client.ts`.
 

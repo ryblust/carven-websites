@@ -2,6 +2,7 @@ import { join, relative, resolve, dirname } from 'node:path';
 import { Context, Effect, FileSystem, Layer, Schema } from 'effect';
 import type { KeyedTokensInfo } from '@shikijs/magic-move/core';
 import type { ArticleDocument } from '../../src/content/schema.ts';
+import { precompileCodeSteps } from './code-steps.ts';
 import { ContentError } from './model.ts';
 import { articleRouteModule } from './routes.ts';
 
@@ -112,9 +113,30 @@ export class ContentRepository extends Context.Service<
           'home-examples.ts',
           `// Generated from src/content/home-examples.ts. Do not edit.\nexport const homeExamples = ${JSON.stringify(homeExamples)} as const;\n`,
         );
+        const codeSteps = precompileCodeSteps(homeExampleTokens);
+        for (const [targetName, step] of codeSteps) {
+          modules.set(
+            `home-tokens/${targetName}.ts`,
+            `// Generated from src/content/home-examples.ts. Do not edit.\nimport type { CodeStep } from '../../lib/code-tokens.ts';\nexport default ${JSON.stringify(step)} satisfies CodeStep;\n`,
+          );
+        }
         modules.set(
           'home-tokens.ts',
-          `// Generated from src/content/home-examples.ts. Do not edit.\nimport type { KeyedTokensInfo } from '@shikijs/magic-move/core';\nexport const homeExampleTokens = ${JSON.stringify(homeExampleTokens)} satisfies Record<string, KeyedTokensInfo>;\n`,
+          [
+            '// Generated from src/content/home-examples.ts. Do not edit.',
+            "import type { CodeStep } from '../lib/code-tokens.ts';",
+            ...(codeSteps[0]
+              ? [`import initialStep from './home-tokens/${codeSteps[0][0]}.ts';`]
+              : []),
+            'export const homeCodeLoaders = {',
+            ...codeSteps.map(([name], index) =>
+              index === 0
+                ? `  ${name}: () => Promise.resolve(initialStep),`
+                : `  ${name}: () => import('./home-tokens/${name}.ts').then((module) => module.default),`,
+            ),
+            '} satisfies Record<string, () => Promise<CodeStep>>;',
+            '',
+          ].join('\n'),
         );
         modules.set(
           'manifest.ts',
