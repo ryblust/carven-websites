@@ -22,11 +22,11 @@ source: docs/toolchain/cli.md
 | 限制解释步数  | `carven interpret --max-steps 10000 main.cv`             |
 | 查看词法/语法 | `carven dump tokens main.cv` / `carven dump ast main.cv` |
 
-想在不编译 C++ 的情况下尝试 Carven，或用 --trace 跟踪执行时，使用 interpret。解释器先检查源码，再执行受支持的操作。执行到原生 C++ 调用等不支持的操作时，会报告 `CV-INTERPRET-ADMISSION`，这类程序改用原生运行。输入、时钟和等待使用解释器进程，就像原生程序使用自己进程中的输入与时间一样。
+使用 interpret 可以不编译 C++，直接运行受支持的 Carven 代码。执行限制与原生调用行为见[命令行参考](/zh/reference/cli/)。
 
-要逐步观察执行，先使用[整数分类示例](/zh/learn/control/)，运行 `carven interpret main.cv`。再加入 --trace，即可查看执行到的语句。学习完整语言和接入 C++ 库时，使用原生运行模式。
+要逐步观察执行，把[区间分类示例](/zh/learn/control/#按区间选择结果)保存为 main.cv，运行 `carven interpret main.cv`，输出应为 `pass`。再加入 --trace，即可查看执行到的语句。学习完整语言和接入 C++ 库时，使用原生运行模式。
 
-直接运行需要原生 C++ 工具链与匹配的 Crafts，不依赖 Xmake。`check`、`compile`、`interpret` 和直接运行都会收集工具链的 `crafts/carven/` 和项目可选的 `crafts/`；其他应用文件仍须显式列出，文件名主干必须是合法标识符。安装布局、临时文件和工具链选择见[命令行参考](/zh/reference/cli/)。
+源码收集、工具链选择与安装布局见[命令行参考](/zh/reference/cli/)。多文件命令仍须列出各个应用文件，见[模块教程](/zh/learn/modules/)。
 
 ## 先检查，再运行
 
@@ -46,7 +46,7 @@ const test {
 carven check prices.cv
 ```
 
-命令在 stderr 输出 `carven: check passed`。这个文件没有程序入口，check 也不需要：它分析输入批次，执行必需的编译期求值和 `const test`，然后停止，不调用原生编译器。改用 `carven prices.cv` 则会报告运行程序需要运行时入口。把 36 改成 35 再检查：静态测试以 `CV-CONST-TEST` 失败，显示条件和计算得到的调用结果，check 返回 1。
+命令在 stderr 输出 `carven: check passed`，其中已经执行了静态测试。check 不需要程序入口。把 36 改成 35 再检查：测试以 `CV-CONST-TEST` 失败，显示条件和计算结果，check 返回 1。
 
 编译期调用只能选择 `const fn`。去掉 line_total 的 `const` 后，check 会在测试中的调用处报告 `CV-CONST-ADMISSION`。
 
@@ -56,7 +56,7 @@ carven check prices.cv
 carven check --timings prices.cv
 ```
 
-stderr 报告显示总耗时，并用表格列出各阶段耗时及其占总时间的比例，例如源文件收集、语法分析和语义分析；原生运行还会列出 C++ 生成、原生编译和执行。耗时报告不会混入 stdout 上的程序输出或生成产物。在终端中，诊断会带颜色；把 `NO_COLOR` 设为非空值或设置 `TERM=dumb` 可以关闭。查看一个文件的词法和语法可直接用 `carven dump main.cv`，两种结果会依次输出。
+stderr 报告显示总耗时、各阶段耗时及其占比，不会混入 stdout 上的程序输出或生成产物。颜色设置与完整阶段列表见[命令行参考](/zh/reference/cli/)。
 
 ## 用 `carven-format` 格式化源码
 
@@ -69,9 +69,9 @@ stderr 报告显示总耗时，并用表格列出各阶段耗时及其占总时�
 ./xmakew run carven-format write examples
 ```
 
-第一条运行命令把格式化结果写到 stdout，不修改文件。`check` 列出需要调整的路径，有差异时返回 1，适合用于 CI；`write` 原地更新有变化的文件。两个命令都要求显式文件或目录输入，当前目录写 `.`。用 `carven-format help check` 查看命令帮助。错误返回 2；`--help` 会被当作字面文件路径。Windows 使用 `.\xmakew.ps1`。直接调用已构建的可执行文件时，用 `carven-format` 替代 `./xmakew run carven-format`。
+第一条运行命令在 stdout 预览格式化结果。`check` 列出需要调整的文件，有差异时返回 1；`write` 原地修改文件。文件选择、帮助与退出码见[命令行参考](/zh/reference/cli/)。
 
-`carven-format` 使用固定的四空格缩进和 100 字节目标行宽。它检查词法与语法，不解析模块依赖、不做类型检查，也不执行 `const fn` 或 `const test`；格式检查通过后仍需构建和测试。命令与文件选择规则见[命令行参考](/zh/reference/cli/)。
+格式化只调整排版，之后仍需进行语义检查和测试。
 
 ## 阅读格式化后的源码
 
@@ -84,25 +84,21 @@ import <vector> using std::{ vector, allocator };
 
 较长的列表按行展开，末项也带逗号。已有尾逗号不会强制把短列表展开；让 `carven-format` 根据行宽安排即可。
 
-函数与闭包的块体默认展开；表达式体函数保留 `=>`。同一组 if 分支或 match/catch 分支中的简单块可以保持单行；如果某个分支较复杂、跨行或包含注释、空行，该组非空块体一起展开。循环、测试和 match/catch 列表保持多行。
-
-顶层相邻的同类单行声明可以连续排列；不同类声明或多行声明之间留一行空行。作者写的空行会保留，但连续空行至多保留一行。格式化帮助读者识别结构，不改变函数体的表达方式，也不替代语义检查。
+格式化工具保留表达式体函数和源码中的导入顺序。
 
 ## 测试放在哪一层
 
 编译期算法使用 `const test`，运行时行为使用 test；两者都可以省略名字，失败时以文件、行和列标识测试。原生互操作在 C++ 构建中测试，同时覆盖链接、析构和异常边界。
 
-Carven 仓库使用 ./xmakew，相关组有 internal、language、crafts、interop、cli、format、workspace。使用 Carven 的项目定义自己的 Xmake 目标，不把编译器内部测试目标当成应用 API。
-
 ## 按错误边界排查
 
 1. 找不到名字：核对输入批次、模块规范路径、using 和可见性。
-2. 类型不匹配：核对字面量上下文、显式 as、精确参数访问与成功结果。
+2. 类型不匹配：核对字面量上下文、显式 as、参数的访问方式和成功时的返回值。
 3. 值不可用：找到它被取走的位置，随后停止使用旧变量，或在再次使用前给它赋新值。
 4. 借用冲突：查找仍在作用域中的 `str`、切片、可调用视图，以及仍持有 Write 捕获的值。
 5. 失败未处理：确认被调函数可能报告哪些错误、catch 处理了哪些，以及调用者还需要声明哪些。
 6. 原生错误：核对头文件、C++ 签名、构造与链接输入。
 
-## 接下来怎样使用 Reference
+## 查阅语言参考
 
-按主题选择章节，确认当前支持形式、前置条件、求值顺序和边界行为。教程的例子帮助建立模型；真正修改接口前，核对返回借用、失败集合、所有权转移和 C++ 提供者责任。用测试验证业务要求对应的可观察行为。
+查语法与 API 时使用[参考索引](/zh/reference/)，查编译器错误代码时使用[诊断目录](/zh/reference/diagnostics/)。

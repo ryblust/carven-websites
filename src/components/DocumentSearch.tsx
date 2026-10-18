@@ -10,6 +10,7 @@ import { HighlightedText } from './HighlightedText';
 
 export function DocumentSearch({ locale }: { locale: Locale }) {
   const t = translate(locale);
+
   const dialog = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -18,21 +19,26 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
   const composing = useRef(false);
   const navigating = useRef(false);
   const id = useId();
+
   const [query, setQuery] = useState('');
   const ready = useHydrated();
   const router = useRouter();
   const [opened, setOpened] = useState(false);
   const [shortcut, setShortcut] = useState('Ctrl K');
+
   const matches = useMemo(
     () => (opened ? searchArticles(locale, query) : []),
     [locale, opened, query],
   );
+
   const open = useCallback(
     (focusInput = window.matchMedia('(hover: hover) and (pointer: fine)').matches) => {
       if (!dialog.current || !input.current || !closeButton.current) return;
+
       navigating.current = false;
       setQuery('');
       setOpened(true);
+
       // Choose focus before showModal so touch devices never briefly focus the input.
       input.current.autofocus = focusInput;
       closeButton.current.autofocus = !focusInput;
@@ -41,7 +47,9 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
     },
     [],
   );
+
   const close = () => dialog.current?.close();
+
   useEffect(
     () =>
       router.subscribe('onBeforeNavigate', ({ pathChanged, hrefChanged }) => {
@@ -52,8 +60,10 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
       }),
     [router],
   );
+
   useEffect(() => {
     setShortcut(/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ K' : 'Ctrl K');
+
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
@@ -61,9 +71,12 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
         else open(true);
       }
     };
+
     window.addEventListener('keydown', onKeyDown);
+
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open]);
+
   return (
     <>
       <button
@@ -86,17 +99,20 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
         onKeyDown={(event) => {
           if (composing.current || event.nativeEvent.isComposing) return;
           if (event.altKey || event.ctrlKey || event.metaKey) return;
+
           const links = [
             ...(results.current?.querySelectorAll<HTMLAnchorElement>('a[href]') ?? []),
           ];
           const focused = document.activeElement;
           const index = links.findIndex((link) => link === focused);
+
           const focus = (element: HTMLElement) => {
             element.focus({ preventScroll: true });
             if (links.includes(element as HTMLAnchorElement)) {
               element.scrollIntoView({ block: 'nearest' });
             }
           };
+
           if (
             (event.key === 'ArrowDown' || event.key === 'ArrowUp') &&
             links.length &&
@@ -144,7 +160,10 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('标题、主题或关键字，例如：let', 'Title, topic or keyword, e.g. let')}
+            placeholder={t(
+              '标题、API 或关键字，例如：cancel',
+              'Title, API or keyword, e.g. cancel',
+            )}
             autoComplete="off"
             aria-describedby={`${id}-keys`}
             onCompositionStart={() => {
@@ -168,8 +187,8 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
             aria-label={t('搜索结果', 'Search results')}
           >
             {opened &&
-              matches.map(({ path, matchedTerms }) => (
-                <Link key={path} to={path}>
+              matches.map(({ path, matchedTerms, section }) => (
+                <Link key={path} to={path} hash={section?.id || undefined}>
                   <span className="search-section">
                     {articles[path].section === 'learn'
                       ? t('教程', 'Learn')
@@ -185,6 +204,12 @@ export function DocumentSearch({ locale }: { locale: Locale }) {
                   <span className="search-description">
                     <InlineCode text={articles[path].description} highlight={query} />
                   </span>
+                  {section?.title && (
+                    <span className="search-match">
+                      {t('小节：', 'Section: ')}
+                      <HighlightedText text={section.title} query={query} />
+                    </span>
+                  )}
                   {matchedTerms.length > 0 && (
                     <span className="search-match">
                       {t('匹配词：', 'Matches: ')}

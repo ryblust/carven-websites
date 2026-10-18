@@ -1,112 +1,122 @@
 ---
-title: 函数：fn、参数与返回值
+title: "函数与调用"
 description: 函数语法、调用、表达式体与块体、结果类型和静态参数。
 section: reference
 lesson: 8
 source: docs/language/functions.md
 ---
 
-用 `fn` 声明具名函数，为参数写出类型，通过 `name(arguments)` 调用。结果由一个表达式给出时使用 `=>`；需要多条语句、更新操作或多条返回路径时使用块体。
-
-## 语法一览
-
-| 形式                                                    | 用途                            |
-| ------------------------------------------------------- | ------------------------------- |
-| `fn name(arg: T) -> R => expression;`                   | 声明结果类型的表达式体          |
-| `fn name(arg: T) => expression;`                        | 推断结果类型的表达式体          |
-| `fn name(arg: T) -> R { return expression; }`           | 通过显式 return 返回的块体      |
-| `fn name(arg: T) { statements }`                        | 推断结果类型的块体，包括 `void` |
-| `const fn name(arg: T) -> R => expression;`             | 可在必需常量上下文中执行的函数  |
-| `fn name(arg: T, const setting: S) -> R => expression;` | 针对静态输入特化的函数          |
-| `fn name(arg: T) -> R throw E { statements }`           | 声明向外失败集合的函数          |
-
-`T`、`R`、`S`、`E`、`expression` 和 `statements` 是占位符。参数访问标记见[访问与所有权](/zh/reference/ownership/)；匿名函数和 `fn(...) -> R` 视图见[闭包](/zh/reference/closures/)。
+用 `fn` 声明具名函数，在每个参数的 `:` 后写出类型，通过圆括号传入实参。`-> R` 声明结果类型。表达式体使用 `=>`，块体通过 `return` 返回结果。
 
 ## 声明与调用
 
-```carven
-fn add(left: i32, right: i32) -> i32 => left + right;
+```carven run
+fn subtotal(unit_price: i32, quantity: i32) -> i32 => unit_price * quantity;
 
-fn twice(value: i32) => value * 2;
+fn with_delivery(total: i32) -> i32 {
+    return total + 5;
+}
 
-let total = add(2, 3);
-println(total, twice(total)); // 5 10
+println(with_delivery(subtotal(12, 3))); // 41
 ```
 
-`add` 声明 `i32` 结果，`twice` 从表达式推断出同样的类型。调用按形参顺序提供实参。
+普通具名函数的每个参数都必须有类型。名字不可重复；`_` 丢弃参数名，可以重复。调用必须提供精确数量的实参，并匹配类型及 Read/Write/Take 标记。函数不支持重载、默认参数或可变参数。
 
-普通命名函数的每个参数必须有类型。命名参数不可重名；`_` 不创建绑定，可以重复使用。实参个数、访问标记和类型必须匹配。函数不重载，没有默认参数、可变参数或嵌套函数。带体函数使用块体或 `=> expression;`。只做一件表达式工作的函数通常写表达式体；块体只通过显式 `return` 返回。
+先求值被调用对象，再从左到右对运行时实参各求值一次。闭包目标与捕获内容的读取时机，见[调用时的快照](/zh/reference/closures/#调用时的快照)。
 
-运行时调用先求值被调用对象，再从左到右对每个运行时实参求值一次。静态输入按[静态参数规则](#静态参数)另行执行。具体闭包选定要调用的闭包对象，可调用视图保存其目标描述；所有实参求值完成后，才调用目标并读取当前捕获。实参求值中的副作用可能改变随后通过别名读取的存储。
+`async fn` 返回操作，函数体在等待该操作或将其启动为子任务时开始执行，见[异步操作](/zh/reference/async/)。`const fn` 允许函数在显式常量上下文中执行，普通调用仍在运行时执行。
 
 ## 结果推断
 
-有函数体时可省略结果注解。每个 return 操作数独立定型，结果必须一致；调用者的期望类型不影响被调用函数的结果推断，前一个 return 也不给后一个提供上下文。不能正常完成的 return 操作数不贡献结果类型。
+有函数体时可省略 `-> R`。编译器独立检查各个返回表达式，结果类型必须一致。调用者的期望类型和前面的返回表达式不会给后续返回表达式提供上下文。显式结果注解则为每个返回表达式提供期望类型。原生结果必须有相同的 Carven 类型身份；需要 C++ 判定兼容性时，应写出结果类型。
 
-没有 return 操作数时推断 void；裸 `return;` 也要求 void。值返回函数的每条正常路径必须 return。块末尾普通表达式不是函数隐式返回。
+没有返回操作数时推断 `void`；裸 `return;` 也要求 `void`。其他结果类型的每条正常完成路径都必须返回值，否则报告 `CV-FLOW-MISSING-RETURN`。不能正常完成的返回操作数不贡献结果类型。嵌套可调用值的失败契约也必须一致。无函数体的声明省略结果类型时默认为 `void`。
 
-```carven
-fn number(flag: bool) -> i64 {
-    if flag {
-        return 1;
-    }
+`=> expression` 按照 `return expression;` 的访问、生命周期和失败规则返回该表达式。`void` 表达式也适用，例如 `return action();`。可失败结果须用 `?` 传播，如 `return action()?;`。块体的末尾表达式不是隐式返回。
 
-    return 2;
-}
-```
+## 参数访问
 
-这里显式 `i64` 给两个字面量提供上下文。若需要 C++ 判定外部结果兼容性，应写结果类型；原生表达式各自的 Carven 类型身份不自动合并。
+Read 允许读取实参，Write（`&`）允许修改调用者的存储，Take（`&&`）将所有权转移给函数。快照、借用、别名和原生参数规则，见[访问与所有权](/zh/reference/ownership/)。
 
-表达式体等价于返回该表达式，使用同样的求值、访问、生命周期和失败处理规则。省略结果类型时由表达式推断；表达式可以是值形式 `if`、`match`、`try`，写出结果类型时也可以是[上下文构造](/zh/reference/aggregates/#上下文构造)。void 表达式可作为表达式体，也可 `return action();`。可失败表达式须显式 `?`，例如 `return action()?;`。
+函数与 lambda 参数可以使用递归元组目标，例如 `fn sum((left, right): (i32, i32)) -> i32 => left + right;`。整个元组仍占一个参数位置。访问标记作用于完整参数：Read 与 Write 绑定访问已有存储，Take 名字则成为独立的不可变所有者。整个参数列表的名字必须唯一。静态参数也可使用元组目标；lambda 可从期望可调用视图推断完整参数类型。目标必须匹配参数类型的元素数量与嵌套层次。
 
 ## 递归与声明顺序
 
-编译器先收集函数声明及其签名，因此函数可以引用写在后面的声明。需要结果推断的函数按依赖完成。结果推断环产生 `CV-TYPE-RESULT-INFERENCE-CYCLE`，用显式 `-> T` 打断；不能靠调用者上下文、运算符要求或常量分支猜测环内结果。
+编译器先收集函数身份和签名，再检查函数体，因此函数可以引用后续声明。依赖表达式体结果的函数引用会先完成相应的结果推断。若循环依赖未完成的结果，报告 `CV-TYPE-RESULT-INFERENCE-CYCLE`；添加显式 `-> T` 可以打断签名依赖。结果推断使用声明签名和函数体，不能用运算符要求、常量分支或调用者上下文来解决签名的循环依赖。
 
-```carven
-private fn even(value: i32) -> bool => if value == 0 { true } else { odd(value - 1) };
+## 参数化函数
 
-private fn odd(value: i32) -> bool => if value == 0 { false } else { even(value - 1) };
+同一操作需要接受多种类型时，使用类型参数。下例中的 `T` 是被转移值的类型，因此同一个函数可以接收整数、String 或其他满足要求的类型。
+
+类型参数与失败集合参数写在函数名后。即使函数未使用，编译器也会根据这些参数检查函数体。普通名字声明类型参数，`throw E` 声明失败集合参数，两者种类不同。
+
+```carven run
+fn relay<T>(&&value: T) -> T => &&value;
+
+let number = 42;
+let result = relay(&&number);
+println(result); // 42
 ```
 
-去掉两个 `-> bool` 注解后，两者的结果相互依赖，报告 `CV-TYPE-RESULT-INFERENCE-CYCLE`。
+未知类型支持 Read、Write 和完整值 Take，不隐含可复制、默认构造、比较或格式化能力。已知数组、切片、元组形状和名义字段保留各自的普通操作。数组长度和声明的失败载荷类型必须独立于类型参数。失败集合参数表示一组这样的载荷类型，也可以为空。
 
-失败集合的递归推断独立于结果类型推断。显式结果类型不意味着显式失败集合，反之亦然。没有函数体的边界声明省略返回类型时默认为 void。
+具名外部 C++ 类型可依赖类型参数，其构造、调用和转换在代入具体类型后由 C++ 检查。不支持参数化闭包、依赖类型或失败参数的可调用视图签名，以及参数化 `import(cpp)` 或 `export(cpp)` 函数声明。
 
-## 编译期能力
+某些操作还对所用类型有额外要求。例如，解引用 `ptr<T>` 要求目标不是 `void`；该要求会沿泛型转发调用保留，未使用的泛型调用者也不能传入 `void`。原生指针目标仍遵循委托给 C++ 的类型契约。
 
-`const fn` 声明一个具名 Carven 函数可以在必需的常量上下文中执行：常量初始化器、数组长度、常量块和 `const test`。这些上下文只能调用 `const fn`；若 `double` 是普通 `fn`，`const eight = double(4);` 报告 `CV-CONST-ADMISSION`。`const fn` 在运行时仍是普通调用，声明本身不执行任何代码。
+显式应用如 `relay<i64>(&&value)` 必须提供所有实参且匹配声明的参数种类，替换后的参数类型为调用实参提供上下文。失败集合实参使用 `throw`，例如 `consume<i32, throw Error + IO>(&&pending)` 或 `consume<i32, throw ()>(&&pending)`。
 
-```carven
-const fn double(value: i32) -> i32 => value * 2;
+省略显式参数列表时，从公开签名、实参类型和调用位置的期望结果类型进行有限推断，不检查函数体或其他调用使用过的实例。完整的 `Operation<T, throw E>` 可以同时推断成功类型与失败集合；`E + Error` 等歧义联合不能唯一确定 `E`，需要显式实参。推断信息不足或相互冲突时也须显式指定。每个调用实参只求值一次。
 
-const fn quadruple(value: i32) -> i32 => double(double(value));
+若实际类型或失败集合依赖尚未推断完成的可调用值契约，编译器会先完成那些声明，再选择具体实例；未完成的失败集合不会被当成空集。编译期求值中的泛型调用也遵循此规则。
 
-const sixteen = quadruple(4);
-println(sixteen, quadruple(5)); // 16 20
-```
+`const fn` 使用同样的通用检查规则，语义分析认为可达的 Carven 调用必须选中已知 `const fn`。静态调用需要具体的类型和失败集合实参。函数体内的 `const` 初始化器不能要求尚未确定的泛型环境；普通泛型调用在实参具体后可以执行。递归需要已完成的结果签名。同一定义在规范化后的类型实参、失败集合实参及顺序均相同时共享实例。
 
-每个 const fn 定义都检查执行器能力，即使从未调用。可达调用（包括具名 const fn 的局部绑定调用）必须选中已知 const fn。普通函数、原生操作和可调用值参数在定义处报告 `CV-CONST-ADMISSION`。无条件 return 之后仍做类型检查但不需要执行能力；已知条件不会删去普通分支分析。入口与 import(cpp) 声明不能是 const fn；类操作可以声明 const fn。操作与预算见[常量执行](/zh/reference/constants/#const-fn)。
+所有权分析可能合并同一泛型函数不同调用的借用关系。因此，即使每次调用单独安全，依赖这些关系相互独立的代码也可能被拒绝。
 
 ## 静态参数
 
-具名函数参数可以用 `const name: T` 声明静态输入。调用保留普通实参语法与完整源码参数个数：`fn add(value: i32, const offset: i32) -> i32 => value + offset;` 写作 `add(value, 2)`。输入是不可变值，没有可取地址的源存储；const 不能与 Write 或 Take 组合。
+具名函数可用 `const name: T` 声明静态输入。调用保留普通实参语法与完整参数数量：
 
-字面量、显式常量、外围静态参数、这些值上的允许操作，以及 `const fn` 结果可以提供静态输入。普通运行时 let/var 绑定、参数与 for 索引不能，即使值已知。转发包装器必须重复 `const` 参数契约。在 const 块或 const test 中，所有局部值属于静态阶段，可以提供这类输入。
+```carven run
+fn add(value: i32, const offset: i32) -> i32 {
+    const adjusted = offset + 1;
+    return value + adjusted;
+}
 
-`const fn` 允许函数在编译时执行；`const` 参数固定一个编译时输入。普通函数也可以有静态参数，剩余函数体仍在运行时执行。两者同时声明，并不会将普通调用或它的运行时实参移到编译期。
+fn relay(value: i32, const offset: i32) -> i32 => add(value, offset);
 
-特化时，静态实参表达式按源顺序求值并冻结；剩余运行时调用再按源顺序求值被调用函数与运行时实参。`const fn` 被静态根调用时仍使用这两阶段。在 const 块或 const test 内，实参则一起按源顺序执行，再根据得到的静态值选择实例。
+fn example(value: i32) -> i32 {
+    const offset = 2;
+    return relay(value, offset);
+}
 
-实例由源函数与带类型的静态值确定。相同输入可共享实例，但每个静态实参表达式仍保留自己的执行。生成的 C++ 签名只包含运行时参数。有静态参数的函数必须直接调用，不能跨 import(cpp)/export(cpp) 边界，也不能成为可调用值值。lambda 与可调用视图类型不接受 const 参数。
+println(example(10)); // 13
+```
+
+静态参数是不可变值，没有可取地址的源存储。`const` 不能与 Write（`&`）或 Take（`&&`）组合。字面量、显式常量、外围静态参数及这些值上的允许操作都可提供输入，也可以用 `const fn` 计算。包装函数转发静态输入时，须重复 `const` 参数契约。
+
+普通运行时 `let`、`var`、参数或 `for` 索引不能提供静态输入。在 `const` 块或 `const test` 中，所有局部值都属于静态阶段，可在调用时提供静态输入。
+
+`const fn` 允许函数在编译期求值时执行；`const` 参数固定编译期输入。普通函数可以有静态参数，其函数体仍在运行时执行。两者同时声明，也不会将普通调用或其运行时实参移到编译期。
+
+特化时，静态实参表达式按源顺序求值并冻结，剩余调用再按源顺序求值被调用对象和运行时实参。静态执行中的 `const fn` 也使用这些特化阶段。在 `const` 块或 `const test` 中，实参则一起按源顺序执行，再根据所得静态值选择实例。
+
+实例由源函数和带类型的静态值确定。生成的 C++ 签名只包含运行时参数。静态值相同的调用可以共享实例，但每个静态实参表达式仍保留自己的静态执行。函数体内的 `const` 初始化器在对应的静态环境中单独进行编译期求值。
+
+有静态参数的函数须直接调用，不能跨 C++ 导入或导出边界。lambda 参数与可调用视图类型不接受 `const` 参数。
+
+异步源函数使用相同的静态参数实例选择；剩余函数体仍是异步执行，冷操作只捕获运行时参数。`const async fn` 还允许通过 await 和子任务在编译期协作执行。同步 `const fn` 可以返回冷操作，而不执行该操作。
 
 ## 静态控制
 
-运行时函数体中的普通 if、逻辑运算符和 for 保留运行时语义；操作数的值不选择分析或静态执行。普通控制内的每个静态初始化器和静态实参，都由包含它的实例要求。在 const 块或 const test 内，普通控制在编译时执行并选择要执行的语句，但每个源码分支仍接受类型和契约检查。
+运行时函数体中的普通 `if`、`&&`、`||` 和 `for` 保留运行时语义，不要求静态操作数；操作数的值不选择静态阶段的分析或执行。对于到达相应构造的每个实例，普通控制流中的所有编译期求值和静态实参求值都必须完成。
 
-`const if` 为每个实例选择一个分支，链中所有条件（包括 else if）都必须是静态表达式。所有分支都接受名字、类型、失败契约、所有权与返回分析，同一函数的所有实例共享一个契约。只有选中的分支参与特化与生成；其他分支的局部初始化根和静态实参不会在特化时执行。
+在 `const` 块或 `const test` 中，普通控制在静态阶段执行，并选择实际执行的语句。每个源码分支仍接受类型和契约检查。
 
-```carven
+`const if` 为每个实例选择一个分支。条件链中的所有条件，包括各个 `else if`，都必须是静态表达式。所有分支都接受名字、类型、失败契约、所有权与返回分析；静态值不改变这些规则，同一函数的所有实例共享一个契约。只有选中的分支参与特化和生成，其他分支的局部常量初始化器和静态调用实参不会在特化时求值：
+
+```carven run
 fn scale(value: i32, const divisor: i32) -> i32 {
     const if divisor == 0 {
         return 0;
@@ -116,56 +126,41 @@ fn scale(value: i32, const divisor: i32) -> i32 {
     }
 }
 
+println(scale(2, 0), scale(2, 4)); // 0 50
+```
+
+`scale(x, 0)` 不会计算 `100 / divisor`。
+
+确定类型时，仍会在特化前计算所有分支中的常量长度，而不执行相应声明。`const { ... }` 块与函数体的局部常量一起，在每个选中的实例或展开位置执行一次；运行时控制不选择或重复它。
+
+`const for` 展开静态的 Read 整数区间、数组、切片、Vector 或字符视图。遍历源只求值一次，在展开期间保持存活。每次迭代的绑定都是保持源元素类型的静态值，可以提供静态实参和局部常量：
+
+```carven run
+fn add(value: i32, const offset: i32) -> i32 => value + offset;
+
 fn sum(value: i32, const count: i32) -> i32 {
     var total = 0;
     const for index in 0..count {
-        total += scale(value, index);
+        total += add(value, index);
     }
     return total;
 }
 
-println(scale(2, 0), scale(2, 4), sum(2, 3)); // 0 50 300
+println(sum(2, 3)); // 9
 ```
 
-`scale(2, 0)` 不会执行 `100 / divisor`。类型形成仍在特化前计算每个分支中的常量数组长度，而不执行其声明。未选中分支中的类型计算仍可能报告失败，结果必须不依赖未绑定的静态参数。类型形成不能提前读取输入、观察时钟或等待，详见[常量表达式](/zh/reference/constants/#常量表达式的范围)。函数体中的 const 块在外围静态环境中执行，见[常量块](/zh/reference/constants/#常量块)。
+在运行时函数体中，`const alias = index` 保留静态阶段，`let alias = index` 则不保留。每次迭代有自己的作用域，外围变量仍共享。`break`、`continue`、`return` 和失败传播沿用普通含义。反向整数区间和空源不产生迭代。
 
-`const for` 展开静态 Read 整数区间、数组、切片、Vector 或字符视图；来源求值一次并在展开期间保留。每个元素须按原类型冻结，丢弃元素无需保留值。每个索引是静态绑定，每次迭代有自己的作用域，外围变量仍共享。运行时函数体中，`const alias = index` 保留静态资格，`let alias = index` 不保留。break、continue、return 与失败传播沿用普通含义。反向或空区间不展开任何迭代。累计迭代、实例与嵌套数量有限制，超限产生诊断，不回退运行时。未选中分支、静态 break 后的迭代及静态退出后的源码仍被检查，但不参与特化。
+每个绑定元素必须按原类型冻结；丢弃元素无需保留值。源本身只需支持执行和遍历。展开受累计迭代、实例、嵌套与构造预算限制，超限产生编译诊断。
+
+`const for` 也可以位于模块层级，将语句展开到模块的运行时入口体；其中的普通调用在运行时执行。`const { ... }` 块则在编译期执行整个块体。
+
+未选中的 `const if` 分支、静态 `break` 之后的迭代及静态退出之后的语句仍接受源检查，但不参与特化。
+
+## 编译期能力
+
+`const fn` 允许静态执行，普通调用仍在运行时执行。类操作也可声明 `const fn`。支持的操作、编译器宿主上的输入输出和结果冻结规则见[常量与编译期计算](/zh/reference/constants/)。
 
 ## 入口的失败契约
 
-没有 `throw` 子句的私有非入口函数和 lambda 会推断失败集合。顶层语句构成隐式入口，同样推断向外传播的失败；逸出的失败以 `EXIT_FAILURE` 结束进程，在 stderr 输出结构化失败报告。
-
-```carven
-struct Missing {}
-
-fn find(key: str) -> i32 throw Missing {
-    if key == "answer" {
-        return 42;
-    }
-    throw Missing {};
-}
-
-println(find("answer")?);
-println(find("other")?);
-println("unreachable");
-```
-
-程序输出 `42` 后以失败状态退出。显式 `fn main()` 或公开函数若有向外失败，必须写 `throw` 子句；省略时报告 `CV-EFFECT-THROW-PUBLISHED`。完整规则见[失败契约](/zh/reference/failures/)。
-
-## 参数化函数
-
-同一操作需要接受不同类型时，可以给函数声明类型参数。下面的 T 代表被转移值的类型，因此 relay 可以接收整数、String 或其他满足要求的类型。类型参数与失败集合参数写在函数名后。定义只按这些参数检查一次，未调用也如此；普通名字声明类型参数，throw E 声明失败集合，两者种类不同。
-
-```carven
-fn relay<T>(&&value: T) -> T => &&value;
-let number = 42;
-let result = relay(&&number);
-```
-
-未知 T 支持 Read/Write 及完整值 Take，不隐含可复制、可默认构造、相等或格式能力；已知数组、切片、元组形状和名义字段保留普通操作。数组长度与声明的失败载荷不能依赖类型参数。依赖类型参数的外部 C++ 类型在具体替换后由 C++ 检查。参数化闭包、依赖刚性参数的 可调用值-view 签名，以及泛型 import(cpp)/export(cpp) 函数不支持。
-
-操作要求随转发保留：如 `ptr<T>` 的解引用要求 T 非 void，泛型转发中即使未使用的调用也不能传 void。显式 `relay<i64>(&&value)` 要求完整且种类匹配的实参；失败集合如 `consume<i32, throw Error + IO>` 或 `consume<i32, throw ()>`。省略请求有界推断，仅使用公开签名、实参类型和直接期望结果，不读取体或历史应用；`Operation<T, throw E>` 可同时推断结果与失败，歧义联合 E + Error 不能唯一恢复时须显式指定。实参各求值一次。
-
-依赖结果/失败推断的应用先等待声明完成，未完成集合不等于空集。const fn 使用同样普遍检查，可达调用须已知 const fn，静态执行须实参具体；局部 const 不能依赖未解泛型环境。递归要求已完成结果签名，实例按定义和有序规范实参共享。所有权摘要保守合并实际输入关联，要求不同实例完全隔离关联的程序可能被拒绝。
-
-函数/lambda 参数还支持递归元组目标，例如 `fn combine((left, right): (i32, i32)) -> i32 => left + right;`。这仍是一个参数，Read/Write 保留完整参数现有存储，Take 名字为独立不可变 所有者。参数列表所有名字须唯一。async 与 const async 的冷 operation、静态参数及 await 规则见[异步](/zh/reference/async/)。
+显式入口向外传播失败时须声明 `throw` 契约；隐式入口推断向外失败集合。详见[入口](/zh/reference/entry-testing/)和[失败契约](/zh/reference/failures/)。

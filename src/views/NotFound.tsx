@@ -7,6 +7,7 @@ export default function NotFound() {
   });
   const locale = localeOf(pathname);
   const t = translate(locale);
+
   return (
     <div className="error-page container">
       <p className="intro-label">404</p>

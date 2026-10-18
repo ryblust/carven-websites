@@ -21,5 +21,6 @@ export const parseArticle = Effect.fn('parseArticle')(function* (file: string, t
   const metadata = yield* decodeMetadata(raw).pipe(
     Effect.mapError((cause) => new ContentError({ file, operation: 'metadata', cause })),
   );
+
   return { metadata, markdown: match[2]! };
 });

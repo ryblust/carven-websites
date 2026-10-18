@@ -11,8 +11,6 @@ const constants =
 const symbols: Record<string, string> = {
   reference:
     'M12 6.3Q8.5 3.5 2.8 4.8l.5 14.7q5-1.2 8.9 1.8 3.6-3.2 8.7-2.4l.3-14.8q-5.6-.6-9.2 2.2Zm0 0 .2 15M5.7 8.7l3.2.5m6.4-.4 3.1-.6',
-  builtins:
-    'M3.2 7.4q8.6-.7 17.5-.2l-.3 13q-8.5.5-17.3-.1ZM8.1 7.3l.2-3.7 7.2.3-.2 3.6M3.4 12.5q8.4.5 17-.1M10.5 11.1l.1 3.1 2.9-.2-.1-3.2',
   library:
     'M3.4 4.3l4.1-.1-.2 16.4-4.4-.2ZM10 3.2l4.2.2-.1 17.1-4.2-.1ZM16.7 5.1l3.9-.7 2.2 15.7-4 .6ZM3.3 8.4l3.9.1m2.9-.8 3.8.2m3.6 1.3 3.5-.5',
   types: 'M3.5 5q8.4-.8 17-.2M11.7 5q.7 7.6.1 15.4M8.4 20.3l7.1-.4M3.4 4.4l.1 2.5m17-2.8-.2 2.5',
@@ -75,7 +73,6 @@ const aliases: Record<string, string> = {
   json: 'aggregates',
   net: 'interop',
   'data-pipeline': 'project',
-  'syntax-and-inference': 'lexical',
 };
 
 export function ChapterIcon({ path }: { path: string }) {

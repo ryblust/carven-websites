@@ -1,5 +1,5 @@
 ---
-title: "Closures, captures, and callable views"
+title: "Closures and callable views"
 description: "Closure identity, value and Write captures, view adaptation, and call snapshots."
 section: reference
 lesson: 9

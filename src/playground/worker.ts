@@ -5,6 +5,7 @@ interface WorkerScope {
   postMessage(value: unknown): void;
   onmessage: ((event: MessageEvent) => void) | null;
 }
+
 const scope = globalThis as unknown as WorkerScope;
 
 scope.onmessage = (event) => {
@@ -15,6 +16,7 @@ scope.onmessage = (event) => {
     const report = (type: string, data: Record<string, unknown>) =>
       scope.postMessage({ id, type, ...data });
     let stage: 'assets' | 'request' | 'execution' = 'request';
+
     try {
       const input = validateInput(request.source, request.action);
       const base = new URL(request.assetsBase, scope.location.href);
@@ -26,6 +28,7 @@ scope.onmessage = (event) => {
       ) {
         throw new Error('Compiler assets must use a same-origin directory.');
       }
+
       stage = 'assets';
       report('progress', { phase: 'loading' });
       // Cached modules came from a previous worker's validated asset load.

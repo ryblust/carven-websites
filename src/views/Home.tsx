@@ -45,6 +45,7 @@ export default function Home({ locale }: { locale: Locale }) {
     const generation = ++request.current;
     setLoadError(false);
     setLoading(true);
+
     try {
       const next = await homeCodeLoaders[codeName(index, nextLanguage)]();
       if (generation !== request.current) return;
@@ -63,6 +64,7 @@ export default function Home({ locale }: { locale: Locale }) {
   function prefetch(index: number, nextLanguage: CodeLanguage) {
     void homeCodeLoaders[codeName(index, nextLanguage)]().catch(() => {});
   }
+
   const examples = [
     {
       label: t('异步组合', 'Compose async work'),
@@ -82,8 +84,8 @@ export default function Home({ locale }: { locale: Locale }) {
       standard: 'C++23',
       result: 'west: 3 records, total 12\neast: 3 records, total 9\nselected 1: 21',
       comparison: t(
-        'west 和 east 各保留三条记录，合计分别为 12 和 9。第一个候选未达 20，第二个以 21 成功，因此两份程序都输出上面三行。\n\nC++23 使用独立 Asio 协程和单线程 io_context，&& 汇合成功结果，|| 选择首个成功并取消其余任务；两个候选都失败时，它抛出 multiple_exceptions，first_exception 提供原始失败。Carven 此时传播第一个选定的类型化失败。\n\nC++ 对照使用 Asio 1.38.2：clang++ -std=c++23 -pthread -I/path/to/asio/include example.cpp -o example。',
-        'West and east each keep three records, totaling 12 and 9. The first candidate falls below 20; the combined total succeeds with 21. Both programs print the three lines above.\n\nThe C++23 version uses standalone Asio coroutines and a single-thread io_context: && joins successful results; || selects the first success and cancels the other task. When both candidates fail, Asio throws multiple_exceptions with an original failure available through first_exception; Carven propagates the first selected typed failure.\n\nUses Asio 1.38.2: clang++ -std=c++23 -pthread -I/path/to/asio/include example.cpp -o example.',
+        'C++23 对照使用独立版 Asio 协程和单线程 io_context：&& 等待两个结果，|| 选择首个成功。两个候选都失败时，Asio 用 multiple_exceptions 汇总异常，Carven 传播第一个选定的类型化失败。',
+        'The C++23 version uses standalone Asio coroutines and a single-thread io_context: && awaits both results; || selects the first success. If both candidates fail, Asio collects exceptions in multiple_exceptions, while Carven propagates the first selected typed failure.',
       ),
       path: '/reference/async/',
     },
@@ -98,15 +100,15 @@ export default function Home({ locale }: { locale: Locale }) {
         'The child increments a counter once. Its parent requests cancellation, waits for closure, then takes the counter. The same const async fn runs during compilation and at runtime, with const test checking the compile-time result.',
       ),
       note: t(
-        '取消提出停止请求。这里用 await close 等待结束，再取走数据；把 Take 提到 close 前会得到借用冲突诊断。',
-        'Cancellation requests a stop. Here await close waits for completion before the data is taken. Move Take before close to see the borrow-conflict diagnostic.',
+        '把 Take 移到 close 前，观察借用冲突诊断。',
+        'Move Take before close to see the borrow-conflict diagnostic.',
       ),
       ...homeShowcase[1],
       standard: 'C++23',
       result: 'compile time: 1; runtime: 1',
       comparison: t(
-        '两份程序都让子任务执行一轮，再取消、关闭并返回计数，编译期和运行时结果均为 1。Carven 的 FIFO 调度与显式 yield 确定了顺序，不依赖计时；close 等待任务接受取消后，才允许 Take。\n\nC++23 对照显式驱动一个 constexpr 状态机：resume 执行一步或接受取消，close 使它结束，析构时再次关闭也安全。它用 static_assert 检查结果，调度由这些显式调用表示；Carven 使用异步驱动器，并检查活动借用。\n\nC++ 编译命令：clang++ -std=c++23 example.cpp -o example。',
-        'Both programs run one child step, cancel, close, and return its count: 1 during compilation and at runtime. Carven’s FIFO scheduling and explicit yield determine the order without timing assumptions; close waits for cancellation to finish before Take is allowed.\n\nThe C++23 version explicitly drives a constexpr state machine: resume steps or accepts cancellation, close finishes it, and destruction can safely close it again. static_assert checks the result. Those explicit calls model the schedule; Carven supplies an async driver and checks active borrows.\n\nCompile with clang++ -std=c++23 example.cpp -o example.',
+        'C++23 对照显式驱动 constexpr 状态机，用 static_assert 检查编译期结果。Carven 用同一个 const async fn 和异步驱动器表达流程，并检查子任务的活动借用。',
+        'The C++23 version explicitly drives a constexpr state machine and checks the compile-time result with static_assert. Carven expresses the flow with one const async fn and an async driver, with checks on the child’s active borrows.',
       ),
       path: '/learn/async/',
     },
@@ -127,8 +129,8 @@ export default function Home({ locale }: { locale: Locale }) {
       ...homeShowcase[2],
       result: '{"workers":8,"tags":["stable","observed"]}\n{"workers":2,"tags":["stable"]}',
       comparison: t(
-        '副本变成八个工作单元、两个标签，模板仍是两个工作单元、一个标签。Carven 的 Value 和 C++ 的 ordered_json 都复制独立内容；Carven 的 get 也返回独立子值，因此修改 tags 后要 set 回配置。\n\nCarven 在编译期解析模板并检查初始值；C++20 对照在 main 中使用 nlohmann/json 解析。两份程序输出相同两行，C++ 版本需要该库头文件。',
-        'The copy has eight workers and two tags; the template keeps two workers and one tag. Value and C++ ordered_json both copy independent contents. Carven’s get also returns an independent child, so changed tags are assigned back with set.\n\nCarven parses and checks the template during compilation; the C++20 version parses inside main with nlohmann/json. Both print the same two lines. The C++ version needs that library’s header.',
+        'Carven 在 const 初始化器中解析模板；C++20 对照使用 nlohmann/json，在 main 中解析。',
+        'Carven parses the template in a const initializer; the C++20 version uses nlohmann/json to parse it in main.',
       ),
       standard: 'C++20',
       path: '/reference/json/',
@@ -147,8 +149,8 @@ export default function Home({ locale }: { locale: Locale }) {
       ...homeShowcase[3],
       result: 'Commands:\n  build: Compile the project\n  run: Run the program',
       comparison: t(
-        '只有 build 和 run 启用，因此两份程序都在编译期生成相同两项帮助。\n\nCarven 的显式 str 标注保留静态文本视图；C++20 的 freeze 根据结果长度创建数组，再由 string_view 引用。const test 和 static_assert 分别核对完整内容。这里生成的是帮助文本，修改命令定义后需要重新编译。',
-        'Only build and run are enabled, so both programs prepare the same two help entries during compilation.\n\nCarven’s explicit str annotation retains a static text view. The C++20 freeze helper sizes an array from the result and provides a string_view over it. const test and static_assert check the full content. This example generates help text; changing its command definitions requires recompilation.',
+        'Carven 用 str 保留静态文本视图；C++20 的 freeze 根据结果长度创建数组，再提供 string_view。const test 和 static_assert 分别检查生成的完整文本。',
+        'Carven retains a static text view with str. The C++20 freeze helper sizes an array from the result and provides a string_view. const test and static_assert check the complete generated text.',
       ),
       standard: 'C++20',
       path: '/features/compile-time/',
@@ -167,8 +169,8 @@ export default function Home({ locale }: { locale: Locale }) {
       ...homeShowcase[4],
       result: 'INV-2048 → true\nINV-20x8 → false',
       comparison: t(
-        'D 匹配一个 ASCII 数字，其余字节按字面匹配；检查长度后才访问输入，所以三个版本都输出 true false。\n\nCarven 的 const for 展开位置，const if 选择每个位置的检查。C++20 对照用 index_sequence 和参数包，C++26 对照用 template for；两者用 if constexpr 选择检查。Carven 的所有源分支仍接受类型、所有权和失败检查。这个模式只支持数字占位与字面字节，C++26 版本使用 Clang 23 验证。',
-        'D matches one ASCII digit; other bytes match literally. Length is checked before input access, and all three versions print true false.\n\nCarven expands positions with const for and selects each check with const if. The C++20 version uses index_sequence and a parameter pack; C++26 uses template for. Both select checks with if constexpr. Carven still checks types, ownership, and failures in every source branch. This pattern supports digit placeholders and literal bytes. The C++26 version was verified with Clang 23.',
+        'C++20 对照用 index_sequence 和参数包展开位置，C++26 用 template for；两者用 if constexpr 选择检查。Carven 对应使用 const for 和 const if。',
+        'The C++20 version expands positions with index_sequence and a parameter pack; C++26 uses template for. Both select checks with if constexpr. Carven uses const for and const if.',
       ),
       standard: 'C++20',
       path: '/reference/functions/',
@@ -190,8 +192,8 @@ export default function Home({ locale }: { locale: Locale }) {
       ...homeShowcase[5],
       result: 'samples=9 clipped=1 peak=1.00\nfirst=0.625 second=0.375 last=1.000',
       comparison: t(
-        '九个输入样本中，最后一个需要限幅，因此输出 clipped=1、peak=1.00。两份程序使用相同增益、有限值检查和限幅规则。\n\nCarven 用浮点 SIMD 与有效通道掩码，C++20 对照用标量循环。Carven 还在编译期执行同一算法并保留 Vector，静态测试检查第九个样本；C++ 对照在运行时计算，并用异常报告非法输入。原生 Carven 根据目标使用 NEON、启用的 AVX2 或可移植后端，性能需实际测量。这里计算内嵌样本，不播放音频。',
-        'The ninth sample clips, so the report shows clipped=1 and peak=1.00. Both programs use the same gains, finite checks, and clipping rule.\n\nCarven uses float SIMD and active masks; the C++20 version uses a scalar loop. Carven also runs the algorithm during compilation, retains its Vector, and checks the ninth sample in a static test. The C++ version calculates at runtime and reports invalid input with exceptions. Native Carven selects NEON, enabled AVX2, or portable lanes; performance needs measurement. The example computes embedded samples rather than playing audio.',
+        'Carven 使用浮点 SIMD 和有效通道掩码，C++20 对照使用标量循环。Carven 还在编译期执行同一算法，用静态测试检查不足一块的尾部。',
+        'Carven uses float SIMD and active masks; the C++20 version uses a scalar loop. Carven also executes the same algorithm during compilation and checks the partial tail with a static test.',
       ),
       standard: 'C++20',
       path: '/use-cases/',
@@ -210,8 +212,8 @@ export default function Home({ locale }: { locale: Locale }) {
       ...homeShowcase[6],
       result: 'ok 9000 · missing 8080 · Denied: denied · Bad port: 9x00',
       comparison: t(
-        '内存配置表提供正常、缺失、拒绝访问和错误文本四种输入。parse 接受 1–65535 的 ASCII 十进制端口；port 将 Missing 恢复为 8080，继续传播 Denied 和 BadPort，因此两个版本输出相同四行。\n\nC++23 用 expected、variant 和显式分支组织剩余失败；Carven 根据传播和恢复检查声明集合。C++ 编译命令为 clang++ -std=c++23 example.cpp -o example。',
-        'An in-memory configuration table supplies success, absence, denied access, and invalid text. parse accepts ASCII decimal ports from 1 through 65535. port recovers Missing as 8080 and propagates Denied and BadPort, giving both versions the same four output lines.\n\nThe C++23 version organizes the remaining failures with expected, variant, and explicit branches. Carven checks the declared set against propagation and recovery. Compile C++ with clang++ -std=c++23 example.cpp -o example.',
+        'C++23 用 expected、variant 和显式分支组织成功与失败。Carven 根据传播和恢复行为检查函数声明的失败集合。',
+        'The C++23 version represents success and failure with expected, variant, and explicit branches. Carven checks the declared failure set against propagation and recovery.',
       ),
       standard: 'C++23',
       path: '/features/failure-contracts/',
@@ -233,8 +235,8 @@ export default function Home({ locale }: { locale: Locale }) {
       ...homeShowcase[7],
       result: '{"server":{"host":"localhost","port":9000}}',
       comparison: t(
-        'patch 把 port 改成 9000，用 null 删除 debug，保留 host。两个版本都调用 nlohmann/json 3.12.0 的 parse、merge_patch 和 dump，输出相同 JSON；合并规则由库提供。\n\nCarven 三引号文本去除公共缩进，C++ 原始字符串保留缩进，这些空白不影响 JSON 解析。原生构建需要库头文件，C++ 检查重载和模板。需要恢复解析异常时，在 C++ 适配层捕获；链接教程给出接入步骤。',
-        'The patch changes port to 9000, removes debug with null, and keeps host. Both versions call nlohmann/json 3.12.0 parse, merge_patch, and dump and print the same JSON; the library supplies the merge rules.\n\nCarven removes common indentation from its triple-quoted text, while C++ raw text retains it; both are valid JSON. Native builds need the library header, and C++ checks overloads and templates. Catch parse exceptions in a C++ adapter when recovery is needed; the linked tutorial covers integration.',
+        '两个版本都使用 nlohmann/json 的合并规则。Carven 三引号文本移除公共缩进，C++ 原始字符串保留缩进；两者都可以直接交给 JSON 解析器。',
+        'Both versions use nlohmann/json’s merge rules. Carven removes common indentation from triple-quoted text; C++ raw strings retain it. Both can be passed directly to the JSON parser.',
       ),
       standard: 'C++20',
       path: '/learn/interop/',
@@ -243,6 +245,7 @@ export default function Home({ locale }: { locale: Locale }) {
   const example = examples[selected]!;
   const cpp26 = 'cpp26' in example ? example.cpp26 : undefined;
   const codeLanguage = language === 'cpp26' && !cpp26 ? 'cpp' : language;
+
   return (
     <div className="home-page">
       <section className="home-intro" aria-labelledby="home-heading">
@@ -277,12 +280,6 @@ export default function Home({ locale }: { locale: Locale }) {
               {t('开始学习', 'Start learning')}
             </Link>
           </div>
-          <p className="home-try-note">
-            {t(
-              '无需安装。在浏览器中修改代码，查看运行结果与生成的 C++。',
-              'No installation. Edit code in your browser, see its output, and inspect the generated C++.',
-            )}
-          </p>
         </div>
         <Sketch />
       </section>
@@ -296,8 +293,8 @@ export default function Home({ locale }: { locale: Locale }) {
           </h2>
           <p>
             {t(
-              '从异步组合与编译期任务，到拥有 JSON 配置与 SIMD 数据处理。直接修改并运行，查看结果和生成的 C++。',
-              'From async composition and compile-time tasks to owned JSON and SIMD data processing. Edit and run the examples, then inspect their results and generated C++.',
+              '选择一个例子，对照 Carven 与 C++ 的实现。',
+              'Choose an example and compare the Carven and C++ implementations.',
             )}
           </p>
         </header>
@@ -423,7 +420,7 @@ export default function Home({ locale }: { locale: Locale }) {
               <p>{example.result}</p>
             </div>
             <details className="showcase-details" key={selected}>
-              <summary>{t('示例说明与限制', 'Example details and limits')}</summary>
+              <summary>{t('实现对照', 'Implementation comparison')}</summary>
               {example.comparison.split('\n\n').map((paragraph, index) => (
                 <p key={index}>{paragraph}</p>
               ))}

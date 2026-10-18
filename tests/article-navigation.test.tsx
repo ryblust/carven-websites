@@ -65,6 +65,7 @@ describe('article navigation', () => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     const routeRoot = createRootRoute();
+
     function Document() {
       const location = useLocation();
       return (
@@ -81,6 +82,7 @@ describe('article navigation', () => {
         </>
       );
     }
+
     const route = createRoute({ getParentRoute: () => routeRoot, path: '$', component: Document });
     const router = createRouter({
       routeTree: routeRoot.addChildren([route]),
@@ -135,6 +137,7 @@ describe('article navigation', () => {
         />
       );
     }
+
     const routeRoot = createRootRoute();
     const route = createRoute({
       getParentRoute: () => routeRoot,
@@ -156,7 +159,7 @@ describe('article navigation', () => {
     expect(currentSection()).toBe('#shared');
 
     const next = host.querySelector<HTMLAnchorElement>(
-      'a.chapter-next[href="/reference/failures/"]',
+      'nav.chapter-list a[href="/reference/failures/"]',
     )!;
     await act(async () => {
       next.click();

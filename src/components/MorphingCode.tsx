@@ -8,6 +8,7 @@ function tokenStyle(token: CodeToken): CSSProperties {
 function renderTokens(container: HTMLElement, step: CodeStep) {
   const nodes = new Map<number, HTMLSpanElement>();
   const fragment = document.createDocumentFragment();
+
   for (const [index, token] of step.tokens.entries()) {
     // Whitespace needs no box, measurement, or animation.
     if (!token.content.trim()) {
@@ -17,13 +18,16 @@ function renderTokens(container: HTMLElement, step: CodeStep) {
     const node = document.createElement('span');
     node.className = 'code-morph-token';
     node.textContent = token.content;
+
     for (const [property, value] of Object.entries(tokenStyle(token))) {
       if (value !== undefined) node.style.setProperty(property, String(value));
     }
     nodes.set(index, node);
     fragment.append(node);
   }
+
   container.replaceChildren(fragment);
+
   return nodes;
 }
 
@@ -40,6 +44,7 @@ function visiblePositions(nodes: Map<number, HTMLSpanElement>, viewport: DOMRect
       positions.set(key, { node, rect });
     }
   }
+
   return positions;
 }
 
@@ -101,6 +106,7 @@ export function MorphingCode({ example, step }: { example: string; step: CodeSte
     host.parentElement!.append(overlay);
     const hidden: HTMLSpanElement[] = [];
     const used = new Set<number>();
+
     for (const [key, { node, rect }] of after) {
       const sourceIndex = matches.get(key);
       const previous = sourceIndex === undefined ? undefined : before?.get(sourceIndex);
@@ -140,7 +146,9 @@ export function MorphingCode({ example, step }: { example: string; step: CodeSte
       overlay.append(ghost);
       animations.push(ghost.animate([{ opacity: 1 }, { opacity: 0 }], timing));
     }
+
     let cleaned = false;
+
     const cleanup = () => {
       if (cleaned) return;
       cleaned = true;
@@ -154,6 +162,7 @@ export function MorphingCode({ example, step }: { example: string; step: CodeSte
       window.removeEventListener('resize', cleanup);
       window.removeEventListener('carven-theme-change', cleanup);
     };
+
     stop.current = cleanup;
     preference.addEventListener('change', cleanup);
     window.addEventListener('resize', cleanup);
@@ -162,6 +171,7 @@ export function MorphingCode({ example, step }: { example: string; step: CodeSte
   }, [example, step]);
 
   useLayoutEffect(() => () => stop.current(), []);
+
   return (
     <div className="code-morph-frame">
       <div

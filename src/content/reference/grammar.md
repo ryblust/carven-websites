@@ -1,8 +1,8 @@
 ---
-title: "Formal grammar and precedence"
+title: "Grammar and precedence"
 description: "Complete EBNF productions, associativity, delimiters, and control-header disambiguation."
 section: reference
-lesson: 26
+lesson: 25
 source: docs/language/grammar.md
 ---
 
@@ -406,9 +406,7 @@ the list: `import <print> using std::{ print, println };`.
 The semicolon terminates the complete import declaration. A closing brace ends
 only the nested `using-list`.
 
-Accepted shapes include:
-
-The following is import syntax for a batch supplying the named modules; it is not a standalone program.
+For a batch supplying the named modules and native headers, imports have these forms:
 
 ```carven
 import math using answer;
@@ -477,7 +475,7 @@ parameter is untyped `self`, `&self`, or `&&self`. This fixed spelling is
 contextual, not a globally reserved keyword. Without that receiver, a class
 function is an associated operation; no `static` keyword is needed. Other
 parameters require ordinary type annotations. Class fields and operations
-may be interleaved. Class forms, nested declarations, and C++ boundary
+may be interleaved. Class patterns, nested declarations, and C++ boundary
 operations are not admitted within class bodies.
 Associated operations may use `async fn`; async operations with an instance
 receiver are rejected.
@@ -612,7 +610,7 @@ function-type-parameter = [ access-marker ], type;
 `String` is an `IDENTIFIER`. Its factories, dot methods, and `.bytes`/`.chars`
 projections use ordinary member and call syntax.
 
-Unqualified `Range<T>` in type position denotes an integer interval value; `T`
+The standard `Range<T>` type denotes an integer interval value; `T`
 must be a builtin integer type. Half-open and closed intervals have this type.
 
 Unqualified `ptr` in type position constructs a pointer type. Its optional inner
@@ -622,7 +620,7 @@ abbreviates `(*p).member`. Neither spelling adds an address-of operation.
 
 A named type can carry a nonempty generic argument list after its qualified name.
 Arguments use their declared kind: an ordinary type or a `throw` failure clause.
-A Tuple such as `(i32, bool)` is one type argument.
+A tuple such as `(i32, bool)` is one type argument.
 Nested lists may close with `>>`; token splitting applies only during type
 parsing and leaves expression shift operators unchanged.
 

@@ -4,10 +4,13 @@ import type { ExecutionResult } from '../src/playground/protocol';
 
 class WorkerDouble extends EventTarget {
   sent: { id: number; source: string; action: string }[] = [];
+
   postMessage(message: { id: number; source: string; action: string }) {
     this.sent.push(message);
   }
+
   terminate() {}
+
   reply(data: unknown) {
     this.dispatchEvent(new MessageEvent('message', { data }));
   }

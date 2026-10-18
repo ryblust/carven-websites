@@ -10,6 +10,7 @@ export function ThemeToggle({ locale }: { locale: Locale }) {
   const ready = useHydrated();
   const [preference, setPreference] = useState<ThemePreference>('system');
   const observer = useRef<ReturnType<typeof observeTheme> | null>(null);
+
   useEffect(() => {
     const subscription = observeTheme(setPreference);
     observer.current = subscription;
@@ -18,6 +19,7 @@ export function ThemeToggle({ locale }: { locale: Locale }) {
       observer.current = null;
     };
   }, []);
+
   const labels = {
     system: t('跟随系统', 'System'),
     light: t('亮色', 'Light'),
@@ -28,6 +30,7 @@ export function ThemeToggle({ locale }: { locale: Locale }) {
     `主题：${labels[preference]}；点击切换为${labels[next]}`,
     `Theme: ${labels[preference]}; switch to ${labels[next]}`,
   );
+
   return (
     <button
       type="button"

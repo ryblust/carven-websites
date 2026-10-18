@@ -10,16 +10,20 @@ pre {
   max-width: 100%;
   tab-size: 4;
 }
+
 pre.shiki {
   background: transparent !important;
 }
+
 pre code {
   font-family: inherit;
 }
+
 .code-wrap {
   position: relative;
   min-width: 0;
 }
+
 .code-head {
   display: flex;
   align-items: center;
@@ -32,7 +36,9 @@ pre code {
   font-size: var(--text-xs);
   letter-spacing: 0.04em;
 }
-.copy-button {
+
+.copy-button,
+.run-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -51,11 +57,57 @@ pre code {
     border-color 0.18s,
     background 0.18s;
 }
-.copy-button:hover {
+
+.copy-button:hover,
+.run-button:hover {
   color: var(--text);
   background: var(--bg-soft);
   border-color: var(--line-soft);
 }
+
+.code-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.run-button::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  mask: url('../assets/icons/play.svg') center / contain no-repeat;
+}
+
+.run-button[data-running]::before {
+  mask-image: url('../assets/icons/stop.svg');
+}
+
+.code-run-result {
+  padding: 16px var(--space-5);
+  border-top: 1px solid var(--line);
+  background: var(--bg-soft);
+}
+
+.prose .code-run-status,
+.prose .code-run-label {
+  margin: 0;
+  color: var(--quiet);
+  font-size: var(--text-xs);
+}
+
+.prose .code-run-label {
+  margin-top: 16px;
+  color: var(--prose);
+}
+
+.code-run-result pre {
+  max-height: 20rem;
+  padding: 8px 0 0;
+  white-space: pre;
+}
+
 /* Inline and fenced code in article and search content. */
 .prose code:not(pre code),
 .article-header > p code,
@@ -70,6 +122,7 @@ pre code {
   font-weight: var(--code-weight);
   overflow-wrap: anywhere;
 }
+
 .prose pre,
 .prose .code-wrap {
   background: var(--surface) !important;
@@ -78,9 +131,11 @@ pre code {
   corner-shape: var(--corner-shape);
   margin-block: var(--space-5);
 }
+
 .prose .code-wrap {
   overflow: hidden;
 }
+
 .prose .code-wrap pre {
   margin: 0;
   border: 0;
@@ -88,6 +143,7 @@ pre code {
   box-shadow: none;
   background: transparent !important;
 }
+
 /* Authored comparisons remain readable before JavaScript loads. */
 .code-comparison {
   margin-block: var(--space-6);
@@ -98,11 +154,13 @@ pre code {
   background: var(--surface);
   min-width: 0;
 }
+
 .comparison-switch {
   display: flex;
   gap: var(--space-2);
   margin-bottom: 20px;
 }
+
 .comparison-switch button {
   min-height: 44px;
   padding: var(--space-2) 18px;
@@ -111,46 +169,57 @@ pre code {
   background: transparent;
   color: var(--muted);
 }
+
 .comparison-switch button:hover {
   color: var(--text);
 }
+
 .comparison-switch button[aria-pressed='true'] {
   color: var(--text);
   border-color: var(--accent-line);
   background: var(--accent-soft);
 }
+
 .code-comparison pre {
   height: 22.5rem;
   overflow: auto;
 }
+
 .code-comparison [data-code-choice] > p {
   color: var(--muted);
   font-size: var(--text-base);
 }
+
 @media (max-width: 800px) {
   pre {
     padding-inline: var(--space-4);
   }
+
   .code-comparison {
     padding: var(--space-3);
   }
 }
+
 .prose .code-wrap,
 .prose pre {
   border-color: var(--line);
 }
+
 .prose .code-wrap {
   box-shadow: 2px 2px 0 var(--shadow);
 }
+
 .code-head {
   background: var(--bg-soft);
   color: var(--prose);
 }
+
 .code-head > span {
   font-family: var(--sans);
   font-size: var(--text-sm);
   letter-spacing: 0;
 }
+
 .copy-button::before {
   content: '';
   width: 16px;
@@ -159,26 +228,32 @@ pre code {
   background: currentColor;
   mask: url('../assets/icons/copy.svg') center / contain no-repeat;
 }
+
 .copy-button[data-copied]::before {
   mask-image: url('../assets/icons/check.svg');
 }
+
 /* Theme colors are supplied by the build-time highlighter. */
 .shiki.has-highlighted .line {
   display: inline-block;
   min-width: 100%;
 }
+
 .shiki .line.highlighted {
   background: var(--accent-soft);
   box-shadow: inset 2px 0 0 var(--accent);
 }
+
 .shiki,
 .shiki span[style],
 .code-morph-token[style] {
   color: light-dark(var(--shiki-light), var(--shiki-dark)) !important;
 }
+
 .prose pre code {
   counter-reset: code-line;
 }
+
 .prose pre .line::before {
   counter-increment: code-line;
   content: counter(code-line) / '';
@@ -190,11 +265,13 @@ pre code {
   opacity: 0.8;
   user-select: none;
 }
+
 @media (max-width: 800px) {
   .prose pre .line::before {
     margin-right: 1.5ch;
   }
 }
+
 @media (forced-colors: active) {
   .shiki,
   .shiki span[style],

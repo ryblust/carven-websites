@@ -1,10 +1,12 @@
 ---
-title: "Constants, const fn, and execution budgets"
+title: "Constants and compile-time computation"
 description: "Constant facts, module constants, compile-time functions, text freezing, and resource limits."
 section: reference
 lesson: 17
 source: docs/language/constants.md
 ---
+
+Use `carven check main.cv` to evaluate the static roots in each complete example. Examples with top-level runtime statements can also run with `carven main.cv`.
 
 ## Execution stages
 
@@ -48,7 +50,7 @@ They use ordinary expression typing, scopes, access rules, and control flow.
 ```carven
 const compact = true;
 const width = if compact { 4usize } else { 8usize };
-const values: [i32; if compact { 2usize } else { 4usize }] = [0, 0];
+const table: [i32; if compact { 2usize } else { 4usize }] = [0, 0];
 ```
 
 Every branch receives name, type, access, and failure checks. Branch results must have compatible types. Selecting one branch cannot select a different result type. Execution evaluates only the selected path. Branch-local bindings
@@ -85,38 +87,9 @@ observation can execute at its ordinary static-stage position, but type formatio
 cannot pre-read it. Constant value formation and type validity retain their
 ordinary rules.
 
-Static values do not guide ordinary control analysis. Only
-`const if` selects by a static value.
+Ordinary conditions follow the [control-flow analysis rules](/reference/control/#order-and-inactive-code), even when their values are known. [`const if`](/reference/functions/#static-control) selects specialization explicitly.
 
-A constant integer cast to an `N`-bit integer reduces the mathematical value
-modulo `2^N`. An unsigned target is that residue; a signed target interprets the
-same bits as an `N`-bit two's-complement value. Accepted constant casts remain
-constant facts.
-
-Integer literals are range checked for their selected type. Integer negation,
-addition, subtraction, multiplication, and left shift wrap to that type's width
-in both static execution and runtime execution. Division by zero and invalid
-shift counts are diagnostics when evaluated during compilation; runtime execution
-terminates for those conditions. Evaluation never relies on undefined host
-arithmetic. A wrapping operation in an ordinary `let` initializer follows the
-same rule as one in a constant initializer.
-
-Floating literals, exact widening casts, and equality can supply constant facts.
-Static execution supports floating arithmetic and ordering; for
-example, `const sum = 1.0 + 2.0;` evaluates to `3.0`. Ordinary runtime floating
-arithmetic, ordering, and integer-to-floating casts do not acquire optional
-constant facts from host execution;
-they retain the target's native operations. Negation of a numeric literal is
-normalized with its sign during literal checking, including through grouping
-parentheses.
-Thus `-(2147483648)` is a valid `i32` minimum even though the positive literal
-alone is out of range.
-
-A known runtime result does not make an expression admissible in a `const`
-initializer. For example, `(source() == 1) && false` still contains a general
-call and is not a constant expression. In a runtime expression, knowing the
-result does not remove evaluation of operands that execute under the ordinary
-short-circuit rules.
+Integer calculations and casts use the [numeric rules](/reference/types/#arithmetic-and-termination). An operation reached during required static execution reports a compilation diagnostic for division by zero or an invalid shift. Floating calculations use the compiler host's floating environment. A known runtime result does not make an ordinary function call admissible in a static root; its target must have `const fn` capability.
 
 ## Constant blocks
 
@@ -128,7 +101,9 @@ at module scope or wherever a block accepts statements:
 ```carven
 const {
     var total = 0;
-    for index in 0..10 { total += index; }
+    for index in 0..10 {
+        total += index;
+    }
     println(total);
 }
 
@@ -196,10 +171,7 @@ rules. Every function body undergoes ordinary type, effect, ownership, and
 lifetime validation. A `const fn` can also run at runtime; a runtime call remains
 an ordinary call even when all arguments happen to be known.
 
-`const` declares that a callable can execute in the static stage; it does not
-promise purity or results determined solely by its arguments. Observable work
-happens in the selected execution stage. Declaring a `const fn` does not execute
-it, and an ordinary call does not move its effects into compilation.
+A `const fn` can modify local state and perform supported host effects, including input, printing, clock queries, and waiting. A static root uses the compiler host's resources; an ordinary runtime call uses the program's resources. Declaring the function performs no execution.
 
 A parameter declared `const name: T` requires an admitted constant source in every
 execution mode. Executor-known values of ordinary parameters, `let`, and `var` do
@@ -223,104 +195,59 @@ definition cannot require an unresolved generic environment. It has no deferred
 parameter-dependent execution at concrete application time. The containing
 `const fn` may still execute ordinary generic calls after its arguments close.
 
-Execution checks budgets and dynamic errors. Completed static roots also
-check result publication. Language arithmetic and effects are the same in
-both stages.
+Execution checks budgets and dynamic errors; completion checks whether the result can freeze. Calls within one static root share its budgets. Completed host effects remain observable after a later failure. The budgets bound execution steps and construction work, but impose no elapsed-time limit on input or waiting.
 
-Builtin input and time operations, including deadline composition,
-support explicit static execution through the compiler host. They use that
-process's input and monotonic clock. Cold construction retains arguments; awaiting
-or starting the operation performs the read or wait. Cold operations remain local
-execution values and cannot be frozen as module constants. Results and failures
-follow the ordinary retention and typed failure rules.
+Cold input and time operations retain arguments at construction. Awaiting or starting an operation performs its read or wait. A cold operation is local execution state and cannot freeze as a module constant. See [async operations](/reference/async/), [time](/reference/time/), and [input and output](/reference/io/) for the admitted host operations and their failure contracts.
 
-Host effects already completed remain observable after a later static failure.
-Execution budgets bound steps, text, and aggregate work. They do not impose an
-elapsed-time limit on input or waiting. Ordinary runtime calls use the program's
-host resources and preserve their required effects.
-
-```carven
+```carven run
 const fn label(count: i32) -> String {
     var result = String {};
     for index in 0..count {
         result.append_format(f"{index:02}");
     }
-    return result;
+    return &&result;
 }
 
-const name: str = label(3); // "000102", with no runtime String owner
-const fn decorate(value: String) -> String => f"[{value}]";
-const decorated = decorate(label(3)); // "[000102]"
+const name: String = label(3);
+const view: str = name;
+println(view); // 000102
 ```
 
-Function signatures follow ordinary rules, including Read, Write, and Take
-parameters. Unit values are supported in parameters, results, bindings and
-aggregate components. Retention checks the completed result and its selected enum payloads. Declaring
-a `const fn` also requires its types and reachable operations to support execution
-for the function's possible inputs. Static execution supports
-scalar arithmetic, comparisons, logical operations and casts; local
-initialization, assignment and Take; `if`, `match`, `while`, C-style loops,
-integer ranges, array and slice loops; `return`, `break`, `continue`, direct
-calls to `const fn`, and indirect calls through local bindings of named
-`const fn`. Match supports builtin and enum subjects
-with literal, integer range, enum-case, binding, wildcard and or patterns, including guards.
-Recursion is allowed when signatures and bodies can be completed without a
-construction dependency cycle; the `const fn` capability check handles its
-recursive direct-call graph without proving termination.
+### Admitted operations
 
-Text operations include `String {}`, `String::from_str`, the owning
-`str as String` conversion, `as_str`, `byte_length`, `is_empty`, `append`, `append_format`,
-`push`, `clear`, byte and character views and iteration, and interpolation. Formatting
-uses the static builtin text and numeric contracts; dynamic format operands evaluate
-before formatting. Invalid or unsupported specifications produce execution diagnostics.
-Widths, precisions, and output bytes are bounded by the text budget.
+The following operations can execute in a static root, subject to their ordinary type, access, failure, and lifetime rules:
 
-Fixed arrays support construction, indexing, element assignment, equality,
-independent copies, Read and Write iteration, whole-binding Take, and function
-parameters and results.
-Vectors support empty and literal construction, copying from slices, checked
-indexing, Read and Write iteration, independent copies, whole-owner Take, borrowed
-slicing, and `length`, `is_empty`, `push`, `remove`, and `clear`. Removal returns
-the extracted owner. Capacity construction, queries, and reservation are also
-available. Capacity is logical execution state, independent of host allocation.
-Completed vectors preserve contents and capacity; nested String and Vector
-owners preserve their types. Retained slices require live, eligible backing at
-initializer completion. Returning a borrowed local from a function is still invalid.
-Structs support positional and named construction, field access and assignment,
-independent copies, whole-binding Take, and parameters and results.
-Tuples support construction, positional element access, destructuring, equality,
-independent copies, Take, and parameters and results. Their components follow
-the ordinary access and borrowing rules.
-Enums support case construction, payload matching, equality, copies, Take, and
-parameters and results. Fields, elements, and payloads follow the same execution
-type rules recursively; publishing a completed constant also requires each
-component to support freezing. Construction evaluates initializers in source
-order. Freezing preserves nominal identity, array extents, tuple arity and nesting, and component types;
-it retains owning String and Vector fields and elements with their original types.
-Empty array literals require an expected element type.
+| Values or control                           | Supported work                                                                                                                                                                  |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Scalars and unit                            | Arithmetic, comparisons, logical operations, casts, and `void` values in parameters, results, and aggregates                                                                    |
+| Control flow                                | `if`, `match`, `while`, C-style and iteration loops, `return`, `break`, and `continue`; recursion within the execution budget                                                   |
+| Structs, classes, tuples, enums, and arrays | Construction, field or element access, admitted mutation, copying, whole-owner Take, parameters, and results; equality where the type supports it                               |
+| `Vector<T>`                                 | Literal and empty construction, copying from slices, indexing, iteration, whole-owner Take, slicing, `push`, `remove`, `clear`, capacity construction, queries, and reservation |
+| Text                                        | Owning construction, `as_str`, byte and character views, byte indexing and byte/character iteration, `append`, `append_format`, `push`, `clear`, and supported interpolation    |
+| Slices                                      | Queries, indexing, subslicing, iteration, and borrowing live array or Vector backing                                                                                            |
+| SIMD                                        | Operations admitted by the [SIMD execution contracts](/reference/simd/)                                                                                                         |
+| Calls                                       | Known `const fn` targets, including local bindings of named `const fn`, and admitted built-in operations                                                                        |
 
-Read arguments containing array, Vector, or String storage observe their contents after
-all arguments have evaluated. Other supported values are snapshotted at their
-argument position. Field and index projections follow the selected value's type.
-Slice operations, including `slice().length()`, indexing, and subslicing, can
-execute against live backing storage. Slice chains preserve the selected element
-identity during execution. Completed results become frozen slices at a constant
-initializer; runtime copies use the ordinary slice API and borrowing rules.
+Construction evaluates initializers in source order. Empty array literals require an expected element type. Nested fields, elements, and enum payloads must themselves support execution. Class operations retain their private representation permissions and must have `const fn` capability. Native C++ construction and calls remain outside this execution subset, including native functions declared C++ `constexpr`.
 
-String values retain owning copy and Take behavior within and between constant
-function calls. Read String operands observe their contents after all arguments
-or interpolation holes have evaluated, following the ordinary evaluation order.
-The completed constant initializer preserves the owning result type. Thus
-`const text = label(3)` has type `String`; an explicit `str` destination borrows
-the completed bytes. Reads use immutable retained storage, while value copies
-construct independent owners.
+Read arguments containing array, Vector, or String storage observe their contents after all arguments have evaluated. Other supported values are snapshotted at their argument position. Interpolation holes follow the same order: owning String operands are read after all holes complete, and borrowed views keep their backing protected. See [Read values and aliases](/reference/ownership/#read-values-and-aliases) and [formatting](/reference/formatting/).
+
+`char::from_u32_unchecked` can execute here, but its operand must be a Unicode scalar. Surrogates and values above U+10FFFF produce `CV-CONST-EVALUATION` when reached.
+
+### Pointers and callable views
+
+Local pointer creation, Read and Write calls, and dereference of live local targets are supported. The evaluator tracks local object lifetimes across calls and scopes. Dereferencing after a target's scope ends or after Take produces `CV-CONST-EVALUATION`; assigning new storage to a Taken owner does not revive the old address. Assignment to a live owner preserves its identity. Non-null local pointers cannot freeze as constant results.
+
+Erased pointer formatting produces `const@nonnull` or `const@null`. These strings can freeze as ordinary text. Non-null erased pointers, including erased C string pointers, remain local execution values.
+
+Static and interpreted execution support direct function-to-view adaptation and same-type view copies. Widening an existing view requires a target borrow and is unsupported for live elements. Empty arrays need no element adaptation. An unresolved adaptation identity produces an execution diagnostic. Calls through callable values require an executable Carven body.
+
+## Compile-time failure contracts
 
 Typed failure contracts use the ordinary language rules during static execution:
 `throw` creates a typed payload, `?` propagates it, and `try/catch` matches its type
 and payload. Guards, alternatives, nested recovery and `rethrow` work with the
-same execution machinery as calls and control flow. A catch binding can be taken
-without consuming the original failure retained for `rethrow`. Failure payloads
-can contain owning text and supported aggregates.
+same execution machinery as calls and control flow. Catch bindings and the original failure follow the [ordinary payload access and lifetime rules](/reference/failures/#rethrow-and-lifetimes). Failure payloads can contain owning text and supported aggregates.
 
 At a `const` initializer or array extent, `fallible()?` explicitly
 propagates to the evaluation entry: a successful result can form the constant;
@@ -331,48 +258,9 @@ validated by the same failure solver as ordinary bodies. `const test` retains it
 static rule that no typed failure may escape the test. Evaluator errors, exhausted
 budgets and failed test assertions cannot be caught as typed failures.
 
-Static execution uses the same admitted Carven function bodies as
-ordinary execution, including local pointer creation, Read and Write calls,
-and dereference of live local targets. The evaluator tracks each local object's
-lifetime across calls and scopes. A pointer to an object after its scope exits
-or after Take fails on dereference with `CV-CONST-EVALUATION`, even if that
-storage is assigned again. An ordinary assignment to a live object preserves
-its identity. Non-null local pointers cannot become published constant values.
-Erased pointer formatting in static execution produces `const@nonnull` or
-`const@null`. These strings can be returned, queried, and frozen through ordinary
-text operations. Non-null erased pointers, including erased C string pointers,
-remain execution-local.
-
-Static and interpreted execution support direct function-to-view adaptation and
-same-type callable-view copies. Widening an existing view requires a target
-borrow and is unsupported for live elements. Empty arrays require no element
-adaptation. An unresolved adaptation identity produces an execution diagnostic.
-
-Native operations and calls through callable values without an executable Carven
-body remain outside the static execution subset. Ordinary type, access, ownership
-and lifetime validation applies throughout execution.
-
-Each evaluated call tree has a budget of 100,000 execution steps and 128 nested
-calls. Text construction is limited to 1 MiB per value and 8 MiB of accumulated
-text construction and copying work. Appending charges the added bytes, and
-queries do not copy their receiver. This is a work budget, not a live-memory limit.
-An aggregate value can contain at most 65,536 nested slots and 64 aggregate levels. Slots include sequence elements, tuple elements, struct fields, and enum payloads.
-A call tree permits
-524,288 accumulated slot constructions and copies. Direct aggregate initializers
-use the same value limits and a bounded construction-work budget.
-Constant format specifications additionally have bounded
-nesting. Exhausting a budget diagnoses the static execution; it does not
-fall back to runtime execution. Definition violations use `CV-CONST-ADMISSION`,
-execution-specific failures use `CV-CONST-EVALUATION`, and budget failures use
-`CV-CONST-LIMIT`; type, arithmetic and dependency diagnostics remain
-applicable.
-
-`char::from_u32_unchecked` is admitted in constant initializers and `const fn`
-bodies. The executed operand must be a Unicode scalar value; surrogates and
-values above U+10FFFF produce `CV-CONST-EVALUATION`. Successful construction
-produces an ordinary `char` constant with the same publication rules as a literal.
-
 ## Admission and freezing
+
+Freezing preserves nominal identity, field types, array extents, tuple arity and nesting, and owning String and Vector components. A completed Vector retains its contents and capacity. Copying a retained owner creates independent storage under the ordinary ownership rules.
 
 A constant initializer can retain a borrowed `str` or character view while its
 backing remains alive. The completed view keeps its type and selected UTF-8
@@ -419,6 +307,22 @@ evaluation storage.
 Ordinary runtime array/Vector-to-slice conversions still borrow their source storage;
 known contents alone do not extend that storage's lifetime.
 
-Retaining an array and constructing a constant subslice charge their number of
-element references against the initializer's 524,288-element work budget. The
-source array retains its value-size and nesting limits.
+Retaining an array or constructing a constant subslice counts element references toward the [execution budgets](#execution-budgets).
+
+## Execution budgets
+
+Calls in one static root share these limits:
+
+| Limit                                     | Value   |
+| ----------------------------------------- | ------- |
+| Execution steps                           | 100,000 |
+| Nested calls                              | 128     |
+| One text value                            | 1 MiB   |
+| Accumulated text construction and copying | 8 MiB   |
+| Nested slots in one aggregate             | 65,536  |
+| Aggregate levels                          | 64      |
+| Accumulated slot constructions and copies | 524,288 |
+
+Slots include sequence and tuple elements, struct fields, and enum payloads. Appending charges added bytes; queries do not copy their receiver. Retained arrays and constant subslices charge their element references. These limits measure work rather than live memory. Format specifications also have a nesting limit.
+
+Exhaustion fails compilation with `CV-CONST-LIMIT`; execution errors use `CV-CONST-EVALUATION`, and definition capability errors use `CV-CONST-ADMISSION`. A required static computation must complete within its limits. Type, arithmetic, and dependency diagnostics also apply.

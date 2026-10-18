@@ -12,11 +12,20 @@ import {
 } from '@tanstack/react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DocumentSearch } from '../src/components/DocumentSearch';
+import * as documentSearch from '../src/lib/document-search';
 
 let root: Root | undefined;
 beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   vi.stubGlobal('matchMedia', () => ({ matches: true }));
+  vi.spyOn(documentSearch, 'searchArticles').mockImplementation((_locale, query) => {
+    if (query === 'no-such-document') return [];
+    if (query === 'one-result') return [{ path: '/zh/reference/json/', matchedTerms: [] }];
+    return [
+      { path: '/zh/learn/first-program/', matchedTerms: [] },
+      { path: '/zh/reference/json/', matchedTerms: [] },
+    ];
+  });
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   // jsdom has no native modal behavior or page layout.
   HTMLDialogElement.prototype.showModal = function () {
@@ -39,7 +48,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-async function openSearch(query = '失败') {
+async function openSearch(query = 'sample') {
   const routeRoot = createRootRoute({
     component: () => (
       <>
@@ -69,6 +78,7 @@ async function openSearch(query = '失败') {
   await act(() => trigger.click());
   const input = host.querySelector<HTMLInputElement>('input[type="search"]')!;
   await setQuery(input, query);
+
   return {
     host,
     router,
@@ -132,10 +142,27 @@ describe('search keyboard navigation', () => {
     await key('ArrowDown');
     expect(document.activeElement).toBe(links()[0]);
     await act(() => input.focus());
-    await setQuery(input, 'validate_utf8');
+    await setQuery(input, 'one-result');
     await key('ArrowDown');
     expect(document.activeElement).toBe(links()[0]);
-    expect(document.activeElement?.getAttribute('href')).toBe('/zh/reference/library/');
+    expect(document.activeElement?.getAttribute('href')).toBe('/zh/reference/json/');
+  });
+
+  it('opens a body symbol at its named section', async () => {
+    vi.mocked(documentSearch.searchArticles).mockReturnValue([
+      {
+        path: '/zh/reference/json/',
+        matchedTerms: ['Packet::item_at'],
+        section: { id: '方法-1', title: '示例方法' },
+      },
+    ]);
+    const { router, dialog, links } = await openSearch('Packet::item_at');
+    const result = links()[0]!;
+    expect(result.getAttribute('href')).toBe('/zh/reference/json/#' + encodeURIComponent('方法-1'));
+    await act(() => result.click());
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/zh/reference/json/'));
+    expect(decodeURIComponent(router.state.location.hash)).toBe('方法-1');
+    expect(dialog.open).toBe(false);
   });
 
   it('keeps empty results usable and restores trigger focus when closed', async () => {
@@ -150,7 +177,7 @@ describe('search keyboard navigation', () => {
   });
 
   it('leaves composition keys alone and opens the first result from the input', async () => {
-    const { router, input, dialog, links } = await openSearch('validate_utf8');
+    const { router, input, dialog, links } = await openSearch('one-result');
     await act(() =>
       input.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true })),
     );

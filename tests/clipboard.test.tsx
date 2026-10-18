@@ -35,12 +35,14 @@ async function renderCopy(source: string, locale: Locale = 'en') {
             range.selectNodeContents(host.querySelector('pre')!);
             window.getSelection()!.removeAllRanges();
             window.getSelection()!.addRange(range);
+
             return true;
           }}
         />
       </>,
     ),
   );
+
   return host;
 }
 

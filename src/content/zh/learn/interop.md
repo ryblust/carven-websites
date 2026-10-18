@@ -18,9 +18,9 @@ printf(c"%s\n", greeting);
 println(greeting);
 ```
 
-`carven hello.cv` 输出两次 Hello from C++：一次来自 `printf`，一次来自 `println`。头导入提供 C++ 声明，using 让名字可查找。c 字面量是尾随 NUL 的原生 `const char*`，不是 `str`；内部 NUL 被拒绝。`println` 和默认插值把 C 字符串的字节作为文本显示，而不是显示地址。
+`carven hello.cv` 输出两次 Hello from C++：一次来自 `printf`，一次来自 `println`。导入头文件可提供 C++ 声明，using 引入要调用的名字。c 字面量是尾随 NUL 的原生 `const char*`，不是 `str`；内部 NUL 被拒绝。`println` 和默认插值把 C 字符串的字节作为文本显示，而不是显示地址。
 
-也可用 `::std::printf` 明确全局 C++ 路径。Carven 不读取头文件内容，C++ 编译器检查函数存在、重载和实参是否合法。`carven interpret` 接受带头导入的文件，但执行到 `printf` 这样的原生调用时会以 `CV-INTERPRET-ADMISSION` 停止；原生代码请用 `carven` 运行。
+也可用 `::std::printf` 明确全局 C++ 路径。Carven 不读取头文件内容，C++ 编译器检查函数存在、重载和实参是否合法。`carven interpret` 接受导入了头文件的文件，但执行到 `printf` 这样的原生调用时会以 `CV-INTERPRET-ADMISSION` 停止；原生代码请用 `carven` 运行。
 
 ## 原生类型
 
@@ -37,9 +37,9 @@ println(count, values[3]);
 
 ## 选择标准能力或原生依赖
 
-Carven 可增长数据使用数据章节的 `Vector<T>`，JSON 使用拥有内容的 `std::json` API；两者都不需要第三方 C++ 依赖：
+Carven 可增长数据使用数据章节的 `Vector<T>`，JSON 使用自己管理数据的 `std::json` API；两者都不需要第三方 C++ 依赖：
 
-```carven
+```carven run
 import std::json using { Value, JSONError, ValueError };
 
 fn configure(text: str) -> String throw JSONError + ValueError {
@@ -53,7 +53,7 @@ fn configure(text: str) -> String throw JSONError + ValueError {
 println(configure(r#"{"enabled":true}"#)?);
 ```
 
-输出 `{"enabled":true,"port":8080}`。解析、修改和写出保持受检查的 Carven 失败，支持原生、解释与显式静态执行。[输入项目](/zh/learn/data-pipeline/)会用这个 API 构造流式工作流。
+输出 `{"enabled":true,"port":8080}`。值操作见[JSON 参考](/zh/reference/json/)；处理输入记录的例子见[输入项目](/zh/learn/data-pipeline/)。
 
 依赖提供所需原生能力或已有 C++ 类型时，使用头文件导入。头文件导入不安装库或配置链接。包含路径、版本、标志和链接库都放在原生构建里。调用者需要类型化恢复时，应在 provider 边界转换外部异常。
 
@@ -77,7 +77,7 @@ println(doubled(21));
 
 输出 42。cpp 片段原样进入实现，import(cpp) 让 Carven 调用同名全局提供者，export(cpp) 把包装函数放进模块的生成 API。C++ 调用方包含生成的 `carven/api/<模块名>.hpp` 头文件，使用 `carven::api` 下对应的模块命名空间。
 
-这个例子先使用整数契约。同一边界也支持普通 Carven 类型、Write/Take 和声明失败，原生提供者须满足生成的 C++ 契约。可以先尝试一个小的导出函数，再为复杂类型接入原生提供者。
+下一个例子会为这个接口添加可写参数和声明的失败。
 
 ## 导出修改和失败契约
 
@@ -99,22 +99,26 @@ export(cpp) fn rename(&label: String, next: str) throw EmptyLabel {
 ```carven
 test "rename a label" {
     var label: String = "before";
+
     try {
         rename(&label, "after")?;
     } catch {
         EmptyLabel(_) => fail("nonempty label was rejected"),
     }
+
     check(label == "after");
 }
 
 test "reject an empty label" {
     var label: String = "before";
+
     let rejected = try {
         rename(&label, "")?;
         false
     } catch {
         EmptyLabel(_) => true,
     };
+
     check(rejected);
     check(label == "before");
 }
@@ -125,7 +129,7 @@ carven --tests labels.cv
 carven compile -o generated labels.cv
 ```
 
-两条测试都应通过：成功时文本变为 after，失败时仍是 before。`carven interpret --tests labels.cv` 不调用 C++ 编译器也能运行同样的测试。打开 `generated/carven/api/labels.hpp` 查看生成的接口声明。Write 参数成为可变引用，声明失败成为 `carven::runtime::Outcome`，头文件包含所需类型定义。
+两条测试都应通过：成功时文本变为 after，失败时仍是 before。`carven interpret --tests labels.cv` 不调用 C++ 编译器也能运行同样的测试。打开 `generated/carven/api/labels.hpp` 查看生成的接口声明。Write 参数成为可变引用，声明的失败使用 `carven::runtime::Outcome`，头文件包含所需类型定义。
 
 C++ 调用者包含这个 API。在 labels.cv 旁边保存 consumer.cpp：
 
@@ -141,6 +145,7 @@ int main() {
     if (!renamed.success_if() || rejected.success_if()) {
         return 1;
     }
+
     std::cout << label.as_str() << '\n';
 }
 ```
@@ -159,9 +164,9 @@ clang++ -std=c++20 -Igenerated -I/path/to/carven/crafts \
 
 ## 异常和借用
 
-生成函数具有 noexcept 边界，C++ 异常逃出会终止。Carven try 不捕获原生异常。需要恢复时，在原生适配函数中先 catch，再通过选定接口返回结果。
+Carven try 不捕获 C++ 异常。调用者需要类型化恢复时，应在原生适配函数中转换异常，下一个例子会演示。
 
-Carven 跟踪已知存储和文本的底层存储，但不证明任意 C++ 返回指针所指对象是否存活，也不推断原生函数是否长期保留参数。这些要求由调用者与提供者共同保证。
+调用者与 provider 必须保证 C++ 返回或保留的指针仍然有效。生命周期责任见[互操作参考](/zh/reference/interop/)。
 
 ## 把原生异常转换为声明的失败
 
@@ -169,24 +174,27 @@ Carven 跟踪已知存储和文本的底层存储，但不证明任意 C++ 返�
 
 ```carven
 import <cstdint>;
+import <stdexcept>;
 import <string>;
 import <string_view>;
 
 struct InvalidPort {}
 
 #[cpp] ---
-#include <carven/runtime/outcome.hpp>
+#include <carven/runtime/value/outcome.hpp>
 
 template<typename Failure>
 auto parse_port_native(std::string_view text, const Failure& invalid) noexcept
     -> carven::runtime::Outcome<std::int32_t, Failure> {
     using Result = carven::runtime::Outcome<std::int32_t, Failure>;
+
     try {
         std::size_t used = 0;
         const int port = std::stoi(std::string{text}, &used);
         if (used != text.size() || port < 1 || port > 65535) {
             return Result::failure(invalid);
         }
+
         return Result::success_from([port]() noexcept -> std::int32_t { return port; });
     } catch (const std::invalid_argument&) {
         return Result::failure(invalid);
@@ -227,4 +235,4 @@ Invalid port: 80suffix
 
 ## 练习
 
-把 native_double 改成返回 value + 2，确认输出改变。再去掉 cpp 提供者，只保留 import(cpp)，观察原生声明/链接边界的失败。提供者是否存在由原生编译和链接检查。
+回到 native_double 示例，把函数体改为返回 value + 2，再次运行，应输出 `23`。再去掉 cpp 提供者，只保留 import(cpp)，观察原生声明/链接边界的失败。提供者是否存在由原生编译和链接检查。

@@ -20,6 +20,7 @@ export const generateContent = Effect.fn('generateContent')(function* (root: str
     { concurrency: 4 },
   );
   const paths = new Set<string>();
+
   for (const article of articles) {
     if (
       [
@@ -46,8 +47,10 @@ export const generateContent = Effect.fn('generateContent')(function* (root: str
         cause: `Duplicate route: ${article.path}`,
       });
     }
+
     paths.add(article.path);
   }
+
   // Every article must have a matching translation.
   for (const article of articles) {
     const counterpart = article.path.startsWith('/zh/')
@@ -67,6 +70,7 @@ export const generateContent = Effect.fn('generateContent')(function* (root: str
       });
     }
   }
+
   for (const prefix of ['', '/zh'] as const) {
     for (const section of ['learn', 'reference'] as const) {
       const chapters = articles
@@ -87,6 +91,7 @@ export const generateContent = Effect.fn('generateContent')(function* (root: str
       }
     }
   }
+
   const names = Array.from(
     new Set(
       homeShowcase.flatMap((example) => [
@@ -115,5 +120,6 @@ export const generateContent = Effect.fn('generateContent')(function* (root: str
     Object.fromEntries(examples.map(({ name, tokens }) => [name, tokens])),
   );
   yield* Effect.logInfo(`Prepared ${articles.length} articles.`);
+
   return articles.map((article) => article.path);
 });

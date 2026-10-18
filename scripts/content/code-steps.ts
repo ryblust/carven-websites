@@ -19,6 +19,7 @@ export function precompileCodeSteps(tokens: Readonly<Record<string, KeyedTokensI
       matches: {},
     },
   ]);
+
   for (const [sourcePosition, [sourceName, source]] of entries.entries()) {
     const indices = new Map(source.tokens.map((token, index) => [token.key, index]));
     for (
@@ -43,6 +44,8 @@ export function precompileCodeSteps(tokens: Readonly<Record<string, KeyedTokensI
       steps[sourcePosition]![1].matches[targetName] = matches.map(([from, to]) => [to, from]);
     }
   }
+
   cached = { signature, steps };
+
   return steps;
 }

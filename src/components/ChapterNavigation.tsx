@@ -1,25 +1,17 @@
 import { ChapterIcon } from './ChapterIcon';
 import { Link } from '@tanstack/react-router';
 import { localeOf, localizedPath, translate } from '../lib/i18n';
-import { articles, lessonPaths, type ArticlePath } from '../generated/manifest';
+import { articles, type ArticlePath } from '../generated/manifest';
 import { chapterLabel } from '../lib/chapter-labels';
 import { referenceNavigationGroups } from '../lib/reference-navigation';
+import { learnNavigationGroups } from '../lib/learn-navigation';
 
 export function ChapterNavigation({ path, reference }: { path: ArticlePath; reference: boolean }) {
   const locale = localeOf(path);
   const t = translate(locale);
   const home = localizedPath(reference ? '/reference/' : '/learn/', locale) as ArticlePath;
-  const groups = reference
-    ? referenceNavigationGroups(locale)
-    : [
-        {
-          id: 'lessons',
-          title: t('教程章节', 'Lessons'),
-          entries: lessonPaths
-            .filter((item) => localeOf(item) === locale)
-            .map((item) => ({ path: item })),
-        },
-      ];
+  const groups = reference ? referenceNavigationGroups(locale) : learnNavigationGroups(locale);
+
   return (
     <nav
       className="chapter-list"

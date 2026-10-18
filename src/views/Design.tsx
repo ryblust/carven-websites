@@ -11,11 +11,8 @@ import '../styles/design.css';
 
 export default function Design({ locale }: { locale: Locale }) {
   const t = translate(locale);
-  const featuredPath = localizedPath('/internals/compiler-architecture/', locale);
-  const featured = articles[featuredPath as keyof typeof articles];
-  const groups = designReadingGroups.slice(1);
+  const groups = designReadingGroups;
   const headings = [
-    { level: 2, id: 'design-start', title: t('从这里开始', 'Start here') },
     ...groups.map((group) => ({ level: 2, id: `design-${group.id}`, title: group.title[locale] })),
     { level: 2, id: 'design-next', title: t('开始动手', 'Start writing') },
   ];
@@ -40,16 +37,16 @@ export default function Design({ locale }: { locale: Locale }) {
             <h1>
               <span>
                 {t(
-                  '从设计到实现，读懂 Carven。',
-                  'Understand Carven, from intent to implementation.',
+                  '理解语言的选择，了解程序如何运行。',
+                  'Understand the language and how programs run.',
                 )}
               </span>
             </h1>
           </div>
           <p>
             {t(
-              '从语法与语义分析，到 C++ 生成、运行库和原生集成。沿着一个程序的路径，理解整体架构，再展开具体的设计。',
-              'From syntax and semantic analysis to C++ generation, runtime support, and native integration. Follow a program through the architecture, then explore the individual designs.',
+              '先看类型推断、失败处理与编译期执行的设计，再沿编译流程了解内建能力、运行支持和 C++ 集成。',
+              'Explore inference, failure handling, and compile-time execution, then follow compilation through built-in capabilities, runtime support, and C++ integration.',
             )}
           </p>
         </header>
@@ -69,34 +66,6 @@ export default function Design({ locale }: { locale: Locale }) {
             ))}
           </nav>
         </details>
-
-        <section aria-labelledby="design-start">
-          <h2 id="design-start" className="design-section-label">
-            {t('从这里开始', 'Start here')}
-          </h2>
-          <Link className="design-featured" to={featuredPath}>
-            <div>
-              <span className="design-topic">{t('编译器架构', 'Compiler architecture')}</span>
-              <h3>{featured.title}</h3>
-              <p>{plainInlineText(featured.description)}</p>
-              <span className="design-read">
-                {t('走进编译器', 'Explore the compiler')} <UIIcon icon={ArrowRight} />
-              </span>
-            </div>
-            <div className="design-native-sketch" aria-hidden="true">
-              <span>main.cv</span>
-              <svg viewBox="0 0 100 28">
-                <path d="M4 14q42-5 90 0m-13-9 13 9-14 9" />
-              </svg>
-              <span>SemIR</span>
-              <svg viewBox="0 0 100 28">
-                <path d="M4 14q42-5 90 0m-13-9 13 9-14 9" />
-              </svg>
-              <span>C++</span>
-              <small>{t('理解程序 · 检查契约 · 实现语义', 'Understand · Check · Realize')}</small>
-            </div>
-          </Link>
-        </section>
 
         {groups.map((group) => (
           <section
@@ -118,7 +87,6 @@ export default function Design({ locale }: { locale: Locale }) {
                         {String(index + 1).padStart(2, '0')}
                       </span>
                       <div>
-                        <span className="design-topic">{item.topic[locale]}</span>
                         <h3>{article.title}</h3>
                         <p>{plainInlineText(article.description)}</p>
                         <span className="design-read">

@@ -1,8 +1,8 @@
 ---
-title: "Async operations and lexical children"
+title: "Async operations and child tasks"
 description: "Create and combine async work, manage child tasks, and handle cancellation and closure."
 section: reference
-lesson: 28
+lesson: 27
 source: docs/language/async.md
 ---
 
@@ -10,9 +10,11 @@ An async function describes work that may wait, such as reading input or sleepin
 
 ## Cold operations and await
 
+Import `Operation` and async callables from `std::async`; see [module bindings](/reference/modules/#standard-modules-and-defaults). An inferred operation needs no type-name import. The keywords `async`, `await`, and `cancel` need no import.
+
 An operation is **cold** until started: creating it does not execute the async function body. `await operation` starts it and waits for completion. `async let child = operation;` starts a child whose lifetime is tied to the surrounding scope. That scope finishes the child before releasing the values it needs.
 
-```carven
+```carven run
 import std::async using yield_once;
 
 async fn next(value: i32) -> i32 {
@@ -28,14 +30,10 @@ async fn main() {
 }
 ```
 
-Calling an `async fn` constructs an operation without executing its body. The
-function's `-> T` is its successful completion type. Its declared `throw` set is
-delivered when awaited. Operations have the same type when their success types and final failure sets match, even if different functions produce them.
-Import `Operation` from `std::async`; use `Operation<T>` for an operation without nominal failures, or
-`Operation<T, throw Error + OtherError>` for its complete completion contract.
-The type can also be inferred from a cold call. Inside a parameterized
-declaration, `Operation<T, throw E>` separates the success type from a failure-set
-parameter containing copyable nominal payload types, possibly the empty set.
+The function's `-> T` is its successful completion type; its declared `throw` set is delivered when awaited. Use `Operation<T>` for an operation without nominal failures, or `Operation<T, throw Error + OtherError>` for its full contract. Matching success types and final failure sets give operations the same type, even when different functions produce them.
+
+Inside a parameterized declaration, `Operation<T, throw E>` separates the success type from a failure-set parameter. The set contains copyable nominal payload types and may be empty; see [failure-set parameters](/reference/failures/#failure-set-parameters).
+
 `Operation<void, throw ()>` and `Operation<void>` both complete successfully with
 the unit value `()` and have no nominal failure alternatives. Cancellation remains a separate completion: it has no failure payload type for a typed catch arm.
 
@@ -65,6 +63,8 @@ Ordinary `try`/`catch` handles those declared failures. Cancellation is a separa
 completion and does not add a nominal type to the failure set. Use await in async bodies, constant initializers, const blocks, and compile-time tests. Structured expressions,
 arguments, returns, and loop steps may contain await and preserve source evaluation order.
 
+Postfix calls, member access, and indexing belong to the await operand. Group an await result before using those operations on its successful value: `(await action()).member`. In `await action().member`, `.member` instead selects part of the operand before awaiting it. A trailing `?` is outside the await operand: `await action()?` propagates the completed operation's failure. Grouping changes that boundary: `await (action()?)` propagates a failure from constructing the operand, then awaits the operation it returns. See [await grammar](/reference/grammar/#72-prefix-expressions).
+
 ## Cold composition
 
 The builtin composition operations `when_all`, `when_any`, and
@@ -78,8 +78,8 @@ Using the `next` definition above, replace the entry with:
 import std::async using when_all;
 
 async fn main() {
-    let results = await when_all(next(4), next(8));
-    println(results.0, results.1);
+    let (first, second) = await when_all(next(4), next(8));
+    println(first, second);
 }
 ```
 
@@ -132,9 +132,7 @@ such an operand remains invalid. A callee has its own child scope and does not
 wait for siblings started by its caller, even though direct awaits share the
 same logical cancellation task.
 
-`cancel` is a reserved keyword. Its statement accepts a named lexical child:
-
-Inside an async body using the `next` definition above:
+`cancel` is a reserved keyword. Inside an async body using `next` above, request cancellation of a named lexical child:
 
 ```carven
 async let child = next(8);
@@ -148,19 +146,13 @@ Import the following callables from `std::async`:
 
 | Operation                              | Behavior                                                                                                            |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `cancel_requested()`                   | Read the current task's request; false outside async execution                                                      |
-| `cancel_point()`                       | Cold void operation accepting a pending request as cancelled completion                                             |
-| `yield_once()`                         | Cold void operation that queues the current task continuation at the FIFO tail when executed                        |
+| `cancel_requested() -> bool`           | Read the current task's request; false outside async execution                                                      |
+| `cancel_point() -> Operation<void>`    | Cold void operation accepting a pending request as cancelled completion                                             |
+| `yield_once() -> Operation<void>`      | Cold void operation that queues the current task continuation at the FIFO tail when executed                        |
 | `await wait_ready(first, second, ...)` | Wait for a child's terminal completion; return its input position and committed cancellation bit as `(usize, bool)` |
 | `await close(child)`                   | Request cancellation, wait for completion, discard its outcome, and release its active backing loan                 |
 
-Async builtin names follow ordinary lookup. Local bindings, module declarations,
-and module bindings determine the selected entity. Explicit native selections
-retain their conflict rules with explicit Carven imports. Opened C++
-namespaces provide fallback for names not otherwise resolved. The selected
-declaration determines the call contract in both synchronous and async bodies.
-Each async builtin requires a direct call; taking one as a callable value,
-capturing it, or passing it as a function argument is rejected.
+These helpers have no declared failures. Each async builtin requires a direct call; taking one as a callable value, capturing it, or passing it as a function argument is rejected. Names follow ordinary lookup and [native import conflict rules](/reference/interop/) in both synchronous and async bodies.
 
 Constructing a cold yield or cancellation checkpoint does not execute it. The
 checkpoint reads the request when started or awaited. Yield does not implicitly
@@ -181,7 +173,9 @@ import std::async using { wait_ready, close };
 
 async let first = next(4);
 async let second = next(8);
+
 let (index, cancelled) = await wait_ready(first, second);
+
 if index == 0 {
     await close(second);
     if cancelled { await close(first); } else { println(await first); }

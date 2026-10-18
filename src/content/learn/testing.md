@@ -43,9 +43,9 @@ This example also fits the interpreter subset. Run the same tests without invoki
 carven interpret --tests totals.cv
 ```
 
-The interpreter prints the same summary. Each test gets independent storage and an execution budget. Tests that reach native C++ operations need native mode. To check without executing ordinary tests, use `carven check totals.cv`; `const test` still executes during checking.
+The interpreter prints the same summary. To check without executing ordinary tests, use `carven check totals.cv`; `const test` still executes during checking.
 
-To integrate tests into your own C++ build, use `carven compile --tests -o generated totals.cv` for a default test entry, or `--tests=external` for your own entry and reporter. See [CLI Reference](/reference/cli/) for source collection and entry selection.
+See the [CLI reference](/reference/cli/) to integrate generated tests into an existing C++ test runner.
 
 ## check, require, and fail
 
@@ -67,9 +67,31 @@ totals.cv:4:5: error: check failed
 carven: tests: 1 passed; 1 failed
 ```
 
-The first line gives the source location of the failed check. `test` names the module and test; an anonymous test shows its location instead, such as `name: totals.cv:8:1`. `condition` is the source text, and `operands` shows retained outer operands with their values; an operand whose value repeats its source spelling, such as `35`, is omitted. A `message:` line follows when a failed operation has a message; a failed require adds `note: test stopped`. `interpret --tests` prints the same layout. Restore 36 before continuing.
+The first line locates the failed check. `test` identifies its module and name, `condition` shows the source condition, and `operands` shows the compared values. Restore 36 before continuing.
 
-Explanations do not reevaluate operands; a side skipped by `&&` or `||` appears as `<not evaluated>`. Structs and classes have no implicit equality: comparing two such values with `==` reports `CV-TYPE-EQUALITY-UNSUPPORTED`. Compare struct fields explicitly or define a class operation that compares the values it exposes. Structural display remains available for struct operands.
+Explanations do not reevaluate operands; a side skipped by `&&` or `||` appears as `<not evaluated>`. See the [test-report reference](/reference/entry-testing/) for the remaining fields and value display rules.
+
+## Guard a dependent operation
+
+Before reading the first element, use `require` to establish that the collection is nonempty. Save this separate file as `prerequisite.cv`:
+
+```carven
+test "first sample" {
+    let samples: Vector<i32> = [];
+    require(!samples.is_empty(), "need at least one sample");
+
+    check(samples[0] == 7);
+    println("sample checked");
+}
+
+test "next case" {
+    println("next test");
+}
+```
+
+Run `carven --tests prerequisite.cv` or `carven interpret --tests prerequisite.cv`. stdout prints only `next test`. stderr reports `requirement failed`, the message `need at least one sample`, and `note: test stopped`, followed by `carven: tests: 1 passed; 1 failed`. The exit status is 1. The index access and `sample checked` are skipped, while the next test still runs.
+
+Change the empty collection to `[7]` and run again. stdout prints `sample checked` and `next test`, and both tests pass. Using check in place of require would continue into the empty index access and terminate execution; this prerequisite needs to stop the current test.
 
 ## Assert program invariants
 
@@ -98,7 +120,7 @@ stock.cv:2:5: error: assertion failed
   note: execution aborted
 ```
 
-The native process aborts without ordinary stack cleanup, so `not reached` never prints and the exit status is nonzero. assert is always enabled, independently of build configuration and `NDEBUG`, and needs no test context. Its message is evaluated only on failure. An assertion is not a typed failure: try cannot catch it. Under `carven interpret`, a failed assertion stops the whole execution; during compile-time execution it produces `CV-ASSERT`. When an assertion fails inside a test, the report adds the `test:` context and the run aborts without a summary.
+The native process aborts without ordinary stack cleanup, so `not reached` never prints and the exit status is nonzero. assert is always enabled, and its message is evaluated only on failure. An assertion is not a typed failure: try cannot catch it.
 
 See [entry and testing Reference](/reference/entry-testing/) for evaluation order and the complete report fields.
 
@@ -131,13 +153,7 @@ test "reject zero" {
 }
 ```
 
-The summary becomes `carven: tests: 3 passed; 0 failed`. A test must handle every failure its calls can report. This example checks that a failure occurred, that the recovery arm was selected, and that the payload carries the rejected value. A successful-input test must still handle failures declared by the contract, rather than assume the current input cannot fail.
-
-## Read a diagnostic
-
-Start with the original .cv location, then read the diagnostic code and explanation. Types, ownership, failure sets, C++ compilation, and linking are distinct boundaries. Native construction or provider errors may still occur after Carven analysis succeeds. On a terminal, Carven colors its diagnostics; set `NO_COLOR` to disable this.
-
-Use `_` for an intentionally unused value. Warnings do not fail an otherwise valid program. For native errors, inspect includes, provider signatures, and construction requirements.
+The summary becomes `carven: tests: 3 passed; 0 failed`. The new test checks the recovery arm and rejected value. Tests must handle every declared failure, including in successful-input cases.
 
 ## Check products and collection boundaries
 
@@ -162,7 +178,9 @@ test "growing runtime batch" {
     var values: Vector<i32> = [7];
     values.push(-2);
     values.push(4);
+
     check(bounds(values) == (-2, 7));
+
     let removed = values.remove(1);
     check(removed == -2);
     check(bounds(values) == (4, 7));
@@ -173,4 +191,4 @@ test "growing runtime batch" {
 
 ## Exercise
 
-Add an anonymous success test for positive with input 3, then change the input to -1 and read the report. Compare whether a `println` after check(false) and require(false) executes. Change stock.cv so the second call is `remaining(2, 2)` and confirm all three lines print. These are runtime tests; pure compile-time algorithms can additionally use `const test`.
+Add an anonymous success test for positive with input 3, then change the input to -1 and read the report. Compare whether a `println` after check(false) and require(false) executes. Change stock.cv so the second call is `remaining(2, 2)` and confirm all three lines print. These are runtime tests; algorithms declared `const fn` can additionally use `const test` with supported static operations.

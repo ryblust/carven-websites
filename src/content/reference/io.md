@@ -1,12 +1,12 @@
 ---
-title: "Input, output, and byte framing"
+title: "Input, output, and framing"
 description: "Bounded asynchronous input, structural output, UTF-8 errors, and incremental record framing."
 section: reference
-lesson: 30
+lesson: 29
 source: docs/language/io.md
 ---
 
-`std::io` covers two common tasks: write values to stdout or stderr, and read process input as bytes, complete text, or lines. Printing completes immediately; reads return async operations that must be awaited. The framing helpers assemble records when input arrives in chunks.
+`std::io` covers two common tasks: write values to stdout or stderr, and read process input as bytes, complete text, or lines. Printing uses synchronous calls; reads return async operations that must be awaited. The framing helpers assemble records when input arrives in chunks.
 
 ## Capabilities and imports
 
@@ -22,117 +22,44 @@ naming them.
 
 ## Printing
 
-`print`, `println`, `eprint`, and `eprintln` are builtin
-callables; they need no import and follow ordinary name lookup and shadowing.
-They accept one or more Read values and return `void`. `void` and
-character-iteration views are not printable. Arguments are evaluated once, from
-left to right. Values are separated by one space; `println` and `eprintln` append
-one newline.
-`println()` and `eprintln()` also accept no argument to write a newline. Output
-goes to stdout or stderr respectively. No typed failure or `?` is required.
-As with interpolation, scalar Read values are saved and String Read values alias
-their owners. Text views retain their backing throughout argument evaluation
-and printing.
+See [printing](/reference/formatting/#printing) for the `print`, `println`, `eprint`, and `eprintln` contracts, and [structural display](/reference/formatting/#structural-display) for aggregate output.
 
-Direct printing is admitted in functions executed in the static stage, `const` blocks and
-`const test` for the types supported by static execution. Static execution delivers
-output synchronously to the compiler host; runtime calls use the runtime streams. Declaring
-a function does not itself execute it. Optional precomputation does not produce
-static-stage output or remove required runtime printing. Printing follows the
-same argument, separator, newline, and text rules in both stages. Output bytes
-consume the root's cumulative text-work budget. Completed output remains observable
-if later execution fails.
-
-Text is printed verbatim, including embedded NUL bytes. Scalars use their default
-C++ format representation; a Carven `char` prints its UTF-8 text. Formatting is
-explicit through existing interpolation, for example `println(f"{value:04}")`.
-Text arguments are not interpreted as format strings: `println("{value}", 3)`
-prints `{value} 3` followed by a newline.
-
-Direct printing displays logical data structure independently of interpolation's
-formatting protocol. Structures show their source type name and fields in
-declaration order. Enums show `Type::Case` and parenthesized payload values.
-Arrays and slices show bracketed elements; integer ranges show their bounds
-and `..` or `..=`.
-
-Nonempty structures, sequences, and enum payloads use multiline layout. Each
-field or element starts on a new line, indented four spaces per level, and ends
-with a comma. Closing delimiters occupy their own line at the enclosing level.
-Empty structures and sequences remain `Type {}` and `[]`; cases without payloads,
-scalars, and ranges remain on one line without a trailing comma. Layout is
-independent of line width and content length.
-
-```text
-Order {
-    price: Money {
-        cents: 1250,
-    },
-    names: [
-        "a",
-        "b",
-    ],
-}
+```carven run
+println("answer", 42); // answer 42
+println(f"hex: {42:04x}"); // hex: 002a
+eprintln("status", "ready"); // Written to stderr.
 ```
 
-Nested text is double-quoted, escaping quotes, backslashes, newline, carriage
-return, tab, and NUL. Nested characters use single quotes and escape a single
-quote. Top-level text retains the verbatim behavior above.
+## Input and framing types
 
-Native results use C++ type classification. Arithmetic values display their
-scalar values; `char32_t` uses character display, while `char8_t`, `char16_t`, and
-`wchar_t` display numeric code units. `std::string_view` and the runtime `String`
-type use quoted text. `char*` and `const char*` use the text rules above;
-null values display `nullptr`, and non-null values require readable
-NUL-terminated storage. Other pointers convertible to `const void*` display an
-address or `nullptr`. Other external types, function pointers, and callable values
-display `<opaque>`.
-Class values display their type name, including when nested in another value.
+Import these source declarations from `std::io` when naming them. They have no default name bindings; the source function `stdin` is a default.
 
-Structural display never invokes a custom formatter, stream insertion operator,
-or getter, including for nested fields. `println(value)` selects structural
-display; `println(f"{value}")` first performs explicit formatting. Read access and
-backing requirements apply to the complete printed value; display adds no owning
-copy or transfer.
-
-Structural output expands at most eight levels (the root has depth zero), shows
-at most 64 elements per array or slice, and retains at most 16,384 UTF-8 bytes
-before a truncation marker, including layout whitespace. Omitted content is
-marked `...`; a sequence omission occupies an element line ending in a comma.
-These bounds also apply to structural values in assertion explanations, but not to verbatim
-top-level text. Display is diagnostic text, not a serialization format.
-
-Buffering and flushing follow the selected C++ standard-library facilities,
-with no extra flush per call. Native formatting or output failure terminates
-through the runtime's non-throwing contract.
-
-Printing values can use an expected signature, for example
-`let output: fn(str, i32) -> void = println;`, and pass through ordinary callable
-views. The expected signature fixes the parameter count and types.
+| Type           | Contract                                                                                                                               |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `Read<T>`      | Payload enum: `Data(T)` or nullary `End`                                                                                               |
+| `IOError`      | Payload enum: `System(i32)`, `InputTooLarge(usize)`, `InvalidUTF8(UTF8Error)`; import `UTF8Error` from `std::utf` when naming its type |
+| `LineBoundary` | Payload enum: `Line(usize, usize, bool)` or nullary `End`; start, exclusive end, LF-present flag                                       |
+| `FrameError`   | Payload enum: `TooLong(usize)`, `Truncated`, `Finished`; `TooLong` carries the configured limit                                        |
+| `Stdin`        | Class containing input configuration; methods below                                                                                    |
+| `ByteLines`    | Class containing a traversal offset; methods under [byte framing](#byte-framing)                                                       |
+| `LineFramer`   | Class owning a pending byte record; methods under [byte framing](#byte-framing)                                                        |
 
 ## Standard input
 
-`stdin()` is available without an import and follows ordinary name lookup.
-Import `Stdin`, `Read`, and `IOError` from `std::io` when naming their types.
-`Stdin`, `Read<T>`, and `IOError` are declared by the standard source module.
-Construction, copying, matching, ownership, and failure
-handling use ordinary language rules.
+`Stdin::new()` and `stdin()` construct equivalent configuration handles. Completed reads own their returned data.
 
-`Stdin::new()` and `stdin()` construct equivalent input handles.
-`Read<T>` is a generic enum with `Data(T)` and nullary `End` cases.
-An input handle owns configuration; completed reads own their returned data.
+| Operation                                    | Success                                                       | Nominal failure |
+| -------------------------------------------- | ------------------------------------------------------------- | --------------- |
+| `Stdin::new() -> Stdin` / `stdin() -> Stdin` | Default input configuration                                   | None            |
+| `input.read(max_bytes: usize)`               | `Read<Vector<u8>>`: a chunk of at most `max_bytes`, or `.End` | `IOError`       |
+| `input.read_all(limit: usize)`               | `Vector<u8>` through EOF, including empty input               | `IOError`       |
+| `input.read_text(limit: usize)`              | Owned, validated `String` through EOF                         | `IOError`       |
+| `input.read_line()`                          | `Read<String>`: an owned line, or `.End`                      | `IOError`       |
+| `input.with_line_limit(limit: usize)`        | A new handle with the selected line content byte limit        | None            |
 
-| Operation                             | Success                                                       | Nominal failure |
-| ------------------------------------- | ------------------------------------------------------------- | --------------- |
-| `input.read(max_bytes: usize)`        | `Read<Vector<u8>>`: a chunk of at most `max_bytes`, or `.End` | `IOError`       |
-| `input.read_all(limit: usize)`        | `Vector<u8>` through EOF, including empty input               | `IOError`       |
-| `input.read_text(limit: usize)`       | Owned, validated `String` through EOF                         | `IOError`       |
-| `input.read_line()`                   | `Read<String>`: an owned line, or `.End`                      | `IOError`       |
-| `input.with_line_limit(limit: usize)` | A new handle with the selected line content byte limit        | None            |
+All methods use a Read receiver. `with_line_limit` copies the configuration and returns `Stdin`; it does not modify the original handle. The four read methods are synchronous factories returning `Operation<Success, throw IOError>`, where `Success` is the table's successful result. Factory construction has no typed failure; `IOError` is delivered when the operation executes.
 
-Reads return cold operations and run under the same driver,
-cancellation, child closure, and timeout rules as other operations. Constructing
-or discarding an unstarted read does not consume input. Await or start a child
-to execute it. The read uses the process input of its selected execution stage.
+Constructing or discarding an unstarted read does not consume input. Await or start a child to read the selected process input; [async lifetime and cancellation rules](/reference/async/) apply.
 
 ```carven
 import std::io using IOError;
@@ -157,11 +84,7 @@ count. A zero-sized chunk returns `.Data([])` without reading. Empty input read
 through EOF returns empty owning data.
 
 Byte reads preserve arbitrary bytes, including internal NUL and malformed UTF-8.
-Text reads validate the completed byte sequence. `UTF8Error` records the error kind,
-rejected byte offset, and invalid sequence's starting offset; EOF truncation points
-at the input end. Offsets are zero-based bytes in the completed input.
-Completed text reads consume their bytes before validation, including when
-validation fails.
+Text reads validate the completed byte sequence after consuming it, including when validation fails. [UTF8Error](/reference/utf/#error-and-streaming-contract) positions refer to the data returned by that read.
 
 All reads use the `IOError` enum from `std::io`:
 
@@ -173,7 +96,7 @@ Catch `IOError(error)` and match these cases to recover. Byte reads cannot fail
 with `.InvalidUTF8`; chunk reads cannot fail with `.InputTooLarge`. Printing
 retains its `void` contract and non-throwing failure behavior described above.
 
-All handles share one process input cursor and buffer. Started requests are served
+Handles within one runtime instance share an input cursor and buffer. Started requests are served
 in FIFO registration order. Prefetched bytes remain available across read modes.
 Cancellation removes its request and preserves buffered incomplete input. A limit
 failure preserves input so the caller may retry with a larger limit or recover
@@ -198,6 +121,16 @@ value-size or aggregate-budget exhaustion is an execution limit and cannot be
 caught as `IOError`. Input waits have no implicit elapsed-time limit.
 
 ## Byte framing
+
+| Call                                            | Access       | Result               | Failure                                |
+| ----------------------------------------------- | ------------ | -------------------- | -------------------------------------- |
+| `ByteLines::new()`                              | Associated   | `ByteLines`          | None                                   |
+| `cursor.next(bytes: [u8])`                      | Write cursor | `LineBoundary`       | None; invalid cursor offset terminates |
+| `LineFramer::new(limit: usize, strip_cr: bool)` | Associated   | `LineFramer`         | None                                   |
+| `framer.feed(bytes: [u8])`                      | Write framer | `Vector<Vector<u8>>` | `FrameError`                           |
+| `framer.finish(allow_partial: bool)`            | Write framer | `Read<Vector<u8>>`   | `FrameError`                           |
+
+All these functions and methods are `const fn`. `ByteLines` stores no input; its copies traverse independently from the copied offset. `LineFramer` copies own independent pending bytes and framing state.
 
 Byte framing processes bytes without UTF-8 validation. Decode complete records
 with `str::from_utf8` to preserve per-record recovery and multibyte characters

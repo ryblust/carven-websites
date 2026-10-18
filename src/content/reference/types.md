@@ -1,5 +1,5 @@
 ---
-title: "Types, context, and conversions"
+title: "Types and conversions"
 description: "Builtin types, nominal identity, contextual inference, and numeric conversion boundaries."
 section: reference
 lesson: 3
@@ -8,30 +8,11 @@ source: docs/language/types.md
 
 A type tells the compiler which values and operations are allowed. Write `let count: i32 = 3;` when you want an explicit type, or `let count = 3;` to infer it from the initializer. Function parameters, results, fields, and collection elements use the same type syntax.
 
-The first section identifies the available types and when two types count as the same. The later sections explain how surrounding code supplies an expected type and which conversions need `as`.
-
 ## Type identity
 
-The source-spellable builtin types are:
+Named types follow [module lookup, aliases, and defaults](/reference/modules/#standard-modules-and-defaults). Structural `ptr` syntax has the [additional naming restrictions](/reference/keywords/#other-special-spellings).
 
-```text
-bool  char  str  String  void
-i8 i16 i32 i64 isize
-u8 u16 u32 u64 usize
-f32 f64
-u8x16 mask16 f32x4 mask4 u8x32 mask32 f32x8 mask8
-```
-
-Scalar and text names, `Vector`, and `Range` are defaults from `std::core`.
-SIMD vector and mask names are defaults from `std::simd`; explicit imports and
-aliases remain available. Import `Operation` from `std::async`. These names use ordinary lookup. Declarations, imports, and type parameters can shadow them. An alias selects the same type. Runtime locals do not
-occupy type positions, but do shadow expression qualifiers. Only structural
-`ptr` retains its contextual reservation.
-
-`u8x16`, `mask16`, `f32x4`, `mask4`, `u8x32`, `mask32`, `f32x8`, and `mask8`
-are explicit fixed-width logical SIMD types.
-
-Each struct or enum declaration defines a distinct type. Two declarations with the same fields still define different types. This is called nominal type identity. Arrays are identified by both element type and
+Each struct, class, or enum declaration defines a distinct type. Two declarations with the same fields still define different types. This is called nominal type identity. Arrays are identified by both element type and
 extent. Nonempty tuples are identified by their ordered element types, arity,
 and nesting: `(i32, bool)` differs from `(bool, i32)` and `((i32,), bool)`.
 `(T,)` is a one-element tuple; `(T)` groups a type. Slices are identified by their
@@ -49,25 +30,35 @@ a `void` success result produces that value. It can be bound, passed as an
 argument, stored in a field, array or tuple, returned, and matched with a wildcard
 or binding pattern. Its default value is `()`, and two unit values compare equal.
 
-```carven
+```carven run
 fn finish() {}
-fn accept(value: void) {}
-fn example() {
-    let completed: void = finish();
-    let product: (i32, void) = (7, completed);
-    let units: [void; 2] = [(), ()];
-    accept(completed);
-}
+fn accept(_: void) {}
+let completed: void = finish();
+let product: (i32, void) = (7, completed);
+let units: [void; 2] = [(); 2];
+accept(product.1);
+println(units.length()); // 2
 ```
 
-Generated C++ represents unit values in ordinary value positions with
-`carven::runtime::Void`, including parameters and aggregate elements. An
-infallible synchronous callable with a unit result returns native C++ `void`,
-including native imports and exports. Async and fallible completion carriers
-likewise retain `void` as their success type. The source call still produces
-`()` when it completes successfully.
+See [C++ function boundaries](/reference/interop/#declared-function-boundaries) for the native representation of unit parameters and results.
 
 C++ checks construction and conversion operations involving external types.
+
+## Scalar types
+
+These names are default bindings from `std::core`. Integer widths include the sign bit for signed types. Signed integers use two's-complement arithmetic.
+
+| Type                      | Width and values                                                                             |
+| ------------------------- | -------------------------------------------------------------------------------------------- |
+| `i8`, `i16`, `i32`, `i64` | 8, 16, 32, 64 bits; a signed `N`-bit integer ranges from `-2^(N-1)` through `2^(N-1)-1`      |
+| `u8`, `u16`, `u32`, `u64` | 8, 16, 32, 64 bits; an unsigned `N`-bit integer ranges from zero through `2^N-1`             |
+| `isize`, `usize`          | Signed and unsigned pointer-width integers; analysis and target must use the same data model |
+| `f32`, `f64`              | IEEE 754 binary32 and binary64, including signed zeros, infinities, and NaNs                 |
+| `bool`                    | `false` and `true`; no implicit numeric or pointer truth conversion                          |
+| `char`                    | One Unicode scalar: U+0000..U+D7FF or U+E000..U+10FFFF                                       |
+| `void`, `()`              | The unit type, with the single value `()`                                                    |
+
+[`str` and `String`](/reference/text/) represent borrowed and owning UTF-8 text. [SIMD types](/reference/simd/#types-and-modules) define fixed logical lane shapes. [Arrays, tuples, structs, classes, enums, and `Vector<T>`](/reference/aggregates/), [slices `[T]`](/reference/slices/), [pointers `ptr<T>` and `ptr<&T>`](/reference/pointers/), [callable views `fn(...) -> R`](/reference/closures/#non-owning-callable-views), [integer ranges `Range<T>`](/reference/operators/#range-expressions), and [operations `Operation<T, throw E>`](/reference/async/#cold-operations-and-await) have their own construction and access rules.
 
 ## Nominal type parameters
 
@@ -121,8 +112,6 @@ keeps its representation private.
 Functions support the same parameter kinds and infer omitted arguments from their
 signature, actual argument types, and immediate expected result.
 
-<span id="contextual-adaptations"></span>
-
 ## Expected types
 
 An expected type is supplied by a surrounding source operation. It guides
@@ -175,7 +164,31 @@ type; later uses do not revise it. There is no general search for a
 type that would make all uses succeed. A contextual form without a determining
 context is invalid; spell the type or enum owner explicitly.
 
-## Arithmetic and termination
+```carven run
+let length = 3usize;
+println(0 + length); // 3
+// Check separately: (0) + length has incompatible numeric types.
+enum Status { Ready, Busy }
+let ready: Status = .Ready;
+println(.Ready == ready); // true
+```
+
+## Contextual adaptations
+
+An expected type can select the following value adaptations:
+
+| Source                     | Expected type and result                                    |
+| -------------------------- | ----------------------------------------------------------- |
+| Unsuffixed numeric literal | A representable type in the same integer or floating family |
+| String literal             | An owning `String` when required                            |
+| `String`                   | A borrowed `str` view                                       |
+| Array or `Vector<T>`       | A borrowed `[T]` view                                       |
+| Concrete callable          | A compatible non-owning callable view                       |
+| `ptr<&T>`                  | `ptr<T>`, narrowing target access                           |
+
+The source's type stays unchanged. Write arguments require matching existing storage. A completed constant retains an owning String unless an explicit `str` destination requests a view. Text, slice, callable, and pointer adaptations retain their owning references' lifetime and access requirements.
+
+## Numeric literals
 
 The integer types are the fixed-width signed and unsigned types plus `isize`
 and `usize`; the floating types are `f32` and `f64`. `char` is not numeric.
@@ -184,17 +197,9 @@ default to `f64`. In an expected numeric context, an unsuffixed literal may
 instead adopt a representable type from the same integer or floating family.
 Floating literal text is converted directly to the selected precision using the
 host's native parsing, without an intermediate floating type. A literal outside
-the selected type's conversion range is rejected.
+the selected type's conversion range is rejected. Negation is checked with the literal's sign, including through grouping: `-(2147483648)` is the `i32` minimum, while `2147483648` alone is out of range.
 
-Integer literals with `ns`, `us`, `ms`, or `s` suffixes produce the ordinary
-`Duration` struct declared in `std::time` without a type import. Naming `Duration` in an
-annotation or constructor requires its ordinary import from `std::time`.
-`100ms` has the same value as
-`Duration { nanoseconds: 100000000 }`; it is not a distinct numeric type.
-Scaling is checked at compilation and the result must fit signed `i64`
-nanoseconds. `-9223372036854775808ns` is admitted. Floating duration literals
-are not supported. Dynamic values use the ordinary checked constructors such
-as `milliseconds(value)?`.
+For `ns`, `us`, `ms`, and `s` suffixes and checked duration construction, see [time](/reference/time/).
 
 Numeric types are otherwise compatible only with the identical
 canonical type. There is no implicit integer promotion, signedness conversion,
@@ -202,7 +207,7 @@ or integer-to-floating conversion.
 
 ## `as` conversions
 
-When neither type is external C++, `expression as Type` accepts exactly:
+`expression as Type` supports identity conversion and the numeric and text conversions below. Pointer erasure and restoration follow the separate [pointer conversion rules](/reference/pointers/#erasure-comparison-and-display). Conversions involving external C++ types are checked by C++.
 
 - identity conversion between the same canonical type;
 - every integer-to-integer conversion;
@@ -217,10 +222,14 @@ It rejects narrowing `f64` to `f32`, floating-point to integer or `bool`,
 `bool` to floating-point, integer to enum, other conversions between `char` and a
 numeric type, and `String` to `str` through `as`.
 
+An integer-to-integer cast keeps the residue modulo `2^N`, where `N` is the target width. An unsigned target uses that residue; a signed target interprets the same bits as a two's-complement value.
+
 Integer-to-`bool` yields `false` for zero and `true` for every nonzero value,
 including negative values. `bool`-to-integer yields zero for `false` and one for
 `true` in the requested integer type. These conversions require `as`; they do
 not make integer conditions valid.
+
+## Arithmetic and termination
 
 Integer negate, add, subtract, multiply, and left shift wrap at the
 Carven type width; compound assignment and increment/decrement inherit the same
@@ -228,15 +237,18 @@ rule. Signed `MIN / -1` returns `MIN`, with remainder zero. Division or remainde
 by zero and a negative or out-of-width shift count terminate at runtime with a
 trap report and diagnose during static execution. Signed right shift is arithmetic.
 
+```carven run
+const wrapped: i32 = 2147483647 + 1;
+let runtime: u8 = 255u8 + 1;
+println(wrapped, runtime); // -2147483648 0
+```
+
 `isize` and `usize` are the signed and unsigned native-model integers. Their
 width is fixed by the supported compilation data model and participates in the
 ordinary integer rules above. Analysis uses the host pointer-sized integer
 widths; the target must use the same data model.
 
-`f32` and `f64` use IEEE 754 binary32 and binary64 storage. Both provide
-`is_finite() -> bool`, which is true for zeros, subnormal values, and normal
-values, and false for infinities and NaNs. The query evaluates its receiver once
-and is available in constant, interpreted, and native execution. Runtime floating
+`f32` and `f64` use IEEE 754 binary32 and binary64 storage. See [floating methods](#floating-methods) for queries and scalar operations. Runtime floating
 arithmetic and integer-to-floating conversion use the corresponding native C++
 operations. The language does not supply a rounding-mode control or a separate
 floating exception mechanism. Native floating results depend on the selected
@@ -255,39 +267,7 @@ implemented.
 
 ## Read-only slices
 
-`[T]` is a copyable, nonowning, read-only view of contiguous elements. `[T; N]`
-denotes a fixed array. Arrays and `Vector<T>` create views explicitly through
-`slice()`. When a destination requires `[T]`, either owner implicitly creates
-the same borrowed view. This applies to bindings, assignments, arguments,
-returns, and aggregate elements. Both owners also support `slice(start, end)`
-directly. Element types remain invariant; Write arguments require an actual slice
-slot. Array literals use the expected slice element type, including empty
-literals. Without a slice destination, an array remains an array. Conversion does
-not extend backing lifetimes.
-
-Calling `slice()` on an existing slice preserves its backing and range.
-Slices provide `length() -> usize`, `is_empty() -> bool`, read-only integer
-indexing, Read iteration, and `slice(start: usize, end: usize) -> [T]` with a
-half-open range. Empty ranges, including `slice(length, length)`, are valid. Invalid
-indices and ranges terminate, following array bounds handling. Slices do not
-support element writes, Write iteration, pointer extraction, or comparison.
-Their element representation is invariant; creating a view never converts or
-copies its elements. Reading an element follows the ordinary Read/value rules.
-
-Slice and text views share storage-borrow analysis. A view with known Carven
-backing protects its entire array, Vector, or String against mutation, replacement, Take, and destruction.
-Disjoint subranges are not analyzed separately. Copies, arguments, returned
-values, aggregate fields, closures, and failure values retain backing relations.
-Extracting an element also retains any borrows inside that element. Temporary
-backing follows existing expression and retained-loop rules; storing a view
-does not extend its lifetime.
-
-`str::from_utf8(bytes)` validates `[u8]` and borrows its storage.
-The returned text follows the same lifetime and mutation
-checks as slices.
-
-Constant initializers can retain completed array or Vector contents as slices
-with immutable program-lifetime backing.
+`[T]` is a read-only view; `[T; N]` is an owning fixed array. See [slices](/reference/slices/) for construction, operations, borrowing, and constant storage. [`str::from_utf8(bytes)`](/reference/text/) borrows `[u8]` storage under the same lifetime and mutation rules.
 
 ## Floating methods
 
@@ -300,7 +280,7 @@ receiver's precision.
 | Method                                  | Contract                                                                                                       |
 | --------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `value.is_finite() -> bool`             | False for NaN and either infinity                                                                              |
-| `value.abs()`                           | Positive magnitude; either zero becomes +0; NaN remains NaN                                                    |
+| `value.abs()`                           | Absolute value; both +0 and -0 become +0; NaN remains NaN                                                      |
 | `value.min(other)` / `value.max(other)` | Propagate either NaN; equal numbers retain the receiver, including its zero sign                               |
 | `value.clamp(lower, upper)`             | Assert `lower <= upper`, including ordered bounds; preserve a NaN value and return the selected bound or value |
 | `value.sqrt()`                          | Preserve signed zero and +infinity; negative nonzero inputs, -infinity, and NaN produce NaN                    |

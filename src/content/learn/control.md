@@ -8,7 +8,9 @@ source: docs/language/control-flow.md
 
 ## Produce a value with a condition
 
-```carven
+Choose a stock label from the quantity, then print that label. Use an if expression to produce the selected text:
+
+```carven run
 let quantity = 3;
 let label = if quantity > 0 { "in stock" } else { "empty" };
 println(label);
@@ -16,9 +18,26 @@ println(label);
 
 The output is `in stock`. A value-producing if needs else and compatible branch result types. The final expression without a semicolon supplies the branch value; with a semicolon it is an ordinary statement.
 
+## Keep local names inside a branch
+
+Calculate a temporary price inside a branch, then read the original price afterward. Save this separate program as main.cv:
+
+```carven run
+let price = 12;
+
+if price < 20 {
+    let price = price + 3;
+    println(price);
+}
+
+println(price);
+```
+
+Run `carven main.cv`. It prints `15` and `12` on separate lines. The inner price is a new binding; its initializer reads the outer price. After the branch ends, the outer binding is visible again.
+
 ## Sum a range
 
-```carven
+```carven run
 var total = 0;
 
 for value in 1..5 {
@@ -34,7 +53,7 @@ The output is `10`. `1..5` includes 1, 2, 3, and 4, but not 5. Each endpoint is 
 
 ## Save a range
 
-```carven
+```carven run
 var end = 4;
 let values: Range<i32> = 1..=end;
 end = 8;
@@ -52,7 +71,7 @@ The loop also snapshots its source range before traversal. Reassigning that rang
 
 ## Let a bound choose the integer type
 
-```carven
+```carven run
 let code = "A-17";
 let positions = 0..code.byte_length();
 println(positions);
@@ -62,11 +81,11 @@ for index in positions {
 }
 ```
 
-This prints `0..4`, then 0 through 3 on separate lines. `code.byte_length()` returns a usize byte count. This gives the literal 0 the same type, so positions has type `Range<usize>`. No cast or suffixed zero is needed. Two unsuffixed bounds still default to `i32`, and an explicit `Range<i32>` annotation here is rejected because the bounds cannot share that type. Existing bindings keep their types: an `i32` variable and a `usize` length cannot form one range.
+This prints `0..4`, then 0 through 3 on separate lines. `code.byte_length()` returns a usize byte count. usize is an unsigned integer type used for lengths and indices. This gives the literal 0 the same type, so positions has type `Range<usize>`. See [expected types](/reference/types/) when combining bounds of different integer types.
 
 ## Choose a result by interval
 
-```carven
+```carven run
 let score = 85;
 let label = match score {
     ..0 => "invalid",
@@ -85,7 +104,9 @@ Bounds can also be runtime values; then a `_` fallback is usually needed. See th
 
 ## while and C-style for
 
-```carven
+Print successive indices with while, then repeat with a C-style for that skips index 1:
+
+```carven run
 var index = 0;
 
 while index < 3 {
@@ -101,13 +122,42 @@ for var i = 0; i < 3; ++i {
 }
 ```
 
-This prints 0, 1, 2, 0, and 2 on separate lines. In a C-style for, continue executes the step before checking the condition. break exits immediately. while checks its condition before each execution of the body. Write `while { ... }` for a conditionless loop and use `break` to exit it; a C-style for always requires its condition.
+This prints 0, 1, 2, 0, and 2 on separate lines. `++` increases its variable by one. `continue` skips the rest of the body; in a C-style for, it executes the update step before checking the condition. while checks its condition before each execution of the body. A C-style for always requires its condition.
+
+Use a conditionless while when the body decides when to stop. In this separate main.cv, find the first positive integer whose square is at least 20:
+
+```carven run
+var candidate = 1;
+
+while {
+    if candidate * candidate >= 20 {
+        break;
+    }
+    ++candidate;
+}
+
+println(candidate);
+```
+
+Run `carven main.cv` to print `5`. `break` exits the loop immediately, leaving candidate at the value that passed the check.
 
 ## Evaluate only the selected path
 
 `&&` and `||` can skip work: `&&` stops when its left side is false; `||` stops when its left side is true. Likewise, only the selected if or match branch runs.
 
-Checking the source is separate from running it. Every branch must still contain valid code, even inside `if false`. Use ordinary conditions to choose runtime actions; the compile-time chapter introduces const if when the choice should affect the generated program. The [control-flow reference](/reference/control/) covers return, break, and ownership checks across those paths.
+Guard a division when the input count may be zero. Run this separate main.cv with `carven main.cv`:
+
+```carven run
+let count = 0;
+let enough = count != 0 && 100 / count >= 10;
+let empty_or_enough = count == 0 || 100 / count >= 10;
+
+println(enough, empty_or_enough);
+```
+
+It prints `false true`. Both conditions skip division: the first stops at false, the second at true. Change count to 4; both evaluate the division and print `true true`.
+
+Every branch must contain valid code, even inside `if false`. The [compile-time chapter](/learn/constants/) introduces const if when the choice should affect the generated program.
 
 ## Exercise
 

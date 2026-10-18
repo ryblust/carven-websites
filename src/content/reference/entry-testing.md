@@ -1,5 +1,5 @@
 ---
-title: "Entries, runtime tests, and compile-time tests"
+title: "Entry points and testing"
 description: "Entry selection, process status, assert, check/require/fail, test reports, and test-stop propagation."
 section: reference
 lesson: 18
@@ -31,6 +31,18 @@ Native execution prints `42`, then reports the escaped failure type and structur
 
 An explicit main is selected regardless of module path, craft, or visibility. It may have no parameters or one unannotated Read command-line parameter. The wrapper owns a Vector<String> of arguments excluding the executable name; the parameter borrows it and supports ordinary indexing, iteration, printing, and views. Native ingress validates UTF-8. Synchronous and async entries retain the owner until execution and lexical child closure complete. Ordinary function parameters still require types.
 
+Use the unannotated parameter to receive command-line arguments:
+
+```carven
+fn main(args) {
+    for argument in args {
+        println(argument);
+    }
+}
+```
+
+Save this as `main.cv` and run `carven main.cv -- alpha beta`. It prints `alpha` and `beta` on separate lines.
+
 An explicit main with outward failures requires a throw clause, including private main; omission reports `CV-EFFECT-THROW-PUBLISHED`. Normal completion produces process status zero; a Carven return value is not the status. A typed failure escaping either entry produces C++ `EXIT_FAILURE` and one stderr report containing its type and structural payload. Ordinary local cleanup completes first; the wrapper retains the payload through reporting and destroys it before exit. Native reports point to the entry declaration because failure values carry no source location. Catching the failure and completing normally gives zero and no failure report.
 
 ## Test declarations
@@ -45,7 +57,7 @@ test "addition" {
 }
 ```
 
-`carven --tests` runs native runtime tests; `carven interpret --tests` runs admitted runtime tests. Both require at least one runtime test and skip the program entry. check and ordinary compile only analyze runtime tests. `compile --tests` emits module tests, a runner, and a default test entry while suppressing the program entry wrapper. `--tests=runner` retains that wrapper and emits tests and a runner; the consumer owns entry selection. Generation allows an empty suite.
+`carven --tests main.cv` runs native runtime tests; `carven interpret --tests main.cv` runs admitted runtime tests. Both require at least one runtime test and skip the program entry. `carven check main.cv` and ordinary compilation analyze runtime tests without running them. `compile --tests` emits module tests, a runner, and a default test entry while suppressing the program entry wrapper. `--tests=runner` retains that wrapper and emits tests and a runner; the consumer owns entry selection. Generation allows an empty suite.
 
 ## Test operations
 
@@ -60,7 +72,7 @@ fail();
 fail(message);
 ```
 
-A condition must be `bool`; an optional message is `str` or `String`. For check/require/fail, argument count, condition type, and message type errors use `CV-TEST-ARGUMENT-COUNT`, `CV-TEST-CONDITION-TYPE`, and `CV-TEST-MESSAGE-TYPE`. For assert, they use `CV-TYPE-CALL-ARITY`, `CV-TYPE-CONDITION-BOOL`, and `CV-TYPE-MISMATCH`.
+All four operations return `void`. A condition must be `bool`; an optional message is `str` or `String`. For check/require/fail, argument count, condition type, and message type errors use `CV-TEST-ARGUMENT-COUNT`, `CV-TEST-CONDITION-TYPE`, and `CV-TEST-MESSAGE-TYPE`. For assert, they use `CV-TYPE-CALL-ARITY`, `CV-TYPE-CONDITION-BOOL`, and `CV-TYPE-MISMATCH`.
 
 Direct assert, check, and require calls evaluate their condition exactly once. Only a false condition evaluates the optional message, once and after the condition. fail always evaluates its message. Skipped messages are still type-checked. A builtin bound to a callable value keeps ordinary eager argument evaluation at the indirect call site.
 

@@ -6,7 +6,7 @@ export const Route = createFileRoute('/design')({
   head: () =>
     pageHead(
       'Design & principles',
-      'Explore Carven’s compiler architecture, semantic analysis, C++ generation, runtime support, and language design.',
+      'Understand Carven’s design choices, type inference, failures, and compile-time execution, then explore compilation, runtime support, and C++ integration.',
       '/design/',
     ),
   component: () => <Design locale="en" />,

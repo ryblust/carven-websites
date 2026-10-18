@@ -1,5 +1,5 @@
 ---
-title: "Modules, declarations, and visibility"
+title: "Modules and visibility"
 description: "Compilation batches, craft domains, import resolution, name lookup, and interface visibility."
 section: reference
 lesson: 16
@@ -28,8 +28,7 @@ standard-library modules live under `std/`. The import prefix `std::` selects th
 official logical module domain for source and compiler-provided declarations,
 so `std::utf` names `crafts.carven.std.utf`.
 
-Imports form a prefix at the start of a module. Module imports use one of three
-structured references:
+Module imports use one of three structured references:
 
 - `model.user` starts at the importing module's domain root;
 - `.value` starts in the importing module's logical module directory;
@@ -67,7 +66,7 @@ For an importer at `crafts/foo/models/user.cv`, the three forms select:
 | `std.utf`  | `crafts/foo/std/utf.cv`        |
 | `.std.utf` | `crafts/foo/models/std/utf.cv` |
 
-Cross-module selection always requires an explicit import. A selected name
+Except for default standard bindings, cross-module selection requires an explicit import. A selected name
 must be visible to the importer under the declaration rules below. Explicit
 selections cannot collide with a module declaration or select one local name
 twice, and they deterministically shadow same-name wildcard candidates.
@@ -84,7 +83,20 @@ resolve Carven modules.
 
 ## Standard modules and defaults
 
-This table lists public compiler-provided exports and default bindings.
+Check these properties separately when using a standard capability:
+
+| Property               | Question                                                                            | Example                                                   |
+| ---------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Semantic ownership     | Does the compiler define the type or operation, or does standard source declare it? | `Operation` is built-in; `Duration` is a source structure |
+| Module identity        | Which module owns the declaration?                                                  | `Operation` belongs to `std::async`                       |
+| Default availability   | Is this name supplied without an explicit import?                                   | `String` is a default; `Operation` requires an import     |
+| Declaration visibility | May this importing module select the declaration?                                   | A source `private` helper cannot be imported              |
+
+A compiler-provided module has a canonical identity even without a matching `.cv` file. For example, `std::async` supplies `Operation` and composition operations without an `async.cv`. Source and compiler declarations can also share that identity: `std::core` provides `String` and `i32`, while `crafts/carven/std/core.cv` adds `NumberParseError`.
+
+Defaults bind selected names; they do not implicitly import every export of a module. `NumberParseError` therefore needs an explicit import even though `String` from the same module is a default. Conversely, source-defined `stdin` is a default from `std::io`. Built-in ownership and source-file presence do not determine availability.
+
+This table lists public compiler-provided exports and the default bindings for their modules. Source modules can add other exports.
 
 | Provided module | Exports                                                                                                                                                                 | Default bindings supplied                 |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |

@@ -14,11 +14,13 @@ describe('published language alternatives', () => {
       { rel: 'alternate', hrefLang: 'en', href: `https://example.com${base}learn/` },
       { rel: 'alternate', hrefLang: 'x-default', href: `https://example.com${base}learn/` },
     ];
+
     for (const path of ['/learn/', '/zh/learn/']) {
       const { links } = pageHead(undefined, undefined, path);
       expect(links).toHaveLength(expected.length);
       expect(links).toEqual(expect.arrayContaining(expected));
     }
+
     for (const path of ['/', '/zh/']) {
       const { links } = pageHead(undefined, undefined, path);
       expect(links).toHaveLength(3);

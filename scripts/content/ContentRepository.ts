@@ -5,6 +5,7 @@ import type { ArticleDocument } from '../../src/content/schema.ts';
 import { precompileCodeSteps } from './code-steps.ts';
 import { ContentError } from './model.ts';
 import { articleRouteModule } from './routes.ts';
+import { referenceSearchModule } from './reference-search.ts';
 
 interface Source {
   readonly file: string;
@@ -46,6 +47,7 @@ export class ContentRepository extends Context.Service<
           .filter((name) => name.endsWith('.md'))
           .sort()
           .map((name) => join(directory, name));
+
         return yield* Effect.forEach(
           sources,
           (file) =>
@@ -67,6 +69,7 @@ export class ContentRepository extends Context.Service<
                 .pipe(
                   Effect.mapError((cause) => new ContentError({ file, operation: 'read', cause })),
                 );
+
               return { file: name, path, text };
             }),
           { concurrency: 4 },
@@ -97,7 +100,9 @@ export class ContentRepository extends Context.Service<
             `// Generated from src/content/${article.file}.\nexport default ${JSON.stringify(article.html)};\n`,
           ]),
         );
+        modules.set('reference-search.ts', referenceSearchModule(articles));
         const routes = articles.map(articleRouteModule);
+
         for (const route of routes) {
           modules.set(route.file, route.source);
         }
@@ -114,12 +119,14 @@ export class ContentRepository extends Context.Service<
           `// Generated from src/content/home-examples.ts. Do not edit.\nexport const homeExamples = ${JSON.stringify(homeExamples)} as const;\n`,
         );
         const codeSteps = precompileCodeSteps(homeExampleTokens);
+
         for (const [targetName, step] of codeSteps) {
           modules.set(
             `home-tokens/${targetName}.ts`,
             `// Generated from src/content/home-examples.ts. Do not edit.\nimport type { CodeStep } from '../../lib/code-tokens.ts';\nexport default ${JSON.stringify(step)} satisfies CodeStep;\n`,
           );
         }
+
         modules.set(
           'home-tokens.ts',
           [
@@ -159,6 +166,7 @@ export class ContentRepository extends Context.Service<
               prefix: '.content-',
             });
             const changes: Array<{ target: string; staged: string }> = [];
+
             // Prepare every changed module before replacing published files.
             for (const [name, text] of modules) {
               const target = join(output, name);
@@ -169,11 +177,13 @@ export class ContentRepository extends Context.Service<
               yield* fs.writeFileString(staged, text);
               changes.push({ target, staged });
             }
+
             // Generated output is disposable; a failed publication is rebuilt on the next run.
             for (const { target, staged } of changes) {
               yield* fs.makeDirectory(dirname(target), { recursive: true });
               yield* fs.rename(staged, target);
             }
+
             for (const name of yield* fs.readDirectory(output, { recursive: true })) {
               const target = join(output, name);
               if (
@@ -190,6 +200,7 @@ export class ContentRepository extends Context.Service<
           ),
         );
       });
+
       return ContentRepository.of({ read, publish });
     }),
   );

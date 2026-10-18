@@ -13,24 +13,31 @@ export function PageOutline({
 }) {
   const [active, setActive] = useState<string>();
   const ids = headings.map((heading) => heading.id).join(' ');
+
   useEffect(() => {
     const targets = ids
       .split(' ')
       .map((id) => document.getElementById(id))
       .filter((target): target is HTMLElement => target !== null);
     if (targets.length === 0) return;
+
     // The desktop outline is hidden at this breakpoint; mobile uses static links.
     const visible = window.matchMedia('(min-width: 1181px)');
+
     const update = () => {
       const line = window.innerHeight * 0.25;
       let current: string | undefined;
+
       for (const target of targets) {
         if (target.getBoundingClientRect().top > line) break;
         current = target.id;
       }
+
       setActive(current);
     };
+
     let frame = 0;
+
     const schedule = () => {
       if (frame) return;
       frame = requestAnimationFrame(() => {
@@ -38,12 +45,14 @@ export function PageOutline({
         update();
       });
     };
+
     const stop = () => {
       cancelAnimationFrame(frame);
       frame = 0;
       window.removeEventListener('scroll', schedule);
       window.removeEventListener('resize', schedule);
     };
+
     const track = () => {
       stop();
       if (!visible.matches) return;
@@ -51,8 +60,10 @@ export function PageOutline({
       window.addEventListener('scroll', schedule, { passive: true });
       window.addEventListener('resize', schedule);
     };
+
     track();
     visible.addEventListener('change', track);
+
     return () => {
       stop();
       visible.removeEventListener('change', track);

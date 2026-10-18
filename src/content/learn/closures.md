@@ -10,6 +10,8 @@ source: docs/language/functions.md
 
 Sometimes the operation stays the same but its settings vary: multiply every item by a chosen factor, for example. A closure is a small function that keeps the state it needs. The bracketed capture list says which outside values it remembers.
 
+Run this lesson's examples with `carven main.cv`. Capturing closures require native execution; the interpreter does not execute them.
+
 ```carven
 var factor = 2;
 let scale = [factor](item: i32) => item * factor;
@@ -40,18 +42,30 @@ fn apply(callback: fn(i32) -> i32, value: i32) -> i32 => callback(value);
 
 let factor = 2;
 let scale = [factor](item: i32) => item * factor;
-println(apply(scale, 21));
+println(apply(scale, 21), apply([](item) => item + 1, 21));
 ```
 
-The output is `42`. The parameter type `fn(i32) -> i32` describes a callable taking `i32` and returning `i32`. Passing scale here creates a non-owning callable view: apply invokes the original closure while that closure remains alive for the call.
+The output is `42 22`. The parameter type `fn(i32) -> i32` describes a callable taking `i32` and returning `i32`. Passing scale creates a non-owning callable view: apply invokes the original closure while that closure remains alive for the call. The second call passes a lambda directly. It needs no outside values, so its capture list is `[]`. The expected callback type supplies `i32` for item, allowing its annotation to be omitted.
 
 ## Owning closures and views
 
-Copying a closure and borrowing it solve different problems. `let copy = scale;` makes another closure with copied captures. `let view: fn(i32) -> i32 = scale;` only borrows scale so it can be called through a common signature. The view does not keep scale alive; scale must remain in scope and cannot be transferred away while the view exists.
+Save this separate program as `multiplier.cv` to return an owning closure, then copy and borrow it:
 
-A callback parameter is a good use for such a short-lived view. To return a closure from a function, let the compiler infer its concrete type instead of returning a view of a local closure. Any variables accessed through a Write capture must still outlive the returned closure.
+```carven
+fn multiplier(factor: i32) => [factor](item: i32) => item * factor;
 
-A callback signature can include a [failure contract](/learn/failures/), such as `fn(i32) -> i32 throw InvalidQuantity`. The calling function must handle or propagate that contract. For storing views, adapting failure contracts, or returning closures, consult the [callable-view reference](/reference/closures/) for the additional restrictions.
+let scale = multiplier(2);
+let copy = scale;
+let view: fn(i32) -> i32 = scale;
+
+println(copy(21), view(21));
+```
+
+Run `carven multiplier.cv`. It prints `42 42`. The returned closure owns a copy of factor and remains usable after multiplier returns. copy is another closure owner; view borrows scale's closure object.
+
+The view does not keep scale alive: scale must remain in scope and cannot be transferred while the view exists. Return the closure itself, not a view of a local closure. Variables accessed through a returned Write capture must also outlive the closure.
+
+See the [callable-view reference](/reference/closures/) for stored views and callback failure contracts.
 
 ## Filter an owned result through a borrowed callback
 
@@ -74,7 +88,7 @@ let selected = select([18, 21, 32], enough);
 println(selected.length(), selected[0]);
 ```
 
-The output is `2 21`. The array and callback are borrowed for the call; selected owns its numbers and survives that call. The policy closure owns its captured threshold. This function does not retain the callable view in the result. Capturing runtime state still requires a native run; the semantic interpreter does not execute capturing closures. The [input project](/learn/data-pipeline/) uses named pure helpers when the same validation must run during compilation.
+The output is `2 21`. The array and callback are borrowed for the call; selected owns its numbers and survives that call. The policy closure owns its captured threshold. This function does not retain the callable view in the result.
 
 ## Exercise
 

@@ -12,6 +12,7 @@ const article = (body: string) =>
 async function fixture(initialBody?: string) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'carven-content-vite-')));
   await mkdir(join(root, 'src/content/zh'), { recursive: true });
+
   const writePair = async (name: string, body: string) => {
     await Promise.all(
       ['', 'zh/'].map((prefix) =>
@@ -19,6 +20,7 @@ async function fixture(initialBody?: string) {
       ),
     );
   };
+
   if (initialBody !== undefined) await writePair('guide', initialBody);
   const server = await createServer({
     root,
@@ -28,11 +30,13 @@ async function fixture(initialBody?: string) {
     optimizeDeps: { noDiscovery: true, include: [] },
   });
   let readId = 0;
+
   const html = async (name: string) => {
     const file = join(root, 'src/generated/articles', `${name}.ts`);
     const module = await import(/* @vite-ignore */ `${pathToFileURL(file).href}?read=${++readId}`);
     return module.default as string;
   };
+
   return { root, server, writePair, html };
 }
 

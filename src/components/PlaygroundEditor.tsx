@@ -38,6 +38,7 @@ export default function PlaygroundEditor({
   const currentSource = useRef(source);
   const changed = useEffectEvent(onChange);
   const run = useEffectEvent(onRun);
+
   useLayoutEffect(() => {
     currentSource.current = source;
   }, [source]);
@@ -50,6 +51,7 @@ export default function PlaygroundEditor({
         if (!instance) return false;
         instance.dispatch({ selection: { anchor: 0, head: instance.state.doc.length } });
         instance.focus();
+
         return true;
       },
       reveal(location) {
@@ -65,6 +67,7 @@ export default function PlaygroundEditor({
           effects: EditorView.scrollIntoView(selection.anchor, { y: 'center' }),
         });
         instance.focus();
+
         return true;
       },
     }),
@@ -107,6 +110,7 @@ export default function PlaygroundEditor({
       ]),
     });
     view.current = instance;
+
     return () => {
       instance.destroy();
       view.current = null;

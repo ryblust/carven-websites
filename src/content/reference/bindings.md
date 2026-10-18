@@ -1,5 +1,5 @@
 ---
-title: Variable declarations and scope
+title: "Variable declarations and scope"
 description: Declaration forms, initialization, type inference, assignment, and scope for let, var, and const.
 section: reference
 lesson: 4
@@ -16,7 +16,7 @@ var name[: Type] = expression;
 const name[: Type] = expression;
 ```
 
-```carven
+```carven run
 let price = 12;
 var quantity: i32 = 2;
 const limit = 10;
@@ -30,13 +30,15 @@ println(price * quantity, limit); // 36 10
 | `var`       | Runtime        | Yes          | Accumulators, loop state, and mutable data      |
 | `const`     | Compilation    | No           | Fixed data, array extents, and static arguments |
 
+The table describes ordinary runtime code. Inside a `const` block or `const test`, `let` and `var` initialize local values during static execution; `var` still permits mutation.
+
 Prefer `let`. Use `var` when you need to change the binding, its fields, or its array elements. Use `const` when a compile-time value is required. A runtime `let` initialized by a literal cannot substitute for a `const` required by a static parameter.
 
 ## let and var
 
 `let` and `var` create local bindings that own their values. `var` permits assignment, compound assignment, and mutation through Write parameters; `let` does not grant those permissions. Pointer-target access still follows the target permissions in the pointer type.
 
-```carven
+```carven run
 fn increment(&value: i32) {
     value += 1;
 }
@@ -64,12 +66,12 @@ var count: i32; // Compile error: an initializer is required.
 
 A `const` initializer must execute at compilation. Any Carven function it calls must be declared `const fn`. Type checking, executor admission, and execution budgets apply to the initializer.
 
-```carven
+```carven run
 const fn twice(value: i32) -> i32 => value * 2;
 
 const capacity = twice(3);
 let values: [i32; capacity] = [1, 2, 3, 4, 5, 6];
-println(values.slice().length()); // 6
+println(values.length()); // 6
 ```
 
 A module constant requires a name. See [constants](/reference/constants/) and [functions](/reference/functions/) for `const fn`, constant blocks, static parameters, `const if`, and `const for`.
@@ -78,7 +80,7 @@ A module constant requires a name. See [constants](/reference/constants/) and [f
 
 A type annotation supplies an expected type to the initializer. Without it, the initializer determines the type: unsuffixed integers usually use `i32`, and unsuffixed floating literals usually use `f64`. Assignment and later use cannot change an established binding's type.
 
-```carven
+```carven run
 let small: u8 = 12;
 let wide = 12i64;
 var count = 1;
@@ -92,7 +94,7 @@ An established `i64` value cannot be assigned directly to an `i32` variable. Use
 
 A local name becomes visible only after its type and initializer have been checked. A same-named reference in the initializer selects an existing outer binding. Function bodies, branches, and loops establish their corresponding local scopes.
 
-```carven
+```carven run
 let value = 4;
 if true {
     let value = value + 1;
@@ -105,24 +107,20 @@ Top-level `let` and `var` bindings are locals of the implicit program entry; mod
 
 ## Discard binding `_`
 
-`_` discards the name, creates no referenceable variable, and can repeat. `_name` is an ordinary name. A runtime discard still evaluates its initializer and keeps the produced value until the enclosing scope ends. A local `const _` still requires a constant initializer; a module constant cannot be named `_`.
+`_` discards the name, creates no referenceable variable or unused-binding warning, and can repeat. `_name` is an ordinary name. A runtime discard still evaluates its initializer and keeps the produced value until the enclosing scope ends. A local `const _` still requires a constant initializer; a module constant cannot be named `_`.
 
-```carven
+```carven run
 let _ = 1 + 2;
 let _ = 3 + 4;
 let _answer = 42;
 println(_answer); // 42
 ```
 
-## Related entries
-
-[Types and conversions](/reference/types/) · [Operators and expressions](/reference/operators/) · [Access and ownership](/reference/ownership/) · [Keyword index](/reference/keywords/)
-
 ## Recursive tuple targets
 
 Local `let`, `var`, and `const` accept nested tuple targets with exact arity and nesting. The initializer executes once; each named runtime element is an independent complete owner with the declaration's mutability. Discarded elements live until the scope ends. Module constants retain a single named target.
 
-```carven
+```carven run
 fn coordinates() -> (i32, (i32, bool)) => (12, (34, true));
 var (x, (y, active)) = coordinates();
 x += y;
@@ -130,3 +128,7 @@ println(x, active); // 46 true
 ```
 
 Read decomposition copies an existing owner; `let (a, b) = &&pair;` transfers the complete source. Taking one decomposed binding leaves siblings available. Local const decomposition freezes once and selects constant elements. See [tuples](/reference/aggregates/#tuples).
+
+## Related entries
+
+[Types and conversions](/reference/types/) · [Operators and expressions](/reference/operators/) · [Access and ownership](/reference/ownership/) · [Keyword index](/reference/keywords/)

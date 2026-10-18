@@ -10,28 +10,33 @@ source: docs/language/README.md
 
 <div class="reference-entry-grid">
 <a class="reference-entry" href="#find-syntax-and-rules"><strong>Language syntax</strong><span>Keywords, variables, types, expressions, and control flow</span></a>
-<a class="reference-entry" href="/reference/builtins/"><strong>Builtin functions and type APIs</strong><span>Output, assertions, text, and sequence operations without imports</span></a>
-<a class="reference-entry" href="/reference/library/"><strong>Standard library reference</strong><span>Async execution, collections, text, time, input, JSON, and native networking</span></a>
+<a class="reference-entry" href="/reference/library/"><strong>Standard API index</strong><span>Find built-in and source-defined APIs by type, operation, and module</span></a>
+<a class="reference-entry" href="/reference/diagnostics/"><strong>Diagnostic codes</strong><span>Look up compiler errors, warnings, and related rules by code</span></a>
 </div>
 
 ## Find syntax and rules
 
-This manual describes Carven's implemented language. Look up a keyword, syntax category, or type to find its forms, minimal examples, execution rules, and restrictions. The [tutorial](/learn/) builds programs by task; [design and principles](/design/) explains design choices and implementation.
+For a guided introduction, use the [tutorial](/learn/). For design choices and implementation, read [design and principles](/design/).
 
-| What you need                                     | Start here                                                                                                    |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Declarations with `let`, `var`, and `const`       | [Variable declarations and scope](/reference/bindings/)                                                       |
-| Evaluation of `+`, `&&`, `as`, and `..`           | [Operators and expressions](/reference/operators/), [types and conversions](/reference/types/)                |
-| Forms of `if`, `while`, `for`, and `match`        | [Branches, loops, and control transfers](/reference/control/)                                                 |
-| `fn`, parameters, results, and closures           | [Functions](/reference/functions/), [closures](/reference/closures/)                                          |
-| `struct`, `class`, `enum`, and arrays             | [Aggregate types](/reference/aggregates/)                                                                     |
-| `&`, `&&`, borrowing, and pointers                | [Access and ownership](/reference/ownership/), [slices](/reference/slices/), [pointers](/reference/pointers/) |
-| `throw`, `try`, `catch`, and `?`                  | [Failure contracts](/reference/failures/)                                                                     |
-| Strings, raw and multiline text, interpolation    | [Characters and text](/reference/text/), [formatting and output](/reference/formatting/)                      |
-| `import`, `using`, `export`, and `private`        | [Modules and visibility](/reference/modules/)                                                                 |
-| `const fn`, static parameters, and static control | [Compile-time computation](/reference/constants/), [functions](/reference/functions/#static-parameters)       |
-| `main`, `test`, and assertions                    | [Entries and tests](/reference/entry-testing/)                                                                |
-| C++ headers, functions, and source fragments      | [C++ interoperation](/reference/interop/)                                                                     |
+| What you need                                                      | Start here                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Declarations with `let`, `var`, and `const`                        | [Variable declarations and scope](/reference/bindings/)                                                                                                                                                                                         |
+| Evaluation of `+`, `&&`, `as`, and `..`                            | [Operators and expressions](/reference/operators/), [types and conversions](/reference/types/)                                                                                                                                                  |
+| Forms of `if`, `while`, `for`, and `match`                         | [Branches, loops, and control transfers](/reference/control/)                                                                                                                                                                                   |
+| `fn`, parameters, results, captures `[value]` / `[&value]`         | [Functions](/reference/functions/), [closures](/reference/closures/)                                                                                                                                                                            |
+| `struct`, `class`, `enum`, arrays, and `Vector<T>`                 | [Aggregate types](/reference/aggregates/)                                                                                                                                                                                                       |
+| Type forms `()`, `(T,)`, `[T; N]`, `[T]`, `ptr<T>`, `fn(...) -> R` | [Scalar and compound type directory](/reference/types/#scalar-types), [tuples](/reference/aggregates/#tuples), [slices](/reference/slices/), [pointers](/reference/pointers/), [callable views](/reference/closures/#non-owning-callable-views) |
+| Parameters `<T>` and `<T, throw E>`                                | [Parameterized functions](/reference/functions/#parameterized-functions), [parameterized types](/reference/types/#nominal-type-parameters), [failure-set parameters](/reference/failures/#failure-set-parameters)                               |
+| Patterns `is T`, `\|`, `&name`, and `..`                           | [Match and patterns](/reference/control/#match-and-patterns), [integer range patterns](/reference/control/#integer-range-patterns)                                                                                                              |
+| `async fn`, `async let`, `await`, and `cancel`                     | [Operations](/reference/async/#cold-operations-and-await), [composition](/reference/async/#cold-composition), [children and cancellation](/reference/async/#lexical-children-and-cancellation)                                                  |
+| Qualification `Type::name`, `::native`, and tuple fields `.0`      | [Associated and native names](/reference/operators/#operator-overview), [positional fields](/reference/aggregates/#tuples)                                                                                                                      |
+| `&`, `&&`, borrowing, `ptr<T>`, `*p`, and `p->member`              | [Access and ownership](/reference/ownership/), [slices](/reference/slices/), [pointers](/reference/pointers/)                                                                                                                                   |
+| `throw`, `try`, `catch`, and `?`                                   | [Failure contracts](/reference/failures/)                                                                                                                                                                                                       |
+| Text literals `"..."`, `r#"..."#`, `"""..."""`, `f"..."`           | [Characters and text](/reference/text/), [formatting and output](/reference/formatting/)                                                                                                                                                        |
+| `import`, `using`, `export`, and `private`                         | [Modules and visibility](/reference/modules/)                                                                                                                                                                                                   |
+| `const fn`, static parameters, and static control                  | [Compile-time computation](/reference/constants/), [functions](/reference/functions/#static-parameters)                                                                                                                                         |
+| `main`, `test`, and assertions                                     | [Entries and tests](/reference/entry-testing/)                                                                                                                                                                                                  |
+| C++ headers, `c"..."`, `import(cpp)`, `export(cpp)`, `#[cpp]`      | [C++ interoperation](/reference/interop/)                                                                                                                                                                                                       |
 
 Start with the [keyword index](/reference/keywords/) when you know a spelling. Use the search at the top to find titles, topics, keywords, or common symbols such as `let`, `break`, and `?`.
 
@@ -54,41 +59,35 @@ Some effects follow from a known type or enclosing boundary. Check these rules w
 
 ## Libraries, tools, and appendices
 
-The [UTF library](/reference/utf/) and [SIMD](/reference/simd/) cover library and vector operations. [Compiler commands](/reference/cli/) and [build integration](/reference/toolchain/) describe invoking tools, generating artifacts, and integrating them.
+Use the [standard API index](/reference/library/) to choose APIs for text, SIMD, async operations, time, input, JSON, and networking. [Compiler commands](/reference/cli/) and [build integration](/reference/toolchain/) describe invoking tools, generating artifacts, and integrating them.
 
 The [grammar appendix](/reference/grammar/) gives the complete EBNF. The [diagnostic catalog](/reference/diagnostics/) helps locate errors by compiler code.
 
 ## Reading examples
 
-Start with the syntax form, then check its type, access, failure, and lifetime rules. “Compile error” means Carven should reject the program. “Termination” means execution ends without a catchable typed failure.
+“Compile error” means Carven rejects the program. “Termination” means execution ends without a catchable typed failure.
 
-Unless noted otherwise, save each complete example separately as `main.cv` and run it natively with `carven main.cv`. Check a compile-error example separately with `carven check main.cv`. Fragments and syntax templates need their stated context; do not combine independent examples into one program. Run `test` examples with `carven --tests main.cv`; `const test` executes during checking. See [your first program](/learn/first-program/) for setup and commands.
+Complete examples with a **Run** button can be executed directly; their output appears below the code.
+
+See [your first program](/learn/first-program/) for local setup and commands, and [test declarations](/reference/entry-testing/#test-declarations) for running test examples. Fragments and syntax templates require their stated context.
 
 ## Terms
 
-Rule pages use these terms where needed. A type describes a value; access describes use of storage; ownership determines lifetime; a failure contract lists the failures a call may propagate.
-
-| Term                | Meaning                                                                 |
-| ------------------- | ----------------------------------------------------------------------- |
-| Nominal type        | Type determined by a struct, class, or enum declaration's identity      |
-| Value               | Result of a computation                                                 |
-| Storage location    | Readable or writable object, field, element, or pointer target          |
-| Owner               | Binding that keeps its value alive until its scope ends                 |
-| Read / Write / Take | Reading, non-owning writable access, ownership transfer                 |
-| Backing             | Object providing actual storage for a slice or text view                |
-| Full expression     | An expression together with the temporary values kept until it finishes |
-| Normal completion   | Producing a success result or reaching the next statement               |
-| Typed failure       | A declared struct or enum value reported instead of a successful result |
-| Published interface | Declaration surface visible to readers outside its module               |
+| Term                | Meaning                                                                    |
+| ------------------- | -------------------------------------------------------------------------- |
+| Nominal type        | Type determined by a struct, class, or enum declaration's identity         |
+| Value               | Result of a computation                                                    |
+| Storage location    | Readable or writable object, field, element, or pointer target             |
+| Owner               | Binding or containing value responsible for a value's lifetime and cleanup |
+| Read / Write / Take | Reading, non-owning writable access, ownership transfer                    |
+| Backing             | Object providing actual storage for a slice or text view                   |
+| Full expression     | An expression together with the temporary values kept until it finishes    |
+| Normal completion   | Producing a success result or reaching the next statement                  |
+| Typed failure       | A declared struct or enum value reported instead of a successful result    |
+| Published interface | Declaration surface visible to readers outside its module                  |
 
 ## Boundaries of the rules
 
 Carven checks availability, access markers, and borrows of known Carven storage. Providers and callers remain responsible for external address lifetimes, C++ pointer retention, iterator invalidation, reentrancy, and native undefined behavior.
 
-The language supports structured async execution, lexical children, cooperative cancellation, parameterized functions and data types, tuples, and owning vectors. Native threads, synchronization, traits, inheritance, virtual dispatch, source destructors, custom copy/move hooks, and general reference types remain outside these source contracts. Read/Write/Take do not establish cross-thread safety.
-
-## Modern library capabilities
-
-[Structured async](/reference/async/) · [Time and deadlines](/reference/time/) · [Input and framing](/reference/io/) · [Owning JSON](/reference/json/) · [Native TCP](/reference/net/)
-
-Use [tuples and Vector](/reference/aggregates/) and [type/failure-set parameters](/reference/functions/#parameterized-functions) to express reusable application data and operations.
+For external storage and concurrency responsibilities, see [C++ access and lifetimes](/reference/interop/#access-and-lifetimes).

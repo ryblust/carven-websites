@@ -4,6 +4,7 @@
   height: 16px;
   flex-shrink: 0;
 }
+
 .button {
   min-height: 44px;
   padding: 10px 22px;
@@ -21,25 +22,30 @@
     border-color 0.2s,
     color 0.2s;
 }
+
 .button-primary {
   color: var(--on-solid);
   border-color: var(--text);
   background: var(--text);
   box-shadow: 3px 3px 0 var(--shadow);
 }
+
 .button-primary:hover {
   background: var(--prose);
   border-color: var(--prose);
 }
+
 .button-secondary {
   color: var(--text);
   border-color: var(--line);
   background: var(--surface);
 }
+
 .button-secondary:hover {
   border-color: var(--accent-line);
   background: var(--accent-soft);
 }
+
 .text-link {
   font-size: var(--text-sm);
   font-weight: 500;
@@ -50,15 +56,19 @@
   line-height: 1.8;
   transition: color 0.18s;
 }
+
 .text-link:hover {
   color: var(--accent-bright);
 }
+
 .text-link span {
   transition: transform 0.2s var(--ease);
 }
+
 .text-link:hover span {
   transform: translateX(3px);
 }
+
 .hero-actions {
   margin-top: var(--space-6);
   display: flex;
@@ -66,6 +76,7 @@
   gap: var(--space-5);
   flex-wrap: wrap;
 }
+
 /* Icon buttons and the theme selector. */
 .icon-button {
   width: 44px;
@@ -80,10 +91,12 @@
   background: transparent;
   color: var(--prose);
 }
+
 .icon-button:hover {
   background: var(--accent-soft);
   border-color: var(--accent-line);
 }
+
 .icon-button svg {
   width: 22px;
   height: 22px;
@@ -93,24 +106,29 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
 .theme-toggle svg {
   grid-area: 1 / 1;
   opacity: 0;
   pointer-events: none;
 }
+
 .theme-toggle[data-preference='system'] .theme-system,
 .theme-toggle[data-preference='light'] .theme-sun,
 .theme-toggle[data-preference='dark'] .theme-moon {
   opacity: 1;
 }
+
 .theme-toggle:disabled {
   visibility: hidden;
 }
+
 /* Physical feedback is optional when motion is permitted. */
 @media (prefers-reduced-motion: no-preference) {
   .icon-spinning {
     animation: icon-spin 1s linear infinite;
   }
+
   .button {
     transition:
       color 160ms var(--ease),
@@ -119,43 +137,52 @@
       box-shadow 160ms var(--ease),
       transform 160ms var(--ease);
   }
+
   .icon-button {
     transition:
       color 160ms var(--ease),
       background-color 160ms var(--ease),
       border-color 160ms var(--ease);
   }
+
   .button:active {
     transform: translateY(1px);
   }
+
   .button-primary:active {
     transform: translate(2px, 2px);
     box-shadow: 1px 1px 0 var(--shadow);
   }
+
   .theme-toggle svg {
     transform: rotate(-12deg) scale(0.85);
     transition:
       opacity 160ms var(--ease),
       transform 180ms var(--ease);
   }
+
   .theme-toggle[data-preference='system'] .theme-system,
   .theme-toggle[data-preference='light'] .theme-sun,
   .theme-toggle[data-preference='dark'] .theme-moon {
     transform: none;
   }
 }
+
 @keyframes icon-spin {
   to {
     transform: rotate(360deg);
   }
 }
+
 @media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
   .button:hover {
     transform: translateY(-1px);
   }
+
   .button:active {
     transform: translateY(1px);
   }
+
   .button-primary:active {
     transform: translate(2px, 2px);
   }

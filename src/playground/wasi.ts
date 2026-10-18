@@ -27,6 +27,7 @@ const record = (value: unknown): value is Record<string, unknown> =>
 export function parseCrafts(value: unknown): Record<string, string> {
   if (!record(value) || !record(value.files)) throw new Error('Crafts package is invalid.');
   const files: Record<string, string> = Object.create(null) as Record<string, string>;
+
   for (const [path, content] of Object.entries(value.files)) {
     if (
       !/^crafts\/carven\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_.-]+\.cv$/.test(path) ||
@@ -34,11 +35,14 @@ export function parseCrafts(value: unknown): Record<string, string> {
     ) {
       throw new Error('Crafts package contains an invalid file.');
     }
+
     files[path] = content;
   }
+
   if (Object.keys(files).length === 0) {
     throw new Error('Crafts package has no sources.');
   }
+
   return files;
 }
 
@@ -48,6 +52,7 @@ async function boundedDownload(url: URL, limit: number): Promise<Uint8Array<Arra
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
+
   try {
     while (true) {
       const chunk = await reader.read();
@@ -62,12 +67,15 @@ async function boundedDownload(url: URL, limit: number): Promise<Uint8Array<Arra
   } finally {
     reader.releaseLock();
   }
+
   const output = new Uint8Array(size);
   let offset = 0;
+
   for (const chunk of chunks) {
     output.set(chunk, offset);
     offset += chunk.byteLength;
   }
+
   return output;
 }
 
@@ -83,6 +91,7 @@ export async function loadCompilerAssets(base: URL): Promise<CompilerAssets> {
   ) {
     throw new Error('Compiler module imports unsupported host capabilities.');
   }
+
   return {
     module,
     files: parseCrafts(JSON.parse(new TextDecoder().decode(crafts))),
@@ -109,6 +118,7 @@ export function validateInput(
     action !== 'tokens'
   )
     throw new Error('Unknown compiler action.');
+
   return { source, action };
 }
 
@@ -121,6 +131,7 @@ export class CapturedOutput {
   private bytes = 0;
   truncated = false;
   private readonly limit: number;
+
   constructor(limit = maxOutputBytes) {
     this.limit = limit;
   }
@@ -136,6 +147,7 @@ export class CapturedOutput {
       }
     });
   }
+
   text(stream: 'stdout' | 'stderr') {
     const decoder = new TextDecoder();
     return (
@@ -147,9 +159,11 @@ export class CapturedOutput {
 
 function filesystem(source: string, files: Record<string, string>) {
   const root = new Directory(new Map<string, Inode>());
+
   const insert = (path: string, content: string) => {
     const parts = path.split('/');
     let directory = root;
+
     for (const part of parts.slice(0, -1)) {
       let child = directory.contents.get(part);
       if (!child) {
@@ -159,11 +173,13 @@ function filesystem(source: string, files: Record<string, string>) {
       if (!(child instanceof Directory)) throw new Error('Conflicting virtual file path.');
       directory = child;
     }
+
     directory.contents.set(
       parts.at(-1)!,
       new File(new TextEncoder().encode(content), { readonly: true }),
     );
   };
+
   for (const [path, content] of Object.entries(files)) insert(path, content);
   insert('bin/carven', '');
   insert('main.cv', source);
@@ -176,11 +192,13 @@ function filesystem(source: string, files: Record<string, string>) {
         child instanceof Directory ? finalize(child) : child,
       ]),
     );
+
   return new PreopenDirectory('/', finalize(root).contents);
 }
 
 function generatedArtifacts(root: PreopenDirectory): ExecutionResult['artifacts'] {
   const artifacts: ExecutionResult['artifacts'] = [];
+
   const collect = (directory: Directory, prefix: string) => {
     for (const [name, entry] of [...directory.contents].sort(([a], [b]) => a.localeCompare(b))) {
       const path = `${prefix}${name}`;
@@ -189,8 +207,10 @@ function generatedArtifacts(root: PreopenDirectory): ExecutionResult['artifacts'
         artifacts.push({ path, content: new TextDecoder().decode(entry.data) });
     }
   };
+
   const generated = root.dir.contents.get('generated');
   if (generated instanceof Directory) collect(generated, '');
+
   return artifacts;
 }
 
@@ -230,6 +250,7 @@ export async function executeWasi(
       new Uint8Array(wasi.inst.exports.memory.buffer, pathPointer, pathLength),
     );
     const status = directory.path_filestat_get(0, path);
+
     return status.ret === 0 ? wasiDefinitions.ERRNO_INVAL : status.ret;
   };
   // Standard input is a closed in-memory file. The shim handles clock polling
@@ -242,6 +263,7 @@ export async function executeWasi(
     completed?: number,
   ) => {
     const memory = new DataView(wasi.inst.exports.memory.buffer);
+
     for (let index = 0; index < count; index++) {
       const subscription = subscriptions + index * 48;
       if (
@@ -256,12 +278,15 @@ export async function executeWasi(
         memory.setBigUint64(events + 16, 0n, true);
         memory.setUint16(events + 24, wasiDefinitions.EVENTRWFLAGS_FD_READWRITE_HANGUP, true);
         if (completed !== undefined) memory.setUint32(completed, 1, true);
+
         return wasiDefinitions.ERRNO_SUCCESS;
       }
     }
+
     const result = poll(subscriptions, events, count);
     if (result === wasiDefinitions.ERRNO_SUCCESS && completed !== undefined)
       memory.setUint32(completed, 1, true);
+
     return result;
   };
   const write = wasi.wasiImport.fd_write!;
@@ -271,6 +296,7 @@ export async function executeWasi(
     if (file instanceof OpenFile && !file.file.readonly) {
       const memory = new DataView(wasi.inst.exports.memory.buffer);
       let size = 0;
+
       for (let index = 0; index < count; index++)
         size += memory.getUint32(vectors + index * 8 + 4, true);
       if (artifactBytes + size > maxOutputBytes) {
@@ -279,6 +305,7 @@ export async function executeWasi(
       }
       artifactBytes += size;
     }
+
     return write(fd, vectors, count, written);
   };
   const instance = await WebAssembly.instantiate(assets.module, {
@@ -290,6 +317,7 @@ export async function executeWasi(
     throw new Error('Compiler module has no WASI command entry.');
   }
   let exitCode: number;
+
   try {
     exitCode = wasi.start({ exports: { memory, _start: start as () => unknown } });
   } catch (error) {
@@ -306,7 +334,9 @@ export async function executeWasi(
       }
     }
   }
+
   const stdout = output.text('stdout');
+
   return {
     stdout,
     stderr: output.text('stderr'),

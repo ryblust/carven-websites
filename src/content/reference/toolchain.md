@@ -1,8 +1,8 @@
 ---
-title: "Builds, artifacts, and native integration"
+title: "Build and native integration"
 description: "Host requirements, C++20 targets, Xmake batches, generated interfaces, and runtime support."
 section: reference
-lesson: 25
+lesson: 24
 source: docs/toolchain/artifacts.md
 ---
 
@@ -25,22 +25,14 @@ native `throw` or `try`/`catch` requires exception support in its generated
 translation unit.
 
 A successful build requires Carven analysis, native compilation, and linking.
-Carven supplies C++ and artifact facts; the native compiler checks provider
+Carven supplies C++ and artifact metadata; the native compiler checks provider
 contracts, definitions, overloads, templates, and delegated conversions. Generated
 source mappings attribute C++ diagnostics to their Carven locations. Native checks
-can fail after Carven analysis succeeds. For supported operations with satisfied
-provider requirements, invalid generated C++ is a compiler defect.
+can fail after Carven analysis succeeds. Check the native compiler's diagnostics for missing providers, headers, unsupported construction, or required libraries.
 
 ### Construction limitation
 
-An aggregate initializer may evaluate a native component before a later component
-that can produce a Carven failure. If lowering saves the earlier component in
-separate storage, final aggregate construction must copy or move it from that
-storage. An immovable component cannot satisfy this generated construction,
-even when C++ could construct it directly in the final aggregate.
-
-C++ checks the required copy or move constructor. Direct construction from a
-prvalue supports immovable results where no intermediate transfer is required.
+Native aggregate construction can require copying or moving saved components. See [C++ construction and conversions](/reference/interop/#types-construction-and-conversions) for immovable-result restrictions.
 
 ## Numeric model
 
@@ -106,11 +98,7 @@ and directly required standard-library headers. Compiler-generated dependencies
 are merged and sorted within their groups; explicit native occurrences remain
 independent and retain their repetitions. Generated headers begin with pragma-once.
 
-Test generation emits the runner header. `--tests` also emits a
-main source; `--tests=runner` supplies the runner to a caller-provided
-entry. Both use the same direct test functions and reporting protocol. The generated
-runner invokes modules in canonical path order and tests within each module in
-source order.
+[CLI test emission](/reference/cli/#test-emission) selects the generated entry or a runner for a caller-provided entry. Test execution and reporting follow [entries and tests](/reference/entry-testing/).
 
 Project linkage identity combines the generation destination, canonical module
 path, and test generation mode. Generated interface paths carry the same linkage
@@ -217,13 +205,11 @@ Configure native providers through ordinary target settings and dependencies.
 Xmake owns target dependencies, native configuration, preparation order, header
 scanning, compilation, linking, and concurrency. The Carven rule supplies generated
 sources and preserves the native settings attached to their originating `.cv`
-files. Standard-library archives contain standard implementations and native
-support. Application dependencies belong to consumer targets.
+files. The rule registers the full standard library's generated implementations and installed native support sources on each consumer target. Xmake compiles them with that target's native settings and manages incremental object reuse. Application dependencies belong to consumer targets.
 
 Identical source batches share analysis and publish only semantics and discovery
 facts. Each target generates its C++ and selected entry from the retained program
-in its own linkage domain. Standard-library C++ has a fixed linkage identity and
-is generated once for the native archive configurations that consume it. Analysis with
+in its own linkage domain. Standard-library analysis and generated C++ text are shared across consumer targets. Their fixed linkage identity is independent of each consumer's native configuration. Analysis with
 host input, clock sampling, or waiting runs again on the next build request.
 
 Generate into staging, publish only after a successful compiler invocation, and
@@ -280,11 +266,7 @@ carven/runtime/value/tuple.hpp
 carven/runtime/value/void.hpp
 ```
 
-The execution core owns cold operations, activation, host event sources, and the
-driver. Child scopes own readiness, observation, and closure. Composition depends
-on child scopes, time depends on the core, and timeout combines composition and
-time. Each header includes its dependencies directly; generated files select the
-header that owns each runtime symbol.
+Each header includes its own dependencies. Generated files select the header that owns each runtime symbol. Native asynchronous implementations use the [provider and host contract](/reference/async/#native-providers-and-hosts).
 
 Use support headers matching the compiler that generated the artifacts.
 Private target names, helper selections, and representation layouts are
@@ -300,14 +282,7 @@ and reporting in `carven::runtime`.
 `text/text.hpp` supplies owning String, borrowed text views, UTF-8 validation,
 scalar encoding and decoding, and native representation conversions. Its
 implementation headers are `string.hpp`, `view.hpp`, and `utf8.hpp`.
-`format/format.hpp` supplies general interpolation and requires C++20 `<format>`
-support. `format/writer.hpp` defines FormatWriter for prepared builtin formatting,
-including integer, floating, bool, char, and text fields; precomputed text uses
-direct String construction or append. Structural printing uses
-`display/display.hpp`. The consumer compiler checks delegated format strings
-and native formatter availability. `io/print.hpp` supplies stdout and stderr
-printing through the C++20 implementation or available C++23 library print
-support under the consumer's selected standard.
+`format/format.hpp` supplies interpolation and requires C++20 `<format>` support; `format/writer.hpp` provides FormatWriter. `display/display.hpp` supplies structural display. `io/print.hpp` uses C++20 support or available C++23 print facilities under the consumer's selected standard. Source behavior is defined by [formatting and output](/reference/formatting/).
 
 For direct C++ calls, `String::from_str` and `append` require valid UTF-8, and
 `push` requires a Unicode scalar. `String::from_utf8` validates incoming byte

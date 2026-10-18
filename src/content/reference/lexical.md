@@ -12,16 +12,7 @@ Carven source text is UTF-8. Identifiers use ASCII: a letter or `_` first, follo
 
 Whitespace includes spaces, tabs, LF, CR, and CRLF. Line comments run from `//` to the line end. Ordinary Carven source has no block comments. A `#[cpp]` payload is treated as opaque bytes.
 
-Reserved keywords (see the [keyword index](/reference/keywords/) for individual rules):
-
-```text
-as async await break cancel catch class const continue else enum export false fn for if import in is let
-match nullptr private rethrow return struct test throw true try using var while
-```
-
-Spellings without language productions, such as `new` and `delete`, remain ordinary identifiers. `_` discards in binding positions; `_name` is an ordinary name.
-
-`self` is contextual, not globally reserved. A class operation whose first parameter is named `self` must use the untyped receiver form (`self`, `&self`, or `&&self`); a typed first `self` or a later `self` parameter is rejected. Free-function parameters `fn echo(self: i32) -> i32 => self;` and local `let self = 2;` are ordinary bindings. See the [special-spelling rules](/reference/keywords/#other-special-spellings) for `cpp`, string prefixes, and builtin type names. Builtin callables such as `println`, `check`, `assert`, and `addressof` are ordinary identifiers resolved by name lookup and may be shadowed.
+See the [keyword index](/reference/keywords/) for reserved keywords, contextual uses, and naming restrictions.
 
 ## Numbers
 
@@ -35,7 +26,9 @@ Spellings without language productions, such as `new` and `delete`, remain ordin
 | Exponent             | `1e3`, `1.5E-2`          |
 | Floating suffix only | `1f32`, `1f64`           |
 
-Signs are prefix operators. Suffixes immediately follow the literal. Integer suffixes are `i8/i16/i32/i64/isize/u8/u16/u32/u64/usize`; floating suffixes are `f32/f64`. There are no C++ `f`, `l`, or `ul` suffixes or digit separators. A decimal-point form requires decimal digits on both sides of the point.
+Signs are prefix operators. Suffixes immediately follow the literal. Integer suffixes use the [integer type names](/reference/types/#scalar-types); floating suffixes are `f32` and `f64`. There are no C++ `f`, `l`, or `ul` suffixes or digit separators. A decimal-point form requires decimal digits on both sides of the point.
+
+Integer suffixes `ns`, `us`, `ms`, and `s` construct the ordinary `Duration` type from `std::time`, as in `100ms` or `2s`. Decimal, hexadecimal, binary, and octal integer spellings accept these suffixes. Scaling to `i64` nanoseconds is checked during compilation. The literal needs no import; naming `Duration` explicitly requires its ordinary import from `std::time`. See [time](/reference/time/).
 
 ## Characters and strings
 
@@ -78,5 +71,3 @@ Assignment and increment/decrement are statement actions, not expressions. Incre
 In expression positions, `{ field: value }` and `{}` are contextual constructions whose type comes from the expected type. At the start of a match or catch arm body, a `{` followed by `IDENTIFIER :` begins a construction, while any other leading brace, including `{}`, begins a branch block; write `({})` for an empty construction arm. Function, if, and try bodies are always blocks. The parser decides from tokens alone, without name or type lookup. `&` and `&&` mark access in parameter and argument positions. In ordinary expressions, `&&` may mean Take or binary logical and according to position. Lexing uses maximal munch; type parsing handles consecutive `>` in template types.
 
 `..` and `..=` are each recognized as one maximal-munch token, denoting half-open and closed ranges. Range expressions require both bounds; omitted bounds are allowed only in range patterns.
-
-Integer suffixes `ns`, `us`, `ms`, and `s` create checked i64-nanosecond Duration values; naming Duration still requires its std::time import. See [time](/reference/time/).

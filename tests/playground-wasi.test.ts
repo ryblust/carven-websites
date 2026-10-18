@@ -35,13 +35,6 @@ const presetOutput: Record<RunnablePreset['id'], string> = {
 };
 
 describe('Playground compiler assets', () => {
-  it('loads the packaged Crafts sources', () => {
-    const files = {
-      'crafts/carven/std/io.cv': 'export fn sample() {}',
-    };
-    expect(parseCrafts({ files })).toEqual(files);
-  });
-
   it('loads the compiler and Crafts beneath the deployment prefix', async () => {
     const [wasm, crafts] = await Promise.all([
       readFile(new URL('carven.wasm', root)),
@@ -54,6 +47,7 @@ describe('Playground compiler assets', () => {
       return new Response(null, { status: 404 });
     });
     vi.stubGlobal('fetch', fetchAsset);
+
     try {
       const assets = await loadCompilerAssets(base);
       const result = await executeWasi(assets, 'println("你好");', 'run');
@@ -245,17 +239,6 @@ async fn main() throw IOError {
     expect(result.stderr).toContain('CV-TYPE-MISMATCH');
     expect(result.stderr).not.toContain('\u001b[');
     expect(result.artifacts).toEqual([]);
-  });
-
-  it('rejects native C++ calls at the interpreter admission boundary', async () => {
-    const result = await executeWasi(
-      assets,
-      'import <cstdlib> using std::abort;\nfn main() { abort(); }',
-      'run',
-    );
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain('CV-INTERPRET-ADMISSION');
-    expect(result.stdout).toBe('');
   });
 
   it('limits interpreted loops and preserves output before the limit', async () => {

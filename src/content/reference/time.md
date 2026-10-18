@@ -2,7 +2,7 @@
 title: "Time and deadlines"
 description: "Checked duration literals, monotonic points, cancellable waits, and timeout composition."
 section: reference
-lesson: 29
+lesson: 28
 source: docs/language/time.md
 ---
 
@@ -14,9 +14,7 @@ Import the types and callables being used from `std::time`.
 `Duration`, `RangeError`, `Timeout`, and `TimePoint` are declared in the standard
 source module.
 
-Importing an operation binds that operation; naming a type in an annotation or a
-failure declaration requires its own binding. Duration literals require no type
-binding.
+Duration literals require no `Duration` binding; see [module imports](/reference/modules/) for name selection.
 
 ## Intervals
 
@@ -26,12 +24,12 @@ negative range. Construction, copying, mutation, and field access use ordinary
 struct rules. `RangeError` is an empty nominal struct used for unrepresentable
 unit scaling and time-point addition.
 
-| Function from `std::time`  | Result                                   | Failure      |
-| -------------------------- | ---------------------------------------- | ------------ |
-| `nanoseconds(value: i64)`  | `Duration` with the supplied field value | None         |
-| `microseconds(value: i64)` | `Duration` scaled by 1,000               | `RangeError` |
-| `milliseconds(value: i64)` | `Duration` scaled by 1,000,000           | `RangeError` |
-| `seconds(value: i64)`      | `Duration` scaled by 1,000,000,000       | `RangeError` |
+| Function from `std::time`              | Result                                   | Failure      |
+| -------------------------------------- | ---------------------------------------- | ------------ |
+| `nanoseconds(value: i64) -> Duration`  | `Duration` with the supplied field value | None         |
+| `microseconds(value: i64) -> Duration` | `Duration` scaled by 1,000               | `RangeError` |
+| `milliseconds(value: i64) -> Duration` | `Duration` scaled by 1,000,000           | `RangeError` |
+| `seconds(value: i64) -> Duration`      | `Duration` scaled by 1,000,000,000       | `RangeError` |
 
 Scaling checks the result's signed `i64` range before multiplication. These
 functions are `const fn`.
@@ -52,16 +50,16 @@ const delay: Duration = milliseconds(250)?;
 point. It does not expose the clock epoch or represent calendar time. Its values
 use ordinary copying, access, and lifetime rules.
 
-| Operation                              | Result and behavior                                        | Failure      |
-| -------------------------------------- | ---------------------------------------------------------- | ------------ |
-| `TimePoint::now()`                     | `TimePoint`; sample the clock once                         | None         |
-| `TimePoint::after(duration: Duration)` | `TimePoint`; sample once and add the interval              | `RangeError` |
-| `point.shifted(duration: Duration)`    | `TimePoint`; add the interval without reading the clock    | `RangeError` |
-| `point.is_before(other: TimePoint)`    | `bool`; compare stored points                              | None         |
-| `point.has_passed()`                   | `bool`; compare the stored point with the current clock    | None         |
-| `point.wait()`                         | Snapshot the stored deadline into a cold `Operation<void>` | None         |
+| Operation                                           | Result and behavior                                        | Failure      |
+| --------------------------------------------------- | ---------------------------------------------------------- | ------------ |
+| `TimePoint::now() -> TimePoint`                     | `TimePoint`; sample the clock once                         | None         |
+| `TimePoint::after(duration: Duration) -> TimePoint` | `TimePoint`; sample once and add the interval              | `RangeError` |
+| `point.shifted(duration: Duration) -> TimePoint`    | `TimePoint`; add the interval without reading the clock    | `RangeError` |
+| `point.is_before(other: TimePoint) -> bool`         | `bool`; compare stored points                              | None         |
+| `point.has_passed() -> bool`                        | `bool`; compare the stored point with the current clock    | None         |
+| `point.wait() -> Operation<void>`                   | Snapshot the stored deadline into a cold `Operation<void>` | None         |
 
-Checked addition rejects results outside signed `i64` nanoseconds. These
+All instance methods use a Read receiver; `now` and `after` are associated functions. Checked addition rejects results outside signed `i64` nanoseconds. These
 operations support `const` execution. Clock sampling observes the monotonic clock
 of the selected execution host. Comparisons and waits require points from the
 same clock domain. A frozen point sampled during compilation retains the compiler
@@ -70,11 +68,7 @@ the clock epoch changes, such as across a reboot.
 
 ## Execution capabilities
 
-Time operations support static execution, interpretation, and native execution,
-including clock sampling, waiting, and `timeout`. Static execution uses the
-compiler process's clock and timers; interpreted and native calls use their
-executing process. Ordinary calls remain at runtime even when their arguments
-are known.
+Time operations support compile-time, interpreted, and native execution, including clock sampling, waiting, and `timeout`. Each uses the executing process's clock and timers; see [execution stages](/reference/constants/#execution-stages).
 
 Clock reads and completed waits belong to the selected host stage. Cold operation
 construction alone does not register a timer. Operations cannot be frozen as
@@ -83,8 +77,7 @@ budgets do not impose an elapsed-time limit.
 
 ## Waiting
 
-Import `sleep` and `sleep_until` from `std::time`. Both return ordinary cold
-void operations. Starting or awaiting them consumes the cold owner.
+Import `sleep` and `sleep_until` from `std::time`. Both are `const async fn` with successful result `void`. Calls return `Operation<void, throw RangeError>` and `Operation<void>`, respectively; starting or awaiting them consumes the cold owner.
 
 | Function                        | Argument                    | Nominal failure |
 | ------------------------------- | --------------------------- | --------------- |
@@ -144,7 +137,7 @@ winner produces `Timeout`. Both children close before delivery. Once committed,
 later cancellation requests and losing outcomes cannot replace the result.
 Noncooperative protected work can delay closure beyond the deadline.
 
-```carven
+```carven run
 import std::time using { timeout, RangeError, Timeout };
 
 async fn load() -> i32 => 7;

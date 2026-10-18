@@ -1,8 +1,8 @@
 ---
-title: "Diagnostic code catalog"
+title: "Diagnostic codes"
 description: "Find current checking boundaries, default severity, and likely fixes by code."
 section: reference
-lesson: 27
+lesson: 26
 source: src/diagnostics/code.cpp
 ---
 
@@ -12,7 +12,7 @@ Start with the reported file, line, and highlighted expression. Then read the me
 
 Long source lines are excerpted around the marked location, with `...` indicating omitted text. Reported line and column coordinates still refer to the original source.
 
-Unused checks count reachable references as uses. _ is never an unused candidate. A uniquely resolved reference to any selected binding in an import list counts as use.
+Unused checks count reachable references as uses. `_` is never an unused candidate. A uniquely resolved reference to any selected binding in an import list counts as use.
 
 ## Common areas to inspect
 

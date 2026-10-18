@@ -1,6 +1,6 @@
 ---
 title: "Start asynchronous work and combine its results"
-description: "Choose when work starts, combine results, set deadlines, and finish children before leaving their scope."
+description: "Choose when work starts, combine results, set deadlines, request cancellation, and finish children before leaving their scope."
 section: learn
 lesson: 14
 source: docs/language/async.md
@@ -8,9 +8,9 @@ source: docs/language/async.md
 
 ## Construct work, then execute it
 
-When work may have to wait for input or time, an async function lets other scheduled work make progress. First distinguish describing that work from actually starting it. Save this as async_work.cv:
+When work may have to wait for input or time, an async function lets other scheduled work make progress. First distinguish describing that work from actually starting it. Use `async fn main` for an entry that can await operations. Save this as async_work.cv:
 
-```carven
+```carven run
 import std::async using yield_once;
 
 async fn load_count(value: i32) -> i32 {
@@ -38,11 +38,13 @@ Calling an `async fn` produces a **cold operation**. Its body starts only when a
 
 In the output, constructed appears first because creating pending has not run load_count. await then starts it. yield_once gives other ready work a turn before this function continues. Awaiting a function that can finish immediately does not itself force such a turn. This is cooperative scheduling on one thread, so lengthy synchronous calculations still block other work.
 
+`async` and `await` are language keywords and need no import. Import `yield_once` from `std::async` as shown above; it is a built-in operation whose name is not supplied by default.
+
 ## Join independent results
 
 Replace the previous file with this complete batch program:
 
-```carven
+```carven run
 import std::async using { when_all as join, yield_once };
 
 async fn subtotal(price: i32, quantity: i32) -> i32 {
@@ -64,17 +66,56 @@ async fn main() {
 }
 ```
 
-It prints `2400 1400`. `when_all` starts all its inputs and returns results in input order. Nested joins keep their nesting. record_audit contributes `()`, so the target uses `_` for that position. The alias join selects the same builtin and completion rules as when_all.
+It prints `2400 1400`. Awaiting `when_all` starts all its inputs and returns results in input order. Nested joins keep their nesting. record_audit contributes `()`, so the target uses `_` for that position. The alias join selects the same builtin and completion rules as when_all.
 
-A stored operation passed into composition uses Take, for example `join(&&pending, other())`. A cold operation can only run once, so it cannot be copied or captured by a closure. Import `Operation` from `std::async` when you need to spell a type such as `Operation<i32>` or `Operation<i32, throw LoadError>`. Constructing a composite still does not start any input.
+A stored operation passed into composition uses Take, for example `join(&&pending, other())`. A cold operation can only run once. See the [operation reference](/reference/async/) when you need to name its type or store it.
 
-`when_any` takes the first completed outcome, whether success or failure; `first_successful` keeps looking for success after a candidate fails. Both produce `(usize, T)` with the input position and common successful type. They close all their inputs before returning. The result may report any input's declared failure; cancellation is a separate outcome.
+## Select a result from alternative sources
+
+Try two candidates when either can supply the result. Choose `when_any` to accept the first completion, including failure, or `first_successful` to keep waiting after a candidate fails. Save this complete program as select_result.cv:
+
+```carven run
+import std::async using { when_any, first_successful, yield_once };
+
+struct Unavailable {
+    value: i32,
+}
+
+async fn candidate(value: i32, available: bool) -> i32 throw Unavailable {
+    await yield_once();
+    if !available { throw Unavailable { value }; }
+    return value;
+}
+
+async fn main() throw Unavailable {
+    try {
+        let (index, value) = await when_any(candidate(12, false), candidate(42, true))?;
+        println("first completion:", index, value);
+    } catch {
+        Unavailable(error) => println("first result unavailable:", error.value),
+    }
+
+    let (index, value) = await first_successful(candidate(12, false), candidate(42, true))?;
+    println("first success:", index, value);
+}
+```
+
+Run `carven select_result.cv`. It prints:
+
+```text
+first result unavailable: 12
+first success: 1 42
+```
+
+Both candidates yield once. FIFO scheduling lets the first candidate report Unavailable first. `when_any` forwards that failure to the local catch. `first_successful` instead continues to the second candidate and returns its input index and value. Indices start at zero, so `1 42` identifies the second candidate.
+
+Both operations close their children before delivering an outcome. Their failure contracts include the candidates' declared failures, so main preserves Unavailable for the second call too. If every candidate fails, `first_successful` reports the first selected typed failure. Cancellation is a separate outcome.
 
 ## Bound a request with a deadline
 
-Save this separate program as deadline.cv:
+Wait for load within a time limit, and use -1 if Timeout occurs. Save this separate program as deadline.cv:
 
-```carven
+```carven run
 import std::time using { sleep, timeout, RangeError, Timeout };
 
 async fn load() -> i32 throw RangeError {
@@ -92,16 +133,18 @@ async fn main() throw RangeError {
 }
 ```
 
-It deterministically prints `-1`: a nonpositive timeout chooses Timeout without starting load. Try `100ms` to allow it to finish; scheduling and host load can still affect which completion wins. Duration literals (`ns`, `us`, `ms`, `s`) construct checked `Duration` values. Naming the type requires its import; using a literal does not.
+It deterministically prints `-1`: a nonpositive timeout chooses Timeout without starting load. Try `100ms` to allow it to finish; scheduling and host load can still affect which completion wins. `100ms` is a Duration literal; see the [time reference](/reference/time/) for other units and range checks.
 
 `sleep` and timeout may fail with RangeError if deadline arithmetic is unrepresentable. The try handles Timeout and the explicit main contract preserves RangeError. `await operation()?` awaits completion first, then propagates a nominal failure. Cancellation is a separate completion, so it is not caught by naming a failure payload.
 
-A timeout closes its protected work before delivering its result. It can take longer than the interval to finish if that work does not cooperate with cancellation. It is a completion deadline with structured cleanup, not a mechanism to forcibly terminate code.
+A timeout closes its protected work before delivering its result. It can take longer than the interval to finish if that work does not cooperate with cancellation.
 
 ## Start a child whose lifetime belongs to this scope
 
-```carven
-import std::async using { close, yield_once };
+Start an update, wait for it to finish, then read the modified count. Save this separate program as child_work.cv:
+
+```carven run
+import std::async using yield_once;
 
 async fn update(&count: i32) {
     await yield_once();
@@ -113,18 +156,61 @@ async fn main() {
     async let child = update(&count);
     await child;
     println(count);
-
-    async let unused = update(&count);
-    await close(unused);
-    println("closed");
 }
 ```
 
-This prints `1` followed by `closed`. The program does not depend on whether unused executes its update before closure: close discards that outcome. `async let` schedules work and makes its lexical scope responsible for the child. Before leaving normally, await the child, close it, or request `cancel child;`. A child cannot be copied, transferred, or passed into cold composition.
+Run `carven child_work.cv`; it prints `1`. `async let` schedules the update and makes this scope responsible for its lifetime. Awaiting child observes its result and releases its active access to count. A child cannot be copied, transferred, or passed into cold composition.
 
-`cancel child;` requests cancellation and returns immediately; it does not finish cleanup or release retained backing. `await close(child)` requests cancellation and waits until the child and its provider have stopped using the retained data. It discards the result; after it returns, the data is no longer held by that child. Returning or leaving a failing scope also closes its children before their backing is destroyed.
+## Request cancellation, then wait for closure
 
-If a child has Write access to a variable, keep that variable in place until await or close completes. Taking it away or replacing its storage earlier would leave the child using invalid data, so the compiler rejects those operations. Pure Read values are snapshots; borrowed `str`, slices, pointers, and callable views are not admitted as async inputs. Pass owning `String` data with Take when work must retain text.
+Stop a background counter after one iteration. Let the child observe the stop request, check its terminal state, and close it before taking its backing value. Save this complete program as cancel_work.cv:
+
+```carven run
+import std::async using { cancel_requested, cancel_point, yield_once, wait_ready, close };
+
+async fn count(&completed: i32) {
+    while !cancel_requested() {
+        completed += 1;
+        await yield_once();
+    }
+
+    println("cancellation observed");
+    await cancel_point();
+}
+
+async fn main() {
+    var completed = 0;
+    async let worker = count(&completed);
+    await yield_once();
+
+    cancel worker;
+    println("stop requested");
+
+    let (_, cancelled) = await wait_ready(worker);
+    println("cancelled", cancelled);
+    await close(worker);
+
+    let finished = &&completed;
+    println("completed", finished);
+}
+```
+
+Run `carven cancel_work.cv`. It prints:
+
+```text
+stop requested
+cancellation observed
+cancelled true
+completed 1
+```
+
+The parent's `await yield_once()` lets the queued worker increment once and yield back. `cancel worker;` requests a stop and returns immediately, so stop requested prints before the worker observes it. `cancel_requested()` reads that request inside the child. `await cancel_point()` accepts it as cancelled completion.
+
+`wait_ready(worker)` waits for a terminal child and returns its index and cancellation flag. The tuple binding discards the index and keeps cancelled. It observes readiness without consuming the child or releasing its backing. `await close(worker)` then discards the outcome and waits until the child and its provider no longer use that backing. The Take of completed is valid after closure.
+
+You can also call `await close(child)` directly to request cancellation and wait in one step. Returning or leaving a failing scope closes its children before their backing is destroyed. Cancellation stays separate from a typed failure caught by naming a payload.
+
+A child with Write access keeps its backing in place until await or close completes. Pure Read values are snapshots; borrowed `str`, slices, pointers, and callable views are not admitted as async inputs. Pass owning `String` data with Take when work must retain text.
 
 ## Check asynchronous algorithms during compilation
 
@@ -143,10 +229,10 @@ const test "joined results" {
 }
 ```
 
-`carven check async_tests.cv` executes this static test. Ordinary runtime tests may use synchronous helpers; there is no `async test` form. Supported static and interpreted async operations use the same cold, scheduling, ownership, and closure rules. Native C++ provider bodies still require native execution.
+Save this as async_tests.cv and run `carven check async_tests.cv`. This executes the static test, including its await. Ordinary runtime tests are synchronous and cannot await. The [async reference](/reference/async/) describes static and interpreted execution.
 
-Continue with the [JSON input project](/learn/data-pipeline/) after the inventory project to combine these operations with real input. Networking in `std::net` uses host-supplied TCP connections: a native host must create and retain sockets and drive the event source. Source APIs do not create listeners, resolve names, or provide TLS; see the [standard-library reference](/reference/library/).
+Continue with the [JSON input project](/learn/data-pipeline/) after the inventory exercise to combine these operations with real input.
 
 ## Exercise
 
-Add a fourth subtotal to the joined program and update the recursive target. Replace `await child` with `cancel child;` and explain why the updated count is no longer the result to depend on. Add a static test for `when_all()` returning `()` and one input returning a singleton tuple.
+Add a fourth subtotal to the joined program and update the recursive target. In cancel_work.cv, move `let finished = &&completed;` before close and inspect the borrow-conflict diagnostic. In select_result.cv, make the first candidate available and compare the two selection results. Add a static test for `when_all()` returning `()` and one input returning a singleton tuple.

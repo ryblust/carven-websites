@@ -18,21 +18,26 @@
   justify-content: center;
   padding-block: var(--space-7) var(--space-9);
 }
+
 .article-overview.article-shell {
   width: min(760px, calc(100% - 72px));
   grid-template-columns: minmax(0, 1fr);
 }
+
 .article-overview .page-outline,
 .article-overview .mobile-toc {
   display: none;
 }
+
 .article-main {
   min-width: 0;
 }
+
 .reading-nav,
 .page-outline {
   min-width: 0;
 }
+
 .reading-nav-inner,
 .page-outline-inner {
   position: sticky;
@@ -44,6 +49,7 @@
   overscroll-behavior: contain;
   padding-bottom: var(--space-5);
 }
+
 .book-label,
 .nav-group-label {
   color: var(--text);
@@ -52,6 +58,7 @@
   line-height: 1.5;
   margin: 0 0 var(--space-4);
 }
+
 /* Chapter navigation. */
 .chapter-list a {
   display: flex;
@@ -67,13 +74,16 @@
     color 0.18s,
     background 0.18s;
 }
+
 .chapter-group + .chapter-group {
   margin-top: var(--space-5);
 }
+
 .chapter-overview {
   padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--line-soft);
 }
+
 .chapter-group-label {
   padding-inline: 12px;
   margin: 0 0 var(--space-2);
@@ -82,19 +92,23 @@
   font-weight: var(--weight-emphasis);
   line-height: 1.6;
 }
+
 .chapter-list a:hover {
   color: var(--text);
   background: var(--surface);
 }
+
 .chapter-list a:focus-visible {
   outline: 2px solid var(--accent-bright);
   outline-offset: -2px;
 }
+
 .chapter-list a > span {
   min-width: 0;
   white-space: normal;
   overflow-wrap: break-word;
 }
+
 .chapter-list a[aria-current] {
   color: var(--accent);
   position: relative;
@@ -102,20 +116,24 @@
   background: none;
   border-left-color: var(--accent);
 }
+
 @media (min-width: 801px) {
   .reading-nav-inner {
     display: flex;
     flex-direction: column;
     overflow: visible;
   }
+
   .reading-nav .book-label {
     flex-shrink: 0;
   }
+
   .desktop-chapters {
     display: flex;
     flex-direction: column;
     min-height: 0;
   }
+
   .desktop-chapters .chapter-list {
     min-height: 0;
     overflow-y: auto;
@@ -125,20 +143,24 @@
     scrollbar-color: transparent transparent;
     padding: 2px 8px 2px 2px;
   }
+
   .desktop-chapters .chapter-list:hover,
   .desktop-chapters .chapter-list:focus-within {
     scrollbar-color: var(--line) transparent;
   }
+
   @media (forced-colors: active) {
     .desktop-chapters .chapter-list {
       scrollbar-color: auto;
     }
   }
 }
+
 .mobile-chapters,
 .mobile-toc {
   display: none;
 }
+
 .breadcrumbs {
   display: flex;
   flex-wrap: wrap;
@@ -148,9 +170,11 @@
   line-height: 1.7;
   margin-bottom: var(--space-6);
 }
+
 .breadcrumbs a:hover {
   color: var(--text);
 }
+
 /* Previous and next chapters. */
 .chapter-nav {
   margin-top: var(--space-6);
@@ -158,6 +182,7 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
 }
+
 .chapter-nav a {
   display: block;
   padding: 18px 20px;
@@ -169,30 +194,36 @@
     border-color 0.18s,
     background 0.18s;
 }
+
 .chapter-nav a:hover {
   border-color: var(--accent-line);
   background: var(--accent-soft);
   box-shadow: 2px 2px 0 var(--shadow);
 }
+
 .chapter-nav a span {
   color: var(--quiet);
   font-size: 0.8125rem;
   display: block;
   margin-bottom: 6px;
 }
+
 .chapter-nav a strong {
   font-weight: 500;
   font-size: 0.9375rem;
   line-height: 1.5;
 }
+
 .chapter-next {
   grid-column: 2;
   text-align: right;
 }
+
 /* Outline for the current article. */
 .page-outline nav {
   border: 0;
 }
+
 .page-outline nav a {
   display: block;
   color: var(--muted);
@@ -205,21 +236,26 @@
     color 0.18s,
     border-color 0.18s;
 }
+
 .page-outline nav a:hover {
   color: var(--text);
 }
+
 .page-outline nav a[aria-current] {
   color: var(--accent);
 }
+
 .page-outline .back-top {
   display: inline-block;
   margin-top: 20px;
   font-size: 0.8125rem;
   color: var(--quiet);
 }
+
 .page-outline .back-top:hover {
   color: var(--text);
 }
+
 /* Chapter drawer for narrow screens. */
 .menu-lines {
   display: inline-block;
@@ -230,6 +266,7 @@
   border-top: 1px solid currentColor;
   border-bottom: 1px solid currentColor;
 }
+
 .chapter-drawer {
   padding: 0;
   margin: 0;
@@ -244,13 +281,16 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+
 .chapter-drawer::backdrop {
   background: #0009;
 }
+
 .chapter-drawer-panel {
   min-height: 100%;
   padding: max(20px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
 }
+
 .chapter-drawer-heading {
   display: flex;
   align-items: center;
@@ -258,10 +298,12 @@
   gap: var(--space-4);
   margin-bottom: 20px;
 }
+
 .chapter-drawer-heading strong {
   font-size: var(--text-base);
   font-weight: 500;
 }
+
 .chapter-drawer-heading button {
   width: 44px;
   height: 44px;
@@ -271,6 +313,7 @@
   border-radius: 50%;
   font-size: var(--text-xl);
 }
+
 @media (max-width: 1180px) {
   .article-shell {
     grid-template-columns: var(--reading-navigation-width) minmax(0, 1fr);
@@ -278,9 +321,11 @@
       var(--reading-navigation-width) + var(--reading-content-width) + var(--reading-column-gap)
     );
   }
+
   .page-outline {
     display: none;
   }
+
   .mobile-toc {
     display: block;
     margin: 0 0 var(--space-6);
@@ -290,28 +335,34 @@
     corner-shape: var(--corner-shape);
     background: var(--control);
   }
+
   .mobile-toc summary {
     cursor: pointer;
     font-size: var(--text-sm);
     color: var(--text);
   }
+
   .mobile-toc summary span {
     color: var(--quiet);
     margin-left: var(--space-3);
   }
+
   .mobile-toc nav {
     padding-top: var(--space-3);
   }
+
   .mobile-toc a {
     display: block;
     font-size: var(--text-sm);
     color: var(--muted);
     padding: 6px 0;
   }
+
   .mobile-toc a:hover {
     color: var(--text);
   }
 }
+
 @media (max-width: 800px) {
   .article-shell,
   .article-overview.article-shell {
@@ -320,19 +371,23 @@
     gap: var(--space-5);
     padding-block: 20px 56px;
   }
+
   .reading-nav {
     align-self: start;
   }
+
   .reading-nav-inner {
     position: static;
     max-height: none;
     overflow: visible;
     padding-bottom: 0;
   }
+
   .book-label,
   .desktop-chapters {
     display: none;
   }
+
   .mobile-chapters {
     display: block;
     border: 1px solid var(--line-soft);
@@ -340,14 +395,17 @@
     corner-shape: var(--corner-shape);
     background: var(--control);
   }
+
   .mobile-chapters > details {
     padding: 14px;
   }
+
   .mobile-chapters summary {
     cursor: pointer;
     font-size: var(--text-sm);
     color: var(--text);
   }
+
   .chapter-toggle {
     display: flex;
     align-items: center;
@@ -362,31 +420,38 @@
     font-size: var(--text-sm);
     text-align: left;
   }
+
   .chapter-toggle-label {
     margin-left: auto;
     color: var(--muted);
     font-size: var(--text-xs);
   }
+
   .chapter-drawer .chapter-list a {
     min-height: 44px;
     align-items: center;
   }
+
   .breadcrumbs {
     margin-bottom: 20px;
   }
+
   .chapter-nav {
     grid-template-columns: minmax(0, 1fr);
   }
+
   .chapter-next {
     grid-column: 1;
     text-align: left;
   }
 }
+
 @media (prefers-contrast: more) {
   .chapter-list a[aria-current] {
     outline: 1px solid var(--muted);
   }
 }
+
 .chapter-icon {
   flex: 0 0 22px;
   width: 22px;
@@ -404,12 +469,14 @@
   border-right: 1px solid var(--line-soft);
   padding-right: 20px;
 }
+
 .chapter-list a {
   align-items: flex-start;
   gap: var(--space-3);
   border-radius: 0;
   margin-bottom: 4px;
 }
+
 .chapter-list a[aria-current]::before {
   content: '';
   position: absolute;
@@ -438,21 +505,26 @@
     0 23%
   );
 }
+
 .page-outline {
   padding-left: 20px;
   border-left: 1px solid var(--line-soft);
 }
+
 .page-outline .nav-group-label {
   font-family: var(--sans);
 }
+
 .page-outline nav a {
   padding-block: 8px;
   border-left-width: 2px;
 }
+
 .outline-title {
   display: inline-block;
   position: relative;
 }
+
 .outline-underline {
   position: absolute;
   inset: auto 0 -6px;
@@ -466,12 +538,15 @@
   stroke-width: 1.4;
   stroke-linecap: round;
 }
+
 .outline-underline path {
   vector-effect: non-scaling-stroke;
 }
+
 .page-outline nav a[aria-current] .outline-underline {
   opacity: 1;
 }
+
 @media (prefers-reduced-motion: no-preference) {
   .chapter-nav a {
     transition:
@@ -481,6 +556,7 @@
       box-shadow 160ms var(--ease),
       transform 160ms var(--ease);
   }
+
   .outline-underline {
     transform: scaleX(0.2);
     transform-origin: left center;
@@ -488,18 +564,22 @@
       opacity 120ms var(--ease),
       transform 220ms var(--ease);
   }
+
   .page-outline nav a[aria-current] .outline-underline {
     transform: scaleX(1);
   }
 }
+
 @media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
   .chapter-nav a:hover {
     transform: translateY(-1px);
   }
+
   .chapter-nav a:active {
     transform: translateY(1px);
   }
 }
+
 @media (max-width: 800px) {
   .reading-nav {
     border: 0;

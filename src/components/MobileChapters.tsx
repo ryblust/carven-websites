@@ -17,23 +17,30 @@ export function MobileChapters({
   const router = useRouter();
   const dialogId = useId();
   const [open, setOpen] = useState(false);
+
   useEffect(() => router.subscribe('onBeforeNavigate', () => dialog.current?.close()), [router]);
+
   useEffect(() => {
     const wide = window.matchMedia('(min-width: 801px)');
     const closeOnWide = () => {
       if (wide.matches) dialog.current?.close();
     };
     wide.addEventListener('change', closeOnWide);
+
     return () => wide.removeEventListener('change', closeOnWide);
   }, []);
+
   useEffect(() => {
     if (!open) return;
+
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+
     return () => {
       document.body.style.overflow = previous;
     };
   }, [open]);
+
   return (
     <div className="mobile-chapters">
       {ready ? (

@@ -20,6 +20,7 @@ export function Sketch({ kind = 'flow' }: { kind?: 'flow' | 'values' }) {
       </svg>
     );
   }
+
   return (
     <svg className="hero-sketch" viewBox="0 0 520 390" fill="none" aria-hidden="true">
       <path

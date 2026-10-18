@@ -20,7 +20,7 @@ dereferenced. Native aliases and operations remain subject to C++ legality.
 
 `addressof(place)` obtains `ptr<T>` for an addressable place with Read access;
 `addressof(&place)` obtains `ptr<&T>` when that place permits Write access.
-The builtin follows ordinary name lookup and shadowing. It evaluates its place
+The builtin follows ordinary name lookup and shadowing. It requires a direct call and cannot be stored or adapted as a callable value. It evaluates its place
 once. It does not accept a temporary, a
 local constant, or Take access. The result is non-null at its
 creation. Assignment to a live owner preserves its address; Take ends that
@@ -28,6 +28,13 @@ owner's identity, so later assignment does not revive old pointers. An address
 returned from a Read array parameter may still refer to its caller's storage.
 If the caller supplied a temporary array, that storage lasts through the
 containing full expression; saving the address does not extend its lifetime.
+
+```carven run
+var count = 1;
+let pointer = addressof(&count);
+*pointer += 2;
+println(count); // 3
+```
 
 ## Conversions and arguments
 
@@ -68,6 +75,15 @@ rule. Both conversions preserve the address and target lifetime. Carven callable
 values are objects and follow this rule. A C string's compiler-known external
 `const char*` type can erase to `ptr<void>`.
 
+```carven run
+var value = 42;
+let erased = addressof(&value) as ptr<&void>;
+let restored = erased as ptr<&i32>;
+if restored != nullptr {
+    println(*restored);
+}
+```
+
 Native conversions use C++ `static_cast`. Before using a restored pointer, ensure its alignment, object type, aliasing, and lifetime meet the target's requirements. The conversion itself
 does not access or construct an object. Static and interpreted dereference
 select a live object of the requested type at the retained address; an unavailable
@@ -98,6 +114,22 @@ pointer formatter. Formatting neither extends storage lifetime nor establishes
 that a target can be dereferenced.
 
 ## Local non-null proofs
+
+Check a nullable pointer before dereferencing it. Each function establishes its own non-null condition, even when a caller obtained the pointer with `addressof`:
+
+```carven run
+fn increment_if_present(target: ptr<&i32>) {
+    if target != nullptr {
+        *target += 1;
+    }
+}
+
+var count = 2;
+let address = addressof(&count);
+increment_if_present(address);
+increment_if_present(nullptr);
+println(count); // 3
+```
 
 Non-null checking is local to each function and closure. It tracks null,
 non-null, and unknown facts for local names, fixed Carven field paths, and constant

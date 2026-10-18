@@ -19,6 +19,7 @@ if (!outputFiles.includes(join(root, 'index.html'))) {
     `Website build output is missing at ${root}. Run pnpm build before checking links.`,
   );
 }
+
 for (const file of outputFiles.filter((file) => extname(file) === '.html')) {
   const html = await readFile(file, 'utf8');
   const dom = htmlToDOM(html);
@@ -60,6 +61,7 @@ const references = new Map(
     ),
   ]),
 );
+
 for (const file of outputFiles.filter((file) => extname(file) === '.css')) {
   const css = await readFile(file, 'utf8');
   references.set(
@@ -69,6 +71,7 @@ for (const file of outputFiles.filter((file) => extname(file) === '.css')) {
     ),
   );
 }
+
 for (const [file, urls] of references) {
   const relative = file.slice(root.length).replace(/\/index\.html$/, '/');
   const current = new URL(`${base}${relative}`, 'http://local.test');
@@ -87,6 +90,7 @@ for (const [file, urls] of references) {
       failures.push(`${file}: link escapes output: ${reference}`);
       continue;
     }
+
     try {
       if ((await stat(targetFile)).isDirectory()) targetFile = join(targetFile, 'index.html');
       await stat(targetFile);

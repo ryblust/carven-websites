@@ -10,7 +10,7 @@ source: docs/language/failures.md
 
 An order quantity of zero is invalid input, but the caller may be able to ask for another quantity and continue. Report it as a typed failure carrying the rejected value. Save this as quantity.cv:
 
-```carven
+```carven run
 struct InvalidQuantity {
     value: i32,
 }
@@ -47,7 +47,7 @@ Applying ? to an expression that cannot fail is a compile error. When a private 
 
 The preceding module chapter introduced private helpers and published interfaces. A private non-entry function may omit its throw clause: the compiler infers the failures its body can propagate. Top-level statements, which form the implicit entry, infer their outward failures the same way. Closures, introduced next, can also infer their failures.
 
-Replace the try expression and final `println` in quantity.cv with two direct calls:
+Keep the InvalidQuantity declaration and line_total function in quantity.cv. Replace all top-level statements, starting with `let total = try`, with these two direct calls:
 
 ```carven
 println("Total:", line_total(12, 3)?);
@@ -60,15 +60,11 @@ Ordinary bare functions, export functions, and an explicit main must declare esc
 
 Write a set as `throw A + B`. Order is irrelevant, and types cannot repeat. Failure payloads must be copyable nominal structs or enums.
 
-## Partial recovery and rethrow
-
-A function with an explicit throw contract may handle some failures and propagate the rest. `_ => rethrow` explicitly forwards the remaining original payload; `throw NewError { ... }` translates it into another failure. The final set is still bounded by the outer contract. A wildcard rethrow cannot bypass that bound.
-
-Failures produced by a handler or guard go to the outer target, not back into the same try. A false guard continues to the next arm. A pattern covering only some enum payload values leaves the others to account for.
-
 ## Recover only what you can handle
 
-```carven
+Save this separate program as quote.cv:
+
+```carven run
 struct MissingPrice {}
 struct Offline {}
 
@@ -92,6 +88,7 @@ fn total(has_price: bool, online: bool) -> i32 throw Offline => try {
     quote(has_price, online)?
 } catch {
     MissingPrice(_) => 12,
+    _ => rethrow,
 };
 
 fn main() {
@@ -107,13 +104,11 @@ fn main() {
 
 The output is `12`. quote combines two ordinary success values with `+` and uses one `?` for the composed expression. Its private contract is inferred as MissingPrice + Offline. If price fails, fee is not called. Both quote and total use expression bodies: `=>` returns the value of the expression, including a whole try expression.
 
-total recovers MissingPrice with a default total. Its public contract contains only Offline, which is all main must handle. No new aggregate error type is declared for the combination.
+total recovers MissingPrice with a default total. Its public contract contains only Offline, which is all main must handle.
 
-Try `(true, true)` in main to get `17`, then `(true, false)` to get `0`. `(false, false)` still gives `12`: the missing price stops evaluation before the service call. The contract lists possible failures; it does not force all operations to run.
+`_ => rethrow` forwards the remaining Offline failure without reconstructing it. main handles that failure because its own signature has no throw clause. See [partial catches](/reference/failures/) for automatic forwarding and guard behavior.
 
-Adding `_ => rethrow,` after the MissingPrice arm also forwards Offline to the caller. Omitting it is valid here because total declares a contract accepting Offline. This example uses an explicit main, which has no throw clause, so main must handle all its own failures.
-
-Save the complete program above as quote.cv and run `carven quote.cv`. Change the two arguments to total in main and check the results below. Use the table to check the selected recovery path.
+Run `carven quote.cv`. Change the two arguments to total in main and check the selected recovery path against this table:
 
 | has_price | online | Output | Path                                 |
 | --------- | ------ | ------ | ------------------------------------ |
@@ -124,41 +119,15 @@ Save the complete program above as quote.cv and run `carven quote.cv`. Change th
 
 ### When a caller forgets a failure
 
-Replace main in quote.cv with a version that calls quote directly but handles only MissingPrice:
+In main, change `total(false, true)?` to `quote(false, true)?` and replace the Offline handler with `MissingPrice(_) => 12,`. Run `carven check quote.cv`. The compiler reports `CV-EFFECT-CATCH-NON-EXHAUSTIVE` because the catch omits Offline, and `CV-EFFECT-THROW-PUBLISHED` because main has no contract permitting that failure to escape.
 
-```carven
-fn main() {
-    let price = try {
-        quote(false, true)?
-    } catch {
-        MissingPrice(_) => 12,
-    };
-
-    println(price);
-}
-```
-
-`carven quote.cv` now stops before generating C++. Among the reported errors:
-
-```text
-error [CV-EFFECT-CATCH-NON-EXHAUSTIVE]: catch does not cover every protected failure
- --> quote.cv:27:17
-   |
-27 |     let price = try {
-   |                 ^^^^^
-   | ...
-31 |     };
-   | ^^^^^
-note: failure type not fully covered: quote.Offline
-```
-
-The note names the uncovered type with its module. The same run also reports `CV-EFFECT-THROW-PUBLISHED` at main, because the residual Offline would escape an explicit entry without a throw clause. Add an `Offline(_) => 0,` arm, or declare `fn main() throw Offline`, to resolve both. At the top level, the same try would instead forward Offline out of the implicit entry. Restore the original main before continuing.
+Add `Offline(_) => 0,` to handle it, or declare `fn main() throw Offline` to propagate it. Restore the original main before continuing.
 
 ## Parse external data before applying policy
 
 Save this separate program as ports.cv. Standard numeric parsing validates spelling and representation, then the application applies its own zero-port policy:
 
-```carven
+```carven run
 import std::core using NumberParseError;
 
 struct InvalidPort {
@@ -195,14 +164,14 @@ Reserved port: 0
 
 `u16::parse` checks the entire text and range; it does not truncate or wrap. It rejects leading whitespace, a leading plus, and trailing content. A valid u16 zero passes representation checks but fails this application's policy. The two failure types preserve that distinction for callers.
 
-The explicit failure contract names NumberParseError, so it imports the type from `std::core`. A call can infer and propagate the failure without naming it. `port` is a const fn because the same checked parser and policy can run during preparation; a runtime call remains runtime. The [compile-time chapter](/learn/constants/) uses parsing to prepare configuration and recover only where a fallback is appropriate.
+The explicit failure contract names NumberParseError, so import that type from `std::core`. The [compile-time chapter](/learn/constants/) reuses this parser and policy to prepare configuration.
 
 ## Side effects and entry status
 
 Failure does not roll back completed mutations. Locals are cleaned up according to control flow, and borrowed data in a failure payload must retain valid backing. C++ exceptions, dynamic bounds violations, and division-by-zero termination are not typed failures.
 
-If a failure escapes an implicit entry or explicit main, the entry wrapper reports its type and structural payload on stderr after ordinary local cleanup, then returns `EXIT_FAILURE`. Catch it to provide an application-specific message or recovery. An ordinary returned integer is not an exit code.
+Use catch for an application-specific message or recovery. See the [entry reference](/reference/entry-testing/) for failure reporting and process exit status.
 
 ## Exercise
 
-In quantity.cv, set the quantity to 3; expect only `Total: 36`. Add a TooExpensive failure to limit the total price, update line_total's signature, and handle it in the top-level try. Then omit that handler: the implicit entry forwards TooExpensive, stderr reports its payload, and the process exits with `EXIT_FAILURE`. Move the statements into `fn main() { ... }` to inspect the boundary diagnostic instead.
+Restore the first quantity.cv program with its top-level try. Change its call to `line_total(12, 3)`; expect only `Total: 36`. Add a TooExpensive failure to limit the total price, update line_total's signature, and handle it in the top-level try. Then omit that handler: the implicit entry forwards TooExpensive, stderr reports its payload, and the process exits with `EXIT_FAILURE`. Move the statements into `fn main() { ... }` to inspect the boundary diagnostic instead.

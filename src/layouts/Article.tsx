@@ -7,7 +7,7 @@ import { ArticleBody } from '../components/ArticleBody';
 import { DesignNavigation } from '../components/DesignNavigation';
 import { ReadingLayout } from '../components/ReadingLayout';
 import { designReadingGroups } from '../lib/design-readings';
-import { articles, lessonPaths, referencePaths, type ArticlePath } from '../generated/manifest';
+import { articles, lessonPaths, type ArticlePath } from '../generated/manifest';
 import { sourceLink } from '../lib/site';
 import { articleHeadings } from '../lib/article-headings';
 import type { ArticleMetadata } from '../content/schema';
@@ -25,11 +25,9 @@ export default function Article({ path, html }: { path: ArticlePath; html: strin
     designReadingGroups.some((group) =>
       group.readings.some((item) => localizedPath(item.path, locale) === path),
     );
-  const chapterPaths = (reference ? referencePaths : lessonPaths).filter(
-    (item) => localeOf(item) === locale,
-  );
-  const previous = book ? chapterPaths[article.lesson - 1] : undefined;
-  const next = book ? chapterPaths[article.lesson + 1] : undefined;
+  const chapterPaths = lessonPaths.filter((item) => localeOf(item) === locale);
+  const previous = section === 'learn' ? chapterPaths[article.lesson - 1] : undefined;
+  const next = section === 'learn' ? chapterPaths[article.lesson + 1] : undefined;
   const headings = articleHeadings(html);
   const label = reference
     ? t('语言参考', 'Language Reference')
@@ -41,6 +39,7 @@ export default function Article({ path, html }: { path: ArticlePath; html: strin
   const chapters = (
     <ChapterNavigation key={`${locale}-${section}`} path={path} reference={reference} />
   );
+
   return (
     <ReadingLayout
       path={path}
@@ -67,7 +66,9 @@ export default function Article({ path, html }: { path: ArticlePath; html: strin
               {label}
               {overview
                 ? ` · ${t('总览', 'Overview')}`
-                : ` · ${String(article.lesson).padStart(2, '0')}`}
+                : reference
+                  ? ''
+                  : ` · ${String(article.lesson).padStart(2, '0')}`}
             </p>
           )}
           <div className="article-title-row">
@@ -115,7 +116,7 @@ export default function Article({ path, html }: { path: ArticlePath; html: strin
           </a>
         </div>
       </article>
-      {book && (
+      {section === 'learn' && (
         <nav className="chapter-nav" aria-label={t('章节导航', 'Chapter navigation')}>
           {previous && (
             <Link to={previous}>
@@ -130,15 +131,7 @@ export default function Article({ path, html }: { path: ArticlePath; html: strin
           )}
           {next && (
             <Link className="chapter-next" to={next}>
-              <span>
-                {overview
-                  ? t(
-                      reference ? '开始查阅' : '开始学习',
-                      reference ? 'Start exploring' : 'Start learning',
-                    )
-                  : t('下一章', 'Next')}{' '}
-                →
-              </span>
+              <span>{overview ? t('开始学习', 'Start learning') : t('下一章', 'Next')} →</span>
               <strong>{articles[next].title}</strong>
             </Link>
           )}

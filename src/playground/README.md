@@ -83,6 +83,17 @@ compiled code while keeping mutable runtime state separate. Formatting replaces
 source after a successful, complete result. Resource limits and deadlines are
 defined in `carven-wasm.cpp`, `wasi.ts` and `client.ts`.
 
+Article code blocks use the same execution session through
+`effects/code-execution.ts`. Mark a complete, standalone example with `carven run`
+or `cv run` in its code fence to show Run. Verify the example with the packaged
+browser interpreter and check that its output matches the surrounding lesson.
+Leave fragments, multi-file programs, native calls, input-dependent examples, and
+intentional errors unmarked. The displayed source is executed without adding
+hidden context.
+
+Run loads the client on demand and displays output and diagnostics below the
+source. Stop, another run, or article navigation cancels the active worker.
+
 ## Validation
 
 Build the compiler assets before running `pnpm test`. WASI execution tests and

@@ -1,6 +1,6 @@
 ---
 title: Learn Carven
-description: Learn the language through a working order program, then process and validate real JSON input.
+description: Learn the basics, practice with inventory and JSON input, then build the Carven language server.
 section: learn
 lesson: 0
 source: docs/language/tutorial.md
@@ -12,19 +12,16 @@ You only need to be comfortable using a terminal and editing text files. The fir
 
 ## Learning route
 
-Each stage starts with a practical problem, then introduces the language tools to solve it. Follow the route from basic calculations to two complete projects: an inventory workflow and an asynchronous JSON ledger. Each step builds on the previous one: represent the data, make changes safely, handle rejected input, and verify the result.
+Each stage starts with a practical problem, then introduces the language tools to solve it. Follow the route from basic calculations through a short inventory exercise and an asynchronous JSON ledger, then build the Carven language server. Each step builds on the previous one: represent the data, make changes safely, handle rejected input, and verify the result.
 
 <ol class="learning-route">
-<li><strong>Write the basic logic</strong><p>Calculate prices, group related data, and keep a collection of accepted results.</p><p><a href="/learn/values/">Values</a> · <a href="/learn/control/">Control flow</a> · <a href="/learn/functions/">Functions</a> · <a href="/learn/aggregates/">Data structures</a></p></li>
-<li><strong>Manage data and interfaces</strong><p>Distinguish reading, updating, transferring, and borrowing; combine modules, failure contracts, and callbacks.</p><p><a href="/learn/ownership/">Access and ownership</a> · <a href="/learn/text/">Text</a> · <a href="/learn/formatting/">Formatting</a> · <a href="/learn/modules/">Modules</a> · <a href="/learn/failures/">Failure contracts</a> · <a href="/learn/closures/">Closures</a></p></li>
-<li><strong>Test and compute ahead</strong><p>Verify behavior with tests and construct static data before runtime.</p><p><a href="/learn/testing/">Testing</a> · <a href="/learn/constants/">Compile-time computation</a></p></li>
-<li><strong>Compose asynchronous work</strong><p>Start work deliberately, wait for several results, and finish or cancel work before leaving its scope.</p><p><a href="/learn/async/">Async and time</a></p></li>
-<li><strong>Finish the order project</strong><p>Combine input validation, stock updates, failure recovery, and tests into a complete program.</p><p><a href="/learn/project/">Project: inventory</a></p></li>
-<li><strong>Process real input</strong><p>Read JSON lines with a size limit, skip rejected records, and emit a machine-readable summary.</p><p><a href="/learn/data-pipeline/">Project: JSON input pipeline</a></p></li>
+<li><strong>First programs</strong><p>Run a program, calculate prices, control execution, and group related data.</p><p><a href="/learn/first-program/">First program</a> · <a href="/learn/values/">Values and types</a> · <a href="/learn/control/">Branches and loops</a> · <a href="/learn/functions/">Functions</a> · <a href="/learn/aggregates/">Data structures</a></p></li>
+<li><strong>Data and interfaces</strong><p>Read, update, transfer, and borrow data; print results, combine modules, handle failures, and pass callbacks.</p><p><a href="/learn/ownership/">Access and ownership</a> · <a href="/learn/text/">Text</a> · <a href="/learn/formatting/">Formatting</a> · <a href="/learn/modules/">Modules</a> · <a href="/learn/failures/">Failures and recovery</a> · <a href="/learn/closures/">Closures</a></p></li>
+<li><strong>Tests, compile time, and async</strong><p>Verify behavior, prepare static data, and combine asynchronous work. Practice waiting for results and cancelling work before leaving its scope.</p><p><a href="/learn/testing/">Testing</a> · <a href="/learn/constants/">Compile-time computation</a> · <a href="/learn/async/">Async workflows</a></p></li>
+<li><strong>Native integration</strong><p>Call C++ libraries and work with external addresses.</p><p><a href="/learn/interop/">C++ interop</a> · <a href="/learn/pointers/">Native addresses</a></p></li>
+<li><strong>Practice and projects</strong><p>Start with a short inventory exercise, process JSON input, then use JSON and Async to build the Carven language server. The workflow chapter covers running, formatting, and investigating errors as you work.</p><p><a href="/learn/project/">Exercise: inventory</a> · <a href="/learn/data-pipeline/">Project: JSON input</a> · <a href="/learn/workflow/">Tools and workflow</a> · <a href="/learn/lsp/">Project: language server</a></p></li>
 </ol>
 
-## Extensions and further reading
+## Look up a rule or a design choice
 
-When you need native libraries, continue with [C++ integration](/learn/interop/) and [pointers](/learn/pointers/). These chapters introduce headers, dependencies, and external storage requirements. If you are concentrating on Carven code, continue from compile-time computation through async work and the two projects.
-
-For commands, formatting, and error investigation, read [running, formatting, and diagnostics](/learn/workflow/). To check the rules for a particular form, use the [language reference](/reference/). To understand the language's choices, explore [design and principles](/design/).
+Use the [language reference](/reference/) to find syntax, APIs, and their rules. Explore [design and principles](/design/) to understand how the language and its implementation fit together.

@@ -13,6 +13,8 @@ export function siteUrl(path: string, base: string, origin?: string) {
       'SITE_URL must be an HTTP(S) origin without a path, credentials, query or hash.',
     );
   }
+
   const prefix = base.replace(/^\/+|\/+$/g, '');
+
   return `${url.origin}${prefix ? `/${prefix}` : ''}/${path.replace(/^\/+/, '')}`;
 }

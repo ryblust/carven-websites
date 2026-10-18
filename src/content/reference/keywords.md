@@ -1,5 +1,5 @@
 ---
-title: Keyword index
+title: "Keyword index"
 description: Look up declarations, control flow, modules, failures, and compile-time forms by keyword.
 section: reference
 lesson: 1
@@ -10,47 +10,47 @@ source: docs/language/grammar.md
 
 The table below lists the 33 lexically reserved keywords: they cannot name ordinary variables, parameters, fields, functions, or types. Some other special spellings are contextual or resolved as ordinary names; their rules appear after the table. Module-path components accept keyword spellings under the [module-path rules](/reference/modules/).
 
-| Keyword                                    | Role                                                            |
-| ------------------------------------------ | --------------------------------------------------------------- |
-| [`as`](/reference/types/)                  | Explicit type conversion                                        |
-| [`async`](/reference/async/)               | Declare a cold async function or a lexical child with async let |
-| [`await`](/reference/async/)               | Await completion within the owning execution context            |
-| [`cancel`](/reference/async/)              | Request cancellation of a lexical child                         |
-| [`break`](/reference/control/#break)       | Leave the nearest loop                                          |
-| [`catch`](/reference/failures/)            | Handle matching typed failures                                  |
-| [`class`](/reference/aggregates/)          | Declare a value class with private fields and operations        |
-| [`const`](/reference/constants/)           | Declare constants, compile-time functions, and static control   |
-| [`continue`](/reference/control/#continue) | Start the next loop iteration                                   |
-| [`else`](/reference/control/#if)           | Fallback branch of an if                                        |
-| [`enum`](/reference/aggregates/)           | Declare a numeric or payload enum                               |
-| [`export`](/reference/modules/)            | Publish a module interface                                      |
-| [`false`](/reference/lexical/)             | Boolean false literal                                           |
-| [`fn`](/reference/functions/)              | Declare a function or callable-view type                        |
-| [`for`](/reference/control/#for)           | Iterate a sequence or loop with steps                           |
-| [`if`](/reference/control/#if)             | Conditional branches, value branches, and pattern guards        |
-| [`import`](/reference/modules/)            | Import a module, C++ header, or native function                 |
-| [`in`](/reference/control/#for)            | Introduce a for iteration source                                |
-| [`is`](/reference/control/)                | Match a compatible type in a pattern                            |
-| [`let`](/reference/bindings/)              | Declare an immutable runtime variable                           |
-| [`match`](/reference/control/)             | Select a branch using exhaustive patterns                       |
-| [`nullptr`](/reference/pointers/)          | Null pointer literal                                            |
-| [`private`](/reference/modules/)           | Restrict module declarations or class operations                |
-| [`rethrow`](/reference/failures/)          | Rethrow the failure currently being handled                     |
-| [`return`](/reference/control/#return)     | Return from the current function or lambda                      |
-| [`struct`](/reference/aggregates/)         | Declare a value structure with named fields                     |
-| [`test`](/reference/entry-testing/)        | Declare a runtime or compile-time test                          |
-| [`throw`](/reference/failures/)            | Raise a failure or declare a function failure contract          |
-| [`true`](/reference/lexical/)              | Boolean true literal                                            |
-| [`try`](/reference/failures/)              | Establish failure recovery or produce a recovered result        |
-| [`using`](/reference/modules/)             | Select imported names                                           |
-| [`var`](/reference/bindings/)              | Declare a mutable runtime variable                              |
-| [`while`](/reference/control/#while)       | Execute a conditional or conditionless loop                     |
+| Keyword                                    | Role                                                                                                               |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `as`                                       | [Explicit type conversion](/reference/types/#as-conversions) or [import alias](/reference/modules/#import-aliases) |
+| [`async`](/reference/async/)               | Declare a cold async function or a lexical child with async let                                                    |
+| [`await`](/reference/async/)               | Await completion within the owning execution context                                                               |
+| [`cancel`](/reference/async/)              | Request cancellation of a lexical child                                                                            |
+| [`break`](/reference/control/#break)       | Leave the nearest loop                                                                                             |
+| [`catch`](/reference/failures/)            | Handle matching typed failures                                                                                     |
+| [`class`](/reference/aggregates/)          | Declare a value class with private fields and operations                                                           |
+| [`const`](/reference/constants/)           | Declare constants, compile-time functions, and static control                                                      |
+| [`continue`](/reference/control/#continue) | Start the next loop iteration                                                                                      |
+| [`else`](/reference/control/#if)           | Fallback branch of an if                                                                                           |
+| [`enum`](/reference/aggregates/)           | Declare a numeric or payload enum                                                                                  |
+| [`export`](/reference/modules/)            | Publish a module interface                                                                                         |
+| [`false`](/reference/lexical/)             | Boolean false literal                                                                                              |
+| [`fn`](/reference/functions/)              | Declare a function or callable-view type                                                                           |
+| [`for`](/reference/control/#for)           | Iterate a sequence or loop with steps                                                                              |
+| [`if`](/reference/control/#if)             | Conditional branches, value branches, and pattern guards                                                           |
+| [`import`](/reference/modules/)            | Import a module, C++ header, or native function                                                                    |
+| [`in`](/reference/control/#for)            | Introduce a for iteration source                                                                                   |
+| [`is`](/reference/control/)                | Match a compatible type in a pattern                                                                               |
+| [`let`](/reference/bindings/)              | Declare an immutable runtime variable                                                                              |
+| [`match`](/reference/control/)             | Select a branch using exhaustive patterns                                                                          |
+| [`nullptr`](/reference/pointers/)          | Null pointer literal                                                                                               |
+| [`private`](/reference/modules/)           | Restrict module declarations or class operations                                                                   |
+| [`rethrow`](/reference/failures/)          | Rethrow the failure currently being handled                                                                        |
+| [`return`](/reference/control/#return)     | Return from the current function or lambda                                                                         |
+| [`struct`](/reference/aggregates/)         | Declare a value structure with named fields                                                                        |
+| [`test`](/reference/entry-testing/)        | Declare a runtime or compile-time test                                                                             |
+| [`throw`](/reference/failures/)            | Raise a failure or declare a function failure contract                                                             |
+| [`true`](/reference/lexical/)              | Boolean true literal                                                                                               |
+| [`try`](/reference/failures/)              | Establish failure recovery or produce a recovered result                                                           |
+| [`using`](/reference/modules/)             | Select imported names                                                                                              |
+| [`var`](/reference/bindings/)              | Declare a mutable runtime variable                                                                                 |
+| [`while`](/reference/control/#while)       | Execute a conditional or conditionless loop                                                                        |
 
 ## Contextual keyword self
 
 `self` is an identifier token. As the first parameter name of a class operation, it selects a receiver and must have no type annotation: `self` is Read, `&self` is Write, and `&&self` is Take. `fn read(self: Counter)` is rejected, as is `self` in a later class-operation parameter position. Outside that parameter list, ordinary bindings such as `let self = 2;` and free-function parameters such as `fn echo(self: i32) -> i32 => self;` are valid. See [value classes](/reference/aggregates/#ordinary-value-classes).
 
-```carven
+```carven run
 class Counter {
     value: i32,
     fn create(value: i32) -> Counter => { value: value };
@@ -80,18 +80,24 @@ These mechanisms differ: contextual syntax does not imply global reservation, an
 
 A keyword may participate in several forms. This table links each combination to its rules.
 
-| Spelling                             | Rules                                                        |
-| ------------------------------------ | ------------------------------------------------------------ |
-| `const name = ...`                   | [Constant declarations](/reference/bindings/#const)          |
-| `const fn`                           | [Compile-time functions](/reference/constants/#const-fn)     |
-| `const name: T` (function parameter) | [Static parameters](/reference/functions/#static-parameters) |
-| `const if` / `const for`             | [Static control](/reference/functions/#static-control)       |
-| `const { ... }`                      | [Constant blocks](/reference/constants/#constant-blocks)     |
-| `const test`                         | [Compile-time tests](/reference/entry-testing/#const-test)   |
-| `import(cpp)` / `export(cpp)`        | [Native function boundaries](/reference/interop/)            |
+| Spelling                                  | Rules                                                                                                                                              |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `const name = ...`                        | [Constant declarations](/reference/bindings/#const)                                                                                                |
+| `const fn`                                | [Compile-time functions](/reference/constants/#const-fn)                                                                                           |
+| `const async fn`                          | [Compile-time async functions](/reference/async/#static-parameters-and-execution)                                                                  |
+| `async let` / `cancel child;`             | [Lexical children and cancellation](/reference/async/#lexical-children-and-cancellation)                                                           |
+| `await operation?`                        | [Completion and failure propagation](/reference/async/#cold-operations-and-await)                                                                  |
+| `fn name<T, throw E>`                     | [Parameterized functions](/reference/functions/#parameterized-functions) and [failure-set parameters](/reference/failures/#failure-set-parameters) |
+| `const name: T` (function parameter)      | [Static parameters](/reference/functions/#static-parameters)                                                                                       |
+| `const if` / `const for`                  | [Static control](/reference/functions/#static-control)                                                                                             |
+| `const { ... }` / `const "label" { ... }` | [Constant blocks](/reference/constants/#constant-blocks)                                                                                           |
+| `const test`                              | [Compile-time tests](/reference/entry-testing/#const-test)                                                                                         |
+| `import(cpp)` / `export(cpp)`             | [Native function boundaries](/reference/interop/)                                                                                                  |
 
 ## Builtin names and syntax symbols
 
-The nine global builtin callables are `print`, `println`, `eprint`, `eprintln`, `assert`, `check`, `require`, `fail`, and `addressof`. Signatures and behavior are in the [builtin API reference](/reference/builtins/).
+`Operation` and `when_all` are built-in types and operations with ordinary identifier names imported from `std::async`; `async`, `await`, and `cancel` are reserved syntax. `self` has a contextual receiver role, and `ptr<T>` is structural type syntax with its own reservation rules. Importing or aliasing a declaration does not alter any of these syntax rules.
+
+See [standard modules and defaults](/reference/modules/#standard-modules-and-defaults) for which names need imports, and the [builtin API reference](/reference/library/#builtin-types-and-operations) for their signatures and behavior.
 
 `&`, `&&`, `?`, `=>`, `..`, and `..=` are syntax symbols, not keywords. Their rules are in [access and ownership](/reference/ownership/), [failure contracts](/reference/failures/), [functions](/reference/functions/), and [operators](/reference/operators/). See [types and conversions](/reference/types/) for type spellings and available types.

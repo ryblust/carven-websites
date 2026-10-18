@@ -1,46 +1,72 @@
 ---
-title: "Make the program’s choices clear"
-description: "Why Carven makes data ownership, recovery, and child task lifetimes visible in source."
+title: "Design choices and type inference"
+description: "Use context to infer types while keeping access, ownership, failures, and execution explicit."
 section: philosophy
 source: docs/development/principles.md
 ---
 
-## Keep the algorithm in ordinary source
+## Express the program's choices
 
-A configuration parser, a log processor, and an asynchronous collector all need answers to the same questions: who owns the data, what happens when a step fails, and when does the work run? Carven makes these decisions visible in source, checks that they fit together, and generates C++ for your native toolchain.
+When you parse configuration, process records, or start asynchronous work, the program needs to say who owns the data, how a failure is handled, and when work runs. Carven gives these choices direct source forms. The compiler uses the resulting facts to check the program and choose its C++ implementation.
 
-The [example applications](/use-cases/) show how the pieces combine. The analyzer validates records and writes JSON; the mixer processes samples with SIMD; the collector connects a C++ host to Carven logic. Each application has source and tests you can run and change.
+Types and local context fill in information that would otherwise repeat in source. Access changes, ownership transfers, captures, and failure handling remain visible. The following examples show where context supplies an answer and where you write the choice yourself.
 
-## Know who owns the data
+## Give syntax and names defined roles
 
-Read lets a function inspect an input, Write lets it change existing storage, and Take transfers an owned value. After Take, the original binding cannot be used until it is restored. A text view or slice borrows storage, so that storage must remain valid for every use of the view.
+A class operation can infer its receiver type from the enclosing class:
 
-These rules make a practical difference when a function returns text, a closure retains a reference, or a child task outlives the call that started it. The compiler follows the storage relationships it knows. C++ adapters still manage references hidden inside native libraries.
+```carven run
+class Counter {
+    value: i32,
+    fn create(value: i32) -> Counter => { value: value };
+    fn read(self) -> i32 => self.value;
+}
 
-Copying an owned `String` or `Vector<T>` creates independent contents. Copying a view keeps its relationship to the original storage. A class adds private fields and operations to this value model; the fields determine whether it needs allocated storage.
+let self = 4;
+let cpp = Counter::create(self);
+println(cpp.read()); // 4
+```
 
-## Keep failures useful to the caller
+In the first parameter of `read`, `self` selects a receiver without a type annotation. In `let self = 4`, it is an ordinary name. `create` has no receiver, so the call uses `Counter::create`.
 
-A parser can fail because a field is missing or because a number is invalid. Those failures can carry different data and require different recovery. Carven keeps their types and payloads as functions compose.
+A contextual spelling has a role in a particular grammatical position. A built-in operation has compiler-defined semantics and is found through name lookup. The [keyword reference](/reference/keywords/) collects the reservation and shadowing rules; [built-in capabilities and runtime support](/internals/runtime-boundary/) explains module ownership and visibility.
 
-Private helpers infer which failures they may propagate. Shared interfaces declare the allowed set, so callers can use them without inspecting their implementation. Fully handling one failure removes it from the remaining set. The application chooses a default, retries, or translates a library error into its own error type. Recovery keeps changes already made; an operation that needs rollback must define it.
+## Let context supply a type
 
-## Choose when the work runs
+A declaration, parameter, return type, or destination field can supply an expression's expected type:
 
-A fixed JSON template can be parsed once during compilation. A user-supplied configuration must be parsed while the program runs. Both can use the same library functions and data types.
+```carven run
+enum State { Ready, Busy }
+let state: State = .Ready;
+assert(state == .Ready);
 
-`const fn` says that a function supports compile-time execution. A `const` initializer or static test asks the compiler to execute it there. Ordinary calls stay at runtime. Completed constants keep their types, including owned strings, vectors, and JSON trees; later copies can be modified independently. [The configuration example](/features/compile-time/) follows this process from parsing to a runtime update.
+let count: usize = 3;
+let next = 1 + count;
+println(next); // 4
+```
 
-Supported input, clock reads, waits, and output use the host of the chosen stage. A static input read therefore reads from the compiler process. Knowing an argument's value does not move an ordinary call or its effects into compilation.
+`State` identifies the enum for `.Ready`. In `1 + count`, the direct unsuffixed literal `1` is checked as `usize`. If `1` had first been stored in an unannotated binding, that binding would already be `i32`; a later use would keep its type.
 
-## Finish child work before releasing its data
+Use an annotation when the surrounding expression supplies insufficient information. Established bindings retain their types. The [type reference](/reference/types/) gives the literal and conversion rules.
 
-An async call creates a cold operation: work that has not started yet. Awaiting it starts it; `async let` starts a child whose lifetime belongs to the surrounding scope. The parent must account for that child before leaving normally.
+## Infer generic arguments from the interface
 
-Cancellation requests a stop. Closing waits for the child and its resource cleanup, so borrowed data remains alive until the work has actually finished. The [async scope example](/playground/#example=async-scope) runs the same flow during compilation and at runtime. Source tasks cooperate on one thread; native providers connect that driver to input, timers, and sockets.
+A generic function such as `fn relay<T>(&&value: T) -> T` can transfer a value using only the capabilities declared by its interface. Calls infer generic arguments from that interface and local type context, so checking a caller does not depend on inspecting the generic implementation. See [parameterized functions](/reference/functions/#parameterized-functions) for inference and body-checking rules.
 
-## Leave the native toolchain useful
+## Write access and transfer choices
 
-Carven checks source types, evaluation order, ownership, and failure contracts, then generates C++ interfaces and implementations. C++ checks native calls and templates, optimizes the result, and produces machine code. Existing libraries, debuggers, and profilers remain part of the workflow.
+Write access uses `&`; ownership transfer uses `&&`; closure captures are explicit. These markers let a reader identify changes to shared storage and ownership at the call site. The [ownership tutorial](/learn/ownership/) develops function interfaces around those choices; the [reference](/reference/ownership/) defines copying and borrow lifetimes.
 
-Generated C++ is inspectable. Compare costs with handwritten C++ that provides the same behavior and guarantees, measuring compilation, allocations, artifact size, and execution separately. [The native boundary](/internals/runtime-boundary/) explains how the generated program connects to runtime support and host resources.
+## Keep recovery and execution explicit
+
+`?` marks failure propagation, and `try` places recovery where the caller has enough information to act. [Failure contracts](/features/failure-contracts/) follows a parser through propagation and translation.
+
+A `const` initializer explicitly requests compile-time work; an ordinary function call stays at runtime. [Compile-time computation](/features/compile-time/) uses that distinction to prepare a JSON template and apply runtime settings.
+
+Async syntax makes work and its scope visible. The [async tutorial](/learn/async/) shows how to start work, collect results, and close children; the [language-server tutorial](/learn/lsp/) applies that flow to message processing and shutdown.
+
+## Use semantic facts in native generation
+
+Known types, access, lifetimes, and static values guide parameter passing, storage, result construction, and specialization. Generated code preserves required evaluation, effects, failures, and cleanup. C++ then checks delegated native operations, optimizes, and produces machine code.
+
+[C++ generation and native integration](/features/cpp-generation/) shows the resulting interfaces and native build.

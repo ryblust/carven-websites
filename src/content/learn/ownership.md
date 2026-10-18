@@ -10,7 +10,7 @@ source: docs/language/ownership.md
 
 Save this as `access.cv`:
 
-```carven
+```carven run
 fn read_stock(stock: i32) -> i32 => stock;
 
 fn restock(&stock: i32, amount: i32) {
@@ -42,7 +42,7 @@ Returning a named variable also copies it. Use `return &&result;` when a functio
 
 Take hands over a whole owned value. It does not let you pull a field out while keeping the original record usable. If only the field is needed, first give up the complete record, then select the field:
 
-```carven
+```carven run
 struct Order {
     label: String,
     quantity: i32,
@@ -57,7 +57,7 @@ This prints `bolts`. String is text that owns its contents; the next chapter exp
 
 ## Write may alias
 
-```carven
+```carven run
 fn replenish(&first: i32, &second: i32) {
     first += 2;
     second += 3;
@@ -74,6 +74,22 @@ This is useful when two operations intentionally share a counter. Write allows t
 
 Reading a number saves its value for the call. Reading a String or array avoids copying all of its contents. If another argument changes that same data, later reads may see the change. Make a separate copy first when you need the earlier contents.
 
+## Update each element
+
+Increase every stock count in place. Save this separate program as main.cv:
+
+```carven run
+var counts = [3, 5, 7];
+
+for &count in counts {
+    count += 2;
+}
+
+println(counts[0], counts[1], counts[2]);
+```
+
+Run `carven main.cv` to print `5 7 9`. `for &count` binds Write access to each existing element. The array must be mutable. Without `&`, the loop binding is Read and `count += 2` is rejected. The same form updates elements of a mutable Vector.
+
 ## Conflicts during evaluation
 
 `read_then_take(value, &&value)` conflicts with `CV-ACCESS-OPERATION-CONFLICT`: the earlier access is still held by the unfinished call. Computing an independent result before Take can be valid, for example by passing `value + 1`. If a view points into value, copying that view does not remove the borrow.
@@ -86,25 +102,26 @@ Copying text is useful when both copies need independent lives. When a function 
 
 Save this as borrow.cv:
 
-```carven
+```carven run
 var text: String = "Carven";
 if !text.is_empty() {
     let view = text.as_str();
     println(view);
 }
+
 text.append(" + C++");
 println(text);
 ```
 
 The output is `Carven`, then `Carven + C++`. The inner braces limit the life of view. After those braces, append can change text safely. Move append inside the braces, before println(view), and the compiler reports `CV-ACCESS-BORROW-CONFLICT`: changing the original could invalidate the view. Copying the view does not copy the text or end that restriction.
 
-The text chapter develops this choice between owning a copy and borrowing a view. Carven checks the known String and slice relationships; external pointers still require the lifetime guarantees described in the [ownership reference](/reference/ownership/).
+The [text chapter](/learn/text/) applies this choice between owning a copy and borrowing a view.
 
 ## Keep fields behind a class
 
 A class groups private fields with the operations allowed to use them. Its receivers use the same three access modes. Save this as `stock.cv`:
 
-```carven
+```carven run
 class Stock {
     units: i32,
 
@@ -135,13 +152,13 @@ Stock 9
 
 Only code inside the class body can read units or construct a Stock. Other code calls `Stock::new`. This associated operation has no receiver. `self` reads the receiver, `&self` writes it, and `&&self` takes it. A method call needs no receiver marker, but the access rules still apply. `stock.restock(2)` requires var. After `stock.dispatch()`, assign a new value before using stock again, for example `stock = Stock::new(1);`.
 
-A class is still a value. Declaring one does not add heap allocation, inheritance, or virtual calls; its fields determine how the contents are copied and cleaned up. Printing shows only the class name, and there is no implicit `==`; define an operation when a comparison is needed. See the [aggregate Reference](/reference/aggregates/) for the full class rules.
+A class is still a value; its fields determine copying and cleanup. Printing shows only the class name. See the [class reference](/reference/aggregates/) for construction, access, and comparison rules.
 
 ## Keep one result while handing on another
 
 A tuple can carry both a label and a count. Give them separate local names when the next step should receive the label but you still need the count:
 
-```carven
+```carven run
 fn finish(&&label: String) -> String => &&label;
 
 let (label, count) = ("accepted" as String, 3);
@@ -149,13 +166,13 @@ let delivered = finish(&&label);
 println(delivered, count);
 ```
 
-It prints `accepted 3`. After Take, label is unavailable, but count is still a separate value. Naming the two parts lets you hand one on without losing access to the other. Tuple parameters can also name their parts; their access still follows the parameter marker, as described in the [aggregate reference](/reference/aggregates/).
+It prints `accepted 3`. After Take, label is unavailable, but count is still a separate value. Naming the two parts lets you hand one on without losing access to the other.
 
 ## Hand on a value without fixing its type
 
 A wrapper sometimes needs to pass along a whole result regardless of its type. T, the type parameter introduced with generic records, lets this function preserve the caller's type:
 
-```carven
+```carven run
 fn relay<T>(&&value: T) -> T => &&value;
 
 let label: String = "accepted";
@@ -167,4 +184,4 @@ This prints `accepted`. The compiler infers T as String. relay takes the label a
 
 ## Exercise
 
-Remove `stock = 1;` from access.cv and try printing stock. Expect `CV-ACCESS-UNAVAILABLE`. Change the delivery operation to ordinary Read so it no longer transfers the source, and compare the caller obligations expressed by the two interfaces. Then, in stock.cv, print `stock.units` at top level and expect `CV-ACCESS-CLASS-PRIVATE`; change `var stock` to `let stock` and expect `CV-ACCESS-IMMUTABLE` at `stock.restock(2)`.
+Remove `stock = 1;` from access.cv and try printing stock. Expect `CV-ACCESS-UNAVAILABLE`. Then remove `&&` from both the dispatch parameter and its call argument. With Read access, printing stock now succeeds and its value is 9 without restoring it first. Then, in stock.cv, print `stock.units` at top level and expect `CV-ACCESS-CLASS-PRIVATE`; change `var stock` to `let stock` and expect `CV-ACCESS-IMMUTABLE` at `stock.restock(2)`.

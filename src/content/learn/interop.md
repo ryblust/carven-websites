@@ -39,7 +39,7 @@ The output is `4 4`. C++ performs the braced construction, including class templ
 
 For growable Carven data use `Vector<T>` from the data chapter. For JSON use the owning `std::json` API; neither requires a third-party C++ dependency:
 
-```carven
+```carven run
 import std::json using { Value, JSONError, ValueError };
 
 fn configure(text: str) -> String throw JSONError + ValueError {
@@ -53,7 +53,7 @@ fn configure(text: str) -> String throw JSONError + ValueError {
 println(configure(r#"{"enabled":true}"#)?);
 ```
 
-The output is `{"enabled":true,"port":8080}`. Parsing, mutation, and writing preserve checked Carven failures and work in native, interpreted, and explicit static execution. The [input project](/learn/data-pipeline/) builds a streaming workflow on this API.
+The output is `{"enabled":true,"port":8080}`. See the [JSON reference](/reference/json/) for value operations, or the [input project](/learn/data-pipeline/) to process incoming records.
 
 Use header imports when a dependency supplies a native capability or an existing C++ type that your application needs. Header import does not install a library or configure linking. Keep include paths, versions, flags, and linked libraries in the native build. External exceptions must be converted at a provider boundary if callers need typed recovery.
 
@@ -77,7 +77,7 @@ println(doubled(21));
 
 The output is 42. The cpp fragment enters the implementation unchanged. import(cpp) calls a global provider of the same name, and export(cpp) puts the wrapper in the module's generated API. C++ consumers include `carven/api/<module-name>.hpp` and use the module namespace under `carven::api`.
 
-This first example uses an integer contract. The same boundary supports ordinary Carven types, Write/Take access, and declared failures; the provider must satisfy the generated C++ contract. Start with a small exported function before adding native providers for more complex types.
+The next example adds a writable parameter and a declared failure to that interface.
 
 ## Export mutation and a failure contract
 
@@ -99,22 +99,26 @@ First append these two tests to the same file to check a successful update and r
 ```carven
 test "rename a label" {
     var label: String = "before";
+
     try {
         rename(&label, "after")?;
     } catch {
         EmptyLabel(_) => fail("nonempty label was rejected"),
     }
+
     check(label == "after");
 }
 
 test "reject an empty label" {
     var label: String = "before";
+
     let rejected = try {
         rename(&label, "")?;
         false
     } catch {
         EmptyLabel(_) => true,
     };
+
     check(rejected);
     check(label == "before");
 }
@@ -141,6 +145,7 @@ int main() {
     if (!renamed.success_if() || rejected.success_if()) {
         return 1;
     }
+
     std::cout << label.as_str() << '\n';
 }
 ```
@@ -159,9 +164,9 @@ The caller handles success or EmptyLabel. This is an explicit result contract; C
 
 ## Exceptions and borrows
 
-Generated functions have noexcept boundaries: an escaping C++ exception terminates. Carven try does not catch native exceptions. For recovery, catch inside a native adapter first and return a result through the selected interface.
+Carven try does not catch C++ exceptions. Convert them in a native adapter when callers need typed recovery, as the next example shows.
 
-Carven tracks known storage and text backing. It does not prove the lifetime of arbitrary C++ returned pointers or infer whether a native function retains arguments long-term. Callers and providers must satisfy those contracts.
+Callers and providers must keep pointers returned or retained by C++ valid. See the [interop reference](/reference/interop/) for lifetime responsibilities.
 
 ## Convert native exceptions into a declared failure
 
@@ -169,24 +174,27 @@ A native adapter can catch exceptions and return the declared failure instead. S
 
 ```carven
 import <cstdint>;
+import <stdexcept>;
 import <string>;
 import <string_view>;
 
 struct InvalidPort {}
 
 #[cpp] ---
-#include <carven/runtime/outcome.hpp>
+#include <carven/runtime/value/outcome.hpp>
 
 template<typename Failure>
 auto parse_port_native(std::string_view text, const Failure& invalid) noexcept
     -> carven::runtime::Outcome<std::int32_t, Failure> {
     using Result = carven::runtime::Outcome<std::int32_t, Failure>;
+
     try {
         std::size_t used = 0;
         const int port = std::stoi(std::string{text}, &used);
         if (used != text.size() || port < 1 || port > 65535) {
             return Result::failure(invalid);
         }
+
         return Result::success_from([port]() noexcept -> std::int32_t { return port; });
     } catch (const std::invalid_argument&) {
         return Result::failure(invalid);
@@ -227,4 +235,4 @@ In `parse_port_native(text, {})`, the parameter type supplies the type for `{}`,
 
 ## Exercise
 
-Change native_double to return value + 2 and confirm the output changes. Then remove the cpp provider while keeping import(cpp), and inspect the native declaration/link failure. Native compilation and linking check whether the provider exists.
+Return to the native_double example. Change its body to return value + 2 and run it again; expect `23`. Then remove the cpp provider while keeping import(cpp), and inspect the native declaration/link failure. Native compilation and linking check whether the provider exists.

@@ -53,6 +53,7 @@ describe('theme preference changes', () => {
     vi.stubGlobal('localStorage', store);
     const changes: ThemePreference[] = [];
     const observer = observeTheme((preference) => changes.push(preference));
+
     return {
       observer,
       changes,

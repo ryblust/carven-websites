@@ -14,6 +14,7 @@ export function contentPlugin(): Plugin {
       const serial = Semaphore.makeUnsafe(1);
       const controller = new AbortController();
       const contentDirectory = resolve(server.config.root, 'src/content');
+
       const changed = (event: string, file: string) => {
         const path = relative(contentDirectory, file);
         if (
@@ -22,6 +23,7 @@ export function contentPlugin(): Plugin {
           !path.endsWith('.md')
         )
           return;
+
         void runtime
           .runPromiseExit(
             generateContent(server.config.root).pipe(
@@ -42,6 +44,7 @@ export function contentPlugin(): Plugin {
             }
           });
       };
+
       server.watcher.add(contentDirectory);
       server.watcher.on('all', changed);
       dispose = () => {
@@ -49,6 +52,7 @@ export function contentPlugin(): Plugin {
         controller.abort();
         return runtime.dispose();
       };
+
       // Config dependencies (including homepage examples) trigger a restart rather
       // than a Markdown watcher event. Publish their current values before serving.
       try {

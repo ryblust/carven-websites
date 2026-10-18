@@ -2,6 +2,7 @@ import { isExecutionResult, type Action, type ExecutionResult } from './protocol
 import type { CompilerAssets } from './wasi';
 
 export type Progress = 'loading' | 'running';
+
 export class PlaygroundError extends Error {
   constructor(
     public readonly code: 'unsupported' | 'assets' | 'execution' | 'too-large' | 'timeout',
@@ -14,6 +15,7 @@ type WorkerPort = Pick<
   Worker,
   'postMessage' | 'terminate' | 'addEventListener' | 'removeEventListener'
 >;
+
 type WorkerFactory = () => WorkerPort;
 const createWorker: WorkerFactory = () =>
   new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
@@ -38,17 +40,21 @@ export class ExecutionSession {
     progress: (phase: Progress) => void = () => {},
   ): Promise<ExecutionResult | undefined> {
     this.cancel();
+
     if (new TextEncoder().encode(source).byteLength > 64 * 1024) {
       return Promise.reject(new PlaygroundError('too-large'));
     }
     const base = new URL(assetsBase, globalThis.location?.href ?? import.meta.url).href;
     const id = this.generation;
+
     return new Promise((resolve, reject) => {
       const worker = this.workerFactory();
       let settled = false;
       let timer: ReturnType<typeof setTimeout>;
+
       const finish = (result?: ExecutionResult, error?: Error) => {
         if (settled) return;
+
         settled = true;
         clearTimeout(timer);
         worker.removeEventListener('message', onMessage);
@@ -59,10 +65,12 @@ export class ExecutionSession {
         else if (error) reject(error);
         else resolve(result);
       };
+
       const timeout = (milliseconds: number) => {
         clearTimeout(timer);
         timer = setTimeout(() => finish(undefined, new PlaygroundError('timeout')), milliseconds);
       };
+
       const onMessage = ((event: MessageEvent<unknown>) => {
         const data = event.data;
         if (
@@ -120,6 +128,7 @@ export class ExecutionSession {
       worker.addEventListener('message', onMessage);
       worker.addEventListener('error', onError);
       timeout(120000);
+
       try {
         worker.postMessage({
           id,

@@ -10,9 +10,9 @@ Some inputs are fixed before a program starts: route lists, limits, or default s
 
 ## Write and verify one algorithm
 
-Save this as routes.cv. We want only enabled routes whose paths begin with `/`. starts_with performs that prefix check; the rest is an ordinary filtering loop. The two new forms are const fn, which permits compile-time calls, and const test, which checks a result during compilation:
+Save this as routes.cv. Keep only enabled routes whose paths begin with `/`. starts_with performs that prefix check; the rest is an ordinary filtering loop. The two new forms are const fn, which permits compile-time calls, and const test, which checks a result during compilation:
 
-```carven
+```carven run
 import std::utf using starts_with;
 
 struct Route {
@@ -51,13 +51,13 @@ for path in paths {
 
 The output is `/health` and `/users` on separate lines. This builds a variable-length owning result without a separate length calculation or a maximum-size result array. The `[Route]` parameter borrows its input, while the returned vector owns copies of the selected paths.
 
-`const fn` makes the algorithm eligible for compile-time execution. Calling `enabled_paths(routes)` in an ordinary runtime initializer still runs at runtime. The result's stage comes from the call context, not from the fact that arguments happen to be known. Required static calls can reach only explicitly declared `const fn` operations. Definitions are checked before use; dynamic errors and execution budgets are checked when an invocation executes.
+`const fn` permits compile-time execution; calling `enabled_paths(routes)` in an ordinary runtime initializer still runs at runtime. The call context selects the stage. See the [constant reference](/reference/constants/) for supported operations and execution limits.
 
 ## Build a checked configuration
 
-The same preparation can parse a configuration file embedded in the source. Value::parse turns JSON text into an independent value tree. get reads a member. set updates a member. to_json writes compact JSON text. We prepare defaults once, then edit a runtime copy:
+Save this separate program as config.cv. Parse default JSON configuration during compilation, then edit a runtime copy. `Value::parse` creates a value tree; get selects a member and as_i64 reads it as an integer. set replaces a member with a JSON value, and to_json serializes the tree to a String:
 
-```carven
+```carven run
 import std::json using Value;
 
 const defaults = Value::parse(r#"{"retries":3,"enabled":true}"#)?;
@@ -88,11 +88,13 @@ Run `carven config.cv` to print:
 
 The `const` initializers require execution during compilation. JSON operations use their ordinary typed failures: `?` is still necessary for a known valid input. If a required compile-time calculation fails without recovery, compilation fails. The configuration test uses catch and fail to turn an unexpected parsing failure into a clear test failure.
 
-compact is still a String and defaults is still a Value after preparation. Copying defaults into active gives the running program its own editable configuration. Preparing a value early does not change its type or make runtime copies share mutable contents.
+compact is still a String and defaults is still a Value after preparation. Copying defaults into active gives the running program its own editable configuration. `Value::integer(5)` constructs a JSON number; `&&` transfers it into active through set. The modification therefore changes active without changing defaults or compact.
 
 ## Recover a parsing failure during preparation
 
-```carven
+Save this separate program as port_config.cv:
+
+```carven run
 import std::core using NumberParseError;
 
 const fn configured_port(text: str) -> u16 => try {
@@ -102,13 +104,15 @@ const fn configured_port(text: str) -> u16 => try {
 };
 
 const port = configured_port("invalid");
+
 const test "fallback port" {
     check(port == 8080);
 }
+
 println(port);
 ```
 
-This prints `8080`. Numeric parsing checks the whole input and destination range. An empty string, trailing content, or an out-of-range number is a typed failure; an integer cast would wrap instead of validating. `const explicit_port = u16::parse("443")?;` lets an unhandled parsing failure stop compilation. Inside a test, handle every possible failure, for example:
+This prints `8080`: the parser rejects the invalid configured value, and catch supplies a fallback during compilation. Tests must also handle the parser's declared failure:
 
 ```carven
 const test "parse an explicit port" {
@@ -125,7 +129,9 @@ Append this test to the preceding program. It executes during checking and produ
 
 ## Execute preparation without keeping a result
 
-```carven
+Save this separate program as prepare.cv:
+
+```carven run
 const "prepare data" {
     var labels: Vector<String> = ["health", "users"];
     labels.push("metrics");
@@ -137,18 +143,19 @@ println("Running");
 
 `carven check prepare.cv` prints `Preparing 3 routes` during analysis and then reports successful checking. `carven prepare.cv` additionally prints `Running` from its runtime entry. Printing keeps its selected stdout or stderr stream during compilation. `compile --stdout` redirects all compile-time program output to stderr so stdout contains only artifact listings.
 
-The label is optional and identifies the block in diagnostics. A module block executes once. In a function, a block executes once per selected instance or expanded `const for` occurrence. It can read enclosing constants, static parameters and static loop indices, but cannot read runtime parameters or locals. Ordinary runtime conditions do not select static work. Operations in one body execute in source order; separate bodies have no guaranteed preparation order.
+The optional label identifies the block in diagnostics. A module block executes once and can read constants, but not runtime values. See the [constant reference](/reference/constants/) for execution order and blocks inside functions.
 
 ## Specialize runtime work
 
 A `const` parameter selects a checked specialization while other inputs remain runtime values:
 
-```carven
-fn weighted(value: i32, const weights: (i32, i32)) -> i32 {
-    const { println("Preparing weights", weights.0, weights.1); }
+```carven run
+fn weighted(value: i32, const (count, weight): (i32, i32)) -> i32 {
+    const { println("Preparing weights", count, weight); }
+
     var total = value;
-    const for index in 0..weights.0 {
-        total += weights.1 + index;
+    const for index in 0..count {
+        total += weight + index;
     }
     return total;
 }
@@ -156,35 +163,29 @@ fn weighted(value: i32, const weights: (i32, i32)) -> i32 {
 println(weighted(10, (3, 2)), weighted(20, (3, 2)));
 ```
 
-The runtime line is `19 29`. The static block prepares the `(3, 2)` instance once, even though the program calls it twice. Static arguments disappear from the runtime signature. `const for` expands the checked range and exposes a static index in each iteration. `const if` chooses which branch appears in the generated function; every source branch must still contain valid code.
+The runtime line is `19 29`. The tuple parameter names the static count and weight. The static block prepares the `(3, 2)` instance once, even though the program calls it twice. Static arguments disappear from the runtime signature. `const for` expands the checked range and exposes a static index in each iteration.
 
 `const fn` and static parameters serve different purposes: the former admits static execution, the latter fixes inputs during specialization. Use ordinary loops unless expansion or static values are needed.
 
-## Use text, SIMD, and asynchronous operations at the same stage
+## Select preparation with a static condition
 
-UTF encoding, validation, splitting, JSON construction, vectors, and admitted class operations support explicit static execution. SIMD lane algorithms use the same logical contracts at both stages:
+A fixed divisor can determine a scaling factor. In this example, zero disables scaling and returns zero; other divisors prepare a factor during compilation. Save this separate program as `scaling.cv`:
 
-```carven
-import std::simd.bytes using { block_count, load_block };
-
-const fn count_byte(bytes: [u8], needle: u8) -> usize {
-    var count: usize = 0;
-    for index in 0..block_count(bytes) {
-        let block = load_block(bytes, index * 32);
-        count += ((block.value == needle) & block.active).count();
+```carven run
+fn scale(value: i32, const divisor: i32) -> i32 {
+    const if divisor == 0 {
+        return 0;
+    } else {
+        const factor = 100 / divisor;
+        return value * factor;
     }
-    return count;
 }
 
-const zeros = count_byte("A\0B".bytes, 0);
-const test { check(zeros == 1); }
-println(zeros);
+println(scale(2, 0), scale(2, 4));
 ```
 
-It prints `1`. Masking with active lanes excludes zero padding in the final block. Logical SIMD width does not promise one hardware register or a speedup.
-
-A compile-time block or test can also await supported operations declared with `const async fn`; we introduce those forms in the [async lesson](/learn/async/). Static clocks and input observe the compiler process, so using them makes preparation depend on that host. Execution budgets do not impose a wall-clock timeout. Keep reproducible configuration preparation independent of live input and clocks unless that dependency is intentional.
+Run `carven scaling.cv` or `carven interpret scaling.cv`. It prints `0 50`. `const if` selects an arm for each static argument. The zero-divisor instance skips `100 / divisor` in the other arm. Every source arm still receives type, failure, and ownership checks. See the [constant reference](/reference/constants/) for the complete static-selection rules.
 
 ## Exercise
 
-Add an enabled `/metrics` route and update the static tests. Deliberately give the configured port `"65536"` and verify that parsing selects the fallback. Run `carven check` to execute preparation alone, then `carven --tests` for ordinary runtime tests. A failed static check fails compilation; assertions, bounds violations, and execution-budget exhaustion do not become catchable failures.
+Add an enabled `/metrics` route in routes.cv and update its static test. In port_config.cv, change the configured text to `"65536"` and verify that parsing selects the fallback. Run `carven check routes.cv` and `carven check port_config.cv` to execute their static tests, then run each program to inspect its runtime output.

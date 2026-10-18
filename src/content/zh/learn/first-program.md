@@ -18,21 +18,21 @@ cd carven
 ./xmakew build
 ```
 
-Windows 的仓库包装器写作 `.\xmakew.ps1`。直接原生运行依赖 C++ 工具链，不依赖 Xmake。使用已安装 Carven 时，下面命令中的 `./xmakew run carven` 可以换成 `carven`。
+Windows 使用仓库中的构建脚本 `.\xmakew.ps1`。直接原生运行依赖 C++ 工具链，不依赖 Xmake。使用已安装 Carven 时，下面命令中的 `./xmakew run carven` 可以换成 `carven`。
 
 ## 写出第一个文件
 
 在编译器仓库根目录保存 `main.cv`：
 
-```carven
+```carven run
 let unit_price = 1200;
 let quantity = 3;
 println("Order total:", unit_price * quantity);
 ```
 
-`let` 为值命名，之后不能重新赋值。`println` 无需导入，实参间加一个空格，末尾加换行。这些顶层语句按顺序执行，组成隐式程序入口；第一个程序还不需要声明函数。
+`let` 为值命名，之后不能重新赋值。`println` 无需导入，实参间加一个空格，末尾加换行。这些顶层语句按顺序执行，组成隐式程序入口；第一个程序还不需要声明函数。本例用整数表示货币最小单位，使计算结果保持精确。
 
-运行：
+点击代码框右上角的「运行」，可以直接在浏览器中执行这个示例。要在本地运行保存的文件：
 
 ```sh
 ./xmakew run carven main.cv
@@ -44,7 +44,7 @@ println("Order total:", unit_price * quantity);
 Order total: 3600
 ```
 
-直接运行会先生成 C++，再编译、链接、执行。CXX 可以指定原生编译器路径，默认 clang++。
+直接运行会先生成 C++，再编译、链接、执行。选择原生编译器的方法见[工具链参考](/zh/reference/toolchain/)。
 
 ## 查看生成结果
 
@@ -58,7 +58,7 @@ compile 只生成产物，`--stdout` 用文件名标题分隔各文件，适合�
 ./xmakew run carven compile -o generated main.cv
 ```
 
-也可以直接解释这个支持子集内的程序：
+这个程序也在解释器的支持范围内，可以直接运行：
 
 ```sh
 ./xmakew run carven interpret main.cv
@@ -72,7 +72,7 @@ compile 只生成产物，`--stdout` 用文件名标题分隔各文件，适合�
 ./xmakew run carven check main.cv
 ```
 
-check 让编译器检查源码，并执行源码明确要求在编译时完成的工作，然后停止：不写 C++、不调用原生编译器，也不运行程序。检查通过时在 stderr 输出 `carven: check passed`。任何命令都可以加 `--timings` 查看各阶段耗时，报告同样写到 stderr：
+check 检查源码而不运行程序，但仍会执行源码明确要求的编译期工作。检查通过时在 stderr 输出 `carven: check passed`。加上 `--timings` 可以在 stderr 查看各阶段耗时：
 
 ```sh
 ./xmakew run carven check --timings main.cv
@@ -90,7 +90,7 @@ check 让编译器检查源码，并执行源码明确要求在编译时完成�
 
 顶层语句适合短程序。想让入口与可复用函数明确分开时，可以改用 main。将整个文件替换为：
 
-```carven
+```carven run
 fn main() {
     let unit_price = 1200;
     let quantity = 3;

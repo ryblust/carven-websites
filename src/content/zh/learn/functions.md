@@ -8,7 +8,9 @@ source: docs/language/functions.md
 
 ## 把计算命名
 
-```carven
+计算一条订单的合计，再应用折扣并打印结果。为每项计算定义一个函数：
+
+```carven run
 fn line_total(price: i32, quantity: i32) -> i32 => price * quantity;
 
 fn discount(total: i32) => total - 3;
@@ -20,9 +22,9 @@ println(discount(line_total(12, 3)));
 
 ## 块体显式 return
 
-计算需要多条语句时，写成块体。普通函数块的最后一个表达式不会自动返回。值函数每条正常路径都需要 return：
+计算需要多条语句时，写成块体。普通函数块的最后一个表达式不会自动返回。有返回值的函数在每条正常执行路径上都需要 return：
 
-```carven
+```carven run
 fn delivery(total: i32) -> i32 {
     if total >= 100 {
         return 0;
@@ -34,11 +36,11 @@ fn delivery(total: i32) -> i32 {
 println(delivery(36));
 ```
 
-输出 `8`。显式结果类型会给各 return 的字面量提供上下文。省略结果类型时，每个 return 独立推断，结果必须一致；不能由第一个 return 替后面的数字选类型。
+输出 `8`。显式结果类型让返回的字面量使用 `i32`。省略结果注解时的推断规则见[函数参考](/zh/reference/functions/)。
 
-值形式 if 是表达式，所以这个选择也能写成表达式体：
+用于产生值的 if 是表达式，所以这个选择也能写成表达式体：
 
-```carven
+```carven run
 fn delivery(total: i32) -> i32 => if total >= 100 { 0 } else { 8 };
 
 println(delivery(36), delivery(120));
@@ -50,7 +52,7 @@ println(delivery(36), delivery(120));
 
 有些函数主要执行动作，不需要算出一个有用的结果，它们的结果类型是 void：
 
-```carven
+```carven run
 fn show_total(total: i32) => println("Total:", total);
 
 show_total(36);
@@ -58,7 +60,7 @@ show_total(36);
 
 输出 `Total: 36`。show_total 的目的是打印，直接把调用写成语句即可。编译器推断结果类型为 void，因此可以省略 `-> void`。动作需要多条语句或用 `return;` 提前结束时，使用块体。
 
-精确地说，void 有一个值 `()`，称为 unit，也能像其他值一样存放；这个打印函数不需要保留它。[类型参考](/zh/reference/types/)介绍它在数据结构中的用法。异步章节会说明，unit 怎样为不返回业务结果的操作保留一个结果位置。
+void 有一个值 `()`，称为 unit。异步章节会用它表示不返回业务结果的操作。
 
 ## 声明顺序与调用
 
@@ -66,13 +68,13 @@ show_total(36);
 
 函数看不到顶层的 `let` 和 `var` 绑定：它们属于程序入口。所需值应作为参数传入。
 
-相互递归的函数应写明结果类型，避免推断一个结果时又依赖另一个结果。完整推断规则见[函数参考](/zh/reference/functions/)；[访问章节](/zh/learn/ownership/)将展示参数何时读取保存的值，何时保留调用者的存储。
+递归调用与结果推断规则见[函数参考](/zh/reference/functions/)；[访问章节](/zh/learn/ownership/)将介绍参数怎样读取、修改或取走调用者的值。
 
 ## 一起返回相关结果
 
 相关结果可以用元组一起返回。函数也可以接收一个元组，并在参数列表里为各部分命名：
 
-```carven
+```carven run
 fn delivery(total: i32) -> i32 => if total >= 100 { 0 } else { 8 };
 fn amount((price, quantity): (i32, i32)) -> i32 => price * quantity;
 fn price_and_delivery(total: i32) -> (i32, i32) => (total, delivery(total));
@@ -85,4 +87,4 @@ println(items, shipping, items + shipping);
 
 ## 练习
 
-增加一个 `grand_total(price, quantity)`，组合 line_total 和 delivery。输入 12、3 应得到 44；输入 50、2 应得到 100。先写块体：用 `let` 保存行合计，再返回它加上运费；然后判断改成表达式体后是否仍然易读。
+新建一个程序，放入首例的 line_total 和任一种 delivery 实现。增加 `grand_total(price, quantity)`，组合这两个函数。分别打印输入 12、3 和 50、2 时的结果，应得到 `44` 和 `100`。先写块体：用 `let` 保存行合计，再返回它加上运费；然后判断改成表达式体后是否仍然易读。

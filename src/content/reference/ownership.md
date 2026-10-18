@@ -1,5 +1,5 @@
 ---
-title: "Bindings, access, ownership, and cleanup"
+title: "Access and ownership"
 description: "Read, Write, Take, copying, restoration, aliasing, temporaries, and scoped cleanup."
 section: reference
 lesson: 12
@@ -27,18 +27,8 @@ Inside `ptr<&T>`, `&` is the pointer type's explicit target-access parameter.
 | Unmarked pattern binding   | `Read` access to the selected value                     |
 | Pattern binding marked `&` | `Write` access when the subject permits mutation        |
 
-Every binding declaration has an initializer. An optional declared type must be
-compatible with that initializer. The exact target `_` creates no symbol, may
-be repeated, and is never an unused-warning candidate. `_name` is an ordinary
-identifier. A discarded runtime initializer is still evaluated and its value
-lives until the enclosing scope ends; local `const _` still requires a constant
-fact. Module constants always require a named target.
-
-A local declaration publishes its name only after its declared type,
-initializer, and any constant it needs are complete. Its own name is not
-visible in those inputs, so an initializer may select an outer binding with the
-same spelling. The completed binding is visible to following statements in its
-scope.
+See [variable declarations and scope](/reference/bindings/) for initialization,
+shadowing, discard bindings, and tuple targets.
 
 A call repeats every declared parameter access exactly: `read(value)`,
 `write(&value)`, or `take(&&value)`. `Read` grants non-owning read-only access,
@@ -80,6 +70,15 @@ immutable owner and may itself be taken.
 `const` are not Take sources. The initial Take operand must be a complete owner or a
 temporary; taking a member or element of a still-available owner is invalid.
 
+```carven run
+fn relay<T>(&&value: T) -> T => &&value;
+
+var values: Vector<i32> = [1, 2, 3];
+let moved = relay(&&values);
+values = [4, 5];
+println(moved.length(), values.length()); // 3 2
+```
+
 Tuple parameter and loop targets inherit these access rules. Named slots in a
 Take parameter are independent immutable owners; Read and Write targets remain
 projections of the enclosing parameter or current element. Positional fields
@@ -99,8 +98,7 @@ type. Taking a complete owner makes that binding unavailable, including for a
 copyable type. Analysis checks this state transition; the selected C++ operation
 must preserve its ownership and observable effects.
 
-Returning a named owner copies it; a return ends the owner but does not imply
-Take. `CV-LINT-RETURN-COPY` reports a returned owner whose type can hold Carven
+Returning a named owner requires copying that value. Use `return &&owner;` to transfer it; returning does not select Take implicitly. `CV-LINT-RETURN-COPY` reports a returned owner whose type can hold Carven
 `String` storage by value, excluding zero-length array elements, and has no
 native value component, when Take is admitted at that return in every analyzed
 call context. Writing `return &&owner;` states the transfer and removes the warning.

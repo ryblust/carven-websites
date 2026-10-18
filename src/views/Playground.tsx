@@ -49,6 +49,7 @@ function readDraft(id: string, fallback: string) {
     const stored = localStorage.getItem(draftKey(id));
     if (!stored) return fallback;
     const draft: unknown = JSON.parse(stored);
+
     // A draft belongs to the preset it was edited from. Old source must not
     // silently replace a newer example after a compiler or website update.
     return typeof draft === 'object' &&
@@ -66,6 +67,7 @@ function readDraft(id: string, fallback: string) {
 
 export default function Playground({ locale }: { locale: Locale }) {
   const t = translate(locale);
+
   const [exampleId, setExampleId] = useState<string>(initialExample.id);
   const example = examples.find((item) => item.id === exampleId) ?? initialExample;
   const [source, setSource] = useState<string>(initialExample.source);
@@ -99,6 +101,7 @@ export default function Playground({ locale }: { locale: Locale }) {
         /* Storage is optional. */
       }
     }
+
     const next = examples.find((item) => item.id === id) ?? initialExample;
     if (activeExample.current !== next.id) activateExample(next.id);
   }, [hash]);
@@ -130,15 +133,18 @@ export default function Playground({ locale }: { locale: Locale }) {
   function activateExample(id: string) {
     const next = examples.find((item) => item.id === id);
     if (!next) return;
+
     activeExample.current = id;
     invalidate();
     setExampleId(id);
     setTab(next.defaultView);
+
     try {
       localStorage.setItem(activeExampleKey, id);
     } catch {
       setSaved(false);
     }
+
     setSource(readDraft(id, next.source));
   }
 
@@ -153,6 +159,7 @@ export default function Playground({ locale }: { locale: Locale }) {
 
   async function run(action: Action) {
     if (!supported || busy || !source.trim()) return;
+
     setBusy(true);
     setProgress('loading');
     setResult(undefined);
@@ -167,6 +174,7 @@ export default function Playground({ locale }: { locale: Locale }) {
             ? 'output'
             : 'diagnostics',
     );
+
     try {
       const next = await session.run(assetsBase, source, action, setProgress);
       if (!next) return;
@@ -211,7 +219,7 @@ export default function Playground({ locale }: { locale: Locale }) {
   const primaryAction =
     tab === 'output' ? 'run' : tab === 'diagnostics' ? 'check' : tab === 'cpp' ? 'compile' : tab;
   const primaryActionLabel = {
-    run: t('解释运行', 'Run'),
+    run: t('运行', 'Run'),
     check: t('检查', 'Check'),
     compile: t('生成 C++', 'Generate C++'),
     ast: t('查看 AST', 'Inspect AST'),
@@ -235,7 +243,7 @@ export default function Playground({ locale }: { locale: Locale }) {
         : CircleDashed;
   const status = busy
     ? progress === 'loading'
-      ? t('正在加载运行环境…', 'Loading runtime…')
+      ? t('正在加载…', 'Loading…')
       : t('正在执行…', 'Executing…')
     : result
       ? result.exitCode === 0
@@ -265,8 +273,8 @@ export default function Playground({ locale }: { locale: Locale }) {
         <div className="playground-connection" role="status">
           <p>
             {t(
-              '此浏览器无法运行 WebAssembly Worker。你仍可编辑和复制源码。',
-              'This browser cannot run WebAssembly workers. You can still edit and copy your source.',
+              '此浏览器无法运行 Playground，请换用其他浏览器。',
+              'This browser cannot run the Playground. Try another browser.',
             )}
           </p>
         </div>
@@ -484,21 +492,6 @@ export default function Playground({ locale }: { locale: Locale }) {
           )}
         </p>
       )}
-
-      <div className="playground-notes" id="playground-notes">
-        <p>
-          {t(
-            '源码在你的浏览器中检查和解释执行，不会上传。当前支持 Carven 解释器能力；C++ 库的原生调用需要本地工具链。',
-            'Source is checked and interpreted in your browser; it is not uploaded. This playground supports the Carven interpreter. Native C++ library calls require a local toolchain.',
-          )}
-        </p>
-        <p>
-          {t(
-            '首次运行会自动加载运行环境，无需安装。代码在浏览器内执行，有时长与输出限制，可随时停止。',
-            'The runtime loads automatically on first use; no installation is needed. Code runs in your browser with time and output limits, and you can stop at any time.',
-          )}
-        </p>
-      </div>
     </section>
   );
 }

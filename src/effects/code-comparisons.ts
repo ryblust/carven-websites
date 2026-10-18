@@ -14,15 +14,18 @@ export function enhanceCodeComparisons(root: HTMLElement): () => void {
       const button = root.ownerDocument.createElement('button');
       button.type = 'button';
       button.textContent = panel.dataset.codeChoice ?? '';
+
       const select = () => {
         panels.forEach((item, active) => {
           item.hidden = active !== index;
           buttons[active]!.setAttribute('aria-pressed', String(active === index));
         });
       };
+
       button.addEventListener('click', select);
       cleanups.push(() => button.removeEventListener('click', select));
       group.append(button);
+
       return button;
     });
     comparison.prepend(group);
@@ -34,5 +37,6 @@ export function enhanceCodeComparisons(root: HTMLElement): () => void {
       });
     });
   });
+
   return () => cleanups.forEach((cleanup) => cleanup());
 }

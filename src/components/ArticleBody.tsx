@@ -10,6 +10,7 @@ import parse, {
 } from 'html-react-parser';
 import { enhanceCodeComparisons } from '../effects/code-comparisons';
 import { enhanceCodeBlocks } from '../effects/code-blocks';
+import { enhanceCodeExecution } from '../effects/code-execution';
 import { href } from '../lib/site';
 
 function ArticleLink({ href: reference, ...props }: ComponentProps<'a'> & { href: string }) {
@@ -25,6 +26,7 @@ function ArticleLink({ href: reference, ...props }: ComponentProps<'a'> & { href
         }
       />
     );
+
   return (
     <Link
       {...props}
@@ -64,11 +66,15 @@ function ArticleBodyContent({ html, locale }: { html: string; locale: Locale }) 
   const [status, announce] = useState('');
   // Keep parsed children stable while effects enhance code blocks and comparisons.
   const [body] = useState(() => parse(html, parserOptions));
+
   useEffect(() => {
     if (!content.current) return;
     const removeComparisons = enhanceCodeComparisons(content.current);
     const removeCodeBlocks = enhanceCodeBlocks(content.current, announce, locale);
+    const removeCodeExecution = enhanceCodeExecution(content.current, locale);
+
     return () => {
+      removeCodeExecution();
       removeCodeBlocks();
       removeComparisons();
     };

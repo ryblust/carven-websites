@@ -1,5 +1,5 @@
 ---
-title: "Typed failure contracts"
+title: "Failure contracts"
 description: "Failure sets, explicit upper bounds, inference, propagation targets, partial catches, guards, and rethrow."
 section: reference
 lesson: 7
@@ -46,11 +46,7 @@ Calls use the callee's failure contract. An explicit contract determines the
 call's failure set even when the callee's body produces fewer failures:
 `fn source() throw Error {}` still makes `source()` fallible with type `Error`.
 
-An immutable local initialized from a known function preserves that target
-through copies and view adaptation. Calling it uses the function's contract,
-including any explicit `throw` clause on the function. A wider view type does
-not add failures to this known call. Calls through parameters, mutable views,
-or unresolved target selections use the view's contract.
+Known functions adapted to callable views follow the [known-target rules](/reference/closures/#known-function-targets).
 
 ## Failure-set parameters
 
@@ -97,6 +93,26 @@ evaluates once and propagation has no failure to transfer. This does not admit
 
 ## `?` and `throw`
 
+Report a failure with `throw`, then propagate it with `?` or handle it with `try`/`catch`:
+
+```carven run
+struct Missing { key: String }
+
+fn lookup(key: str) -> i32 throw Missing {
+    if key == "answer" {
+        return 42;
+    }
+    throw Missing { key: key as String };
+}
+
+let answer = try {
+    lookup("other")?
+} catch {
+    Missing(_) => 0,
+};
+println(answer); // 0
+```
+
 A value with pending failures cannot be consumed where an ordinary completed
 value is required. Postfix `?` consumes the pending failures of its operand at
 that lexical position and transfers them to the nearest enclosing failure
@@ -134,11 +150,16 @@ For example, this handler consumes `A` and forwards `B`:
 ```carven
 struct A {}
 struct B {}
-fn source() throw A + B {}
+fn source(select_a: bool) throw A + B {
+    if select_a {
+        throw A {};
+    }
+    throw B {};
+}
 
-fn wrapper() throw B {
+fn wrapper(select_a: bool) throw B {
     try {
-        source()?;
+        source(select_a)?;
     } catch {
         A(_) => {},
     }
@@ -169,7 +190,6 @@ identity selected for that handler. Closure bodies are separate callable
 boundaries: their failures and control transfers do not belong to evaluation of
 the expression that creates the closure.
 
-Failure payloads and copied catch bindings follow the ordinary ownership rules.
-The original payload retains its backing relationships through selection,
-guards, and rethrow, independently of copied catch bindings. Borrowed storage
-must remain alive while the failure payload refers to it.
+The original payload retains its backing relationships through selection, guards, and rethrow. Borrowed storage must remain alive while the failure payload refers to it.
+
+Catch pattern bindings are not owners and cannot be taken directly. To transfer a selected payload, copy it into a local owner with `let owned = error;`, then use `&&owned`. Taking that copy does not consume the original failure retained for `rethrow`.

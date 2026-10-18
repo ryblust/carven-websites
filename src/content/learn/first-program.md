@@ -24,7 +24,7 @@ On Windows, the repository wrapper is `.\xmakew.ps1`. Direct native execution us
 
 Save this as `main.cv` in the compiler repository root:
 
-```carven
+```carven run
 let unit_price = 1200;
 let quantity = 3;
 println("Order total:", unit_price * quantity);
@@ -32,7 +32,7 @@ println("Order total:", unit_price * quantity);
 
 `let` names a value that cannot be reassigned. `println` is available without an import, separates arguments with a space, and ends with a newline. These top-level statements execute in order as an implicit program entry. The calculation uses integer minor currency units, keeping this first example exact. No function declaration is needed for the implicit entry.
 
-Run:
+Click **Run** in the code block to execute this example in your browser. To run the saved file locally:
 
 ```sh
 ./xmakew run carven main.cv
@@ -44,7 +44,7 @@ Output:
 Order total: 3600
 ```
 
-Direct execution generates C++, compiles it, links it, and runs the executable. Set CXX to select the native compiler executable; the default is clang++.
+Direct execution generates C++, compiles it, links it, and runs the executable. See the [toolchain reference](/reference/toolchain/) to select a native compiler.
 
 ## Inspect the generated result
 
@@ -72,7 +72,7 @@ The output is still Order total: 3600. Use this command when you want to run sup
 ./xmakew run carven check main.cv
 ```
 
-check asks the compiler to check the source without building or launching an executable. It also performs any work the source explicitly requests during compilation. It writes no C++, invokes no native compiler, and does not run the program. A successful check prints `carven: check passed` on stderr. Add `--timings` to any command to see how long each stage took; the report also goes to stderr:
+check validates the source without running the program; explicitly requested compile-time work still executes. A successful check prints `carven: check passed` on stderr. Add `--timings` to see stage durations on stderr:
 
 ```sh
 ./xmakew run carven check --timings main.cv
@@ -90,7 +90,7 @@ Later command tables use `carven` as shorthand for the executable. If it is not 
 
 Top-level statements suit short programs. When you want the entry to stand apart from reusable functions, name it main instead. Replace the whole file with:
 
-```carven
+```carven run
 fn main() {
     let unit_price = 1200;
     let quantity = 3;

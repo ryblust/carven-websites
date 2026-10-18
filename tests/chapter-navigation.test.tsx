@@ -11,7 +11,7 @@ import {
 } from '@tanstack/react-router';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ChapterNavigation } from '../src/components/ChapterNavigation';
-import { referencePaths, type ArticlePath } from '../src/generated/manifest';
+import { lessonPaths, referencePaths, type ArticlePath } from '../src/generated/manifest';
 import { localeOf, localizedPath } from '../src/lib/i18n';
 
 let root: Root | undefined;
@@ -29,12 +29,12 @@ afterEach(async () => {
   document.body.replaceChildren();
 });
 
-async function renderNavigation(path: ArticlePath) {
+async function renderNavigation(path: ArticlePath, reference = true) {
   const routeRoot = createRootRoute();
   const route = createRoute({
     getParentRoute: () => routeRoot,
     path,
-    component: () => <ChapterNavigation path={path} reference />,
+    component: () => <ChapterNavigation path={path} reference={reference} />,
   });
   const router = createRouter({
     routeTree: routeRoot.addChildren([route]),
@@ -46,26 +46,29 @@ async function renderNavigation(path: ArticlePath) {
   document.body.append(host);
   root = createRoot(host);
   await act(() => root!.render(<RouterProvider router={router} />));
+
   return host;
 }
 
-describe('language reference navigation', () => {
-  it.each(['en', 'zh'] as const)(
-    'makes every %s reference chapter reachable and identifies the overview',
-    async (locale) => {
-      const path = localizedPath('/reference/', locale) as ArticlePath;
-      const host = await renderNavigation(path);
-      const navigation = host.querySelector(
-        `nav[aria-label="${locale === 'zh' ? '参考手册章节' : 'Reference chapters'}"]`,
-      )!;
-      expect(navigation).not.toBeNull();
+describe('chapter navigation', () => {
+  it.each([
+    ['en', 'learn'],
+    ['zh', 'learn'],
+    ['en', 'reference'],
+    ['zh', 'reference'],
+  ] as const)(
+    'makes each %s %s chapter reachable once and marks the current page',
+    async (locale, section) => {
+      const path = localizedPath(`/${section}/`, locale) as ArticlePath;
+      const host = await renderNavigation(path, section === 'reference');
+      const navigation = host.querySelector('nav')!;
       const links = [...navigation.querySelectorAll<HTMLAnchorElement>('a')];
-      expect(links.map((link) => link.getAttribute('href')).sort()).toEqual(
-        referencePaths.filter((item) => localeOf(item) === locale).sort(),
-      );
-      expect(links[0]?.textContent).toBe(locale === 'zh' ? '总览' : 'Overview');
-      expect(navigation.querySelector('a[aria-current="page"]')?.getAttribute('href')).toBe(path);
+      const paths = links.map((link) => link.getAttribute('href'));
+      const chapters = section === 'learn' ? lessonPaths : referencePaths;
+      expect(paths.sort()).toEqual(chapters.filter((item) => localeOf(item) === locale).sort());
+      expect(new Set(paths).size).toBe(paths.length);
       expect(links.every((link) => link.textContent?.trim())).toBe(true);
+      expect(navigation.querySelector('a[aria-current="page"]')?.getAttribute('href')).toBe(path);
     },
   );
 });

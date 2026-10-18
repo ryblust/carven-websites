@@ -55,9 +55,17 @@ const footer = [
     label: '能力',
     english: 'Capabilities',
     links: [
-      { label: '失败契约', english: 'Failure contracts', path: '/features/failure-contracts/' },
-      { label: '编译期计算', english: 'Compile-time computation', path: '/features/compile-time/' },
-      { label: '生成 C++', english: 'C++ generation', path: '/features/cpp-generation/' },
+      {
+        label: '失败与恢复',
+        english: 'Failures and recovery',
+        path: '/features/failure-contracts/',
+      },
+      { label: '编译期执行', english: 'Compile-time execution', path: '/features/compile-time/' },
+      {
+        label: 'C++ 生成与集成',
+        english: 'C++ generation and integration',
+        path: '/features/cpp-generation/',
+      },
     ],
   },
   {
@@ -83,6 +91,7 @@ export default function Site({ children }: Props) {
     group.readings.some((item) => localizedPath(item.path, locale) === pathname),
   );
   const previousPath = useRef(pathname);
+
   useEffect(() => {
     if (previousPath.current !== pathname) content.current?.focus({ preventScroll: true });
     previousPath.current = pathname;

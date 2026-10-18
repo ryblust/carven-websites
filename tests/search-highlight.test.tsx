@@ -11,6 +11,7 @@ function render(node: ReactNode) {
   host.innerHTML = renderToStaticMarkup(node);
   return host;
 }
+
 const markedText = (host: HTMLElement) =>
   [...host.querySelectorAll('mark')].map((mark) => mark.textContent);
 

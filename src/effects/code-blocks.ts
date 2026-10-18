@@ -22,6 +22,7 @@ export function enhanceCodeBlocks(
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'copy-button';
+
     const setLabel = (state?: 'copied' | 'manual') => {
       button.textContent =
         state === 'copied'
@@ -31,9 +32,13 @@ export function enhanceCodeBlocks(
             : t('复制', 'Copy');
       button.toggleAttribute('data-copied', state === 'copied');
     };
+
     setLabel();
     button.setAttribute('aria-label', t('复制代码', 'Copy code'));
-    head.append(button);
+    const actions = document.createElement('div');
+    actions.className = 'code-actions';
+    actions.append(button);
+    head.append(actions);
     let pending: AbortController | undefined;
 
     const onCopy = () => {
@@ -81,12 +86,14 @@ export function enhanceCodeBlocks(
         }
       });
     };
+
     button.addEventListener('click', onCopy);
     cleanups.push(() => {
       pending?.abort();
       button.removeEventListener('click', onCopy);
-      button.remove();
+      actions.remove();
     });
   });
+
   return () => cleanups.forEach((cleanup) => cleanup());
 }

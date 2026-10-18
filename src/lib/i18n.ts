@@ -16,10 +16,12 @@ const destinations = [
   '/zh/design/',
   ...articlePaths,
 ] as const;
+
 export function localizedPath(path: string, locale: Locale) {
   const base = unlocalizedPath(path);
   const target = locale === 'zh' ? `/zh${base}` : base;
   return destinations.find((item) => item === target) ?? (locale === 'zh' ? '/zh/' : '/');
 }
+
 export const translate = (locale: Locale) => (zh: string, en: string) =>
   locale === 'en' ? en : zh;

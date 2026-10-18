@@ -10,7 +10,7 @@ source: docs/language/types.md
 
 把下面的代码保存为 `main.cv`，用第一章的命令运行。先定义单价和数量，再修改数量、计算小计：
 
-```carven
+```carven run
 let unit_price = 12;
 var quantity = 2;
 quantity += 1;
@@ -27,9 +27,9 @@ println(subtotal, tax_percent);
 
 ## 选择类型
 
-整数有 `i8` 到 `i64`、`u8` 到 `u64`，以及指针宽度的 `isize`/`usize`。浮点有 `f32`/`f64`，布尔是 `bool`。无后缀整数默认 `i32`，浮点默认 `f64`；整数字面量可以使用注解中的整数类型，浮点字面量也可以使用注解中的浮点类型。
+无后缀整数字面量默认使用 `i32`，即 32 位有符号整数；浮点字面量默认使用 `f64`。在变量名后写 `: 类型` 可以指定类型。下面的 `u8` 是范围为 0 到 255 的 8 位无符号整数，`f32` 是 32 位浮点类型。其他数值类型见[类型参考](/zh/reference/types/)。
 
-```carven
+```carven run
 let count: u8 = 12;
 let total = count as i32;
 let fraction: f32 = 1.5;
@@ -40,30 +40,30 @@ println(count, total, fraction);
 
 **变量的类型一旦确定，就不会随之后的用法改变。** 上面的 `count` 是 `u8`，转成 `i32` 需要显式写 `as`。
 
-条件表达式必须是 `bool`，因此 `if 1` 不合法。若要判断一个数是否非零，写 `value != 0`，或显式转换为 `bool`。
+条件表达式必须是 `bool`，其值只有 `true` 和 `false`，因此 `if 1` 不合法。若要判断一个数是否非零，写 `value != 0`，或显式转换为 `bool`。
 
 ## 整数运算会回绕
 
-```carven
+```carven run
 let small: u8 = 250;
 let wrapped = small + 10;
 const folded: u8 = 250 + 10;
 println(wrapped, folded);
 ```
 
-输出 `4 4`。整数取负、加、减、乘和左移都按类型宽度回绕。运行时的值和编译期常量遵循同一规则，把计算移进 `const` 不会改变结果。字面量本身仍须能放进它的类型：`let big: u8 = 300;` 会以 `CV-CONST-LITERAL-RANGE` 被拒绝。
+输出 `4 4`。整数取负、加、减、乘和左移都按类型宽度回绕。运行时的值和编译期常量遵循同一规则，把计算移进 `const` 不会改变结果。字面量本身仍须在其类型的取值范围内：`let big: u8 = 300;` 会以 `CV-CONST-LITERAL-RANGE` 被拒绝。
 
-整数转换和运算一样可能回绕，并不检查原值是否放得进目标类型。业务中的“必须在 0 到 100 之间”应先做比较，再转换。除零和非法移位会终止运行时执行。发生在编译期计算中时，它们改为产生诊断。例如，`const broken: i32 = 10 / 0;` 报告 `CV-CONST-DIVIDE-BY-ZERO`。它们都不是可捕获失败。
+整数转换和运算一样可能回绕，并不检查原值是否在目标类型的取值范围内。业务中的“必须在 0 到 100 之间”应先做比较，再转换。除零和非法移位会终止运行时执行。发生在编译期计算中时，它们会产生编译诊断。例如，`const broken: i32 = 10 / 0;` 报告 `CV-CONST-DIVIDE-BY-ZERO`。它们都不是可捕获失败。
 
 ## 作用域与遮蔽
 
-内层可声明与外层同名的变量，同一作用域不能重复声明。新声明的名字从初始化完成后开始可见，因此内层 `let value = value + 1;` 可以使用外层 value。普通函数不能隐式捕获调用者或入口的局部变量，所需值应作为参数传入。
+内层可声明与外层同名的变量，同一作用域不能重复声明。新声明的名字从初始化完成后开始可见，因此内层 `let value = value + 1;` 可以使用外层 value。下一课会演示[分支内的遮蔽](/zh/learn/control/#把局部名字留在分支中)。
 
 ## 用模式拆开一组值
 
 有时两个值需要放在一起，却不必专门声明一个记录类型。元组按顺序组合值，一组对应的名字再把它拆开：
 
-```carven
+```carven run
 var (unit_price, quantity) = (1200, 3);
 quantity += 1;
 println(unit_price * quantity);

@@ -2,6 +2,7 @@ export function HighlightedText({ text, query }: { text: string; query: string }
   const term = query.trim();
   if (!term) return text;
   const escaped = RegExp.escape(term);
+
   return text
     .split(new RegExp(`(${escaped})`, 'gi'))
     .map((part, index) => (index % 2 === 1 ? <mark key={index}>{part}</mark> : part));

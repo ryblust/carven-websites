@@ -1,5 +1,5 @@
 ---
-title: "Structs, tuples, enums, and collections"
+title: "Aggregate types"
 description: "Tuples, Vector, structures, class operations, array construction, enums, and recursive storage."
 section: reference
 lesson: 10
@@ -17,11 +17,12 @@ expressions execute once in source order. An empty `T {}` requests default
 initialization of the whole value, with fields initialized in declaration order.
 Duplicate, unknown, extra, or incompatible initializers are invalid.
 
-```carven
+```carven run
 struct Config { attempts: i32, enabled: bool, label: String }
 let empty = Config {};                    // 0, false, empty String
 let named = Config { attempts: 3, enabled: true, label: {} };
 let positional = Config { 3, true, String {} };
+println(empty.attempts, named.attempts, positional.attempts); // 0 3 3
 ```
 
 ## Ordinary value classes
@@ -34,16 +35,19 @@ copy/move/destruction hooks.
 Field types determine copying, ownership, stored borrows, and destruction through
 the nominal product rules.
 
-```carven
+```carven run
 class Counter {
     value: i32,
-    fn new(value: i32) -> Counter => { value: value };
-    fn read(self) -> i32 => self.value;
+
+    const fn new(value: i32) -> Counter => { value: value };
+    const fn read(self) -> i32 => self.value;
     fn increment(&self) { self.value += 1; }
 }
-var counter = Counter::new(3);
+
+const initial = Counter::new(3);
+var counter = initial;
 counter.increment();
-assert(counter.read() == 4);
+println(counter.read()); // 4
 ```
 
 Fields can be selected and the representation can be constructed only within the
@@ -97,7 +101,7 @@ A construction can omit its type when the expression already has a known
 expected type: `return { value: 1 };` in a function returning a record is checked
 as construction of that record. Named fields and empty initialization are
 supported; positional construction retains its explicit type. Empty initialization
-follows the [default-initialization rules](#fixed-arrays), including
+follows the [default-initialization rules](#default-initialization), including
 in-class construction of an empty class. Contextual construction checks class
 representation access, fields, ownership, borrowing, and static-execution admission.
 
@@ -191,6 +195,17 @@ default is required. If an element fails, construction stops and already
 constructed elements follow ordinary cleanup rules. Literal expansion is bounded
 by the compiler's construction budgets.
 
+```carven run
+fn next_value(&next: i32) -> i32 {
+    next += 1;
+    return next;
+}
+
+var next = 0;
+let samples = [next_value(&next); 4];
+println(samples.length(), samples[3]); // 4 4
+```
+
 Array indexing accepts an integer index. A constant negative index or one
 greater than or equal to the extent is diagnosed before lowering. A dynamic
 out-of-bounds index terminates deterministically. Receiver and index are each
@@ -223,10 +238,10 @@ element keeps its logical position in a nonempty tuple.
 
 Local `let`, `var`, and `const` declarations accept recursive tuple targets:
 
-```carven
+```carven run
 var (number, _, (text,)): (i32, void, (str,)) = (42, (), ("ready",));
 number += 1;
-assert(text == "ready");
+println(number, text); // 43 ready
 ```
 
 The target must match the initializer's arity and nesting. Each named runtime
@@ -273,13 +288,12 @@ iteration. Recursive products and enums may contain vectors of their own values.
 Copying creates independent owned contents; raw pointer elements still copy their
 addresses. Taking a complete vector makes the source unavailable.
 
-```carven
+```carven run
 var numbers: Vector<i32> = [10, 20, 30];
 numbers.push(40);
 let removed = numbers.remove(1);
-assert(removed == 20);
 let tail: [i32] = numbers.slice(1, 3);
-assert(tail[0] == 30);
+println(removed, tail[0]); // 20 30
 ```
 
 An expected Vector type supplies the element type for comma-separated and repeat
@@ -288,19 +302,21 @@ expression independently, under the array literal evaluation rules. Without
 Vector context, literals retain their fixed-array type. Existing arrays and
 slices require `Vector<T>::from_slice(values)` to copy their elements into an owner.
 
-| Operation                                  | Access and result                                            |
-| ------------------------------------------ | ------------------------------------------------------------ |
-| `Vector<T>::new()`                         | Empty owner, zero capacity                                   |
-| `Vector<T>::from_slice(values: [T])`       | Independent owning copy of the elements                      |
-| `Vector<T>::with_capacity(minimum: usize)` | Empty owner with at least the requested capacity             |
-| `v.length()` / `v.is_empty()`              | Read; `usize` / `bool`                                       |
-| `v.capacity()`                             | Read; capacity in elements                                   |
-| `v.reserve(minimum: usize)`                | Write; ensure minimum total capacity, preserving contents    |
-| `v.push(value)` / `v.push(&&value)`        | Write; copy or transfer an element into the end              |
-| `v.remove(index)`                          | Write; return the removed owner and preserve remaining order |
-| `v.clear()`                                | Write; destroy all elements and retain capacity              |
-| `v.slice()`                                | Read; borrowed `[T]`                                         |
-| `v.slice(start: usize, end: usize)`        | Read; borrowed half-open subrange                            |
+| Operation                                                 | Access and result                                                                |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `Vector<T>::new() -> Vector<T>`                           | Empty owner, zero capacity                                                       |
+| `Vector<T>::from_slice(values: [T]) -> Vector<T>`         | Independent owning copy of the elements                                          |
+| `Vector<T>::with_capacity(minimum: usize) -> Vector<T>`   | Empty owner with at least the requested capacity                                 |
+| `v.length() -> usize` / `v.is_empty() -> bool`            | Read; element count / empty query                                                |
+| `v.capacity() -> usize`                                   | Read; capacity in elements                                                       |
+| `v.reserve(minimum: usize) -> void`                       | Write; ensure minimum total capacity, preserving contents                        |
+| `v.push(value: T) -> void` / `v.push(&&value: T) -> void` | Write; copy or transfer an element into the end                                  |
+| `v.remove(index) -> T`                                    | Write; extract an element and preserve remaining order; any scalar integer index |
+| `v.clear() -> void`                                       | Write; destroy all elements and retain capacity                                  |
+| `v.slice() -> [T]`                                        | Read; borrowed full range                                                        |
+| `v.slice(start: usize, end: usize) -> [T]`                | Read; borrowed half-open subrange                                                |
+
+Indices must be nonnegative and below `length()`; an invalid runtime `remove` index terminates, and required static execution diagnoses it. All methods have no typed failure.
 
 `Vector<T> {}` and contextual empty construction also produce the empty default;
 no element default is required. Capacity growth factors are unspecified. Appending
@@ -323,13 +339,7 @@ containing them are invalid elements. Raw pointers keep their ordinary target
 contracts. `Vector<bool>` uses ordinary elements and supports `[bool]` views.
 There is no raw pointer extraction or uninitialized-storage API.
 
-Logical construction, copying, transfer, mutation, extraction, and slicing work
-in native, interpreted, and constant execution, including capacity queries,
-reservation, and capacity construction. Completed constants preserve Vector
-ownership, element types, contents, and capacity. A slice retained at initializer
-completion has immutable static backing; ordinary runtime slices still borrow.
-Copying a retained Vector creates independent owned contents before mutation.
-Execution limits bound aggregate storage, reserved capacity, and work.
+Vector operations, including capacity operations, support native, interpreted, and constant execution. Retained values and slices follow the [freezing rules](/reference/constants/#admission-and-freezing) and [execution budgets](/reference/constants/#execution-budgets).
 
 ## Enums
 
@@ -345,6 +355,19 @@ If any case declares positional payload types, the enum has the payload
 profile. It may mix payload and nullary cases, but cannot declare an underlying
 type, numeric initializer, or integer cast. It has no default value. A payload
 case is a first-class constructor function; a nullary case is a value.
+
+```carven run
+enum Status { Ready, Busy }
+enum Reply { Empty, Number(i32) }
+
+let status = Status::Busy;
+let reply: Reply = .Number(42);
+println(status as i32); // 1
+match reply {
+    .Empty => println("empty"),
+    .Number(value) => println(value),
+}
+```
 
 Contextual `.Case(arguments)` and `.Case` forms require an expected enum type
 that identifies the owner. Such context may come from a typed binding, return,

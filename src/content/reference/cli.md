@@ -1,8 +1,8 @@
 ---
-title: "Compiler commands and carven-format"
+title: "Compiler commands"
 description: "Native execution, interpretation, generated artifacts, and carven-format source formatting."
 section: reference
-lesson: 24
+lesson: 23
 source: docs/toolchain/cli.md
 ---
 
@@ -322,9 +322,7 @@ instances and checks involving consumer types belong to the consuming analysis.
 The new batch cannot redefine those standard modules. The build system owns
 dependency freshness, including changes to source files and the compiler executable.
 
-`carven/manifest.json` describes the operation's inputs, outputs, ownership,
-runtime-test count, and cacheability. Analysis that observes host input, time, or
-waiting reports `cacheable: false`. `--stdout` writes no manifest or semantic IR.
+The [artifact manifest](/reference/toolchain/#artifact-paths) lists inputs, outputs, ownership, test counts, and cacheability. `--stdout` writes no manifest or semantic IR.
 
 Use staging paths and check the exit status before publishing outputs. Changing
 an owned source batch invokes analysis using the selected standard definitions;
@@ -443,4 +441,4 @@ Single-line import selections use one space inside each brace and omit the trail
 
 Formatting does not resolve imports, type-check programs, or execute compile-time functions and tests. Successful formatting establishes only the formatter's syntax and preservation checks.
 
-The formatter now expands nonempty struct/enum declarations and multi-field named constructions, aligns adjacent matching single-line construction rows when they fit, and separates top-level item categories. It preserves at most one authored blank line and removes unannotated blank lines immediately inside delimiters. See the compiler repository’s tools/format/README.md for the fixed style.
+The formatter expands nonempty struct/enum declarations and multi-field named constructions, aligns adjacent matching single-line construction rows when they fit, and separates top-level item categories. It removes unannotated blank lines immediately inside delimiters. See the compiler repository’s tools/format/README.md for the fixed style.

@@ -1,5 +1,5 @@
 ---
-title: 变量声明与作用域
+title: "变量声明与作用域"
 description: let、var、const 的声明形式、初始化、类型推断、赋值和名字作用域。
 section: reference
 lesson: 4
@@ -16,7 +16,7 @@ var name[: Type] = expression;
 const name[: Type] = expression;
 ```
 
-```carven
+```carven run
 let price = 12;
 var quantity: i32 = 2;
 const limit = 10;
@@ -30,13 +30,15 @@ println(price * quantity, limit); // 36 10
 | `var`   | 运行时     | 是           | 累加器、循环状态、需要修改的数据 |
 | `const` | 编译期     | 否           | 固定数据、数组长度、静态参数输入 |
 
+上表描述普通运行时代码。在 `const` 块或 `const test` 中，`let`、`var` 在静态执行期间初始化局部值，`var` 仍允许修改。
+
 优先使用 `let`；确实需要修改绑定或其字段、数组元素时使用 `var`。需要编译期值时使用 `const`。运行时 `let` 即使由字面量初始化，也不能代替静态参数要求的 `const`。
 
 ## let 与 var
 
 `let` 与 `var` 创建拥有其值的局部绑定。`var` 允许赋值、复合赋值，以及通过 Write 参数修改；`let` 不提供这些权限。访问指针目标仍由指针类型的目标权限决定。
 
-```carven
+```carven run
 fn increment(&value: i32) {
     value += 1;
 }
@@ -64,12 +66,12 @@ var count: i32; // 编译错误：声明必须带初始化器。
 
 `const` 初始化器必须能在编译期执行；调用 Carven 函数时，该函数必须声明为 `const fn`。类型检查、执行能力和执行预算都适用于初始化器。
 
-```carven
+```carven run
 const fn twice(value: i32) -> i32 => value * 2;
 
 const capacity = twice(3);
 let values: [i32; capacity] = [1, 2, 3, 4, 5, 6];
-println(values.slice().length()); // 6
+println(values.length()); // 6
 ```
 
 模块层级的常量必须有名字。`const fn`、`const` 块、静态参数、`const if` 和 `const for` 的规则见[常量与编译期计算](/zh/reference/constants/)与[函数](/zh/reference/functions/)。
@@ -78,7 +80,7 @@ println(values.slice().length()); // 6
 
 类型注解为初始化器提供期望类型。省略注解时，从初始化表达式确定类型：无后缀整数通常为 `i32`，无后缀浮点数通常为 `f64`。绑定建立以后，后续赋值或使用不会改变其类型。
 
-```carven
+```carven run
 let small: u8 = 12;
 let wide = 12i64;
 var count = 1;
@@ -92,7 +94,7 @@ println(small, wide, count); // 12 12 2
 
 局部名字在自己的类型和初始化器检查完成之后才可见。初始化器里的同名引用使用外层已有绑定。函数体、分支和循环建立相应的局部作用域。
 
-```carven
+```carven run
 let value = 4;
 if true {
     let value = value + 1;
@@ -105,28 +107,28 @@ println(value); // 4
 
 ## 丢弃绑定 `_`
 
-`_` 表示丢弃名字，不创建可引用的变量，可以重复使用；`_name` 是普通变量名。运行时丢弃仍会执行初始化器，产生的值保留到外围作用域结束。局部 `const _` 仍要求编译期初始化器；模块常量不能用 `_` 命名。
+`_` 表示丢弃名字，不创建可引用的变量，也不产生未使用绑定警告，可以重复使用；`_name` 是普通变量名。运行时丢弃仍会执行初始化器，产生的值保留到外围作用域结束。局部 `const _` 仍要求编译期初始化器；模块常量不能用 `_` 命名。
 
-```carven
+```carven run
 let _ = 1 + 2;
 let _ = 3 + 4;
 let _answer = 42;
 println(_answer); // 42
 ```
 
-## 相关条目
-
-[类型与转换](/zh/reference/types/) · [运算符与表达式](/zh/reference/operators/) · [访问与所有权](/zh/reference/ownership/) · [关键字索引](/zh/reference/keywords/)
-
 ## 递归元组目标
 
-局部 let/var/const 支持按相同元素数量和嵌套层次分解元组的绑定目标。初始化器仅求值一次，各具名运行时元素成为声明可变性对应的完整独立 所有者；丢弃元素也存活到作用域结束。模块常量仍只接受单个具名目标。
+局部 `let`、`var`、`const` 支持递归元组目标，目标的元素数量和嵌套层次必须与初始化器一致。初始化器只求值一次；每个具名运行时元素都独立拥有对应的值，可变性由声明决定。丢弃元素也存活到作用域结束。模块常量只接受单个具名目标。
 
-```carven
+```carven run
 fn coordinates() -> (i32, (i32, bool)) => (12, (34, true));
 var (x, (y, active)) = coordinates();
 x += y;
 println(x, active); // 46 true
 ```
 
-无 && 时复制已有 所有者；`let (a, b) = &&pair;` 转移整个源。Take 一个分解名字不影响其他名字。局部 const 分解把源冻结一次再选常量元素。完整规则见[元组](/zh/reference/aggregates/#元组)。
+分解已有所有者时，默认复制；`let (a, b) = &&pair;` 转移整个源。对一个解构后的绑定执行 Take 不影响其他绑定。局部 `const` 解构先将源值冻结一次，再绑定对应的常量元素。完整规则见[元组](/zh/reference/aggregates/#元组)。
+
+## 相关条目
+
+[类型与转换](/zh/reference/types/) · [运算符与表达式](/zh/reference/operators/) · [访问与所有权](/zh/reference/ownership/) · [关键字索引](/zh/reference/keywords/)

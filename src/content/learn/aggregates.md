@@ -8,7 +8,9 @@ source: docs/language/aggregates.md
 
 ## A struct represents a record
 
-```carven
+Keep a product's price and quantity in one value, then pass that value to a total calculation. Declare the two fields in a struct:
+
+```carven run
 struct Item {
     price: i32,
     quantity: i32,
@@ -55,7 +57,7 @@ Item {
 
 Empty braces default-initialize the whole Item, so both integers are zero. Once you specify fields, provide all of them: `Item { price: 12 }` does not fill in quantity automatically.
 
-Use defaults when zero or empty is a meaningful starting state; assign business values explicitly otherwise. Numbers start at zero, bool at false, text and vectors empty. Arrays and structs apply defaults to each element or field. An enum has no automatic choice of case, so a struct containing one needs an explicit value. The [aggregate reference](/reference/aggregates/) lists defaults for the remaining types.
+Use defaults when zero or empty is a meaningful starting state; assign business values explicitly otherwise. The [aggregate reference](/reference/aggregates/) lists each type's default initialization rules.
 
 ## Let the expected type name the struct
 
@@ -69,13 +71,13 @@ println(total(empty), total(sample()));
 println(total({ price: 5, quantity: 2 }));
 ```
 
-The output is `0 36`, then `10`. The result type of sample, the annotation on empty, and total's parameter each supply Item. Assignments, struct fields, and array elements with a known type work the same way. The braces follow the same rules as the spelled form: `{}` default-initializes, and named fields must all be present.
+The output is `0 36`, then `10`. The result type of sample, the annotation on empty, and total's parameter each supply Item. `{}` default-initializes it, while named fields must all be present.
 
-Without an expected type, `let item = { price: 12, quantity: 3 };` is rejected with `CV-TYPE-CONSTRUCT-CONTEXT`; Carven does not search for a struct with matching field names. Positional construction keeps its explicit type. At the start of a match arm, `{}` is an empty block, so write `({})` for an empty construction there. See the [aggregate Reference](/reference/aggregates/) for every context that supplies a type.
+Without an expected type, `let item = { price: 12, quantity: 3 };` is rejected with `CV-TYPE-CONSTRUCT-CONTEXT`; Carven does not search for a struct with matching field names. See the [aggregate reference](/reference/aggregates/) for the other construction contexts.
 
 ## Arrays and iteration
 
-```carven
+```carven run
 let counts = [1, 2, 3];
 var total = 0;
 
@@ -102,7 +104,7 @@ Length is part of the type. An empty array needs an annotation such as `[i32; 0]
 
 ## Enums represent alternative states
 
-```carven
+```carven run
 enum Reply {
     Empty,
     Number(i32),
@@ -128,36 +130,49 @@ Reply::Number(
 
 Construct payload cases with a call; a payload-free case is already a value. match must be exhaustive, so adding a case may require updating existing matches. A bare pattern name creates a binding; `_` ignores the payload. `println` shows the case and its payload.
 
-An enum with only payload-free cases is a numeric enum and may specify an integer backing type and values. An enum with payloads cannot also assign integer values. The `.Empty` shorthand in the call works because describe's parameter supplies the expected enum; it does not search globally for cases.
+The `.Empty` shorthand works because describe's parameter supplies the expected enum. See the [enum reference](/reference/aggregates/) for numeric enums and explicit case values.
 
 ## Guards and coverage
 
-An arm can read `.Number(value) if value > 0 => value,`, but the guard may reject the value. A later `.Number(_)` must cover the rest. Use the guard to decide whether the arm applies; make changes in the selected arm body.
+Classify positive payloads separately. Keep Reply from the previous program and replace describe and the following print statements with:
+
+```carven
+fn describe(reply: Reply) -> i32 => match reply {
+    .Empty => 0,
+    .Number(value) if value > 0 => value,
+    .Number(_) => -1,
+};
+
+println(describe(.Empty), describe(.Number(42)), describe(.Number(-3)));
+```
+
+Run `carven main.cv`. It prints `0 42 -1`. The guard accepts 42 and rejects -3; the later `.Number(_)` covers that remaining payload. Removing the fallback leaves the match incomplete. Make changes to matched data in the selected arm body, after its guard has passed.
 
 ## Grow a collection with Vector
 
 An array's length is fixed in its type. When a filtering step decides how many results to keep, use a Vector instead:
 
-```carven
+```carven run
 var accepted: Vector<i32> = [];
 for reading in [18, -3, 21] {
     if reading >= 0 {
         accepted.push(reading);
     }
 }
+
 let first = accepted.remove(0);
 println(first, accepted.length(), accepted[0]);
 ```
 
-This prints `18 1 21`. The input is a fixed array of three readings. The vector starts empty, keeps the two nonnegative readings, then removes and returns its first element. The remaining value moves to index zero. The annotation `Vector<i32>` tells `[]` and push which element type to use.
+This prints `18 1 21`. The vector starts empty; push appends the two nonnegative readings. remove(0) removes and returns the first element, leaving 21 at index zero. Indices start at zero, `accepted[0]` reads that element, and length() counts the remaining elements. The annotation `Vector<i32>` selects the element type.
 
-Use push to append, length to count, and remove to take an element out while keeping the rest in order. Copying a vector produces independent contents. The next chapter explains changing and transferring existing values. The text chapter shows how to keep independent strings in a vector.
+The [Vector reference](/reference/aggregates/) lists collection operations. The next chapter explains copying, changing, and transferring existing values.
 
 ## Reuse a record shape with different value types
 
 A sensor reading always needs a sensor identifier, but its value may be an integer count or a floating voltage. A type parameter lets both records share one definition:
 
-```carven
+```carven run
 struct Reading<T> {
     sensor: i32,
     value: T,
@@ -172,4 +187,4 @@ The output is `21 3.3`. T is a placeholder for a type. `Reading<i32>` chooses i3
 
 ## Exercise
 
-Add `Pair(i32, i32)` to Reply and return the sum of its payloads from describe. Omit the Pair arm and inspect the `CV-MATCH-NON-EXHAUSTIVE` diagnostic. After adding it, `describe(.Pair(20, 22))` should produce 42. Finally, write a function `bulk() -> Item` whose expression body constructs `{ price: 10, quantity: 12 }` without naming Item, and print it.
+Return to the Reply/describe program. Add `Pair(i32, i32)` to Reply and return the sum of its payloads from describe. Omit the Pair arm and inspect the `CV-MATCH-NON-EXHAUSTIVE` diagnostic. After adding it, `describe(.Pair(20, 22))` should produce 42. Then return to the Item program. Write `bulk() -> Item` with an expression body that constructs `{ price: 10, quantity: 12 }` without naming Item, and print its result.

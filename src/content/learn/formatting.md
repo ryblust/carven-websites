@@ -8,17 +8,19 @@ source: docs/language/text.md
 
 ## Print values directly
 
-```carven
+Write results to standard output and status information to standard error:
+
+```carven run
 println("quantity", 3, true);
 println();
 eprintln("status", "ready");
 ```
 
-`println` separates adjacent arguments with spaces and adds a newline; eprintln writes to stderr. print/eprint do not add a newline. Text is not a format string: `println("{count}", 3)` prints the braces literally.
+stdout contains `quantity 3 true` followed by a blank line. stderr contains `status ready`. `println` separates adjacent arguments with spaces and adds a newline; eprintln writes to stderr. print/eprint do not add a newline. Text is not a format string: `println("{count}", 3)` prints the braces literally.
 
 ## Control formatting with interpolation
 
-```carven
+```carven run
 let id = 42;
 let amount = 12.5;
 let message = f"Order {id:04}: {amount:.2f}";
@@ -29,7 +31,7 @@ The output is `Order 0042: 12.50`. Interpolation produces an independent `String
 
 ## Append to an existing `String`
 
-```carven
+```carven run
 var report: String = {};
 
 for index in 0..3 {

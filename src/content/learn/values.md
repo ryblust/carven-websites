@@ -10,7 +10,7 @@ source: docs/language/types.md
 
 Save the following code as `main.cv` and run it with the command from the first chapter. It defines a unit price and quantity, updates the quantity, then calculates the subtotal:
 
-```carven
+```carven run
 let unit_price = 12;
 var quantity = 2;
 quantity += 1;
@@ -27,9 +27,9 @@ Every declaration needs an initializer. To evaluate an expression and discard it
 
 ## Choose a type
 
-Integers include `i8` through `i64`, `u8` through `u64`, and pointer-width `isize`/`usize`. Floating-point types are `f32`/`f64`; booleans use `bool`. Unsuffixed integers default to `i32` and floating literals to `f64`. An integer literal can use the integer type in its annotation. A floating literal can similarly use an annotated floating type.
+Unsuffixed integer literals default to `i32`, a signed 32-bit integer, and floating literals to `f64`. Write `: type` after a binding name to choose its type. Here `u8` is an unsigned 8-bit integer from 0 through 255, and `f32` is a 32-bit floating-point type. See the [type directory](/reference/types/) for other numeric types.
 
-```carven
+```carven run
 let count: u8 = 12;
 let total = count as i32;
 let fraction: f32 = 1.5;
@@ -40,11 +40,11 @@ The output is `12 12 1.5`.
 
 **Once a variable has a type, later uses do not change it.** In this example, `count` is a `u8`; converting it to `i32` requires an explicit `as`.
 
-Conditions must have type `bool`, so `if 1` is invalid. To check whether a number is nonzero, write `value != 0` or explicitly convert it to `bool`.
+Conditions must have type `bool`, whose values are `true` and `false`, so `if 1` is invalid. To check whether a number is nonzero, write `value != 0` or explicitly convert it to `bool`.
 
 ## Integer arithmetic wraps
 
-```carven
+```carven run
 let small: u8 = 250;
 let wrapped = small + 10;
 const folded: u8 = 250 + 10;
@@ -57,13 +57,13 @@ An integer conversion can wrap just like arithmetic; it does not check whether t
 
 ## Scope and shadowing
 
-An inner scope may declare a name that shadows an outer one; a scope cannot declare the same name twice. A new name becomes available only after its initializer completes, so an inner `let value = value + 1;` can read the outer value. Ordinary functions do not implicitly capture caller or entry locals. Pass required values as parameters.
+An inner scope may declare a name that shadows an outer one; a scope cannot declare the same name twice. A new name becomes available only after its initializer completes, so an inner `let value = value + 1;` can read the outer value. The next lesson demonstrates [shadowing inside a branch](/learn/control/#keep-local-names-inside-a-branch).
 
 ## Name the parts of a tuple
 
 Sometimes two values belong together, but a whole new record type would add little. A tuple groups them in order; a matching pair of names takes them apart:
 
-```carven
+```carven run
 var (unit_price, quantity) = (1200, 3);
 quantity += 1;
 println(unit_price * quantity);

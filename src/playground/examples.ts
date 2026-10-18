@@ -115,8 +115,8 @@ export const playgroundExamples = [
     id: 'native-json',
     title: { en: 'Call a C++ library', zh: '调用 C++ 库' },
     description: {
-      en: 'Merge a JSON configuration with nlohmann/json. Generate C++ here; run it locally with the Carven runtime and nlohmann/json 3.12.0. The browser interpreter cannot execute external C++ calls.',
-      zh: '用 nlohmann/json 合并 JSON 配置。这里可以生成 C++；本地运行需要 Carven runtime 和 nlohmann/json 3.12.0。浏览器解释器无法执行外部 C++ 调用。',
+      en: 'Merge a JSON configuration with nlohmann/json. Generate C++ here, then run it locally.',
+      zh: '用 nlohmann/json 合并 JSON 配置。在这里生成 C++，然后在本地运行。',
     },
     defaultView: 'cpp',
     source: homeExamples.native,

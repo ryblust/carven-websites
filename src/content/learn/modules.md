@@ -38,7 +38,7 @@ To inspect the generated C++, run:
 ./xmakew run carven compile --stdout main.cv math.cv
 ```
 
-The output shows only artifacts that belong to the explicit inputs, headed `carven/generated/math.hpp`, `main.cpp`, and `math.cpp`. Automatically collected Crafts, such as the standard `std::utf` and `std::simd` modules, still take part in analysis but are not displayed; any dependency of the shown files appears only as an include. Writing to a directory with `compile -o generated` also produces the collected standard library under `generated/crafts/carven/std/`; a manual C++ build must compile the emitted implementations and required native providers too.
+The output shows the generated files for main.cv and math.cv. See the [toolchain reference](/reference/toolchain/) to write artifacts to a directory or use them in a C++ build.
 
 ## Paths determine module names
 
@@ -48,23 +48,57 @@ src/model.cv corresponds to src.model. In src/main.cv, `.model` selects src.mode
 
 crafts/json/parser.cv belongs to the json craft; another domain may select it as `json::parser`. `std::utf` selects the official crafts.carven.std.utf. Plain `std.utf` remains a path in the current domain.
 
-`check`, `compile`, native execution, and `interpret` assemble their batches from explicit application files plus the fixed toolchain and project Crafts roots. This happens before import resolution and does not make imports search the filesystem.
+See the [module reference](/reference/modules/) for how toolchain and project Crafts join the compilation batch.
 
 ## Select multiple names explicitly
 
-Use a list to import several names from one module. For example, if the module provides Point and length:
+Add another function to math.cv:
 
 ```carven
-import geometry.vector using { Point, length };
+fn subtract(left: i32, right: i32) -> i32 => left - right;
 ```
 
-Single-line lists use spaces inside the braces and no trailing comma. The formatter expands longer lists to one name per line with a trailing comma. This layout does not change import meaning; the module must still be part of the compilation batch.
+Replace main.cv with a program that imports both functions:
+
+```carven
+import math using { add, subtract };
+
+println(add(20, 22), subtract(20, 4));
+```
+
+Run `./xmakew run carven main.cv math.cv`. The output is `42 16`.
+
+Use `carven-format` to arrange import lists; the [workflow chapter](/learn/workflow/) shows its commands.
 
 ## Declare the audience
 
 private is visible only within its module. A bare declaration is visible within its craft domain. export is visible to all domains in the current batch. Ordinary application files share the unprefixed domain, so the example's bare add can be imported by main.
 
-A public interface cannot expose a type invisible to its readers. This includes parameters, results, failure types, struct fields, enum payloads, and nested callables. Exposing a private struct in an export result is rejected.
+To expose a function from a separate craft, create the directory crafts/pricing and save crafts/pricing/quote.cv:
+
+```carven
+private fn delivery(quantity: i32) -> i32 => if quantity >= 10 { 0 } else { 8 };
+
+export fn total(price: i32, quantity: i32) -> i32 => price * quantity + delivery(quantity);
+```
+
+Replace main.cv in the repository root:
+
+```carven
+import pricing::quote using total;
+
+println(total(12, 3));
+```
+
+Pass these files to the compiler:
+
+```sh
+./xmakew run carven main.cv crafts/pricing/quote.cv
+```
+
+The output is 44. `total` is exported from the pricing craft. It can call the private `delivery` helper in its own module; main.cv cannot import that helper. Removing `export` from `total` makes it visible only within pricing and rejects the import from main.cv.
+
+A public interface must use types visible to its callers. See [module visibility](/reference/modules/) when exporting types as well as functions.
 
 ## Build a project
 
@@ -85,7 +119,7 @@ The rule obtains matching compiler and Crafts versions and generates output befo
 
 Standard modules use the std:: prefix. You can select a name as it is, or give it a local alias with as:
 
-```carven
+```carven run
 import std::core using String as Text;
 import std::io using println as write_line;
 
@@ -95,10 +129,16 @@ write_line(names.length(), names[1]);
 
 It prints `3 south`. Text means the same type as String; write_line calls the same printing function as println. Aliases are useful when two imported names would clash or a local name makes the code clearer. They do not change how the type or function works.
 
-Some common names, including String, Vector, Range, and println, are already available without imports. Other capabilities need explicit selections. Importing a function only introduces that function's name; if you name one of its result or error types too, import that type separately.
+Importing a function only introduces that function's name; if you name a non-default result or error type too, import that type separately.
 
-A public entry such as `std::utf` or `std::json` provides one module's API. Importing a parent path does not import all its children; `std::simd.bytes`, for example, is a separate module.
+Importing a parent path does not import its child modules. Look up an API's module in the [standard API index](/reference/library/).
+
+## Use default names and import other names
+
+`String` belongs to `std::core` and is available by default. Naming `NumberParseError` from the same module requires an explicit import. Default bindings supply selected names, rather than every declaration in a module.
+
+The [module reference](/reference/modules/#standard-modules-and-defaults) lists each API's module, default bindings, and whether its behavior is defined by the compiler or source code.
 
 ## Exercise
 
-Move both files under src, change main's import to `.math`, and pass src/main.cv and src/math.cv to the command. Make add private and confirm that another module cannot import it, then restore the bare declaration.
+Return to the first main.cv and math.cv pair. Move them under src, change main's import to `.math`, and run `./xmakew run carven src/main.cv src/math.cv`. Make add private and confirm that another module cannot import it, then restore the bare declaration.

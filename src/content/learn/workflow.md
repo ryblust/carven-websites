@@ -22,11 +22,11 @@ source: docs/toolchain/cli.md
 | Limit interpreter steps        | `carven interpret --max-steps 10000 main.cv`             |
 | Inspect tokens or syntax       | `carven dump tokens main.cv` / `carven dump ast main.cv` |
 
-Use interpret to try Carven code without compiling C++ or to follow it with --trace. The interpreter checks the source first, then runs the operations it supports. If it reaches a native C++ call or another unsupported operation, it reports `CV-INTERPRET-ADMISSION`; use native execution for that program. Input, clocks, and waits observe the interpreter process, just as a native run observes its own process.
+Use interpret to run supported Carven code without compiling C++. For its execution limits and native-call behavior, see the [CLI reference](/reference/cli/).
 
-To follow execution, use the [integer classification example](/learn/control/). Run `carven interpret main.cv`. Add --trace to see each executed statement. Use native execution when exploring the full language or integrating C++ libraries.
+To follow execution, save the [interval classification example](/learn/control/#choose-a-result-by-interval) as main.cv. Run `carven interpret main.cv` to print `pass`. Add --trace to see each executed statement. Use native execution when exploring the full language or integrating C++ libraries.
 
-Direct execution needs a native C++ toolchain and matching Crafts, but does not require Xmake. `check`, `compile`, `interpret`, and direct execution all collect the toolchain's `crafts/carven/` and the project's optional `crafts/`; other application files remain explicit, and their file stems must be valid identifiers. See [CLI Reference](/reference/cli/) for installation layout, temporary files, and toolchain selection.
+See the [CLI reference](/reference/cli/) for source collection, toolchain selection, and installation layout. Multi-file commands still need to name each application file, as in the [module lesson](/learn/modules/).
 
 ## Check before running
 
@@ -46,7 +46,7 @@ Run:
 carven check prices.cv
 ```
 
-The command prints `carven: check passed` on stderr. The file has no program entry, and check does not need one: it analyzes the batch, runs required compile-time evaluation and `const test`, then stops without invoking the native compiler. `carven prices.cv` would instead report that running a program requires a runtime entry point. Change 36 to 35 and check again: the static test fails with `CV-CONST-TEST`, showing the condition and the computed call result, and check returns 1.
+The command prints `carven: check passed` on stderr, including execution of the static test. No program entry is needed for check. Change 36 to 35 and check again: the test fails with `CV-CONST-TEST`, displays the condition and computed result, and check returns 1.
 
 Compile-time calls must select a `const fn`. Remove `const` from line_total and check reports `CV-CONST-ADMISSION` at the call inside the test.
 
@@ -56,7 +56,7 @@ Add `--timings` to see where a command spends its time:
 carven check --timings prices.cv
 ```
 
-The stderr report shows total time and a table of stage durations and their shares of that total, such as source collection, parsing, and semantic analysis. Native runs add C++ generation, native compilation, and execution. Timing output never mixes with program or artifact output on stdout. Rendered diagnostics use color on a terminal; set `NO_COLOR` to a nonempty value, or `TERM=dumb`, to disable it. Use `carven dump main.cv` to view tokens followed by the syntax tree for one file.
+The stderr report shows total time, stage durations, and their shares of the total. It remains separate from program and artifact output on stdout. Color controls and the full stage list are in the [CLI reference](/reference/cli/).
 
 ## Format source with `carven-format`
 
@@ -69,9 +69,9 @@ The stderr report shows total time and a table of stage durations and their shar
 ./xmakew run carven-format write examples
 ```
 
-The first run prints formatted source to stdout without changing the file. `check` lists paths needing changes and returns 1 when differences exist, making it suitable for CI. `write` updates changed files in place. Both commands require explicit file or directory inputs; use `.` for the current directory. `carven-format help check` displays command help. Errors return 2; passing `--help` instead would name a literal file path. On Windows, use `.\xmakew.ps1`. When calling the built executable directly, replace `./xmakew run carven-format` with `carven-format`.
+The first run previews formatted source on stdout. `check` lists files needing changes and returns 1 when differences exist; `write` updates them in place. The [CLI reference](/reference/cli/) covers file selection, help, and exit codes.
 
-`carven-format` uses a fixed style with four-space indentation and a target width of 100 bytes. It checks lexical and syntactic validity without resolving imports, checking types, or executing `const fn` or `const test`. Continue to build and test after formatting. See the [command-line Reference](/reference/cli/) for commands and file selection.
+Formatting changes layout; continue with semantic checking and tests afterward.
 
 ## Read the formatted source
 
@@ -84,15 +84,11 @@ import <vector> using std::{ vector, allocator };
 
 Longer selections expand to one name per line, including a comma after the last name. An existing trailing comma does not force a short list to expand; let `carven-format` choose the layout for the target width.
 
-Function and closure block bodies expand by default; expression-bodied functions keep `=>`. Simple blocks in an if-chain or match/catch arm list may stay on one line. A complex or multiline branch, a comment, or an authored blank line expands all nonempty block bodies in that group. Loops, tests, and match/catch lists stay multiline.
-
-Adjacent top-level single-line declarations of the same category can stay together. Different categories or multiline declarations get a separating blank line. Authored blank lines are preserved up to one consecutive blank line. Formatting makes structure easier to read without rewriting function body forms or replacing semantic checks.
+The formatter preserves expression-bodied functions and written import order.
 
 ## Put tests at the appropriate layer
 
 Use `const test` for compile-time algorithms and test for runtime behavior; both may omit the name, and failures then identify the test by file, line, and column. Exercise native interop in a C++ build so the tests also cover linking, destruction, and exception boundaries.
-
-The Carven repository uses ./xmakew with groups including internal, language, crafts, interop, cli, format, and workspace. Consumer projects use their own Xmake targets, not compiler-internal test targets as application APIs.
 
 ## Locate the error boundary
 
@@ -105,4 +101,4 @@ The Carven repository uses ./xmakew with groups including internal, language, cr
 
 ## Use the Reference
 
-Choose a topic and check its supported forms, preconditions, evaluation order, and boundary behavior. Tutorial examples build a mental model. Before changing an interface, verify returned borrows, failure sets, ownership transfer, and native provider obligations. Keep observable business requirements in tests.
+Use the [reference index](/reference/) to look up syntax and APIs, and the [diagnostic catalog](/reference/diagnostics/) to find a compiler code.

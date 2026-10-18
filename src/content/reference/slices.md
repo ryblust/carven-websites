@@ -1,5 +1,5 @@
 ---
-title: "Slices and static backing"
+title: "Slices and static storage"
 description: "Construction, borrowing, subranges, returns, and freezing read-only slices."
 section: reference
 lesson: 11
@@ -10,7 +10,9 @@ source: docs/language/types.md
 
 A slice is a copyable, non-owning, read-only view of contiguous elements. It retains a relationship to backing storage without copying elements. Element representation is unchanged: `[A]` does not convert element by element into `[B]`.
 
-```carven
+`first` in this example requires at least one element.
+
+```carven run
 fn first(values: [i32]) -> i32 => values[0];
 
 fn main() {
@@ -20,7 +22,7 @@ fn main() {
 }
 ```
 
-`array.slice()` and `vector.slice()` explicitly create views. When `[T]` is expected, `[T; N]` and `Vector<T>` may implicitly create the same view in initialization, assignment, arguments, returns, and aggregate element positions. Without slice context, an array remains an array. A Write argument needs an actual slice slot.
+`array.slice()` and `vector.slice()` explicitly create views. Both owners also accept `slice(start, end)` to select a subrange directly. When `[T]` is expected, `[T; N]` and `Vector<T>` may implicitly create the same view in initialization, assignment, arguments, returns, and aggregate element positions. Array literals use the expected slice element type, including `[]`. An empty slice formed from a zero-length array retains no backing storage. Without slice context, an array remains an array. A Write argument needs an actual slice slot.
 
 ## Operations
 
@@ -29,6 +31,7 @@ fn main() {
 | `s.length()`          | Element count as `usize`                |
 | `s.is_empty()`        | `bool`                                  |
 | `s[index]`            | Read element access; integer index      |
+| `s.slice()`           | Copy of the same view and range         |
 | `s.slice(start, end)` | Half-open range; both arguments `usize` |
 | `for item in s`       | Read iteration                          |
 
@@ -54,15 +57,13 @@ fn table_view() -> [i32] => table;
 
 This element storage has static lifetime and may be copied, stored, and returned. The constant declaration does not gain source-level address identity. Native code cannot depend on uses or artifacts sharing the same address.
 
-Every element must be admitted in static execution and freeze without changing its declared type, including supported floating, String, Vector, class, tuple, and enum values. Nominal types, field types, and nested array lengths are preserved. Internal arrays do not recursively become slices, nor do `String` fields become `str`. Empty slices retain their element type. Constant indexing and subranges are checked during evaluation.
-
-Retaining arrays and constructing constant subslices count element references toward the initializer's 524,288-element work budget. The original array remains subject to per-value size and nesting limits.
+Element preservation and supported result types follow the [freezing rules](/reference/constants/#admission-and-freezing). Retaining arrays and constructing constant subslices count toward the shared [execution budgets](/reference/constants/#execution-budgets).
 
 ## Slices in compile-time execution
 
 During required compile-time execution, slice parameters, locals, `length`, `is_empty`, indexing, subslicing, and loops run against live backing storage. Copies and chained slices keep that backing relationship without extending its lifetime; indexing and subranges are bounds-checked when executed and report `CV-CONST-INDEX-BOUNDS` on failure. A completed constant root freezes the selected elements before releasing its backing, so a `const fn` may return a view of a frozen constant slice:
 
-```carven
+```carven run
 const fn total(values: [i32]) -> i32 {
     var sum = 0;
     for value in values {

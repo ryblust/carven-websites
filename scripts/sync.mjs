@@ -34,6 +34,7 @@ if (!localSource) {
         `Compiler checkout has local changes at ${source}. Keep or move them before syncing.`,
       );
     }
+
     run('git', ['-C', source, 'fetch', '--depth', '1', 'origin', 'main']);
     ref = 'FETCH_HEAD';
   } else {
@@ -48,8 +49,10 @@ if (!localSource) {
       source,
     ]);
   }
+
   run('git', ['-C', source, 'checkout', '--detach', ref]);
 }
+
 for (const script of ['playground:build', 'build', 'test', 'check:links']) {
   run(windows ? 'pnpm.cmd' : 'pnpm', ['run', script], windows);
 }

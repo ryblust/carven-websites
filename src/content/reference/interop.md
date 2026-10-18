@@ -1,5 +1,5 @@
 ---
-title: "C++ names, operations, and boundaries"
+title: "C++ interop"
 description: "Headers, native types, source fragments, function contracts, exceptions, and returned borrows."
 section: reference
 lesson: 19
@@ -34,7 +34,7 @@ keyword-named bare Carven declarations or provide escaped identifiers.
 
 A header import without `using` creates no Carven names. A `using` selection
 introduces external names or a namespace lookup environment in the importing
-module:
+module. In these syntax examples, `provider.hpp` and `legacy.hpp` are application-supplied headers:
 
 ```carven
 import <vector> using std::vector;
@@ -123,9 +123,15 @@ an explicit conversion to a pointer type with a pointer formatter, such as
 Erasure to `ptr<void>` preserves the C string address and Read access.
 
 ```carven
-import <cstdio> using std::printf;
-fn main() { printf(c"Hello World\n"); }
+import <cstdio> using std::puts;
+
+const greeting = c"hello";
+
+puts(greeting);
+println(greeting);
 ```
+
+Native execution prints `hello` twice.
 
 ## External operations and conversions
 
@@ -163,6 +169,7 @@ import <vector> using std::vector;
 let values = vector<i32> { 2, 4, 6 };
 let count: usize = values.size();
 let narrow = values.size() as i32;
+println(count, narrow); // 3 3
 ```
 
 The first binding requests destination construction; the second requests an
@@ -176,8 +183,7 @@ their storage's access. Local bindings remain owners: initializing one from a
 C++ reference result initializes an owned value, subject to C++ construction
 rules. External member and index places inherit the root's access; external
 indexing has the provider's bounds behavior, not Carven array bounds checks.
-External calls do not expose typed failures. An exception escaping a generated
-`noexcept` boundary terminates under C++ rules.
+External calls do not expose typed failures; see [noexcept](#noexcept) for native exception handling.
 
 Carven checks its own storage availability and explicit access conflicts but
 does not infer C++ reference retention, pointer validity or iterator invalidation.
@@ -228,6 +234,18 @@ Carven checks the declared boundary; external C++ bodies remain outside its
 analysis.
 
 ## `#[cpp]`
+
+Use a fenced fragment for a small module-local implementation. Save this complete example as `main.cv` and run `carven main.cv`; the caller prints the native result `42`.
+
+```carven
+#[cpp] ---
+inline auto native_answer() noexcept -> int {
+    return 42;
+}
+---
+
+println(::native_answer()); // 42
+```
 
 Native declarations can be supplied by header imports. A source fragment can
 define a module-local adapter or include a header that uses generated Carven
@@ -315,12 +333,7 @@ The generated signatures use the same C++ representations as Carven functions:
 | Declared synchronous failures            | `carven::runtime::Outcome<Result, Failures...>`                                |
 | Async completion contract                | Cold `carven::runtime::execution::AsyncOperation<Result, Failures...>`         |
 
-Read uses `const T&` for owned Carven storage, closures, and parameter holders
-retained across the call boundary, and const values for other pure Carven types.
-Other native-containing Read parameters use `carven::runtime::ReadArg<T>`, which
-selects a const value for trivial copy construction and destruction, and a const
-reference otherwise. The native callee's own signature still controls its C++
-parameter initialization. Async providers must capture
+Read parameters follow the [ordinary Read policy](/reference/ownership/#read-values-and-aliases). Native-containing parameters use `carven::runtime::ReadArg<T>` to implement that policy. The native callee's own signature still controls its C++ parameter initialization. Async providers must capture
 Carven Read values passed by value; native-containing Read holders remain
 borrowed until the cold operation closes.
 

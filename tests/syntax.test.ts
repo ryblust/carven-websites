@@ -67,6 +67,7 @@ describe('shared syntax rendering', () => {
       const source = "## Import a module's API\n\n## Import a module's API";
       const first = yield* markdown.render('first.md', source);
       const second = yield* markdown.render('second.md', source);
+
       for (const html of [first, second]) {
         assert.include(html, 'id="import-a-modules-api"');
         assert.include(html, 'id="import-a-modules-api-1"');
@@ -74,12 +75,17 @@ describe('shared syntax rendering', () => {
     }).pipe(Effect.provide(Markdown.layer)),
   );
 
-  it.effect('marks authored line ranges without changing the copyable source', () =>
+  it.effect('marks runnable examples and highlighted lines without changing source', () =>
     Effect.gen(function* () {
       const markdown = yield* Markdown;
       const source = 'let first = 1;\nlet second = 2;\nlet third = 3;\nprintln(third);';
-      const html = yield* markdown.render('focus.md', `\`\`\`cv {1-2,4}\n${source}\n\`\`\``);
+      const html = yield* markdown.render('focus.md', `\`\`\`cv run {1-2,4}\n${source}\n\`\`\``);
       assert.include(html, 'data-language="cv"');
+      assert.include(html, 'data-runnable="true"');
+      const fragment = yield* markdown.render('fragment.md', '```cv\nfn helper() {}\n```');
+      assert.notInclude(fragment, 'data-runnable');
+      const native = yield* markdown.render('native.md', '```cpp run\nint main() {}\n```');
+      assert.notInclude(native, 'data-runnable');
       const emphasizedLines = [
         ...html.matchAll(/<span\b[^>]*class="line highlighted"[^>]*>([^\n]*)/g),
       ].map((match) => match[1]!.replace(/<[^>]+>/g, ''));
@@ -116,6 +122,7 @@ describe('shared syntax rendering', () => {
               Number.parseInt(entity.slice(hexadecimal ? 2 : 1), hexadecimal ? 16 : 10),
             );
           }
+
           const named: Record<string, string> = {
             amp: '&',
             lt: '<',
@@ -123,6 +130,7 @@ describe('shared syntax rendering', () => {
             quot: '"',
             apos: "'",
           };
+
           return named[entity.toLowerCase()]!;
         });
       assert.strictEqual(text, source);

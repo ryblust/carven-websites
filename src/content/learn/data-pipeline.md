@@ -61,6 +61,7 @@ async fn main() throw IOError + ValueError {
             },
         }
     }
+
     println(summary(accepted, total)?);
 }
 
@@ -70,6 +71,7 @@ const test "valid amount" {
     } catch {
         _ => fail("valid record must succeed"),
     };
+
     check(amount == 1250);
 }
 
@@ -113,7 +115,7 @@ stderr additionally reports `Amount outside policy: -1`. Compiler status and dia
 
 Each line owns its bytes. Value::parse builds an independent JSON tree; get returns an independent child value. amount_of returns a numeric value, so no borrowed view leaves the call. This avoids retaining input buffers across iterations.
 
-summary creates a new JSON object and puts count and total into it. Its insertion order produces count before total. JSON writing creates an independent String. JSON numbers preserve their original spelling; `as_i64` deliberately rejects floating spelling or values outside i64, rather than silently rounding.
+summary creates an empty JSON object with `Value::object()`. set inserts each key and takes its value through `&&`; `Value::integer` and `Value::unsigned_integer` construct the JSON numbers. Inserting count before total produces the displayed member order. to_json returns the completed JSON as a String.
 
 ## Separate malformed data from unavailable input
 
@@ -121,7 +123,7 @@ The per-record try handles exactly the data failures. Missing keys, the wrong ro
 
 IOError escapes main because an unavailable input source, invalid UTF-8, or an overlong line requires a stream-level decision. A line limit failure preserves buffered input: blindly retrying with the same limit would not make progress. Choose a larger limit, switch to raw chunk recovery, or stop. The program chooses to stop and lets the entry report its typed failure and return a failure status.
 
-Integer arithmetic wraps, so the running-total assertion checks the remaining range before addition. It treats exhaustion of this example's ledger capacity as an invariant failure, with no automatic rollback or catch. A service that needs recoverable capacity rejection should declare a separate nominal failure and test that policy. The accepted-record counter likewise assumes the input fits usize.
+Integer arithmetic wraps, so the assertion checks the remaining range before adding to total. This example stops if the total exceeds i64; it assumes the record count fits usize.
 
 ## Turn validation into reusable preparation
 
@@ -131,10 +133,12 @@ Run ordinary tests with `carven --tests ledger.cv` after adding runtime test bod
 
 ## Adapt the pipeline to other sources
 
-For a single bounded document use `await stdin().read_text(limit)?`; for arbitrary byte chunks use `read(max_bytes)` or `read_all(limit)`. `std::io` provides ByteLines and LineFramer when record boundaries cross chunks. Frame bytes first and validate UTF-8 per complete record when invalid records should be recovered independently.
+To read whole documents or byte chunks instead of lines, choose an operation from the [input reference](/reference/io/). It also covers framing records across chunks and validating each record's UTF-8 separately.
 
-The same framing and parsing core can process TCP chunks from `std::net`. A native C++ host must provide the connection and event source, preserve their lifetimes, and drive the exported async root. Writes can be short; `write_all(view, &&bytes)` retains an owned buffer until completion. Networking here does not include connection establishment, DNS, or TLS. See [the standard-library reference](/reference/library/) before adapting this example.
+For TCP input, consult the [network reference](/reference/net/) for connection setup, host integration, and lifetime requirements.
 
 ## Exercise
 
 Add a required `category` string and report independent totals for two known categories. Copy a borrowed JSON string into String before retaining it. Keep output exclusively on stdout and record rejection messages on stderr. Add a test showing that a rejected record never changes either total, then test EOF after a line with no final newline.
+
+Continue with the [Carven language server](/learn/lsp/) to apply JSON, byte streams, and asynchronous tasks in a developer tool.

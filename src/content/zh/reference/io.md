@@ -1,12 +1,12 @@
 ---
-title: "输入、输出与字节分帧"
+title: "输入、输出与分帧"
 description: "有界异步标准输入、结构化输出、UTF-8 错误与增量记录分帧。"
 section: reference
-lesson: 30
+lesson: 29
 source: docs/language/io.md
 ---
 
-std::io 用于向标准输出/错误流打印，以及从进程的标准输入读取字节、完整文本或逐行内容。打印是普通调用，读取返回需要 await 的异步操作。如果输入分成若干块到达，分帧工具负责把它们拼成完整记录。
+`std::io` 用于向标准输出/错误流打印，以及从进程的标准输入读取字节、完整文本或逐行内容。打印是普通调用，读取返回需要 await 的异步操作。如果输入分成若干块到达，分帧工具负责把它们拼成完整记录。
 
 ## 能力与导入
 
@@ -21,47 +21,44 @@ std::io 用于向标准输出/错误流打印，以及从进程的标准输入�
 
 ## 输出
 
-输出函数接受一个或多个 Read 值，返回 `void`，按从左到右求值一次。`println()`、`eprintln()` 也可零实参写换行；`print`、`eprint` 至少一个实参。值之间有一个空格，带 ln 的函数追加换行。不能打印 `void` 或字符迭代视图。标量 Read 保存值，String Read 别名其所有者，文本视图在实参求值和打印期间保留后备存储。
+打印函数 `print`、`println`、`eprint`、`eprintln` 的完整规则见[打印](/zh/reference/formatting/#打印)；复合值的显示方式见[结构化打印](/zh/reference/formatting/#结构化打印)。
 
-文本原样输出，包括内嵌 NUL；`println("{value}", 3)` 输出 `{value} 3`。需要格式化时显式用 `println(f"{value:04}")`。标量遵循默认 C++ 格式，`char` 输出 UTF-8。
-
-直接打印独立于插值格式协议。结构体显示源码类型名和声明顺序字段，枚举显示 `Type::Case` 与载荷，数组与切片显示方括号元素，范围显示边界与 `..` 或 `..=`。非空结构、序列与载荷使用每层四空格缩进的多行布局，各项后带逗号；空结构和序列为 `Type {}`、`[]`。
-
-```text
-Order {
-    price: Money {
-        cents: 1250,
-    },
-    names: [
-        "a",
-        "b",
-    ],
-}
+```carven run
+println("answer", 42); // answer 42
+println(f"hex: {42:04x}"); // hex: 002a
+eprintln("status", "ready"); // 写入 stderr。
 ```
 
-嵌套文本用双引号并转义引号、反斜线、换行、CR、tab、NUL；嵌套字符用单引号。类只显示类型名。结构化显示不调用自定义 formatter、流插入运算符或 getter；`println(f"{value}")` 则先显式格式化。
+## 输入与分帧类型
 
-原生算术值按标量显示，`char32_t` 显示字符，其他 C++ 字符代码单元显示数值。`std::string_view` 和运行时 String 按文本处理。非空 C 字符串要求可读的 NUL 结尾存储；其他可转 `const void*` 的指针显示地址或 `nullptr`；外部类型、函数指针和可调用值显示 `<opaque>`。
+显式命名下列源码声明时，从 `std::io` 导入。这些类型名没有默认绑定；源码函数 `stdin` 默认可见。
 
-结构化输出最多展开八层（根为零）、每序列 64 项、16,384 UTF-8 字节，省略以 `...` 标记；断言解释也遵循这些限制，顶层原样文本不受这组结构化限制。它是诊断显示，不是序列化格式。
-
-输出支持静态执行，立即写入编译器宿主；普通调用写入运行时流。声明函数不会执行它；可选预计算不会提前打印或移除必需的运行时输出。输出字节计入根的累计文本工作预算，后续失败不撤销已输出内容。缓冲与刷新遵循 C++ 标准库，不逐次额外 flush；原生格式或输出故障终止，不是类型化失败。
-
-输出也可用期望签名适配为 可调用值，如 `let output: fn(str, i32) -> void = println;`。
+| 类型           | 契约                                                                                                                 |
+| -------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `Read<T>`      | 载荷枚举：`Data(T)` 或无载荷 `End`                                                                                   |
+| `IOError`      | 载荷枚举：`System(i32)`、`InputTooLarge(usize)`、`InvalidUTF8(UTF8Error)`；命名 `UTF8Error` 类型时从 `std::utf` 导入 |
+| `LineBoundary` | 载荷枚举：`Line(usize, usize, bool)` 或无载荷 `End`，分别为起点、不含末端的结束位置及是否含 LF                       |
+| `FrameError`   | 载荷枚举：`TooLong(usize)`、`Truncated`、`Finished`，`TooLong` 携带配置的限制                                        |
+| `Stdin`        | 保存输入配置的类，方法见下文                                                                                         |
+| `ByteLines`    | 保存遍历偏移的类，方法见[字节分帧](#字节分帧)                                                                        |
+| `LineFramer`   | 拥有未完成字节记录的类，方法见[字节分帧](#字节分帧)                                                                  |
 
 ## 标准输入
 
-`stdin()` 与 `Stdin::new()` 创建等价输入句柄。句柄拥有配置；完成的读取拥有数据。`Read<T>` 是含 `Data(T)` 与无载荷 `End` 的普通泛型枚举。
+`stdin()` 与 `Stdin::new()` 创建等价的配置句柄。读取完成后，返回值拥有读取的数据。
 
-| 操作                                  | 成功值                                       | 声明的失败 |
-| ------------------------------------- | -------------------------------------------- | ---------- |
-| `input.read(max_bytes: usize)`        | 至多指定字节的 `Read<Vector<u8>>`，或 `.End` | `IOError`  |
-| `input.read_all(limit: usize)`        | 读到 EOF 的 `Vector<u8>`，可为空             | `IOError`  |
-| `input.read_text(limit: usize)`       | 读到 EOF 并校验的拥有型 `String`             | `IOError`  |
-| `input.read_line()`                   | 拥有行 `.Data(String)` 或 `.End`             | `IOError`  |
-| `input.with_line_limit(limit: usize)` | 配置最大行内容字节数的新句柄                 | 无         |
+| 操作                                         | 成功值                                       | 声明的失败 |
+| -------------------------------------------- | -------------------------------------------- | ---------- |
+| `Stdin::new() -> Stdin` / `stdin() -> Stdin` | 默认输入配置                                 | 无         |
+| `input.read(max_bytes: usize)`               | 至多指定字节的 `Read<Vector<u8>>`，或 `.End` | `IOError`  |
+| `input.read_all(limit: usize)`               | 读到 EOF 的 `Vector<u8>`，可为空             | `IOError`  |
+| `input.read_text(limit: usize)`              | 读到 EOF 并校验 UTF-8 后返回独立的 `String`  | `IOError`  |
+| `input.read_line()`                          | 拥有独立行数据的 `.Data(String)` 或 `.End`   | `IOError`  |
+| `input.with_line_limit(limit: usize)`        | 配置最大行内容字节数的新句柄                 | 无         |
 
-读取是冷操作；构造或丢弃未启动读取不消耗输入。await 或启动子任务后执行，遵循异步取消、关闭和 timeout 契约，读取当前执行阶段的进程输入。
+所有方法使用 Read 接收者。`with_line_limit` 复制配置并返回 `Stdin`，不修改原句柄。四个读取方法是返回 `Operation<Success, throw IOError>` 的同步工厂，其中 `Success` 为表中的成功结果类型。构造本身没有类型化失败，`IOError` 在操作执行时交付。
+
+构造或丢弃未启动的读取不消耗输入。await 或启动子任务后才读取当前进程的输入，并遵循[异步生命周期与取消规则](/zh/reference/async/)。
 
 ```carven
 import std::io using IOError;
@@ -79,19 +76,29 @@ async fn main() throw IOError {
 
 行读取去除 LF 及紧邻其前的 CR。空行是 `.Data("")`，不同于 EOF；末尾无 LF 的行只返回一次。单独 CR 属于内容，行限制不含分隔符。默认行限制为可表示的字节范围；`read_all`、`read_text` 必须给最大字节数。零大小块读取不消耗输入，返回空 `.Data`。
 
-字节读取保留 NUL 和无效 UTF-8。文本读取在完整字节序列上校验；字节在校验前已经消耗，包括失败时。编码错误保留种类、拒绝字节偏移和序列起点，按完成输入从零计字节，截断指向末尾。
+字节读取保留 NUL 和无效 UTF-8。文本读取在消耗完整字节序列后校验，失败时也不退回这些字节。[UTF8Error](/zh/reference/utf/#失败位置与流协议)中的位置相对于这次读取所得的数据。
 
-`IOError` 为 `.System(i32)`、`.InputTooLarge(usize)`、`.InvalidUTF8(UTF8Error)`。在 `catch IOError(error)` 后匹配这些情况。字节读取不会产生编码错误，块读取不会产生大小限制错误。
+`IOError::System(i32)` 携带平台错误码，`InputTooLarge(usize)` 携带本次读取的字节限制，`InvalidUTF8(UTF8Error)` 携带编码错误。在 `catch IOError(error)` 后匹配这些情况。字节读取不会产生编码错误，块读取不会产生大小限制错误。
 
-所有句柄共享一个进程输入游标和缓冲区；已启动请求按先进先出注册顺序服务。预读字节跨模式保留。取消移除请求并保留未完整输入；超限保留输入，可扩大限制重试或用原始块恢复。缓冲可能在拒绝前额外预读一个原生块。
+同一运行时实例内的句柄共享一个输入游标和缓冲区；已启动的请求按注册顺序处理。预读字节跨模式保留。取消会移除请求，并保留缓冲区中尚未完成的输入；超限保留输入，可扩大限制重试或用原始块恢复。缓冲可能在拒绝前额外预读一个原生块。
 
 ### 输入的执行阶段
 
-输入工厂与读取支持 `const`，显式静态读取使用编译器进程输入，解释和原生读取用执行进程输入。构造句柄只配置，不读取；普通调用仍在运行时执行。静态根与随后同一进程中的解释共享预读、EOF 和系统错误。
+输入工厂与读取支持 `const`，显式静态读取使用编译器进程输入，解释和原生读取用执行进程输入。构造句柄只配置，不读取；普通调用仍在运行时执行。编译期执行与随后同一进程中的解释执行共享预读字节、EOF 状态和系统错误。
 
-显式限额失败是可捕获的 `IOError::InputTooLarge`；静态或解释值大小、聚合预算耗尽是不可捕获为 IOError 的执行限制。等待没有隐式实际时长上限。浏览器 Playground 提供空输入流，交互管线请本地运行。
+超出显式设置的输入限制会产生可捕获的 `IOError::InputTooLarge`。静态执行或解释执行中，值大小或聚合存储预算耗尽属于执行限制，不能作为 IOError 捕获。等待没有隐含的超时。浏览器 Playground 提供空输入流，需要交互输入的程序请在本地运行。
 
 ## 字节分帧
+
+| 调用                                            | 访问         | 结果                 | 失败                   |
+| ----------------------------------------------- | ------------ | -------------------- | ---------------------- |
+| `ByteLines::new()`                              | 关联函数     | `ByteLines`          | 无                     |
+| `cursor.next(bytes: [u8])`                      | Write 游标   | `LineBoundary`       | 无；无效游标偏移会终止 |
+| `LineFramer::new(limit: usize, strip_cr: bool)` | 关联函数     | `LineFramer`         | 无                     |
+| `framer.feed(bytes: [u8])`                      | Write 分帧器 | `Vector<Vector<u8>>` | `FrameError`           |
+| `framer.finish(allow_partial: bool)`            | Write 分帧器 | `Read<Vector<u8>>`   | `FrameError`           |
+
+这些函数和方法均为 `const fn`。`ByteLines` 不保存输入，副本从复制的偏移独立遍历；`LineFramer` 副本独立拥有未完成字节与分帧状态。
 
 分帧不校验 UTF-8。用 `str::from_utf8` 解码完整记录，便于逐条恢复，也能正确处理跨块的多字节字符。
 
@@ -99,4 +106,4 @@ async fn main() throw IOError {
 
 `LineFramer::new(limit, strip_cr)` 拥有未完成记录。`feed(bytes)?` 返回每个已完成 LF 记录的独立字节 Vector，包括空记录。limit 计 LF 前字节，也包含可能的 CR；`strip_cr` 为 true 时移除 LF 前 CR，EOF 处单独 CR 保留。允许任意块切分。
 
-`finish(allow_partial)?` 封闭该次分帧，返回 `.End` 或一个剩余 `.Data`。不允许未结束记录时报告 `FrameError::Truncated`；超长为 `TooLong(limit)` 并封闭。先前返回的记录独立，失败的 feed 调用内记录不交付；封闭后再调用报告 `Finished`。零限制接受空 LF 记录。所有分帧方法均支持静态执行。
+`finish(allow_partial)?` 结束该次分帧，返回 `.End` 或一个剩余 `.Data`。不允许未结束记录时报告 `FrameError::Truncated`；记录超长时报告 `TooLong(limit)`，并结束该次分帧。先前返回的记录不受影响；失败的 feed 调用不会返回其中任何记录。结束后再次调用 feed 或 finish 会报告 `Finished`。零限制接受空 LF 记录。所有分帧方法均支持静态执行。

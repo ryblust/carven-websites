@@ -1,5 +1,5 @@
 ---
-title: "Interpolation, formatting, and output"
+title: "Formatting and output"
 description: "Hole evaluation and observation, append restrictions, compile-time formatting, and stdout/stderr."
 section: reference
 lesson: 15
@@ -8,9 +8,9 @@ source: docs/language/text.md
 
 ## Interpolation expressions
 
-`f"..."` returns an independent owning `String`, even when empty or without holes. Holes may include `:` format specifications following the corresponding std::format alignment, width, precision, and type rules.
+Use `f"..."` to insert expression values into text. The result is an independent owning `String`, even when empty or without holes. Add a `:` format specification to control alignment, width, precision, or representation under the corresponding `std::format` rules.
 
-```carven
+```carven run
 fn main() {
     let id = 42;
     println(f"ID: {id:08x}");
@@ -22,7 +22,7 @@ Dynamic width and precision use nested holes, for example `f"{value:{width}.{pre
 
 ## Evaluation and observation
 
-All holes, including dynamic format parameters, evaluate once in source order before formatting begins. Holes have Read access and cannot directly use argument markers & or &&; nested calls still obey their own parameter contracts.
+All holes, including dynamic format parameters, evaluate once in source order before formatting begins. Holes have Read access and cannot directly use argument markers `&` or `&&`; nested calls still obey their own parameter contracts.
 
 Scalar Read saves the value at that point. `String` Read retains an owner alias and reads contents after all holes complete. Text views protect backing during evaluation and formatting. The result owns independent contents.
 
@@ -30,7 +30,7 @@ A failed hole skips later holes and formatting, retains completed side effects, 
 
 ## Formatted append
 
-`destination.append_format(f"...")` returns void and requires a direct interpolation expression, allowing parentheses. An ordinary string, a previously constructed `String`, or an access-marked argument does not satisfy this form. No intermediate source-level interpolation `String` is created.
+`destination.append_format(f"...")` returns `void` and requires a direct interpolation expression, allowing parentheses. An ordinary string, a previously constructed `String`, or an access-marked argument does not satisfy this form. No intermediate source-level interpolation `String` is created.
 
 The receiver is selected once, then every hole is evaluated, then appending begins. Formatting inputs must not borrow or alias the target `String`, including `String` Read aliases. Existing views also prevent writing. `s.append_format(f"{s.byte_length()}")` may be valid because it uses an independent scalar snapshot. Native formatters and callers must preserve this condition under indirect aliasing and reentrancy.
 
@@ -38,7 +38,7 @@ A receiver or hole failure skips append and subsequent evaluation. Termination a
 
 ## Using known format information
 
-The compiler may prepare known parts of a format during compilation and format the remaining values at runtime. This preserves the result's String type, each hole's evaluation order and side effects, and temporary lifetimes. A known final result does not skip an operation such as `update()` in `update() && false`.
+The compiler may prepare known parts of a format during compilation and format the remaining values at runtime. The result retains its `String` type. Each hole still evaluates in source order, with its required effects and temporary lifetimes.
 
 Optional preparation has a 64 KiB work budget. Unsupported or larger parts continue through runtime formatting; this is different from a required const initializer, which must finish during compilation. The budget does not limit the final runtime String length.
 
@@ -58,7 +58,7 @@ Each constant interpolation result is limited to 1 MiB, with additional cumulati
 
 ## Printing
 
-print/`println`/eprint/eprintln need no import and follow ordinary lookup and shadowing. They accept one or more Read values and return void. void and character-iteration views are not printable. `println`() and eprintln() also allow zero arguments.
+`print`, `println`, `eprint`, and `eprintln` accept one or more Read values and return `void`. Unit values and character-iteration views are not printable. `println()` and `eprintln()` also allow zero arguments. Their [module bindings](/reference/modules/#standard-modules-and-defaults) follow ordinary lookup.
 
 | Operation | Stream | Ending           |
 | --------- | ------ | ---------------- |
@@ -69,7 +69,7 @@ print/`println`/eprint/eprintln need no import and follow ordinary lookup and sh
 
 Arguments are evaluated once left to right and separated by one space. Scalars save values, `String` retains aliases, and views protect backing. Text is emitted literally, including NUL; `char` emits UTF-8. `println("{value}", 3)` prints `{value} 3`: the text itself is not a format string.
 
-Printing needs no ?. Buffering and flushing follow the C++ standard library, with no promise to flush every call. Native formatting or output failures terminate. An expected signature may select a printing callable, for example `let output: fn(str, i32) -> void = println;`.
+Printing needs no `?`. Buffering and flushing follow the C++ standard library, with no promise to flush every call. Native formatting or output failures terminate. An expected signature may select a printing callable, for example `let output: fn(str, i32) -> void = println;`.
 
 `const fn`, constant blocks, and `const test` can print directly within their supported type subset, including C strings as text. Only required constant execution writes through the compiler host; ordinary runtime calls still print at runtime. Completed output remains after later failure. Output bytes count toward cumulative text work.
 
@@ -91,7 +91,7 @@ Native results are classified by their C++ type:
 | Other pointers convertible to `const void*`        | Address or `nullptr`, without dereferencing                                         |
 | Other external types, function pointers, callables | `<opaque>`                                                                          |
 
-```carven
+```carven run
 class Token {
     id: i32,
     fn create(id: i32) -> Token => { id: id };

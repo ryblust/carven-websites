@@ -17,6 +17,7 @@ describe('content build', () => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const root = yield* fs.makeTempDirectoryScoped();
+
       for (const prefix of ['', '/zh']) {
         for (const section of ['learn', 'reference'] as const) {
           yield* fs.makeDirectory(`${root}/src/content${prefix}/${section}`, { recursive: true });
@@ -30,10 +31,21 @@ describe('content build', () => {
           );
         }
       }
+
       yield* generateContent(root).pipe(Effect.provide(ContentLive));
       const { articles, lessonPaths, referencePaths } = yield* importGenerated(
         `${root}/src/generated/manifest.ts`,
       );
+      const { referenceSearch } = yield* importGenerated(
+        `${root}/src/generated/reference-search.ts`,
+      );
+      assert.deepStrictEqual(Object.keys(referenceSearch).sort(), [
+        '/reference/',
+        '/reference/values/',
+        '/zh/reference/',
+        '/zh/reference/values/',
+      ]);
+
       for (const section of ['learn', 'reference']) {
         const navigation = section === 'learn' ? lessonPaths : referencePaths;
         for (const prefix of ['', '/zh']) {
@@ -60,6 +72,7 @@ describe('content build', () => {
       const fs = yield* FileSystem.FileSystem;
       const root = yield* fs.makeTempDirectoryScoped();
       const files = ['guide.md', 'guide/route.md', 'guide/route/child.md', 'guide/lazy.md'];
+
       for (const prefix of ['', '/zh']) {
         yield* fs.makeDirectory(`${root}/src/content${prefix}/guide/route`, { recursive: true });
         for (const file of files) {
@@ -69,6 +82,7 @@ describe('content build', () => {
           );
         }
       }
+
       yield* generateContent(root).pipe(Effect.provide(ContentLive));
       const { articleRoutes } = yield* importGenerated(`${root}/src/generated/article-routes.ts`);
       assert.deepStrictEqual(articleRoutes.map((route: { path: string }) => route.path).sort(), [

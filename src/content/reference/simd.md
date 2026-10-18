@@ -1,8 +1,8 @@
 ---
-title: "SIMD vectors, masks, and scanning"
+title: "SIMD vectors and masks"
 description: "Logical vector lanes, floating methods, safe tails, byte sets, and static specialization."
 section: reference
-lesson: 23
+lesson: 22
 source: docs/language/simd.md
 ---
 
@@ -48,30 +48,42 @@ compare vector lanes explicitly.
 ## Construction and loading
 
 In this table, `Vector` is any vector above, `Mask` its mask, `T` its element,
-and `N` its lane count.
+and `N` its lane count. `Bits` is the packed mask integer type from the type table.
 
-| Operation                                    | Contract                                                         |
-| -------------------------------------------- | ---------------------------------------------------------------- |
-| `Vector::splat(value)`                       | Broadcast one `T`.                                               |
-| `Vector::from_array(values)`                 | Copy from `[T; N]`.                                              |
-| `Vector::load(values, offset)`               | Read exactly `N` elements, without an alignment precondition.    |
-| `Vector::load_partial(values, offset, fill)` | Read at most `N` elements and fill the rest; `offset <= length`. |
-| `Mask::from_bits(bits)`                      | Expand packed bits; ignore bits above `N`.                       |
-| `Mask::prefix(count)`                        | First `count` lanes true; `count <= N`.                          |
+| Operation                                                             | Contract                                                                                                     |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `Vector::splat(value: T) -> Vector`                                   | Broadcast one `T`.                                                                                           |
+| `Vector::from_array(values: [T; N]) -> Vector`                        | Copy from `[T; N]`.                                                                                          |
+| `Vector::load(values: [T], offset: usize) -> Vector`                  | Read exactly `N` elements; require `offset <= length` and `N <= length - offset`. No alignment precondition. |
+| `Vector::load_partial(values: [T], offset: usize, fill: T) -> Vector` | Read at most `N` elements and fill the rest; `offset <= length`.                                             |
+| `Mask::from_bits(bits: Bits) -> Mask`                                 | Expand packed bits; ignore bits above `N`.                                                                   |
+| `Mask::prefix(count: usize) -> Mask`                                  | First `count` lanes true; `count <= N`.                                                                      |
 
-Associated functions use `Type::function(...)`; aliases of the type provide the
-same operations. Value methods use `value.method(...)`.
+Associated functions use `Type::function(...)`; aliases provide the same operations. Value methods use `value.method(...)`. Built-in constructors and methods require direct calls and cannot be stored as callable values. Runtime operands use Read access.
 
 ## Vector and mask methods
 
-| Operation                                               | Contract                                                                              |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `value.to_array()`                                      | Copy to `[T; N]`.                                                                     |
-| `value.lane(index)` / `value.with_lane(index, element)` | Read a lane or return an updated copy; `index < N`.                                   |
-| `value.swizzle(indices)`                                | Select lanes using a static `[u8; N]`; every index is below `N`.                      |
-| `left.extract(right, offset)`                           | Take `N` elements from the concatenation at `offset`, in `0..=N`; `offset` is static. |
-| `mask.bits()` / `.count()`                              | Packed bits / `usize` count.                                                          |
-| `mask.select(yes, no)`                                  | Per-lane selection of matching vectors.                                               |
+| Operation                                                                               | Contract                                                                              |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `value.to_array() -> [T; N]`                                                            | Copy to `[T; N]`.                                                                     |
+| `value.lane(index: usize) -> T` / `value.with_lane(index: usize, element: T) -> Vector` | Read a lane or return an updated copy; `index < N`.                                   |
+| `value.swizzle(const indices: [u8; N]) -> Vector`                                       | Select lanes using a static `[u8; N]`; every index is below `N`.                      |
+| `left.extract(right: Vector, const offset: usize) -> Vector`                            | Take `N` elements from the concatenation at `offset`, in `0..=N`; `offset` is static. |
+
+### Mask queries and byte operations
+
+All calls below use Read access and evaluate their runtime operands once. `ByteVector` means either `u8x16` or `u8x32`; the lookup result has the indices vector's type.
+
+| Call                                                                             | Result or requirement                                  |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `mask.bits()`                                                                    | `Bits`                                                 |
+| `mask.any()` / `mask.all()`                                                      | `bool`; at least one / every lane is true              |
+| `mask.count()`                                                                   | `usize`                                                |
+| `mask.first_or(fallback: usize)`                                                 | `usize`; lowest true lane, or the fallback unchanged   |
+| `mask.select(yes: Vector, no: Vector)`                                           | `Vector` with matching shape                           |
+| `bytes.sum()`                                                                    | `usize`                                                |
+| `bytes.lookup(indices: ByteVector)`                                              | `ByteVector` matching the indices width                |
+| `bytes.shift_left(const count: usize)` / `bytes.shift_right(const count: usize)` | Receiver's byte-vector type; static `count` in `0..=7` |
 
 Byte vectors expose `.sum() -> usize`, the exact mathematical sum of all lanes.
 The maximum is `N * 255`; the reduction does not wrap. They also expose
@@ -88,7 +100,7 @@ Swizzle permits duplicate indices and returns the receiver's vector shape.
 Its controls can come from `const fn`, explicit constants, or `const for` indices
 and require a constant source independent of runtime locals.
 
-Invalid dynamic bounds terminate; static execution diagnoses them.
+These built-in constructors and methods have no typed failures. Invalid dynamic bounds terminate; static execution diagnoses them.
 Partial loads never rely on padding or read outside the supplied slice, including
 empty input. Float offsets count elements rather than bytes.
 
@@ -101,7 +113,7 @@ interpretation, and native execution:
 | --------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `value.is_finite()`                     | `mask4` or `mask8`; each lane is true for finite values.                                     |
 | `value.sqrt()`                          | Preserve signed zero and +infinity; negative nonzero values, -infinity, and NaN produce NaN. |
-| `value.abs()`                           | Positive magnitude per lane; either zero becomes +0; NaN remains NaN.                        |
+| `value.abs()`                           | Absolute value per lane; both +0 and -0 become +0; NaN remains NaN.                          |
 | `value.min(other)` / `value.max(other)` | Propagate either NaN; equal values retain the receiver, including its zero sign.             |
 | `value.clamp(lower, upper)`             | Check bounds per lane; preserve a NaN value and return the selected bound or value.          |
 
@@ -115,7 +127,7 @@ Numeric results retain the receiver's vector shape. Clamp requires
 assertion failure, even when the result is discarded. The receiver and arguments
 evaluate once in source order before the operation.
 
-```carven
+```carven run
 let samples = f32x8::splat(-4.0);
 let magnitudes = samples.abs().sqrt();
 let bounded = magnitudes.clamp(0.0, 1.0);
@@ -124,15 +136,9 @@ assert(bounded.is_finite().all());
 
 ## Block and byte helpers
 
-`ByteBlock` contains `u8x32` and `mask32` values; `FloatBlock` contains `f32x8`
-and `mask8` values. `std::simd.bytes` and `std::simd.floats` each provide `block_count` and
-`load_block`. `block_count` returns the number of complete or partial blocks.
-`load_block(values, offset)` returns a block with `value`, `active`,
-`offset`, and `length`. Tail lanes are zero-filled and inactive; include `active`
-whenever padding could match. An offset equal to the input length produces an
-empty block.
+`std::simd.bytes` and `std::simd.floats` each provide `block_count` and `load_block`; their signatures and block fields are listed below. `block_count` includes a partial tail block. Tail lanes are zero-filled and inactive, so include `active` whenever padding could match. An offset equal to the input length produces an empty block.
 
-```carven
+```carven run
 import std::simd.bytes using { block_count, load_block };
 
 const fn count_spaces(bytes: [u8]) -> usize {
@@ -143,14 +149,54 @@ const fn count_spaces(bytes: [u8]) -> usize {
     }
     return count;
 }
+
+fn main() {
+    println(count_spaces("a b c".bytes)); // 2
+}
 ```
 
-Byte helpers include `count_byte`, `find_byte` (input length when absent),
-`ascii_digit`, `ascii_lower`, and `ascii_prefix` (first non-ASCII byte offset).
-They operate on encoded bytes. Use `value.to_array()` to obtain an owning fixed
-array; ordinary assignment writes it to a mutable destination.
+### Block records and helper signatures
+
+Every helper in this section is `const fn` and has no typed failure. Its operations still perform their stated bounds checks.
+
+| Module             | Public type and fields                                                     |
+| ------------------ | -------------------------------------------------------------------------- |
+| `std::simd.bytes`  | `ByteBlock { value: u8x32, active: mask32, offset: usize, length: usize }` |
+| `std::simd.floats` | `FloatBlock { value: f32x8, active: mask8, offset: usize, length: usize }` |
+
+| Module             | Function                                                 |
+| ------------------ | -------------------------------------------------------- |
+| `std::simd.bytes`  | `block_count(bytes: [u8]) -> usize`                      |
+| `std::simd.bytes`  | `load_block(bytes: [u8], offset: usize) -> ByteBlock`    |
+| `std::simd.floats` | `block_count(values: [f32]) -> usize`                    |
+| `std::simd.floats` | `load_block(values: [f32], offset: usize) -> FloatBlock` |
+| `std::simd.bytes`  | `count_byte(bytes: [u8], needle: u8) -> usize`           |
+| `std::simd.bytes`  | `find_byte(bytes: [u8], needle: u8) -> usize`            |
+| `std::simd.bytes`  | `ascii_digit(bytes: u8x32) -> mask32`                    |
+| `std::simd.bytes`  | `ascii_lower(bytes: u8x32) -> u8x32`                     |
+| `std::simd.bytes`  | `ascii_prefix(bytes: [u8]) -> usize`                     |
+
+`ascii_digit` marks ASCII `0` through `9`. `ascii_lower` changes ASCII `A` through `Z` to lowercase and preserves other bytes. `ascii_prefix` returns the first non-ASCII byte offset, or the input length when all bytes are ASCII. Each block's `length` is its number of valid input elements; `offset` is the supplied element offset.
+
+`count_byte` returns the number of matching bytes; `find_byte` returns the first matching byte offset or the input length when absent. These helpers process encoded bytes. Use `value.to_array()` to obtain an owning fixed array; ordinary assignment writes it to a mutable destination.
 
 ## Byte-set scanning
+
+`ByteSet` is a public struct with `words: [u64; 4]`. Bit `byte % 64` of `words[byte / 64]` records membership of that byte. Each of the 256 bits represents one byte; any combination is valid.
+
+| Function from `std::simd.scan`                              | Result    |
+| ----------------------------------------------------------- | --------- |
+| `one_of(values: [u8])`                                      | `ByteSet` |
+| `byte_range(lower: u8, upper: u8)`                          | `ByteSet` |
+| `set_union(left: ByteSet, right: ByteSet)`                  | `ByteSet` |
+| `match_set(value: u8x32, const set: ByteSet)`               | `mask32`  |
+| `count_where(bytes: [u8], const set: ByteSet)`              | `usize`   |
+| `find_where(bytes: [u8], const set: ByteSet)`               | `usize`   |
+| `find_from(bytes: [u8], start: usize, const set: ByteSet)`  | `usize`   |
+| `prefix_where(bytes: [u8], const set: ByteSet)`             | `usize`   |
+| `prefix_end(bytes: [u8], start: usize, const set: ByteSet)` | `usize`   |
+
+Every function is `const fn` and has no typed failure. The matching and query functions require a static `set` argument: use a constant, static parameter, or admitted constant expression. An ordinary runtime `let set = ...` does not supply it. Byte slices and starting positions remain runtime inputs.
 
 `std::simd.scan` supplies byte-set queries. `one_of([u8])` constructs a `ByteSet`;
 `byte_range(lower, upper)` includes both endpoints and requires `lower <= upper`.

@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { parseCrafts } from '../src/playground/wasi.ts';
 
 const directory = resolve('public/playground-assets');
+
 try {
   const [wasm, crafts, revision] = await Promise.all([
     readFile(resolve(directory, 'carven.wasm')),

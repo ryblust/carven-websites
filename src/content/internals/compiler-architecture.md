@@ -1,5 +1,5 @@
 ---
-title: "How a program passes through the compiler"
+title: "From source to a native program"
 description: "Follow source through parsing, checking, execution, and C++ generation."
 section: internals
 source: docs/compiler/README.md
@@ -20,20 +20,11 @@ Before generating a call, the compiler needs to know its argument types, possibl
   <figcaption>Carven checks source contracts and generates C++; the C++ toolchain compiles, links, and optimizes the native program.</figcaption>
 </figure>
 
-The driver collects project files and standard-library sources into a source batch. Imports resolve within that batch. Parsing builds syntax trees; semantic analysis determines what the declarations and expressions mean and checks their contracts. The backend then uses the checked result to generate C++. The native toolchain checks delegated C++ operations, compiles, links, and optimizes the program.
+The driver collects project files and standard-library sources into a source batch. Imports resolve within that batch. Parsing builds a `SyntaxProgram`; semantic analysis completes declarations and bodies in `ProgramDraft`, then publishes a checked `SemIRProgram`. The backend then uses the checked result to generate C++. The native toolchain checks delegated C++ operations, compiles, links, and optimizes the program.
 
 ## One analysis pipeline, several command exits
 
-The commands differ in what they do after checking:
-
-| Command            | Work after source checking                                                   |
-| ------------------ | ---------------------------------------------------------------------------- |
-| `carven check`     | Stop after analysis, required constant execution, and static tests           |
-| `carven interpret` | Execute the checked operations through the interpreter                       |
-| `carven compile`   | Plan and emit C++ artifacts                                                  |
-| `carven main.cv`   | Generate C++, build it with the required native sources, and run the program |
-
-This shared analysis gives the commands the same source rules. It also means `check` can run static tests without invoking a C++ compiler. Interpreter execution still needs support for the operations it reaches; external C++ implementations require native execution.
+`check`, `interpret`, `compile`, and direct execution share semantic analysis and required compile-time work. After analysis, they stop, enter the executor, or proceed to the C++ backend. See [compiler commands](/reference/cli/) for invocation and outputs.
 
 ## Explore three important handoffs
 
@@ -53,9 +44,7 @@ After bodies are finalized, analysis also determines which calls and awaits may 
 
 Constant initializers, `const` blocks, static tests, and interpretation share an executor for typed values, control flow, and storage. The executor applies resource budgets and checks operations such as indexing against the values present during execution.
 
-Explicit compile-time execution calls admitted `const fn` functions. A completed constant keeps its type, including owned strings, vectors, and nested JSON values. A retained view keeps immutable program-lifetime storage. Source async composition and supported input, clocks, and waits use the selected execution host.
-
-Sharing the executor keeps the operation rules aligned, while each entry still has its own capability checks. A runtime interpretation request does not make an unsupported native call executable, and knowing a runtime result does not turn it into an admitted constant initializer.
+Each entry configures the executor's capabilities and execution host. The [constant reference](/reference/constants/) defines compile-time operations and retained results; the [command reference](/reference/cli/#interpretation) defines interpreter execution.
 
 </details>
 
@@ -64,9 +53,9 @@ Sharing the executor keeps the operation rules aligned, while each entry still h
 
 `PlannedCompilation` borrows the immutable semantic program and owns a `TargetPlan`. The plan selects names, interface groups, result representations, and artifact placement. The semantic program stays alive and unmoved while planning and lowering use it.
 
-`BodyPreparation` reads checked body facts to determine what operands need from their storage. `BodyRealizer` builds target statements and expressions, arranging evaluation, temporaries, failure exits, and cleanup. For example, if a later field initializer fails, an earlier completed field still needs the correct destruction path.
+Each artifact has independent lowering state and target-type caches. `BodyPreparation` borrows published body facts to derive operation plans and operand storage demands. `BodyRealizer` and its fragments build target statements and expressions, arranging evaluation, temporaries, failure exits, and cleanup. Realization finishes before preparation is released. For example, if a later field initializer fails, an earlier completed field still needs the correct destruction path.
 
-A completed `TargetUnit` is verified and collects headers, native imports, and artifact dependencies. Emission then serializes that structure into C++ text. Writing files and invoking the native toolchain happen afterward.
+`TargetUnitBuilder::finish` collects header requirements and plans directives from artifact references and ordered native imports, producing the completed `TargetUnit`. Emission then serializes the structure and directives into C++ text. Writing files and invoking the native toolchain happen afterward.
 
 </details>
 
@@ -92,6 +81,6 @@ The workspace layer manages document revisions, parsed snapshots, navigation ind
 
 ## Continue into the implementation
 
-- [Runtime support and native hosts](/internals/runtime-boundary/) explains what the generated program needs to run.
-- [C++ generation](/features/cpp-generation/) follows a real module into generated interfaces and implementations.
+- [Built-in capabilities and runtime support](/internals/runtime-boundary/) explains what the generated program needs to run.
+- [C++ generation and native integration](/features/cpp-generation/) follows a real module into generated interfaces and implementations.
 - The repository's [semantic representation](https://github.com/ryblust/carven/blob/main/docs/compiler/analysis/semir.md) and [backend architecture](https://github.com/ryblust/carven/blob/main/docs/compiler/backend/README.md) describe the internal types and phase contracts.

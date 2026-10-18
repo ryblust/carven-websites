@@ -6,6 +6,7 @@ export function articleRouteModule(article: ArticleDocument) {
   const routePath = article.path.replace(/\/$/, '');
   const path = JSON.stringify(article.path);
   const file = `routes/${stem.replaceAll('/', '.')}.tsx`;
+
   return {
     file,
     // Explicit siblings avoid file-route tokens and accidental article nesting.

@@ -1,5 +1,5 @@
 ---
-title: "Functions: fn, parameters, and results"
+title: "Functions and calls"
 description: "Function syntax, calls, expression and block bodies, result types, and static parameters."
 section: reference
 lesson: 8
@@ -10,7 +10,7 @@ Use `fn` to name a function. Write each parameter's type after `:`. Call the fun
 
 ## Declarations and calls
 
-```carven
+```carven run
 fn subtotal(unit_price: i32, quantity: i32) -> i32 => unit_price * quantity;
 
 fn with_delivery(total: i32) -> i32 {
@@ -22,7 +22,7 @@ println(with_delivery(subtotal(12, 3))); // 41
 
 An ordinary named function requires types on all parameters. Names must be unique; `_` discards a parameter name and may repeat. A call supplies exactly the declared number of arguments, with matching types and Read/Write/Take markers. Functions do not overload and have no default or variadic parameters.
 
-The callee is evaluated first, then runtime arguments once from left to right. A concrete closure selects its object; a callable view saves its target description. The target reads its current captures after argument evaluation. Copy a closure explicitly when a separate capture snapshot is needed.
+The callee is evaluated first, then runtime arguments once from left to right. For closure targets and capture observations, see [snapshots at calls](/reference/closures/#snapshots-at-calls).
 
 An `async fn` returns an operation whose body starts when awaited or started as a child; see [async operations](/reference/async/). `const fn` permits a function to run during compilation when called from an explicit constant context; ordinary calls still run at runtime.
 
@@ -36,13 +36,7 @@ A body with no return operands infers `void`. Bare `return;` also requires `void
 
 ## Parameter access
 
-Read lets a function inspect an argument, Write (`&`) lets it change the caller's storage, and Take (`&&`) transfers the value to the function. These modes determine what the function may do; the following rules also determine when it observes the input's contents. See [access and ownership](/reference/ownership/) for examples.
-
-Read parameters snapshot pure Carven values and borrow Carven owned storage.
-For native-containing values, C++ chooses a const value when copy construction
-and destruction are both trivial, and a const reference otherwise. A parameter
-whose storage must survive the call uses a const reference throughout the call
-chain. Write permits mutation through borrowed storage; Take transfers ownership.
+Read lets a function inspect an argument, Write (`&`) lets it change the caller's storage, and Take (`&&`) transfers ownership to the function. Snapshot, borrowing, aliasing, and native parameter rules are defined by [access and ownership](/reference/ownership/).
 
 Function and lambda parameters may use recursive tuple targets, for example
 `fn sum((left, right): (i32, i32)) -> i32 => left + right;`. A tuple target
@@ -70,16 +64,17 @@ Use a type parameter when one function should work with more than one value type
 Declare type and failure-set parameters after the function name. The compiler checks the body against those parameters, even when the function is unused. A plain name declares a type parameter; `throw E` declares a
 failure-set parameter. The two kinds are distinct.
 
-```carven
+```carven run
 fn relay<T>(&&value: T) -> T => &&value;
 
 let number = 42;
 let result = relay(&&number);
+println(result); // 42
 ```
 
 An unknown type supports Read and Write access and whole-value Take. It provides
 no implicit copying, default construction, comparison, or formatting capability.
-Known arrays, slices, Tuple shapes, and nominal fields retain their ordinary
+Known arrays, slices, tuple shapes, and nominal fields retain their ordinary
 operations. Array extents and nominal failure payload types must be independent
 of type parameters. A failure-set parameter represents a set of those payload
 types, including the empty set.
@@ -128,7 +123,7 @@ Ownership analysis can combine borrowing relationships from different calls to t
 A named function parameter may declare an explicit static input with
 `const name: T`. Calls retain ordinary argument syntax and full source arity:
 
-```carven
+```carven run
 fn add(value: i32, const offset: i32) -> i32 {
     const adjusted = offset + 1;
     return value + adjusted;
@@ -140,6 +135,8 @@ fn example(value: i32) -> i32 {
     const offset = 2;
     return relay(value, offset);
 }
+
+println(example(10)); // 13
 ```
 
 The parameter is an immutable value, without source-addressable storage. It
@@ -201,7 +198,7 @@ arm is specialized
 and generated; local initializer roots and static call arguments in other arms
 are not evaluated during specialization:
 
-```carven
+```carven run
 fn scale(value: i32, const divisor: i32) -> i32 {
     const if divisor == 0 {
         return 0;
@@ -210,6 +207,8 @@ fn scale(value: i32, const divisor: i32) -> i32 {
         return value * factor;
     }
 }
+
+println(scale(2, 0), scale(2, 4)); // 0 50
 ```
 
 `scale(x, 0)` never evaluates `100 / divisor`.
@@ -224,7 +223,7 @@ whose source is static. The source evaluates once and remains alive during
 expansion. Each iteration's binding is a static value with the source element
 type, so it can supply static arguments and local constants:
 
-```carven
+```carven run
 fn add(value: i32, const offset: i32) -> i32 => value + offset;
 
 fn sum(value: i32, const count: i32) -> i32 {
@@ -234,6 +233,8 @@ fn sum(value: i32, const count: i32) -> i32 {
     }
     return total;
 }
+
+println(sum(2, 3)); // 9
 ```
 
 In a runtime body, `const alias = index` preserves the static stage;

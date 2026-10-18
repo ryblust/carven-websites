@@ -1,5 +1,5 @@
 ---
-title: "Characters, str, and String"
+title: "Characters and text"
 description: "UTF-8, owning text, view conversions, mutation restrictions, and borrow lifetimes."
 section: reference
 lesson: 14
@@ -56,13 +56,17 @@ elsewhere. Prefix combinations such as `fr`, `rf`, and
 Raw strings preserve backslashes and braces literally. Matching `#` characters
 extend their delimiters to distinguish the closing boundary from body text:
 
-```carven
+```carven run
 let path = r"C:\tools\bin\";
 let json = r#"{"name": "{name}"}"#;
 let example = r#"""
     A literal """ sequence.
     Backslashes such as \n remain text.
 """#;
+
+println(path);
+println(json);
+println(example);
 ```
 
 The first complete closing sequence ends the literal: one or three quotes,
@@ -75,12 +79,13 @@ on a separate line, preceded only by spaces or tabs; normal code such as `;`,
 `,`, or `)` may follow it. The closing line's indentation does not determine
 the string value.
 
-```carven
+```carven run
 let text = """
     Hello
       Carven
     World
 """;
+println(text);
 // Equivalent to "Hello\n  Carven\nWorld".
 ```
 
@@ -118,22 +123,7 @@ continuation and implicit adjacent-literal concatenation are not supported.
 
 ## Checked text construction
 
-`char::from_u32(value: u32) -> char throw UnicodeScalarError` accepts Unicode scalar
-values. Surrogates U+D800 through U+DFFF and values above U+10FFFF fail with
-`UnicodeScalarError { value }`.
-
-`str::from_utf8(bytes: [u8]) -> str throw UTF8Error` validates the complete byte
-slice and returns a view of the same storage. Empty input is valid. The view
-retains its input's backing relationship: the storage must remain alive and
-unchanged while the view is used. Convert the result with `as String` when an
-independent owner is needed.
-
-Import `UnicodeScalarError`, `UTF8Error`, and `UTF8ErrorKind` from `std::utf` when
-naming them. UTF failures carry zero-based byte offsets for the rejected byte and
-invalid sequence start; EOF truncation points at the input end. Kinds are
-`InvalidLead`, `InvalidContinuation`, `Overlong`, `Surrogate`, `TooLarge`, and
-`Truncated`. Both constructors support static and ordinary execution,
-with the usual typed failure and result-retention rules.
+Use `char::from_u32` for checked scalar conversion and `str::from_utf8` for a checked borrowed text view. These associated entries call the source functions documented under [UTF encoding, decoding, and validation](/reference/utf/#encoding-decoding-and-validation), including their signatures, imports, error payloads, and execution support. Copy a returned `str` with `as String` when independent ownership is needed.
 
 ## Unchecked text construction
 
@@ -202,9 +192,13 @@ require matching storage types. Without a `str` context, `let copy = owner`
 retains String value semantics; `let view = owner.as_str()` explicitly creates a
 view. Borrowing neither allocates nor extends the owner's lifetime.
 
-Constant expressions and functions can construct and retain owning String values. Constant
-initializers preserve `String`, including nested fields and elements. A `str`
-destination or `as_str()` explicitly selects a retained read-only text view.
+```carven run
+var owner: String = "hello";
+let copy = owner;          // Independent String
+let view = owner.as_str(); // Borrowed str
+println(copy, view); // hello hello
+```
+
 String literal patterns, indexing, ordering, truthiness, concatenation,
 direct iteration, and access to C++ container members are unsupported.
 Nonempty `String { ... }`, `String(...)`, and `String as str` are invalid.
@@ -237,11 +231,12 @@ Temporary views keep their backing borrowed until the consuming operation
 finishes, including evaluation of its remaining operands. An independent result
 ends that borrow when no other view remains. For example:
 
-```carven
+```carven run
 var text: String = "hello";
 text = text.as_str() as String;
 let snapshot = text;
 text.append(snapshot);
+println(text); // hellohello
 ```
 
 The RHS copy finishes before assignment writes. Similarly,
@@ -274,97 +269,21 @@ Completed effects are retained on failure; mutation is not rolled back.
 Builtin String construction accepts valid text and scalars. Allocation failure
 and unrepresentable lengths terminate.
 
+## Static execution
+
+String construction, mutation, queries, byte and character traversal, and checked and unchecked text construction support static execution. Completed `String` constants retain their owning type, including nested fields and elements. An explicit `str` destination or character view retains immutable program-lifetime backing.
+
+[Compile-time computation](/reference/constants/) defines execution checks and budgets. C string execution, pointer comparison, and formatting are described under [C strings](/reference/interop/#c-strings).
+
 ## String interpolation
 
-An `f"..."` or `f"""..."""` expression produces an independent owning `String`, including `f""`
-and text without holes. `String.append_format` consumes this syntax directly as
-formatting content, as described below. Ordinary string literals remain `str`.
+Use `f"..."` to construct an independent owning `String` from text and expressions. Use `append_format` to append a direct interpolation to an existing writable String:
 
-```carven
+```carven run
 let name = "Ada";
-let price = 12.5;
-let count = 3;
-let id = 42;
-let value = 1.25;
-let width = 8;
-let precision = 2;
-println(f"Hello, {name}!");
-println(f"Total: {price * (count as f64):.2f}");
-println(f"ID: {id:08x}");
-println(f"{{value}} = {value}");
-println(f"{value:{width}.{precision}f}");
+var message = f"Hello, {name}!";
+message.append_format(f" Count: {3:02}");
+println(message); // Hello, Ada! Count: 03
 ```
 
-A hole contains an ordinary expression and an optional `:` format specification.
-Formatting follows `std::format` rules for escaped braces, alignment, width,
-precision, and type options. Dynamic width and precision holes contain Carven
-expressions. Carven may precompute supported builtin formatting for all or part
-of an ordinary interpolation or directly perform supported integer conversions,
-while preserving these formatting rules, owning results, and required operand
-evaluation. Other format checks
-and formatter availability are delegated to the C++ compiler. Custom C++
-formatters receive their format specifications through the same mechanism.
-
-Hole expressions, including dynamic format arguments, are evaluated once in
-source order before formatting. Each hole has Read access. Direct `&` and `&&`
-argument markers are rejected; nested calls retain their declared access rules.
-Scalar Read values are saved, while String Read values alias their owners.
-String formatting reads the contents after all holes finish evaluating. Text
-views keep their backing borrowed throughout hole evaluation and formatting.
-The result is independent of its inputs; named views keep their usual lifetimes.
-
-`String` uses standard string formatting. A `char` is encoded as UTF-8 and also
-uses standard string formatting, including width and precision. Integer formatting
-follows the corresponding standard integer formatter's rules. Other values use
-their C++ representation and corresponding `std::formatter`; Carven supplies no
-aggregate, enum, or callable formatting protocol.
-
-Interpolation supports ordinary expression composition and failure propagation.
-An early failure skips later holes and formatting, retaining completed effects
-and destroying temporary values. Discarding the result still executes formatting.
-Static interpolation supports default integer, bool, char, unit, text, and known
-C string formatting. Integer presentations are `b`, `B`, `o`, `d`, `x`, and `X`,
-with decimal width and optional zero padding. Floating formatting uses native
-standard-library conversion for `f32`/`f64`, accepting alignment, Unicode fill,
-sign, alternate form, zero padding, width, precision, and `a/A/e/E/f/F/g/G`, but
-not locale-dependent `L`. Erased pointers accept an empty specification or `p`.
-Dynamic integer widths and floating widths/precisions must be nonnegative integers;
-width, precision, and output bytes are bounded by the static text budget. Unsupported
-specifications produce an execution diagnostic.
-
-For example,
-`const title = f"build-{42:04}";` retains an owning `String` constant, and
-`const bytes = f"{'我'}".byte_length();` produces `3usize`. Nested calls, `String {}`,
-`String::from_str(...)`, `.as_str()`, `.byte_length()` and `.is_empty()` compose before
-initializer completion. Each constant interpolation is limited to 1 MiB of
-result text; unsupported formatting is diagnosed without runtime fallback.
-Interpolation remains excluded from literal patterns and positions requiring
-an ordinary literal. Ordinary runtime interpolation retains String ownership.
-
-`destination.append_format(f"...")` appends formatted content to an existing
-writable String and returns `void`. It requires exactly one direct interpolation;
-grouping is allowed, but a String value, plain literal, or argument access marker
-is not accepted. The method does not construct an intermediate source-level
-String from the interpolation.
-
-The receiver is selected once before the holes. All holes then follow the Read
-evaluation and observation rules above, before appending begins. Formatting inputs
-must not borrow or alias the destination's storage during formatting; this includes
-String Read aliases. Existing views also prevent mutation, even when the content
-is known or empty. Scalar queries such as `text.append_format(f"{text.byte_length()}")`
-can supply a snapshot without borrowing text storage. Native callers and formatter
-providers must preserve this separation through indirect aliases and reentrant calls.
-
-A failing receiver or hole skips the append and later operands, preserving completed
-effects, including mutations performed by earlier holes. Once formatting begins,
-there is no rollback guarantee on termination. The method is also available in
-static execution under the same formatting subset and execution budgets.
-
-Formatting preserves internal NUL and produces valid UTF-8 on normal completion.
-The compiler may omit the final UTF-8 scan when operand types and supported static
-specifications prove the output valid. Other outputs retain runtime validation;
-this implementation choice does not change the source operation's contract.
-Invalid UTF-8, allocation failure, and runtime formatting errors terminate;
-they do not introduce typed failures. C++ formatter retention and reentry remain
-provider/caller responsibilities. Callable-view and Write-capture boundary
-restrictions still apply.
+See [interpolation, formatting, and output](/reference/formatting/) for format specifications, evaluation, append restrictions, compile-time formatting, and errors.

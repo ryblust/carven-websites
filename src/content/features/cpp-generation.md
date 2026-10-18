@@ -1,5 +1,5 @@
 ---
-title: "From a Carven module to a C++ project"
+title: "C++ generation and native integration"
 description: "Follow a stream collector into generated headers and implementations, including ownership and cleanup."
 section: cpp-generation
 source: docs/compiler/backend/README.md
@@ -23,6 +23,8 @@ Its C++ provider returns a text view that is valid until the next read. Carven c
 
 ## Connect to an existing C++ project
 
+Use `import(cpp)` for the stream provider and `export(cpp)` for the collection entry. The [interop reference](/reference/interop/) covers these declarations, header imports, and inline C++ fragments.
+
 An `export(cpp)` function receives a self-contained API header under `carven/api/<canonical-module-path>.hpp`. The host includes it and calls the function in its `carven::api` module namespace. A concrete `import(cpp)` declaration also gets a `carven/providers` header with aliases for its signature types; C++ still supplies the provider declaration and implementation.
 
 Run the complete host example from the compiler repository root:
@@ -33,15 +35,13 @@ Run the complete host example from the compiler repository root:
 ./xmakew run carven-example-stream-collector
 ```
 
-The host keeps its streams alive during collection and receives a report with independent strings. Xmake arranges source generation, native compilation, and linking. For a manual build, `carven compile -o out` writes the generated files; supply the required native support sources, include paths, and libraries as well. `compile --stdout` displays the artifacts for inspection.
+The host keeps its streams alive during collection and receives a report with independent strings. Xmake arranges source generation, native compilation, and linking. The [toolchain reference](/reference/toolchain/) gives manual build commands and native support requirements.
 
 ## Keep evaluation and cleanup in the right order
 
 Consider an aggregate whose first field is constructed successfully but whose second field fails. The first value must remain valid while the second is evaluated, then be cleaned up on the failure path. The generated C++ arranges temporaries, scopes, and result construction to preserve that behavior.
 
-Carven evaluates operands once, from left to right on the selected path. Read parameters preserve the required observations of their inputs; Write permits mutation; Take transfers an owner and makes the source unavailable. A named return copies unless it uses `return &&owner`. C++ checks the construction requirements of native components, including any copy or move needed for intermediate storage.
-
-A Carven class uses the same model. Its fields determine storage and cleanup; generated ordinary functions implement its explicit receivers. The class declaration itself adds no inheritance, virtual dispatch, or allocation.
+These temporaries preserve the [ownership and evaluation rules](/reference/ownership/). Native component types must support the copies or moves needed by the generated construction.
 
 ## Organize headers from type dependencies
 
@@ -49,13 +49,11 @@ Some declarations need a complete definition of another type. The compiler group
 
 Before generation, analysis checks source types, access, ownership, failure sets, and async use. The backend consumes that checked program to choose representations and construct C++ syntax. Native overloads, templates, layout, and machine-code optimization remain C++ toolchain work. The [architecture article](/internals/compiler-architecture/) follows the handoffs in detail.
 
-## Carry async work through the same interface
+## Export an asynchronous entry point
 
-An async call returns a cold operation: work that starts when awaited or started as a child. Generated C++ implements source async functions with coroutines. The driver runs ready continuations on one thread and services input, event sources, and timers.
+`export(cpp) async fn` exposes an `AsyncOperation` in the generated API. The host starts an exported root with `drive_root(operation, &source)`, supplying the event source and keeping native resources alive until the root and its children finish. The generated implementation uses C++ coroutines.
 
-`when_all` keeps results in input order. Selection and timeout operations wait for their children to close before delivering an outcome. That wait protects borrowed data until the work and its provider cleanup have finished.
-
-`export(cpp) async fn` exposes an `AsyncOperation` in the generated API. The native host drives it with its context and event source, retaining resources until execution and child closure finish. A cancellation request alone does not prove that a native callback has stopped accessing its state; see [the runtime boundary](/internals/runtime-boundary/).
+[Built-in capabilities and runtime support](/internals/runtime-boundary/) explains the driver and provider cleanup. Native exception handling is defined at the [noexcept boundary](/reference/interop/#noexcept).
 
 ## Reuse what analysis already established
 

@@ -11,7 +11,7 @@ A log processor needs to distinguish a missing field from an invalid number, but
 
 Here `RecordError` keeps the application-level cases. `InvalidLatency` also carries the original numeric parse error. `throw RecordError` in the function signature tells callers what can fail; each `?` marks where a failure leaves the current expression.
 
-```carven
+```carven run
 import std::core using NumberParseError;
 import std::utf using { split_once, TextError };
 
@@ -63,24 +63,12 @@ When `u64::parse` fails, its catch arm wraps the error as `RecordError::InvalidL
 
 A layer can preserve independent failure types with `throw A + B`, allowing callers to recover from either type directly. The parser above takes another useful approach: it maps library failures into cases of its own `RecordError`. Choose the interface that gives callers the information they need.
 
-Private helpers, lambdas, and the implicit entry infer the failures produced by their calls. Functions visible to other modules, and an explicit `main`, declare what they may propagate. The compiler checks that the body stays within this allowed set. Callers follow the declaration, including alternatives that the current body does not produce.
+The [failure reference](/reference/failures/) defines when to declare a failure set and when it can be inferred.
 
-## Recover from one failure and propagate the rest
+A handler can recover the failures its layer understands and leave the rest to its caller. See [partial catches and residual sets](/reference/failures/#partial-catches-and-residual-sets) for coverage, guarded patterns, and `rethrow`.
 
-The [configuration example](/playground/#example=typed-failures) returns a default port for `Missing`, while `Denied` and `BadPort` still reach the caller. The compiler derives that remaining set from the recovery. If the function declares only `Denied`, its body is rejected because `BadPort` can still escape.
-
-A guarded arm or a pattern covering only some payloads may leave a failure type unhandled. Complete coverage removes it; `rethrow` forwards the original failure. These checks continue to apply when an implementation changes, so deleting a recovery arm can require updating its public contract.
-
-## Use the same contract with async work
-
-An `async fn` declares its successful result and possible failures. Calling it creates work that has not started; `await operation()?` awaits completion and then propagates a failure. `when_all` combines the input failure sets. `first_successful` can keep waiting after a candidate fails. [Run the batch workflow](/playground/#example=async-workflow).
-
-Cancellation is a separate completion. It requests that work stop, and child closure waits for the work and cleanup before releasing borrowed data. A timeout can therefore select `Timeout` while cleanup still takes time. The [async tutorial](/learn/async/) explains this lifecycle.
+Async functions use the same failure contract: `await operation()?` awaits completion and propagates a failure. The [batch workflow](/playground/#example=async-workflow) applies it to several operations. Composition, cancellation, and cleanup are covered in the [async reference](/reference/async/).
 
 ## Distinguish recovery from stopping execution
 
-Use typed failures for conditions the caller can handle. `assert` reports a broken invariant and stops execution; `check` reports a failed test assertion. Executor limits and invalid runtime operations do not become failures that `catch` can recover.
-
-C++ exceptions require a native adapter if recovery is needed: the adapter catches the exception and returns an explicit result or Carven failure. An exception escaping a generated `noexcept` boundary terminates. See [interop](/learn/interop/) for this boundary and [the failure reference](/reference/failures/) for propagation and coverage.
-
-Generated C++ uses result carriers and branches to implement these choices. C++23 `std::expected`, `std::variant`, and library combinators can provide the corresponding result and control flow; Carven checks failure composition and coverage as part of the language.
+Use typed failures for conditions the caller can handle, and assertions for broken invariants. [Failures and termination](/reference/failures/) distinguishes recoverable failures from stopping execution; [C++ interop](/reference/interop/#noexcept) defines native exception handling.

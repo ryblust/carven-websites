@@ -6,7 +6,7 @@ export const Route = createFileRoute('/zh/design')({
   head: () =>
     pageHead(
       '设计与原理',
-      '从整体编译器架构，到语义分析、C++ 生成、运行库与语言设计，读懂 Carven。',
+      '了解 Carven 的设计取舍、类型推断、失败处理与编译期执行，再沿编译流程理解运行支持和 C++ 集成。',
       '/zh/design/',
     ),
   component: () => <Design locale="zh" />,

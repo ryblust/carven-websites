@@ -26,6 +26,7 @@ async function render(content: ReactNode) {
   document.body.append(host);
   root = createRoot(host);
   await act(() => root!.render(content));
+
   return host;
 }
 

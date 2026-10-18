@@ -1,8 +1,8 @@
 ---
-title: 形式语法与优先级
+title: "语法与优先级"
 description: 完整 EBNF 产生式、结合性、分隔规则和控制头部消歧。
 section: reference
-lesson: 26
+lesson: 25
 source: docs/language/grammar.md
 ---
 
@@ -10,7 +10,7 @@ source: docs/language/grammar.md
 
 需要确认 token 的准确顺序，或判断一段代码如何解析时，查阅本附录。日常写法与例子可从[参考目录](/zh/reference/)进入对应主题。下面的 EBNF 描述语法，类型、所有权与失败规则继续决定语法正确的程序是否有效。
 
-以下全部 EBNF 块逐字对应当前编译器规范。标准类型名是普通绑定，可通过导入别名访问或被遮蔽。函数与名义类型支持类型参数及失败集合参数；元组绑定目标与模式可递归，`()` 表示 单元值，异步形式使用其对应产生式。
+下文按词法、声明、类型、语句和表达式列出产生式。标准类型名是普通绑定，可通过导入别名访问或被遮蔽。函数与名义类型支持类型参数及失败集合参数；元组绑定目标与模式可递归，`()` 表示单元值，异步形式使用其对应产生式。
 
 ## 优先级
 
@@ -18,17 +18,17 @@ source: docs/language/grammar.md
 
 ## 解析边界
 
-语句开头未加括号的 if/match/try 是完整控制语句。分支内表达式后有分号是语句，直接跟右花括号是结果候选；嵌套控制继承所在位置的语法角色。branch-block 不是一般块表达式。各逗号列表仅在产生式明确允许时可有一个尾逗号，尾逗号不创建空项；简写 return/throw/rethrow/break/continue arm 无分号，多条语句使用分支块。
+语句开头未加括号的 if/match/try 是完整控制语句。分支内表达式后有分号是语句，直接跟右花括号是结果候选；嵌套控制继承所在位置的语法角色。branch-block 不是一般块表达式。各逗号列表仅在产生式明确允许时可有一个尾逗号，尾逗号不创建空项；简写的 return/throw/rethrow/break/continue 分支不带分号，多条语句使用分支块。
 
-T { ... } 显式构造，省略类型的 { ... } 仅接受具名字段或空初始化器，需要期望类型。在 match/catch arm 开头，左花括号后若为 IDENTIFIER : 则为构造，否则为分支块；因此 {} 是空块，({}) 才是空构造。函数和控制体仍是块。T(...) 总解析为调用，不依赖名字含义。
+T { ... } 显式构造，省略类型的 { ... } 仅接受具名字段或空初始化器，需要期望类型。在 match/catch 分支开头，左花括号后若为 IDENTIFIER : 则为构造，否则为分支块；因此 {} 是空块，({}) 才是空构造。函数和控制体仍是块。T(...) 总解析为调用，不依赖名字含义。
 
-需要紧接 body 的控制头，在最外层定界深度遇到的 { 总是 body 开始；在此使用构造须加括号。此规则同样用于 if、match、循环 iterable、区间边界及 C-style for 最后 step。is 总开始约束模式；裸名字是绑定，不查询符号表；.Case/Owner::Case 是 case 模式，语义再检查身份与元数。模式中的 | 属于或模式，不是位或。
+控制语句头部后面需要紧接语句体，因此在头部最外层遇到的 { 始终表示语句体开始；要在这里使用构造表达式，须加括号。此规则同样适用于 if、match、循环的遍历源、区间边界，以及 C 风格 for 的最后一个步进表达式。is 总开始约束模式；裸名字是绑定，不查询符号表；.Case/Owner::Case 是 case 模式，语义再检查身份与元数。模式中的 | 属于或模式，不是位或。
 
-## 异步与积语法
+## 异步、元组与泛型
 
-await action()? 的 ? 作用于等待后的 completion；await (action()?) 的传播位于 operand 内。要对等待结果取成员/索引或调用须写 (await action()).member；await action().member 的后缀属于被等待的 operand。async let 要求单个具名目标，cancel 语句命名当前词法子任务。const async fn 与 async const fn 表示同样两种修饰。
+await action()? 的 ? 作用于等待后的完成结果；await (action()?) 的传播位于操作数内。要对等待结果取成员/索引或调用须写 (await action()).member；await action().member 的后缀属于被等待的操作数。async let 要求单个具名目标，cancel 语句命名当前作用域内的子任务。const async fn 与 async const fn 表示同样两种修饰。
 
-(value) 分组，(value,) 单元素元组，() 为 单元值，类型与模式使用同样区分。递归 tuple target 与 Write binding 的准入、拥有权和穷尽性由语义检查；位置字段须无前导零的十进制整数。泛型类型实参和失败集合实参分别使用普通类型与 throw 子句种类。
+(value) 分组，(value,) 单元素元组，() 为单元值，类型与模式使用同样区分。递归元组目标与 Write 绑定是否合法，以及所有权和穷尽性是否满足要求，由语义检查决定；位置字段须无前导零的十进制整数。泛型类型实参和失败集合实参分别使用普通类型与 throw 子句种类。
 
 ## 01 · 记号
 
@@ -40,6 +40,15 @@ repeated   = { element };
 grouped    = ( first | second ), suffix;
 ```
 
+记号含义如下：
+
+- 引号内的文本是终结符拼写。
+- `UPPER_SNAKE_CASE` 名字表示词法 token，`lower-kebab-case` 名字表示语法非终结符。
+- `,` 表示连接，`|` 表示选择。
+- `[ x ]` 表示零次或一次，`{ x }` 表示零次或多次。
+- `( x )` 为记号分组；引号中的括号则是源代码字符。
+- `where` 后的说明给出产生式额外要求的语法条件。
+
 ## 02 · 源文本
 
 ```text
@@ -50,6 +59,8 @@ whitespace = horizontal-space | line-terminator;
 line-comment = "//", { source-character - line-terminator },
                [ line-terminator ];
 ```
+
+所有源码（包括 C++ 源片段）都必须是有效 UTF-8。标识符只使用 ASCII；Unicode 字符可出现在注释、字符串、C++ 头文件名和源片段中。普通空白与行注释在词法分析后丢弃，字面量和源片段内部内容按各自规则保留。普通 Carven 源码没有块注释，C++ 源片段的内容不按 Carven token 解析。
 
 ## 03 · 标识符
 
@@ -138,6 +149,12 @@ single-line-string = "\"",
 STRING_LITERAL = single-line-string | multiline-string | raw-string;
 ```
 
+字符与单行字符串必须在起始行结束。字符解码后恰好有一个 Unicode 标量；Unicode 转义允许 U+0000 到 U+10FFFF，但排除代理项 U+D800 到 U+DFFF。字面量不执行 Unicode 归一化，也不隐式拼接相邻字符串。
+
+`multiline-string` 用三引号开始，后面紧接 LF 或 CRLF。结束三引号位于单独一行，可有前导空格或制表符，结束后可接普通代码。解码移除公共缩进，并把物理换行规范为 LF。
+
+`raw-string` 用紧邻的 `r`、零个或多个 `#`、一个或三个引号开始；结束定界符使用相同引号数与井号数。单引号形式为单行，三引号形式遵循多行布局。正文不处理转义或插值。各文本形式的例子见[词法与字面量](/zh/reference/lexical/#字符和字符串)。
+
 ## 07 · 插值
 
 ```text
@@ -169,6 +186,18 @@ CPP_SOURCE_FRAGMENT = "#[cpp]",
                       horizontal-space, { horizontal-space },
                       cpp-fence, { horizontal-space }, line-terminator,
                       cpp-source-tail;
+```
+
+## 标点符号
+
+词法分析使用最长匹配。标点符号集合如下：
+
+```text
+( ) [ ] { } , . .. ..= : ;
++ - * / % ! ? = < > & | ^ ~
++= -= *= /= %= != == <= >= ++ --
+&& || << >> &= |= ^= <<= >>=
+-> => ::
 ```
 
 ## 10 · 模块与顶层项
@@ -248,6 +277,17 @@ import-selection = import-item | "*" | using-list;
 import-item = IDENTIFIER, [ "as", IDENTIFIER ];
 
 using-list = "{", import-item, { ",", import-item }, [ "," ], "}";
+```
+
+在提供下列模块与原生头文件的编译批次中，可以使用这些导入形式：
+
+```carven
+import math using answer;
+import .math using *;
+import json::parser using parse;
+import geometry.vector using { Point, length };
+import <cstdint>;
+import "native/provider.hpp";
 ```
 
 ## 12 · 枚举

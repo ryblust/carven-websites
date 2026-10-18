@@ -21,6 +21,7 @@ function highlighting(source: string) {
     ]),
     (from, to, style) => spans.push({ from, to, style }),
   );
+
   return {
     styleAt: (position: number) =>
       spans.find(({ from, to }) => from <= position && position < to)?.style,

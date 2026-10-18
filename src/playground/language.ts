@@ -18,10 +18,12 @@ interface Quoted {
   multiline: boolean;
   interpolated: boolean;
 }
+
 interface Hole {
   kind: 'hole';
   depth: number;
 }
+
 interface State {
   contexts: (Quoted | Hole)[];
   importPath: boolean;
@@ -38,9 +40,11 @@ function opening(stream: StringStream): Quoted | undefined {
       interpolated: false,
     };
   }
+
   const quoted = stream.match(/^(f?"""|[fc]?"|')/);
   if (!quoted || typeof quoted === 'boolean') return;
   const delimiter = quoted[0].replace(/^[fc]/, '');
+
   return {
     kind: 'quoted',
     closing: delimiter,
@@ -54,6 +58,7 @@ function opening(stream: StringStream): Quoted | undefined {
 // quotes/comments from accidentally terminating the surrounding literal.
 function quotedToken(stream: StringStream, state: State): string {
   const character = state.contexts[0]?.kind === 'quoted' && state.contexts[0].closing === "'";
+
   while (!stream.eol() && state.contexts.length) {
     const current = state.contexts.at(-1)!;
     if (current.kind === 'hole') {
@@ -85,12 +90,14 @@ function quotedToken(stream: StringStream, state: State): string {
       stream.next();
     }
   }
+
   // Single-line literals recover at the line boundary. Newlines inside an
   // interpolation hole are permitted; a nested single-line literal still ends.
   const current = state.contexts.at(-1);
   if (stream.eol() && current?.kind === 'quoted' && !current.multiline) {
     state.contexts.pop();
   }
+
   return character ? 'character' : 'string';
 }
 
@@ -112,6 +119,7 @@ export const carvenLanguage = StreamLanguage.define<State>({
         return 'namespace';
       }
     }
+
     const quoted = opening(stream);
     if (quoted) {
       state.contexts.push(quoted);
@@ -124,6 +132,7 @@ export const carvenLanguage = StreamLanguage.define<State>({
     ) {
       return 'number';
     }
+
     const identifier = stream.match(/^[A-Za-z_][A-Za-z0-9_]*/);
     if (identifier && typeof identifier !== 'boolean') {
       const name = identifier[0];
@@ -138,12 +147,14 @@ export const carvenLanguage = StreamLanguage.define<State>({
         return 'typeName';
       }
       if (stream.match(/^\s*\(/, false)) return 'variableName.function';
+
       return /^[A-Z]/.test(name) ? 'typeName' : 'variableName';
     }
     if (stream.match(/^[()[\]{}]/)) return 'bracket';
     if (stream.match(/^(?:\.\.=|\.\.|[+\-*/%=!<>~&|^?:]+)/)) return 'operator';
     if (stream.match(/^[,;.]/)) return 'punctuation';
     stream.next();
+
     return null;
   },
   languageData: {

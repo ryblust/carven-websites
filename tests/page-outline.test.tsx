@@ -26,11 +26,13 @@ describe('responsive page outline', () => {
       return frame;
     });
     vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
+
     const flushFrames = () => {
       const pending = [...frames.values()];
       frames.clear();
       for (const callback of pending) callback(0);
     };
+
     let nextTop = window.innerHeight;
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
       this: HTMLElement,

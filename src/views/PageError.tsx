@@ -7,6 +7,7 @@ export default function PageError({ reset }: ErrorComponentProps) {
   });
   const locale = localeOf(pathname);
   const t = translate(locale);
+
   return (
     <div className="error-page container">
       <h1>{t('页面暂时无法显示。', 'This page could not be displayed.')}</h1>

@@ -10,7 +10,7 @@ source: docs/language/json.md
 
 每行读取一个 JSON 对象。对象必须包含 0 到 1000000 的整数 amount。接受有效记录。遇到无效记录时，把原因报告到 stderr，然后继续处理下一条。EOF 时向 stdout 输出一条 JSON 汇总。
 
-把金额校验与读取分开，就能不依赖整条输入流而测试单条记录。stdout 保存供其他程序读取的汇总，stderr 则显示给人看的拒绝说明。
+把金额校验与读取分开，就能不依赖整条输入流而测试单条记录。stdout 输出供其他程序读取的汇总，stderr 则显示给人看的拒绝说明。
 
 amount_of 解析并检查一条记录，main 逐行读取并累计合法金额，summary 构造最终 JSON。末尾两条测试直接检查 amount_of。把完整文件保存为 ledger.cv：
 
@@ -61,6 +61,7 @@ async fn main() throw IOError + ValueError {
             },
         }
     }
+
     println(summary(accepted, total)?);
 }
 
@@ -70,6 +71,7 @@ const test "valid amount" {
     } catch {
         _ => fail("valid record must succeed"),
     };
+
     check(amount == 1250);
 }
 
@@ -105,36 +107,38 @@ stdout 输出：
 {"count":2,"total":2000}
 ```
 
-stderr 另报告 `Amount outside policy: -1`，编译器状态或诊断行也可能写入这个通道。`carven check ledger.cv` 执行两个静态测试，不消费 stdin，也不执行 main。
+stderr 另报告 `Amount outside policy: -1`，编译器状态或诊断行也可能写入这个通道。`carven check ledger.cv` 执行两个静态测试，不读取 stdin，也不执行 main。
 
-## 在每个边界拥有数据
+## 让每条记录使用独立数据
 
 read_line 返回冷操作。await 后得到 `.Data(String)` 或 `.End`。空行是数据，会在 JSON 解析时失败，不是 EOF。LF 及其前面的 CR 被移除；最后一行没有换行也会返回一次。4096 限制按内容字节计数，不按 Unicode 字符计数。
 
-每行拥有自己的字节。Value::parse 构造独立 JSON 树；get 返回独立子值。amount_of 返回数字，因此没有借用视图离开调用，也无需跨迭代保留输入缓冲区。
+每行 String 管理自己的文本存储。Value::parse 构造独立 JSON 树；get 返回独立子值。amount_of 返回数字，因此没有借用视图离开调用，也无需跨迭代保留输入缓冲区。
 
-summary 新建 JSON 对象，并把 count 与 total 放进去。插入顺序使 count 在 total 前。JSON 写出产生独立 String。JSON 数字保留原始拼写；as_i64 有意拒绝浮点拼写和超出 i64 的值，不会静默舍入。
+summary 用 `Value::object()` 创建空 JSON 对象。set 插入键，并通过 `&&` 接收对应的值；`Value::integer` 和 `Value::unsigned_integer` 构造 JSON 数值。先插入 count，再插入 total，因此输出按这个顺序排列成员。to_json 把完整 JSON 返回为 String。
 
 ## 区分数据不合法与输入不可用
 
 每条记录的 try 只处理数据失败。缺少键、根类型不符或金额非整数属于 ValueError；语法损坏属于 JSONError；可表示但超出业务范围的整数属于 InvalidAmount。
 
-IOError 从 main 传播，因为输入源不可用、UTF-8 无效、行过长都需要在流级别作决定。行限制失败保留缓冲输入，使用相同上限盲目重试不会推进。应选择更大上限、切换原始分块恢复，或停止。本程序选择停止，让入口报告类型化失败并返回失败状态。
+IOError 从 main 传播，因为输入源不可用、UTF-8 无效、行过长都需要由整个输入流程决定如何处理。行过长时，缓冲区中的输入会保留；使用相同上限重试仍会遇到同样的限制。可以增大上限，改为读取原始字节块并恢复，或停止处理。本程序选择停止，让入口报告类型化失败并返回失败状态。
 
-整数运算回绕，所以运行总计在加法前用断言检查剩余范围。这个例子把账本容量耗尽视为不变量失败，不提供自动回滚或捕获。需要可恢复容量拒绝的服务应声明独立失败，并测试对应策略。接受记录计数也假设输入条数可由 usize 表示。
+整数运算会回绕，因此在累计金额前，用断言检查剩余范围。总额超出 i64 时，本例停止执行；记录计数则假设在 usize 范围内。
 
-## 把校验变成可复用的准备工作
+## 在编译期和运行时复用校验
 
-同一个 amount_of 在编译期和运行时执行。静态测试覆盖成功与策略失败；继续加入损坏 JSON、缺失 amount、小数拼写和最大合法值。测试里处理每个声明的失败。
+同一个 amount_of 在编译期和运行时执行。静态测试覆盖成功与策略失败；继续加入格式错误的 JSON、缺失 amount、小数写法和最大合法值。测试里处理每个声明的失败。
 
 添加普通运行时 test 后，用 `carven --tests ledger.cv` 执行。测试跳过应用入口。入口保持为读取、校验、累计、写出的小流程；解析与汇总构造可以不依赖 stdin 而复用。
 
 ## 换用其他输入源
 
-单个有上限的文档可用 `await stdin().read_text(limit)?`；任意字节块可用 read(max_bytes) 或 read_all(limit)。记录跨块时，`std::io` 提供 ByteLines 与 LineFramer。需要独立恢复无效记录时，先按字节分帧，再验证完整记录的 UTF-8。
+需要读取完整文档或字节块时，在[输入参考](/zh/reference/io/)中选择相应操作。其中也介绍了跨字节块分帧，以及分别验证每条记录 UTF-8 的方法。
 
-同样的分帧与解析核心可处理 std::net 的 TCP 块。原生 C++ 宿主必须提供连接与事件源，维持生命周期并驱动导出的异步根。写入可能只完成一部分；`write_all(view, &&bytes)` 保留拥有缓冲区直到完成。这里的网络能力不包括建立连接、DNS 或 TLS。改写前先查看[标准库参考](/zh/reference/library/)。
+改用 TCP 输入时，查阅[网络参考](/zh/reference/net/)中的连接准备、宿主集成和生命周期要求。
 
 ## 练习
 
 加入必需的 category 字符串，为两个已知分类分别累计。保留 JSON 借用字符串前，先复制成 String。stdout 专用于结果，拒绝原因写到 stderr。加一条测试证明拒绝记录不改变任何总计，再测试没有最终换行的 EOF。
+
+接着学习 [Carven 语言服务器](/zh/learn/lsp/)，把 JSON、字节流和异步任务用于一个开发工具。

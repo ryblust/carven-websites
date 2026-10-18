@@ -1,5 +1,5 @@
 ---
-title: Branches, loops, and control transfers
+title: "Control flow and patterns"
 description: Syntax, execution, and restrictions for if, while, for, match, break, continue, and return.
 section: reference
 lesson: 6
@@ -27,7 +27,7 @@ Control statements select branches, repeat execution, or leave the current flow.
 
 A statement-form `if` can omit `else`. Conditions are checked in order, and the first true branch executes. If none succeeds, the `else` branch executes when present. Numbers and pointers do not implicitly convert to `bool`.
 
-```carven
+```carven run
 let score = 75;
 if score >= 90 {
     println("excellent");
@@ -38,9 +38,9 @@ if score >= 90 {
 }
 ```
 
-This prints `pass`. A value-form `if` requires `else`. Each normally completing branch ends with a compatible result expression, without a semicolon after that expression.
+This prints `pass`. A value-form `if` requires `else`. To produce a result other than `void`, each normally completing branch ends with a compatible result expression, without a semicolon after that expression. A branch block without a final expression produces `()`, the `void` value.
 
-```carven
+```carven run
 let score = 75;
 let status = if score >= 60 { "pass" } else { "retry" };
 println(status); // pass
@@ -56,7 +56,7 @@ let result = if true { 1 }; // Compile error: value-form if requires else.
 
 `while condition { ... }` checks the condition before each iteration. A false condition ends the loop, possibly without any iteration. `while { ... }` omits the condition and suits flows that explicitly exit inside the body.
 
-```carven
+```carven run
 var count = 0;
 while count < 3 {
     println(count);
@@ -66,7 +66,7 @@ while count < 3 {
 
 This prints 0, 1, and 2. A conditionless loop:
 
-```carven
+```carven run
 var count = 0;
 while {
     if count == 3 {
@@ -85,14 +85,13 @@ Only `while { ... }` is analyzed as not ending by itself. `while true { ... }` r
 
 `for name in source { ... }` iterates integer ranges, arrays, Vectors, read-only slices, or text character views. A binding may have a type annotation. Writable arrays and Vectors permit `for &name in source` to modify elements.
 
-```carven
+```carven run
 var values = [1, 2, 3];
 for &value in values {
     value *= 2;
 }
-let view = values.slice();
-for index in 0..view.length() {
-    println(view[index]);
+for index in 0..values.length() {
+    println(values[index]);
 }
 ```
 
@@ -100,7 +99,7 @@ This prints 2, 4, and 6. The literal `0` receives `usize` from the length operan
 
 An integer-range loop snapshots its range on entry; later changes to the source range or its original bounds do not change the traversal. Integer range bindings cannot be Write. Slices and character views permit only Read. Range bindings cannot be Taken, and their names are not visible in their own type or range source.
 
-Array iteration retains access to the source owner until exit, preventing Take of the whole array during iteration. Writing an element does not restore an unavailable whole array. Elements are accessed only after cursor validity is established, and the end check reads no out-of-bounds element.
+Array and Vector iteration retain access to the source owner until exit, preventing whole-owner Take during iteration. Vector iteration also prohibits structural changes such as `push`, `remove`, and `clear`; Write iteration may update existing elements. Writing an element does not restore an unavailable whole array. Elements are accessed only after cursor validity is established, and the end check reads no out-of-bounds element.
 
 ### C-style form
 
@@ -112,7 +111,7 @@ for initializer; condition; step1, step2 {
 
 The header has no surrounding parentheses. Initialization and steps are optional; the condition is required and must be `bool`. The loop establishes its own scope, initializes once, checks the condition, executes the body, then executes steps in written order.
 
-```carven
+```carven run
 var total = 0;
 for var index = 0; index < 4; ++index {
     total += index;
@@ -126,7 +125,7 @@ Steps admit assignment, prefix increment/decrement, and ordinary expressions; co
 
 `break;` exits the nearest enclosing loop without a result value. Execution continues after the loop. It is invalid without a loop target.
 
-```carven
+```carven run
 for value in 0..10 {
     if value == 3 {
         break;
@@ -141,7 +140,7 @@ This prints 0, 1, and 2.
 
 `continue;` skips the rest of the current loop body and starts the next iteration. A `while` checks its condition, iteration loops advance the cursor, and C-style `for` executes its steps first.
 
-```carven
+```carven run
 for value in 0..5 {
     if value % 2 == 0 {
         continue;
@@ -156,10 +155,10 @@ This prints 1 and 3. Neither `break` nor `continue` supports named labels.
 
 `return expression;` returns a successful result from the current function or lambda. `return;` is valid only for a `void` success result. A function block does not implicitly return its final expression. A function returning one expression usually uses an expression body:
 
-```carven
-fn absolute(value: i32) -> i32 => if value < 0 { -value } else { value };
+```carven run
+fn describe(value: i32) -> str => if value == 0 { "zero" } else { "nonzero" };
 
-println(absolute(-3)); // 3
+println(describe(3)); // nonzero
 ```
 
 Returning a named owner copies by default; write `return &&owner;` when transfer is intended. See [functions](/reference/functions/) for result inference, complete return paths, and failure consumption, and [ownership](/reference/ownership/) for transfer.
@@ -183,11 +182,36 @@ fn unpack(reply: Reply) -> i32 => match reply {
 
 Select the first arm in source order whose pattern matches and guard passes. Guards may modify other storage, call functions, and fail. They cannot obtain Write/Take access to overlapping subject storage through direct access, aliases, or captures. A selected arm body may modify the subject.
 
-Patterns support recursive enum cases, integer ranges, literals, bindings, _, `is T`, and |. There is no struct/array destructuring. Payload counts must match exactly. A bare identifier binds Read access to the selected value; it never tests equality with a same-named constant. Pure Carven values are saved as snapshots, while values containing owned storage are borrowed. Bindings become available after the whole pattern matches and before the guard runs; they cannot be taken.
+Patterns support recursive tuples and enum cases, integer ranges, literals, bindings, `_`, `is T`, and `|`. There is no struct or array destructuring. Payload counts must match exactly. A bare identifier binds Read access to the selected value; it never tests equality with a same-named constant. Pure Carven values are saved as snapshots, while storage-containing values, including native holders, are borrowed. `&name` binds Write access and requires a writable tracked subject. Bindings become available after the whole pattern matches and before the guard runs; they cannot be taken. Borrowed bindings keep their enclosing storage stable, so that storage cannot be replaced or Taken while borrowed.
 
-`is T` requires an already compatible canonical subject type and covers that type under this constraint. Alternatives must bind the same names with the same types, without duplicate bindings within an alternative. Guards use established bindings but do not contribute ordinary match exhaustiveness coverage.
+`is T` requires an already compatible canonical subject type and covers that type under this constraint. Alternatives must bind the same names with the same types and access modes, without duplicate bindings within an alternative. Guards use established bindings but do not contribute ordinary match exhaustiveness coverage.
 
 Repeated or subsumed alternatives within one or-pattern are errors. An arm fully covered by preceding unguarded arms gets `CV-FLOW-UNREACHABLE-MATCH-ARM`; its source is still checked but it does not participate in runtime selection. Missing cases are described with a deterministic shortest witness.
+
+`match &&owner` transfers the complete subject into retained match storage. Pattern bindings still use Read or Write access; rejecting a guard does not transfer individual payloads. To create an independent owner in an arm, copy the selected payload with `let owned = payload;`, then transfer that owner with `&&owned`.
+
+Literal patterns use normalized language equality. In particular, `0.0` and `-0.0` are the same floating pattern, so using both as alternatives is a duplicate.
+
+## Tuple patterns and Write bindings
+
+Tuple patterns recurse with exact arity and nesting. `()` matches unit, `(pattern)` groups, and `(pattern,)` matches a singleton. Tuple positions and enum payloads admit case, literal, binding, wildcard, range, `is`, and or-patterns. Element tests and dynamic bounds run left to right; earlier rejection skips later effects. `(true, _) | (_, true)` still leaves `(false, false)` uncovered.
+
+```carven run
+var records = [("alpha", 2), ("beta", 3)];
+for &(name, count) in records {
+    count *= 2;
+    println(name, count);
+}
+
+var pair = (true, 3);
+match pair {
+    (true, &count) => { count *= 2; },
+    (false, _) => {},
+}
+println(pair.1); // 6
+```
+
+The loop target projects the current tuple element with Write access. It does not make tuples themselves iterable. In the match, `&count` modifies the selected field of `pair`; the first Boolean field selects which arm runs. Guards and borrowed bindings follow the rules in [match and patterns](#match-and-patterns).
 
 ## Integer range patterns
 
@@ -212,36 +236,8 @@ return targets the current function or lambda; break/continue target loops. Resu
 
 ## Order and inactive code
 
-The callee precedes arguments; the left operand precedes the right; the receiver precedes the index; the assignment target precedes its right side. Initializers follow written source order. Every operand on a selected evaluation path runs once. Failure immediately skips the rest of that path.
+Expressions follow the [evaluation-order rules](/reference/operators/#short-circuiting-and-evaluation-order). A failure skips the remaining evaluation on its current path.
 
 Every source operand and branch receives operation, result-compatibility, and failure-consumption checks, including after a terminal statement. Only source after a terminal statement contributes no runtime evaluation, outward failure, ownership transition, or reachable-use evidence. A nonreturning expression may appear where its type is known; a call still needs a callable type and match still needs a subject type.
 
 Ordinary conditions do not skip source checking. Structural reachability, failure contracts, and return analysis consider every branch of `if`, `&&`, `||`, `match`, and conditional loops, even for literals or constants. Ownership availability and pointer proofs first account for condition effects, then use proven Boolean results to select possible normally continuing paths; unknown conditions merge both. Only a conditionless `while { ... }` is known not to end by itself; it exits through `break`. [Static control](/reference/functions/#static-control) explicitly selects specialization and generation while all source arms remain checked.
-
-## Operator domains
-
-See [operators and expressions](/reference/operators/) for spellings, operand domains, and equality rules.
-
-## Integer range values
-
-See [range expressions](/reference/operators/#range-expressions) for `begin..end` and `begin..=end` construction, type inference, and snapshot rules.
-
-## if and loops
-
-See the [if](#if), [while](#while), and [for](#for) entries on this page for syntax and examples.
-
-## Tuple patterns and Write bindings
-
-Tuple patterns recurse with exact arity and nesting. `()` matches unit, `(pattern)` groups, and `(pattern,)` matches a singleton. Tuple positions and enum payloads admit case, literal, binding, wildcard, range, `is`, and or-patterns. Element tests and dynamic bounds run left to right; earlier rejection skips later effects. `(true, _) | (_, true)` still leaves `(false, false)` uncovered.
-
-```carven
-var records = [("alpha", 2), ("beta", 3)];
-for &(name, count) in records { count *= 2; println(name, count); }
-let pair = (true, false);
-let label = match pair { (true, _) => "first", (false, _) => "second", };
-println(label);
-```
-
-Read bindings snapshot pure values and borrow storage-containing values. `&name` binds Write access and needs a writable tracked subject. Every alternative must bind the same names, types, and access modes. Bindings cannot be taken, borrowed subjects remain pinned, and guards cannot mutate overlapping subject storage through aliases. The selected body may mutate a writable subject.
-
-A value-control block with no final expression produces `()`, compatible with `void`. Every source branch remains checked under the [inactive-code rules](#order-and-inactive-code).

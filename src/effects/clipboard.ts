@@ -26,15 +26,19 @@ export async function copyWithFallback(
   signal?: AbortSignal,
 ) {
   signal?.throwIfAborted();
+
   try {
     await copyText(clipboard, text);
   } catch (error) {
     signal?.throwIfAborted();
     if (!(error instanceof ClipboardUnavailable)) throw error;
     selectText();
+
     return 'selected' as const;
   }
+
   signal?.throwIfAborted();
+
   return 'copied' as const;
 }
 
@@ -59,10 +63,12 @@ export async function copyFeedback(
       signal.removeEventListener('abort', abort);
       resolve();
     }, 2400);
+
     const abort = () => {
       clearTimeout(timer);
       reject(signal.reason);
     };
+
     signal.addEventListener('abort', abort, { once: true });
   });
   signal.throwIfAborted();

@@ -1,5 +1,5 @@
 ---
-title: Operators and expressions
+title: "Operators and expressions"
 description: Arithmetic, comparisons, logic, access, assignment, updates, precedence, and evaluation order.
 section: reference
 lesson: 5
@@ -10,27 +10,30 @@ source: docs/language/control-flow.md
 
 An expression computes a value. Assignment and increment/decrement update storage and occur only in statements or `for` headers that admit them. The operand requirements below apply to Carven types; external C++ types use native operation rules.
 
-| Category   | Spelling                     | Operands and result                                                               |
-| ---------- | ---------------------------- | --------------------------------------------------------------------------------- |
-| Arithmetic | `+` `-` `*` `/`              | Identical numeric types, producing that type                                      |
-| Remainder  | `%`                          | Identical integer types                                                           |
-| Prefix     | `-` `!` `~`                  | Numeric negation, boolean negation, integer complement                            |
-| Bitwise    | `&` `\|` `^` `<<` `>>`       | Integer operations                                                                |
-| Ordering   | `<` `<=` `>` `>=`            | Identical numeric types, producing `bool`                                         |
-| Equality   | `==` `!=`                    | Compatible equality-capable types, producing `bool`                               |
-| Logical    | `&&` `\|\|`                  | `bool` operands, short-circuiting left to right                                   |
-| Conversion | `as`                         | Explicit conversion from the [conversion table](/reference/types/#as-conversions) |
-| Range      | `..` `..=`                   | Integer bounds, producing `Range<T>`                                              |
-| Access     | `&` `&&`                     | Write or Take access; see [ownership](/reference/ownership/)                      |
-| Postfix    | `(...)` `[...]` `.` `->` `?` | Calls, indexing, members, pointer members, failure propagation                    |
+| Category    | Spelling                     | Operands and result                                                                                 |
+| ----------- | ---------------------------- | --------------------------------------------------------------------------------------------------- |
+| Arithmetic  | `+` `-` `*` `/`              | Identical numeric types, producing that type                                                        |
+| Remainder   | `%`                          | Identical integer types                                                                             |
+| Prefix      | `-` `!` `~`                  | Numeric negation, boolean negation, integer complement                                              |
+| Dereference | `*`                          | Access the locally proven non-null [pointer target](/reference/pointers/#conversions-and-arguments) |
+| Bitwise     | `&` `\|` `^` `<<` `>>`       | Integer operations                                                                                  |
+| Ordering    | `<` `<=` `>` `>=`            | Identical numeric types, producing `bool`                                                           |
+| Equality    | `==` `!=`                    | Compatible equality-capable types, producing `bool`                                                 |
+| Logical     | `&&` `\|\|`                  | `bool` operands, short-circuiting left to right                                                     |
+| Conversion  | `as`                         | Explicit conversion from the [conversion table](/reference/types/#as-conversions)                   |
+| Range       | `..` `..=`                   | Integer bounds, producing `Range<T>`                                                                |
+| Access      | `&` `&&`                     | Write or Take access; see [ownership](/reference/ownership/)                                        |
+| Postfix     | `(...)` `[...]` `.` `->` `?` | Calls, indexing, members, pointer members, failure propagation                                      |
 
-```carven
+```carven run
 let total = 2 + 3 * 4;
 let allowed = total >= 10 && total < 20;
 println(total, allowed); // 14 true
 ```
 
 Integers do not automatically promote to other integer or floating types. Numbers do not become boolean conditions. Literals may receive an expected type; established variables do not change type to satisfy an operation.
+
+`Type::name` selects an associated operation or enum case. A leading `::` or a native name qualifier selects [C++ names](/reference/interop/#headers-and-external-names); module import paths follow [module syntax](/reference/modules/#three-import-path-forms). `=>` marks an expression body or branch arm. These delimiters do not introduce extra binary precedence levels.
 
 ## Precedence and parentheses
 
@@ -53,6 +56,8 @@ This table runs from highest to lowest precedence. Repeated ordinary binary oper
 |            | `..` `..=`                                       |
 | Lowest     | Access markers `&` `&&` at an expression's start |
 
+`await` has a separate prefix production: operand calls, members, and indices stay inside it, while a trailing `?` propagates the awaited completion. Group the result to access its members, as `(await action()).member`; see [await parsing](/reference/async/#cold-operations-and-await).
+
 An access marker covers the complete expression to its right. `&&value` is Take; `left && right` is logical conjunction. Parentheses make the intended scope explicit. There is no comma expression. The [grammar appendix](/reference/grammar/#precedence) gives the full productions.
 
 ## Assignment and updates
@@ -66,7 +71,7 @@ target += expression;
 
 The target must be writable. Compound assignments include `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, and `>>=`; they read the old value before writing. Increment and decrement use prefix spelling only. Assignments and updates have no expression value and cannot be ordinary call arguments or initializers.
 
-```carven
+```carven run
 var count = 1;
 count += 2;
 ++count;
@@ -82,7 +87,7 @@ let changed = ++count; // Compile error: an update is not an expression.
 
 Logical conjunction skips its right operand when the left is `false`. Logical disjunction skips its right operand when the left is `true`. This selects runtime evaluation; both source operands still receive type, access, and failure-contract checks.
 
-```carven
+```carven run
 fn report() -> bool {
     println("called");
     return true;
@@ -96,9 +101,9 @@ The callee precedes arguments, the left operand precedes the right, the receiver
 
 ## Equality comparisons
 
-Equality supports `void`, `bool`, `char`, integers, floating point, `str`, `String`, arrays and tuples with comparable elements, numeric enums, payload enums with comparable payloads, and pointers with the same target type. Structures, classes, callables, slices, integer ranges, and chars ranges do not support equality.
+Equality supports `void`, `bool`, `char`, integers, floating point, `str`, `String`, arrays and tuples with comparable elements, numeric enums, payload enums with comparable payloads, and pointers with the same target type. Structures, classes, callables, slices, integer ranges, and text character views do not support equality.
 
-```carven
+```carven run
 println("same" == "same", [1, 2] == [1, 2]); // true true
 ```
 
@@ -106,15 +111,13 @@ Floating comparisons follow IEEE; `!=` negates `==`. SIMD comparisons produce ma
 
 ## Integer arithmetic and termination
 
-Integer negation, addition, subtraction, multiplication, and left shift wrap at the type's width, including compound assignments and updates. The signed minimum divided by -1 produces the minimum, with remainder zero. Signed right shift is arithmetic.
-
-Division or remainder by zero and negative or out-of-width shift counts terminate runtime execution. Required constant execution instead diagnoses these operations when they are reached. Such termination cannot be caught by `try` / `catch` as a typed failure. See [arithmetic and termination](/reference/types/#arithmetic-and-termination).
+Wrapping, division overflow, shift counts, and runtime traps follow the [numeric rules](/reference/types/#arithmetic-and-termination). These traps are not typed failures and cannot be caught with `try` / `catch`.
 
 ## Range expressions
 
 `begin..end` excludes the upper bound; `begin..=end` includes it. Both have type `Range<T>`. An ordinary expression requires both integer bounds; omitted bounds occur only in patterns. A range saves a snapshot of its bounds rather than borrowing their source storage.
 
-```carven
+```carven run
 var end = 4;
 let values: Range<i32> = 1..=end;
 end = 8;
