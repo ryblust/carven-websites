@@ -368,8 +368,10 @@ Public module components and exported function names use one deterministic
 encoding. Safe C++ identifiers retain their spelling unless they start with
 `cv_escaped_`. Other spellings become `cv_escaped_` followed by the lowercase
 hexadecimal encoding of their original bytes. Safety excludes the project's
-C++ keyword set, double underscores, and an initial underscore followed by an
-uppercase letter. Encoding introduces no source-name reservation and depends
+C++ keyword set, double underscores, an initial underscore followed by an
+uppercase letter, and `stdin`, `stdout`, and `stderr`. These stream names can be
+object-like macros in supported C runtimes.
+Encoding introduces no source-name reservation and depends
 on neither compilation order nor other names. Native `import(cpp)` provider
 names still denote existing C++ names and are validated without encoding.
 A function/namespace prefix collision anywhere in the compilation's public API

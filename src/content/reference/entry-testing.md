@@ -29,7 +29,12 @@ println("not reached");
 
 Native execution prints `42`, then reports the escaped failure type and structural payload on stderr and exits with `EXIT_FAILURE`. `carven interpret` prints `42`, then reports the same payload under `CV-INTERPRET-EXECUTION` at the throw location with its call path.
 
-An explicit main is selected regardless of module path, craft, or visibility. It may have no parameters or one unannotated Read command-line parameter. The wrapper owns a Vector<String> of arguments excluding the executable name; the parameter borrows it and supports ordinary indexing, iteration, printing, and views. Native ingress validates UTF-8. Synchronous and async entries retain the owner until execution and lexical child closure complete. Ordinary function parameters still require types.
+An explicit main is selected regardless of module path, craft, or visibility. It may have no parameters or one unannotated Read command-line parameter. The wrapper owns a Vector<String> of arguments excluding the executable name; the parameter borrows it and supports ordinary indexing, iteration, printing, and views. Synchronous and async entries retain the owner until execution and lexical child closure complete. Ordinary function parameters still require types.
+
+On Windows, the native entry reads wide-character arguments from the C runtime
+and converts them to UTF-8. On POSIX, arguments passed to Carven must already be
+valid UTF-8; invalid text terminates the native program. Empty arguments are
+preserved.
 
 Use the unannotated parameter to receive command-line arguments:
 

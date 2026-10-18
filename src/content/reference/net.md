@@ -38,7 +38,11 @@ validate their encoding as needed.
 Cancellation follows the [async completion contract](/reference/async/). One read and one write
 may be active simultaneously on each native connection. A second operation in
 the same direction fails with `Conflict`. A nonempty write_all with zero progress
-fails with `NoProgress`. An empty write performs no native operation.
+fails with `NoProgress`. Empty writes perform no native operation.
+
+`write_all` holds the sending direction for the whole buffer, including short
+writes and readiness waits. After requesting cancellation, let the operation finish
+or await its closure before closing or reusing the connection.
 
 ## Native host contract
 

@@ -34,6 +34,8 @@ source: docs/language/net.md
 
 取消遵循[异步完成规则](/zh/reference/async/)。一个原生连接可以同时有一个读和一个写；同方向第二个操作以 `Conflict` 失败。非空 `write_all` 在一次写入返回零字节时以 `NoProgress` 失败。空写不调用原生操作。
 
+`write_all` 在整个缓冲区发送期间持续占用发送方向，包括短写和等待就绪的阶段。请求取消后，仍须先让操作完成或等待其关闭，再关闭或复用连接。
+
 ## 原生宿主契约
 
 包含 `<carven/std/net/native.hpp>`。创建 `carven::standard::net::Network`，将已连接的 TCP 套接字交给内存地址保持不变的 `carven::standard::net::Connection` 对象。接管将 I/O 设为非阻塞；检查 network 和 connection 的 `startup_error()`。

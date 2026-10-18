@@ -102,9 +102,11 @@ independent and retain their repetitions. Generated headers begin with pragma-on
 
 Project linkage identity combines the generation destination, canonical module
 path, and test generation mode. Generated interface paths carry the same linkage
-domain as their declarations. Each native target owns its generation destination;
-changing its source membership does not change that destination. Installed
-standard-library modules retain their compiler-defined linkage identity.
+domain as their declarations. Each application target owns its application
+generation destination; changing its source membership does not change that
+destination. Installed standard-library modules retain their compiler-defined
+linkage identity; the Xmake rule shares their generated text in a separate
+destination.
 
 Public `export(cpp)` names belong to the program-wide `carven::api` namespace.
 Give separately linked public modules distinct canonical paths. Reuse one library
@@ -205,12 +207,22 @@ Configure native providers through ordinary target settings and dependencies.
 Xmake owns target dependencies, native configuration, preparation order, header
 scanning, compilation, linking, and concurrency. The Carven rule supplies generated
 sources and preserves the native settings attached to their originating `.cv`
-files. The rule registers the full standard library's generated implementations and installed native support sources on each consumer target. Xmake compiles them with that target's native settings and manages incremental object reuse. Application dependencies belong to consumer targets.
+files. The rule processes the full installed standard library and registers its
+generated implementations and installed native support sources on each consumer
+target. Xmake compiles these sources with that target's native settings and manages
+incremental builds. Native artifact reuse follows Xmake's own requirements.
 
-Identical source batches share analysis and publish only semantics and discovery
-facts. Each target generates its C++ and selected entry from the retained program
-in its own linkage domain. Standard-library analysis and generated C++ text are shared across consumer targets. Their fixed linkage identity is independent of each consumer's native configuration. Analysis with
-host input, clock sampling, or waiting runs again on the next build request.
+Identical source batches share checked programs. Each application target generates
+its application C++ and selected entry in its own output directory. Within one configured Xmake project,
+targets using the same Carven compiler and installed sources share standard-library
+analysis results and generated C++ text. The standard library keeps its fixed
+generated symbol identity across those targets. Analysis with host input, clock
+sampling, or waiting runs again on the next build request.
+
+Shared generated text does not deduplicate native definitions at link time.
+Components exchanging generated types must use compatible native ABI settings.
+Runtime state sharing follows C++ definition and platform symbol-binding rules;
+separately linked libraries are not guaranteed to share one runtime instance.
 
 Generate into staging, publish only after a successful compiler invocation, and
 preserve timestamps for unchanged output bytes. Xmake dependency records track
@@ -299,8 +311,9 @@ backend. All backends implement the same logical lane operations.
 
 Consumers select target instruction flags. An x86 consumer enables AVX2 with
 `-mavx2`, `/arch:AVX2`, or Xmake's `add_vectorexts("avx2")`.
-`CARVEN_SIMD_FORCE_PORTABLE` selects the portable backend. Translation units using
-SIMD or runtime text support must select the same backend.
+`CARVEN_SIMD_FORCE_PORTABLE` selects the portable backend. Translation units
+sharing SIMD or runtime text types and inline definitions must select the same
+backend. Independent programs can select different backends.
 
 Runtime vector and mask types live in backend-specific inline namespaces within
 `carven::runtime::simd`. Their type identities can expose backend mismatches in
