@@ -192,7 +192,7 @@
 
 .footer-columns ul {
   list-style: none;
-  margin: auto 0 0;
+  margin: 0;
   padding: 0;
 }
 
@@ -333,7 +333,27 @@
 
   .footer-columns {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    row-gap: var(--space-5);
+    row-gap: 0;
+  }
+
+  /* Each group has a heading and three links; share rows when a label wraps. */
+  .footer-columns > div {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span 4;
+    row-gap: 0;
+    padding-bottom: var(--space-5);
+  }
+
+  .footer-columns > div:last-child {
+    padding-bottom: 0;
+  }
+
+  .footer-columns ul {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span 3;
+    row-gap: 0;
   }
 }
 

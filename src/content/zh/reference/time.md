@@ -25,10 +25,11 @@ source: docs/language/time.md
 
 这些函数都是 `const fn`，在乘法前检查 `i64` 范围。`100ms` 等字面量构造相同的 `Duration` 类型，并在编译期检查缩放。动态值使用 `milliseconds(value)?`；用纳秒表示不意味着操作会精确到纳秒唤醒。
 
-```carven
+```carven run
 import std::time using { Duration, milliseconds };
 
 const delay: Duration = milliseconds(250)?;
+println(delay.nanoseconds); // 250000000
 ```
 
 ## 单调时间点
@@ -65,13 +66,14 @@ const delay: Duration = milliseconds(250)?;
 
 `point.wait()` 同步创建冷操作，只复制截止时间，不借用时间点、不读取时钟，也不注册计时器；等待行为与 `sleep_until` 相同。两者先接受待处理取消，再检查期限是否已到。丢弃未启动操作不会等待。
 
-```carven
+```carven run
 import std::time using { TimePoint, RangeError, sleep, sleep_until };
 
 async fn main() throw RangeError {
     await sleep(250ms)?;
     let deadline = TimePoint::after(100ms)?;
     await sleep_until(deadline);
+    println("wait complete");
 }
 ```
 

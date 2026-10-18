@@ -1,11 +1,11 @@
 ---
-title: "Handle failures where you can recover"
+title: "Failures and recovery"
 description: "Reject malformed records, keep error details, and check what each function leaves to its caller."
 section: failure-contracts
 source: docs/language/failures.md
 ---
 
-## Reject one record and keep processing
+## Reject bad records and continue
 
 A log processor needs to distinguish a missing field from an invalid number, but one bad record should not discard the valid records that follow it. Put parsing in a function that describes its possible failures, then recover in the loop that processes each record.
 
@@ -59,7 +59,7 @@ When `u64::parse` fails, its catch arm wraps the error as `RecordError::InvalidL
 
 [Run the parser](/playground/#example=log-analysis). The [complete log analyzer](https://github.com/ryblust/carven/tree/main/examples/log_analyzer) adds byte framing, UTF-8 validation, credential redaction, statistics, and JSON output. This smaller example receives already-valid text and focuses on parsing and per-record recovery.
 
-## Keep separate failures or define an application error
+## Preserve or translate failure types
 
 A layer can preserve independent failure types with `throw A + B`, allowing callers to recover from either type directly. The parser above takes another useful approach: it maps library failures into cases of its own `RecordError`. Choose the interface that gives callers the information they need.
 
@@ -69,6 +69,6 @@ A handler can recover the failures its layer understands and leave the rest to i
 
 Async functions use the same failure contract: `await operation()?` awaits completion and propagates a failure. The [batch workflow](/playground/#example=async-workflow) applies it to several operations. Composition, cancellation, and cleanup are covered in the [async reference](/reference/async/).
 
-## Distinguish recovery from stopping execution
+## Recovery, assertions, and termination
 
 Use typed failures for conditions the caller can handle, and assertions for broken invariants. [Failures and termination](/reference/failures/) distinguishes recoverable failures from stopping execution; [C++ interop](/reference/interop/#noexcept) defines native exception handling.

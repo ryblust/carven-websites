@@ -1,5 +1,5 @@
 ---
-title: "Organize data as records and collections"
+title: "Records and collections"
 description: "Group related fields, represent alternative states, and keep a collection that can grow."
 section: learn
 lesson: 5
@@ -33,7 +33,7 @@ Item {
 }
 ```
 
-Field names match the declaration, and each field is initialized exactly once. Named construction evaluates in written order; positional construction such as `Item { 12, 3 }` maps to declaration order. `println(item)` shows the type name and each field in declaration order, without any formatting code. Struct types have declaration identity: matching fields do not make two structs compatible. Code that can use the struct can also read and construct its fields. To restrict field access to defined operations, use a class. The [access chapter](/learn/ownership/#keep-fields-behind-a-class) introduces classes.
+Field names match the declaration, and each field is initialized exactly once. Named construction evaluates in written order; positional construction such as `Item { 12, 3 }` maps to declaration order. `println(item)` shows the type name and each field in declaration order, without any formatting code. Struct types have declaration identity: matching fields do not make two structs compatible. Code that can use the struct can also read and construct its fields. To restrict field access to defined operations, use a class. The [access chapter](/learn/ownership/#control-field-access-with-a-class) introduces classes.
 
 ## Start from defaults
 
@@ -59,7 +59,7 @@ Empty braces default-initialize the whole Item, so both integers are zero. Once 
 
 Use defaults when zero or empty is a meaningful starting state; assign business values explicitly otherwise. The [aggregate reference](/reference/aggregates/) lists each type's default initialization rules.
 
-## Let the expected type name the struct
+## Construct a struct from its expected type
 
 When the type is already known, construction can omit it. Replace the lines after total again:
 
@@ -132,7 +132,7 @@ Construct payload cases with a call; a payload-free case is already a value. mat
 
 The `.Empty` shorthand works because describe's parameter supplies the expected enum. See the [enum reference](/reference/aggregates/) for numeric enums and explicit case values.
 
-## Guards and coverage
+## Pattern guards and exhaustiveness
 
 Classify positive payloads separately. Keep Reply from the previous program and replace describe and the following print statements with:
 
@@ -168,7 +168,7 @@ This prints `18 1 21`. The vector starts empty; push appends the two nonnegative
 
 The [Vector reference](/reference/aggregates/) lists collection operations. The next chapter explains copying, changing, and transferring existing values.
 
-## Reuse a record shape with different value types
+## Parameterize a record's value type
 
 A sensor reading always needs a sensor identifier, but its value may be an integer count or a floating voltage. A type parameter lets both records share one definition:
 

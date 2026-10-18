@@ -1,5 +1,5 @@
 ---
-title: "Design choices and type inference"
+title: "Language design choices"
 description: "Use context to infer types while keeping access, ownership, failures, and execution explicit."
 section: philosophy
 source: docs/development/principles.md

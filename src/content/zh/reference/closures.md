@@ -8,7 +8,7 @@ source: docs/language/functions.md
 
 lambda 是匿名函数，写作 `[captures](parameters) => expression` 或 `[captures](parameters) { statements }`。用省略类型注解的绑定保存具体闭包值；需要调用回调的函数可以用 `fn(...) -> R` 参数。
 
-## 最小示例
+## 值捕获与 Write 捕获
 
 ```carven
 var offset = 2;

@@ -1,30 +1,26 @@
 ---
-title: "进阶实战：构建 Carven 语言服务器"
+title: "项目：语言服务器"
 description: 应用 JSON 文档修改，异步运行分析，返回诊断，再关闭 carven-lsp 会话。
 section: learn
 lesson: 20
 source: tools/lsp/README.md
 ---
 
-## 准备项目与任务
+## 准备项目
 
-用 Carven 为 Carven 编写开发工具。你的任务是接收编辑器的文档修改，在继续接收消息的同时分析新文本，再返回诊断。用户修复代码后，发送空诊断数组清除错误，最后写完排队的回复并关闭会话中的任务。
+语言服务器接收编辑器的文档修改，在继续接收消息的同时分析新文本，再返回诊断。用户修复代码后，服务器发送空诊断数组清除错误；关闭时，写完排队的回复并结束会话中的任务。
 
 `carven-lsp` 用 Carven 实现这条流程，独立的 `carven-analyzer` 进程提供编译器分析。用 JSON 读取和构造消息，用 Async 协调输入与分析，用管理自己数据的值在这些步骤之间传递文本。
 
-先完成[异步工作流](/zh/learn/async/)和 [JSON 输入项目](/zh/learn/data-pipeline/)。在 POSIX 系统上的 Carven 仓库中操作，编译器环境按[第一个程序](/zh/learn/first-program/)准备。协议测试需要 Node.js 24.12 或更新版本，以及 pnpm。
+先完成[异步工作流](/zh/learn/async/)和 [JSON 输入项目](/zh/learn/data-pipeline/)，按[第一个程序](/zh/learn/first-program/)准备 `carven`。下方的独立编辑示例只需要编译器和一份 `protocol.cv`。修改完整服务器时，在 POSIX 系统中获取[语言服务器项目](https://github.com/ryblust/carven/tree/main/tools/lsp)，按项目说明完成构建与测试。协议测试需要 Node.js 24.12 或更新版本，以及 pnpm。
 
-在仓库根目录准备应用并运行检查：
+运行完整服务器时，先确保终端可以调用 `carven-lsp`，再显式指定分析器路径启动：
 
 ```sh
-pnpm install --frozen-lockfile
-./xmakew build
-./xmakew build carven-lsp
-./xmakew test carven-lsp/protocol
-./xmakew test carven-test-lsp-framing/framing
+carven-lsp --analyzer /absolute/path/to/carven-analyzer
 ```
 
-用 `./xmakew run carven-lsp` 启动服务器。编辑器配置为启动构建出的可执行文件，传入 `--analyzer /absolute/path/to/carven-analyzer`，或把分析器加入 PATH。xmake run 命令会提供这个 PATH 条目。服务器通过标准输入和标准输出交换经过分帧的消息。
+编辑器也配置为使用同一个可执行文件和参数。也可以把 `carven-analyzer` 加入 PATH，省略 `--analyzer`。服务器通过标准输入和标准输出交换经过分帧的消息。
 
 先运行下面的小型文档修改程序。后续步骤打开已有应用的 `tools/lsp/main.cv`：main 连接子操作，analyze 处理任务，由消息循环把修改送去分析并发布诊断。每一步都有可以检查的结果。
 
@@ -32,7 +28,7 @@ pnpm install --frozen-lockfile
 
 先把编辑器消息变成新的文档文本。用结构体保存 URI、文本和编辑器版本，通过 `&document` 修改状态。在全部修改成功之前，先把新文本保存在局部变量中。
 
-在仓库根目录把下面的完整程序保存为 `document_edit.cv`。它使用项目中的 `apply_change` 函数，同时支持全文替换和 UTF-16 范围修改：
+新建一个独立练习目录，把项目中的 `tools/lsp/protocol.cv` 按相同的相对路径复制到其中，再将下面的完整程序保存为与 `tools/` 同级的 `document_edit.cv`。其中的 `apply_change` 函数同时支持全文替换和 UTF-16 范围修改：
 
 ```carven
 import tools.lsp.protocol using { apply_change, ProtocolError };
@@ -100,10 +96,10 @@ for text in inputs {
 }
 ```
 
-连同协议模块一起运行：
+在练习目录中，连同协议模块一起运行：
 
 ```sh
-./xmakew run carven interpret document_edit.cv tools/lsp/protocol.cv
+carven interpret document_edit.cv tools/lsp/protocol.cv
 ```
 
 标准输出为：
@@ -210,7 +206,7 @@ worker 处理每个 `.Data(bytes)` 任务，通道关闭后收到 `.End` 时返�
 
 用 `to_json()` 序列化结果，再把保存独立数据的包发送回 events。即使局部 body String 已销毁，数据包仍可使用。`session` 收到结果后交给 `complete`，清除当前任务状态并准备通知。
 
-用 `tools/lsp/tests/protocol.ts` 中受控分析器的场景检查这一步：它暂时保留分析回复，同时继续发送编辑器消息。确认服务器接受了这些消息，并最终发布最新文档版本的诊断。修改调度代码后，运行 `./xmakew test carven-lsp/protocol`。
+用 `tools/lsp/tests/protocol.ts` 中受控分析器的场景检查这一步：它暂时保留分析回复，同时继续发送编辑器消息。确认服务器接受了这些消息，并最终发布最新文档版本的诊断。修改调度代码后，在服务器项目根目录运行 `./xmakew test carven-lsp/protocol`。
 
 ## 返回当前文本的诊断
 
@@ -289,4 +285,4 @@ await stop_analyzer(analyzer)?;
 2. 在表情字符附近加入 UTF-16 范围修改。检查结果文本，再在协议测试中检查诊断报告的范围。
 3. 在受控分析器测试保留回复期间再加入一次编辑，确认只发布当前文本的诊断，并且 shutdown 仍能结束。
 
-用 `./xmakew test -g lsp` 运行全部语言服务器测试组。实现在 [tools/lsp](https://github.com/ryblust/carven/tree/main/tools/lsp)，任务涉及 `server.cv`、`protocol.cv` 和 `main.cv` 中的异步循环。具体契约见 [JSON 值](/zh/reference/json/)、[异步操作](/zh/reference/async/)和[输入与输出](/zh/reference/io/)。
+修改服务器项目时，在该项目根目录用 `./xmakew test -g lsp` 运行全部语言服务器测试组。[tools/lsp 实现](https://github.com/ryblust/carven/tree/main/tools/lsp)涉及 `server.cv`、`protocol.cv` 和 `main.cv` 中的异步循环。具体契约见 [JSON 值](/zh/reference/json/)、[异步操作](/zh/reference/async/)和[输入与输出](/zh/reference/io/)。

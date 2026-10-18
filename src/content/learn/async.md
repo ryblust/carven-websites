@@ -1,5 +1,5 @@
 ---
-title: "Start asynchronous work and combine its results"
+title: "Async workflows"
 description: "Choose when work starts, combine results, set deadlines, request cancellation, and finish children before leaving their scope."
 section: learn
 lesson: 14
@@ -139,7 +139,7 @@ It deterministically prints `-1`: a nonpositive timeout chooses Timeout without 
 
 A timeout closes its protected work before delivering its result. It can take longer than the interval to finish if that work does not cooperate with cancellation.
 
-## Start a child whose lifetime belongs to this scope
+## Start a scoped child task
 
 Start an update, wait for it to finish, then read the modified count. Save this separate program as child_work.cv:
 

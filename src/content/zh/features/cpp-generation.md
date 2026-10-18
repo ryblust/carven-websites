@@ -1,5 +1,5 @@
 ---
-title: "C++ 生成与原生集成"
+title: "C++ 生成与集成"
 description: "通过流收集器理解生成的头文件、实现，以及其中的所有权和清理。"
 section: cpp-generation
 source: docs/compiler/backend/README.md
@@ -27,17 +27,11 @@ C++ 提供方返回的文本视图只在下一次读取前有效。Carven 把需
 
 `export(cpp)` 函数获得 `carven/api/<规范模块路径>.hpp` 下的自包含 API 头文件。宿主包含它，在对应的 `carven::api` 模块命名空间调用函数。具体 `import(cpp)` 声明还会获得 `carven/providers` 头文件，为签名类型提供别名；提供方声明和实现仍由 C++ 编写。
 
-在编译器仓库根目录运行完整宿主示例：
-
-```sh
-./xmakew build
-./xmakew build examples
-./xmakew run carven-example-stream-collector
-```
+完整示例包含 C++ 宿主和 provider。按[流收集器的构建说明](https://github.com/ryblust/carven/tree/main/examples/stream_collector)构建并运行该项目。
 
 宿主在收集期间保留流资源，接收含独立字符串的报告。Xmake 组织源码生成、原生编译和链接。手工构建命令与原生支持要求见[工具链参考](/zh/reference/toolchain/)。
 
-## 按正确顺序求值和清理
+## 清理部分初始化的对象
 
 假设聚合的第一个字段已经成功构造，第二个字段却失败了。求值第二个字段时，第一个值必须保持有效；进入失败路径后，它又需要被清理。生成的 C++ 通过临时值、作用域和结果构造保留这些行为。
 
@@ -55,7 +49,7 @@ C++ 提供方返回的文本视图只在下一次读取前有效。Carven 把需
 
 [内建能力与运行支持](/zh/internals/runtime-boundary/)说明驱动器与提供方清理。原生异常的处理规则见 [noexcept 边界](/zh/reference/interop/#noexcept)。
 
-## 复用分析已经确定的信息
+## 复用已检查程序与已知值
 
 已知访问决定传参和清理，已知结果位置可能允许直接构造。静态参数在运行前选择分支、展开迭代。已知的格式结构和已验证的编码信息，可以用于提前准备输出，避免反复解析同一格式。
 

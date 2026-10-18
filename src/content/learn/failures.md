@@ -1,5 +1,5 @@
 ---
-title: "Handle rejected input and other failures"
+title: "Handling failures"
 description: "Report what went wrong, decide where to recover, and make the remaining failures clear to callers."
 section: learn
 lesson: 10
@@ -43,7 +43,7 @@ Calling a function that may fail requires a decision about that failure. With `?
 
 Applying ? to an expression that cannot fail is a compile error. When a private function changes to infer an empty set, callers must remove their ?. Even if a function explicitly declaring E currently always succeeds, callers still obey the E contract.
 
-## Inference and publication
+## Infer and declare failure contracts
 
 The preceding module chapter introduced private helpers and published interfaces. A private non-entry function may omit its throw clause: the compiler infers the failures its body can propagate. Top-level statements, which form the implicit entry, infer their outward failures the same way. Closures, introduced next, can also infer their failures.
 

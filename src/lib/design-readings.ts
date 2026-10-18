@@ -5,7 +5,7 @@ export const designReadingGroups = [
     readings: [
       {
         path: '/philosophy/',
-        topic: { zh: '设计取舍与类型推断', en: 'Design choices and inference' },
+        topic: { zh: '设计取舍', en: 'Design choices' },
       },
       {
         path: '/features/failure-contracts/',

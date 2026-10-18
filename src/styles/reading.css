@@ -114,7 +114,6 @@
   position: relative;
   isolation: isolate;
   background: none;
-  border-left-color: var(--accent);
 }
 
 @media (min-width: 801px) {
@@ -302,6 +301,11 @@
 .chapter-drawer-heading strong {
   font-size: var(--text-base);
   font-weight: 500;
+}
+
+/* The initial dialog focus announces the title without marking it as a control. */
+.chapter-drawer-heading strong:focus {
+  outline: none;
 }
 
 .chapter-drawer-heading button {

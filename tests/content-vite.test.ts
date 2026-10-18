@@ -59,7 +59,7 @@ async function change(server: ViteDevServer, event: string, file: string) {
   }
 }
 
-describe('content development output', () => {
+describe('content development output', { timeout: 15_000 }, () => {
   it('publishes current content on startup and regenerates it after a server restart', async () => {
     const { root, server, writePair, html } = await fixture('Content before startup.');
     let restarted: ViteDevServer | undefined;

@@ -22,7 +22,7 @@ println(greeting);
 
 也可用 `::std::printf` 明确全局 C++ 路径。Carven 不读取头文件内容，C++ 编译器检查函数存在、重载和实参是否合法。`carven interpret` 接受导入了头文件的文件，但执行到 `printf` 这样的原生调用时会以 `CV-INTERPRET-ADMISSION` 停止；原生代码请用 `carven` 运行。
 
-## 原生类型
+## 构造与使用 C++ 类型
 
 ```carven
 import <vector> using std::vector;
@@ -35,7 +35,7 @@ println(count, values[3]);
 
 输出 `4 4`。花括号构造交给 C++ 完成，包括类模板实参推导；`vector<i32> { 1, 2, 3 }` 则显式写出元素类型。C++ 检查构造、方法调用和转换是否合法；`usize` 注解要求用调用结果构造一个 `usize` 值。原生索引遵守提供者规则，不自动获得 Carven 数组越界检查。
 
-## 选择标准能力或原生依赖
+## 选择标准 API 或 C++ 库
 
 Carven 可增长数据使用数据章节的 `Vector<T>`，JSON 使用自己管理数据的 `std::json` API；两者都不需要第三方 C++ 依赖：
 

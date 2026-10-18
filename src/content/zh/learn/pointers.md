@@ -1,5 +1,5 @@
 ---
-title: "使用原生地址与检查非空"
+title: "使用原生指针"
 description: "取得地址，在使用前检查它，并让所指数据继续存活。"
 section: learn
 lesson: 16
@@ -32,7 +32,7 @@ restock(nullptr, 2);
 println(stock, level(addressof(stock)), level(nullptr));
 ```
 
-运行 `./xmakew run carven address.cv`，输出 `9 9 0`。空地址的 restock 不修改存储，level 对空地址返回零。`addressof(&stock)` 里的 `&` 和 Write 实参一样请求写访问，所以 stock 必须是 `var`；改成 `let stock` 会报告 `CV-ACCESS-IMMUTABLE`。取地址的对象必须是命名绑定、字段或元素这样的位置：`addressof(1 + 2)` 这类临时值会被拒绝，也没有 `addressof(&&stock)`。
+运行 `carven address.cv`，输出 `9 9 0`。空地址的 restock 不修改存储，level 对空地址返回零。`addressof(&stock)` 里的 `&` 和 Write 实参一样请求写访问，所以 stock 必须是 `var`；改成 `let stock` 会报告 `CV-ACCESS-IMMUTABLE`。取地址的对象必须是命名绑定、字段或元素这样的位置：`addressof(1 + 2)` 这类临时值会被拒绝，也没有 `addressof(&&stock)`。
 
 刚取得的地址非空，所以在创建处写 `*addressof(stock)` 不需要检查。两个辅助函数接收的是普通指针参数，调用者可能传入 `nullptr`，因此它们在解引用前各自检查。
 

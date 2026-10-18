@@ -30,7 +30,7 @@ stock = 1;
 println(snapshot, sent, stock);
 ```
 
-在 Carven 仓库根目录运行 `./xmakew run carven access.cv`，输出 `7 9 1`。read_stock 不改变 stock，restock 把它从 7 改为 9，dispatch 则取走它的值。调用者必须先重新赋值，才能再次读取 stock。这三种方式分别叫 Read、Write、Take。调用处重复参数标记，让读代码的人看得见授予了哪种访问。
+把程序保存为练习目录中的 access.cv，运行 `carven access.cv`，输出 `7 9 1`。read_stock 不改变 stock，restock 把它从 7 改为 9，dispatch 则取走它的值。调用者必须先重新赋值，才能再次读取 stock。这三种方式分别叫 Read、Write、Take。调用处重复参数标记，让读代码的人看得见授予了哪种访问。
 
 stock 在 dispatch 后不可用，给整个变量重新赋值后，`var` 才能再次使用。即使 `i32` 可复制，Take 也会使源变量不可用。`let` 不能通过赋值恢复，因为它不可写。
 
@@ -96,7 +96,7 @@ println(counts[0], counts[1], counts[2]);
 
 离开作用域时，其中的局部值会被清理；return 或 break 提前离开也一样。即使把视图保存在更长久的位置，也不能借此延长原数据的生命周期。
 
-## 借用期间谁来保证存储有效
+## 保持借用存储有效
 
 两个文本副本需要各自使用时，复制很方便。若函数只想读取现有文本，视图可以省去复制。视图指向原 String，所以视图存在时，原 String 必须保持存活且不能修改。
 
@@ -117,7 +117,7 @@ println(text);
 
 [文本章节](/zh/learn/text/)会继续讲怎样选择独立副本或借用视图。
 
-## 用类把字段藏起来
+## 用类控制字段访问
 
 类把私有字段和允许使用它们的操作放在一起，接收者沿用同样的三种访问方式。保存为 `stock.cv`：
 
@@ -143,7 +143,7 @@ let sent = stock.dispatch();
 println(sent);
 ```
 
-运行 `./xmakew run carven stock.cv`，输出：
+运行 `carven stock.cv`，输出：
 
 ```text
 Stock 9
@@ -154,7 +154,7 @@ Stock 9
 
 类仍是普通值，其内容如何复制和清理由字段类型决定。打印只显示类名。构造、访问与比较规则见[类参考](/zh/reference/aggregates/)。
 
-## 交出一份结果，保留另一份
+## 转移元组中的一个值
 
 元组可以同时带回标签与数量。若下一步只需要标签，而你还要使用数量，先为它们分别命名：
 
@@ -168,7 +168,7 @@ println(delivered, count);
 
 输出 `accepted 3`。Take 之后 label 不再可用，但 count 仍是一个可使用的独立值。分别命名两部分，就能交出其中一部分而保留另一部分。
 
-## 不固定类型地传递一个值
+## 用泛型函数转移值
 
 包装函数有时只需要传递完整结果，不关心它具体是什么类型。前面泛型记录中的类型参数 T，也可以让函数保留调用者的类型：
 

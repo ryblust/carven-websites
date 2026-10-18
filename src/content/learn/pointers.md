@@ -1,5 +1,5 @@
 ---
-title: "Use native addresses and non-null checks"
+title: "Use native pointers"
 description: "Get an address, check it before use, and keep the pointed-to data alive."
 section: learn
 lesson: 16
@@ -32,7 +32,7 @@ restock(nullptr, 2);
 println(stock, level(addressof(stock)), level(nullptr));
 ```
 
-Run `./xmakew run carven address.cv`. The output is `9 9 0`. The null restock does nothing, and level returns zero for a null address. The `&` inside `addressof(&stock)` requests Write access, just like a Write argument, so stock must be a `var`; with `let stock` it reports `CV-ACCESS-IMMUTABLE`. The place must be a named binding, field, or element: a temporary such as `addressof(1 + 2)` is rejected, and there is no `addressof(&&stock)`.
+Run `carven address.cv`. The output is `9 9 0`. The null restock does nothing, and level returns zero for a null address. The `&` inside `addressof(&stock)` requests Write access, just like a Write argument, so stock must be a `var`; with `let stock` it reports `CV-ACCESS-IMMUTABLE`. The place must be a named binding, field, or element: a temporary such as `addressof(1 + 2)` is rejected, and there is no `addressof(&&stock)`.
 
 A new address is non-null, so `*addressof(stock)` needs no check where it is created. The helpers receive ordinary pointer parameters that callers could set to `nullptr`, so each helper checks before dereferencing.
 

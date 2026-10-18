@@ -1,5 +1,5 @@
 ---
-title: "项目：校验并汇总 JSON 输入"
+title: "项目：JSON 输入"
 description: "读取 JSON 记录，说明拒绝原因，并在不中断其他记录的情况下汇总合法金额。"
 section: learn
 lesson: 18

@@ -1,5 +1,5 @@
 ---
-title: "C++ generation and native integration"
+title: "C++ generation and integration"
 description: "Follow a stream collector into generated headers and implementations, including ownership and cleanup."
 section: cpp-generation
 source: docs/compiler/backend/README.md
@@ -27,17 +27,11 @@ Use `import(cpp)` for the stream provider and `export(cpp)` for the collection e
 
 An `export(cpp)` function receives a self-contained API header under `carven/api/<canonical-module-path>.hpp`. The host includes it and calls the function in its `carven::api` module namespace. A concrete `import(cpp)` declaration also gets a `carven/providers` header with aliases for its signature types; C++ still supplies the provider declaration and implementation.
 
-Run the complete host example from the compiler repository root:
-
-```sh
-./xmakew build
-./xmakew build examples
-./xmakew run carven-example-stream-collector
-```
+The complete example includes a C++ host and provider. Follow the [stream collector build instructions](https://github.com/ryblust/carven/tree/main/examples/stream_collector) to build and run that project.
 
 The host keeps its streams alive during collection and receives a report with independent strings. Xmake arranges source generation, native compilation, and linking. The [toolchain reference](/reference/toolchain/) gives manual build commands and native support requirements.
 
-## Keep evaluation and cleanup in the right order
+## Clean up partial initialization
 
 Consider an aggregate whose first field is constructed successfully but whose second field fails. The first value must remain valid while the second is evaluated, then be cleaned up on the failure path. The generated C++ arranges temporaries, scopes, and result construction to preserve that behavior.
 
@@ -55,7 +49,7 @@ Before generation, analysis checks source types, access, ownership, failure sets
 
 [Built-in capabilities and runtime support](/internals/runtime-boundary/) explains the driver and provider cleanup. Native exception handling is defined at the [noexcept boundary](/reference/interop/#noexcept).
 
-## Reuse what analysis already established
+## Reuse checked programs and known values
 
 Known access determines parameter passing and cleanup. Known result destinations can permit direct construction. Static parameters select branches and expand iterations before runtime. Fixed formatting structure and proven encoding can prepare writes without parsing the same format again.
 

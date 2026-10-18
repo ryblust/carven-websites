@@ -1,5 +1,5 @@
 ---
-title: "在程序运行前准备数据"
+title: "编译期执行"
 description: "解析配置、保留结果，并在编译期和运行时验证同一套算法。"
 section: compile-time
 source: docs/language/constants.md
@@ -46,7 +46,7 @@ println(defaults.to_json()?);
 
 [运行配置示例](/zh/playground/#example=json-config)，修改数量或添加标签，再比较两行输出。JSON 库的解析、修改和写出函数都是 `const fn`，同样的操作可以在两个阶段执行。
 
-## 保留结果的类型
+## 保留结果类型并在运行时复制
 
 解析后的模板保留 `Value` 类型及完整内容。`var config = defaults` 创建独立副本，供运行中的程序修改。用循环和可变局部值构造查找表时，也可以采用这个方式。其他结果类型与借用视图见[常量结果与底层存储](/zh/reference/constants/#常量结果与底层存储)。
 

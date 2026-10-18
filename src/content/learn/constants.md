@@ -1,5 +1,5 @@
 ---
-title: "Prepare configuration and tables at compile time"
+title: "Compile-time preparation"
 description: "Prepare route tables and default settings once, test them before startup, and reuse the same algorithms at runtime."
 section: learn
 lesson: 13
@@ -127,7 +127,7 @@ const test "parse an explicit port" {
 
 Append this test to the preceding program. It executes during checking and produces no runtime test function.
 
-## Execute preparation without keeping a result
+## Run compile-time statements with `const`
 
 Save this separate program as prepare.cv:
 
@@ -167,7 +167,7 @@ The runtime line is `19 29`. The tuple parameter names the static count and weig
 
 `const fn` and static parameters serve different purposes: the former admits static execution, the latter fixes inputs during specialization. Use ordinary loops unless expansion or static values are needed.
 
-## Select preparation with a static condition
+## Select compile-time branches with `const if`
 
 A fixed divisor can determine a scaling factor. In this example, zero disables scaling and returns zero; other divisors prepare a factor during compilation. Save this separate program as `scaling.cv`:
 

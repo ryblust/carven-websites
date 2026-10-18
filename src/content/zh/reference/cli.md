@@ -10,6 +10,8 @@ source: docs/toolchain/cli.md
 
 ## 命令总览
 
+先确保终端可以调用 `carven`，并保留配套的工具链资源。命令在应用目录执行，源码路径相对于该目录。模块路径规则见[输入路径](#输入路径)。
+
 ```sh
 carven main.cv -- argument
 carven --tests main.cv
@@ -122,7 +124,7 @@ carven dump ast main.cv
 
 ## carven-format
 
-carven-format 是独立的源码格式化工具，不是 `carven` 子命令。在 Carven 仓库根目录运行 `./xmakew build carven-format` 构建；以下命令也可通过 `./xmakew run carven-format` 调用。
+carven-format 是独立的源码格式化工具，不是 `carven` 子命令。使用以下命令前，先确保终端可以调用它。从源码构建的步骤见[格式化工具文档](https://github.com/ryblust/carven/tree/main/tools/format)。
 
 | 命令                               | 行为                                          |
 | ---------------------------------- | --------------------------------------------- |

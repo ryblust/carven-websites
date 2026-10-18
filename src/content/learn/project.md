@@ -8,7 +8,7 @@ source: docs/language/tutorial.md
 
 ## Run the inventory batch
 
-Practise [classes and access](/learn/ownership/#keep-fields-behind-a-class), [owned constants](/learn/constants/), and [failure recovery](/learn/failures/). Process four purchase requests: deduct stock and keep a receipt on success, record shortages as backorders, and report other rejected requests before continuing.
+Practise [classes and access](/learn/ownership/#control-field-access-with-a-class), [owned constants](/learn/constants/), and [failure recovery](/learn/failures/). Process four purchase requests: deduct stock and keep a receipt on success, record shortages as backorders, and report other rejected requests before continuing.
 
 Amounts use minor currency units, with a limit of 100000 per purchase. Prices and initial stock must be nonnegative. The fixed request indices refer to existing products. Save this complete program as orders.cv:
 

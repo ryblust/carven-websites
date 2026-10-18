@@ -43,7 +43,7 @@ println(report);
 
 The output is `[0][1][2]`. `{}` constructs an empty `String` from the annotated type. append_format writes the formatted result directly into report and requires an f literal at the call. Passing an existing `String` variable does not satisfy this method's syntax; use append for ordinary text.
 
-## Evaluation order affects observations
+## Interpolation evaluation and value reads
 
 Holes are evaluated once each, left to right, before formatting. Scalar values are saved at their hole positions. A `String` Read retains its owner, so formatting reads its contents after every hole has been evaluated. Avoid hiding mutations of one object across several holes: use statements to make copies and mutation order explicit.
 

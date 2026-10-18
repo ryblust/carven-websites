@@ -54,7 +54,7 @@ Some effects follow from a known type or enclosing boundary. Check these rules w
 | A catch list covers only some failures                        | [Residual forwarding at the try boundary](/reference/failures/#partial-catches-and-residual-sets)                                             |
 | A named text or slice borrow is no longer used                | [Text borrow duration](/reference/text/#borrows-and-mutation), [slice duration](/reference/slices/#borrow-duration); last use does not end it |
 | A `const fn` called with literal arguments                    | [Compile-time capability](/reference/functions/#compile-time-capability); an ordinary call stays at runtime                                   |
-| A constant produces owning text or array backing              | [Admission and freezing](/reference/constants/#admission-and-freezing)                                                                        |
+| A constant produces owning text or array backing              | [Admission and freezing](/reference/constants/#constant-results-and-storage)                                                                  |
 | A value is initialized with `{}` or code follows `if false`   | [Default initialization](/reference/aggregates/#default-initialization), [inactive-code checks](/reference/control/#order-and-inactive-code)  |
 
 ## Libraries, tools, and appendices

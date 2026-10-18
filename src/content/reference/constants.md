@@ -258,7 +258,7 @@ validated by the same failure solver as ordinary bodies. `const test` retains it
 static rule that no typed failure may escape the test. Evaluator errors, exhausted
 budgets and failed test assertions cannot be caught as typed failures.
 
-## Admission and freezing
+## Constant results and storage
 
 Freezing preserves nominal identity, field types, array extents, tuple arity and nesting, and owning String and Vector components. A completed Vector retains its contents and capacity. Copying a retained owner creates independent storage under the ordinary ownership rules.
 

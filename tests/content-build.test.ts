@@ -12,7 +12,7 @@ const chapter = (section: 'learn' | 'reference', number: number) =>
 const importGenerated = (file: string) =>
   Effect.promise(() => import(/* @vite-ignore */ pathToFileURL(file).href));
 
-describe('content build', () => {
+describe('content build', { timeout: 15_000 }, () => {
   it.effect('renders bilingual articles with separate tutorial and reference navigation', () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;

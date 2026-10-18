@@ -10,19 +10,33 @@ source: docs/language/tutorial.md
 
 ## 准备编译器
 
-Carven 生成 C++。构建编译器需要 Git、Xmake 3.1.1，以及支持项目 C++26 模块的 LLVM/Clang 与 libc++；当前验证的工具链版本为 LLVM 23，Windows 使用 LLVM-MinGW。生成的程序使用 C++20。
+使用 `carven` 时，保留配套的 [Crafts 资源](https://github.com/ryblust/carven/blob/main/docs/toolchain/cli.md#source-collection)。从源码构建时，按[编译器构建说明](https://github.com/ryblust/carven#development)准备，其中也说明了构建后的可执行文件位置。
+
+把 `carven`（Windows 上为 `carven.exe`）所在目录加入 `PATH`。将下方示例路径替换为该目录的绝对路径。
+
+macOS 和 Linux：
 
 ```sh
-git clone https://github.com/ryblust/carven.git
-cd carven
-./xmakew build
+export PATH="/absolute/path/to/compiler-directory:$PATH"
 ```
 
-Windows 使用仓库中的构建脚本 `.\xmakew.ps1`。直接原生运行依赖 C++ 工具链，不依赖 Xmake。使用已安装 Carven 时，下面命令中的 `./xmakew run carven` 可以换成 `carven`。
+Windows PowerShell：
+
+```powershell
+$env:Path = "C:\path\to\compiler-directory;$env:Path"
+```
+
+以上设置只对当前终端生效。要在以后打开的终端中使用，将该目录加入 shell 启动配置或 Windows 用户 `Path`。检查命令是否可用：
+
+```sh
+carven --version
+```
+
+Carven 生成 C++20。原生运行还需要环境中有支持 C++20 的编译器、SDK 和链接器。默认编译器为 `clang++`，可用 `CXX` 选择其他编译器。解释执行和语义检查不需要原生编译。
 
 ## 写出第一个文件
 
-在编译器仓库根目录保存 `main.cv`：
+新建一个练习目录，在该目录打开终端，并保存 `main.cv`：
 
 ```carven run
 let unit_price = 1200;
@@ -35,7 +49,7 @@ println("Order total:", unit_price * quantity);
 点击代码框右上角的「运行」，可以直接在浏览器中执行这个示例。要在本地运行保存的文件：
 
 ```sh
-./xmakew run carven main.cv
+carven main.cv
 ```
 
 输出：
@@ -49,19 +63,19 @@ Order total: 3600
 ## 查看生成结果
 
 ```sh
-./xmakew run carven compile --stdout main.cv
+carven compile --stdout main.cv
 ```
 
 compile 只生成产物，`--stdout` 用文件名标题分隔各文件，适合阅读。要给构建系统使用，写入目录：
 
 ```sh
-./xmakew run carven compile -o generated main.cv
+carven compile -o generated main.cv
 ```
 
 这个程序也在解释器的支持范围内，可以直接运行：
 
 ```sh
-./xmakew run carven interpret main.cv
+carven interpret main.cv
 ```
 
 输出仍是 Order total: 3600。想运行受支持的 Carven 程序而不编译 C++ 时，可以使用这个命令。后面的章节默认使用原生运行，因此调用 C++ 或使用捕获闭包的例子也能运行。
@@ -69,22 +83,22 @@ compile 只生成产物，`--stdout` 用文件名标题分隔各文件，适合�
 ## 只检查，不运行
 
 ```sh
-./xmakew run carven check main.cv
+carven check main.cv
 ```
 
 check 检查源码而不运行程序，但仍会执行源码明确要求的编译期工作。检查通过时在 stderr 输出 `carven: check passed`。加上 `--timings` 可以在 stderr 查看各阶段耗时：
 
 ```sh
-./xmakew run carven check --timings main.cv
+carven check --timings main.cv
 ```
 
 ## 后续示例怎样保存与运行
 
-课程未指定其他文件名时，把完整示例保存为 main.cv，替换前一个示例。然后执行 `./xmakew run carven main.cv`。同一章出现多个完整程序时，分别运行，不把它们拼接到一个文件或同一输入批次。文件名必须是合法标识符：`main.cv`、`order_items.cv` 可以，`my-file.cv` 不行。
+课程未指定其他文件名时，把完整示例保存为 main.cv，替换前一个示例。然后执行 `carven main.cv`。同一章出现多个完整程序时，分别运行，不把它们拼接到一个文件或同一输入批次。文件名必须是合法标识符：`main.cv`、`order_items.cv` 可以，`my-file.cv` 不行。
 
 扩展已有程序的片段会说明需要保留哪些声明；多文件示例会列出传给编译器的全部文件。测试章节会介绍单独运行测试的命令；普通运行执行应用程序，不会顺带执行测试。
 
-后文命令表中的 `carven` 是可执行文件的简写。在源码仓库中尚未安装时，将其替换成 `./xmakew run carven`；原生编译命令仍使用 clang++。
+各课命令均在相应练习目录执行，源码路径相对于该目录，不需要编译器仓库。原生编译示例使用 `clang++`。
 
 ## 为入口命名
 

@@ -1,5 +1,5 @@
 ---
-title: "From source to a native program"
+title: "Compiler architecture"
 description: "Follow source through parsing, checking, execution, and C++ generation."
 section: internals
 source: docs/compiler/README.md
@@ -22,11 +22,11 @@ Before generating a call, the compiler needs to know its argument types, possibl
 
 The driver collects project files and standard-library sources into a source batch. Imports resolve within that batch. Parsing builds a `SyntaxProgram`; semantic analysis completes declarations and bodies in `ProgramDraft`, then publishes a checked `SemIRProgram`. The backend then uses the checked result to generate C++. The native toolchain checks delegated C++ operations, compiles, links, and optimizes the program.
 
-## One analysis pipeline, several command exits
+## Shared analysis across compiler commands
 
 `check`, `interpret`, `compile`, and direct execution share semantic analysis and required compile-time work. After analysis, they stop, enter the executor, or proceed to the C++ backend. See [compiler commands](/reference/cli/) for invocation and outputs.
 
-## Explore three important handoffs
+## Analysis, execution, and C++ generation
 
 <details class="architecture-detail">
 <summary>Syntax → semantics: settle the source contracts</summary>
@@ -59,7 +59,7 @@ Each artifact has independent lowering state and target-type caches. `BodyPrepar
 
 </details>
 
-## Keep implementation choices separate from source rules
+## Preserve source behavior in generated C++
 
 | Source behavior                                | What generation must preserve                                           |
 | ---------------------------------------------- | ----------------------------------------------------------------------- |
@@ -79,7 +79,7 @@ Standard-library analysis can retain `CheckedDefinitions` for generic and staged
 
 The workspace layer manages document revisions, parsed snapshots, navigation indexes, and bounded analysis caches. Each uncached selection runs the complete semantic checks. Queries can retain known source information after an error, but that information does not establish that the program is valid. Reached input, clock reads, and waits produce workspace diagnostics so editor analysis does not perform those host effects.
 
-## Continue into the implementation
+## Implementation references
 
 - [Built-in capabilities and runtime support](/internals/runtime-boundary/) explains what the generated program needs to run.
 - [C++ generation and native integration](/features/cpp-generation/) follows a real module into generated interfaces and implementations.

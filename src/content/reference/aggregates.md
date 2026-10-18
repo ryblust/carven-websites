@@ -339,7 +339,7 @@ containing them are invalid elements. Raw pointers keep their ordinary target
 contracts. `Vector<bool>` uses ordinary elements and supports `[bool]` views.
 There is no raw pointer extraction or uninitialized-storage API.
 
-Vector operations, including capacity operations, support native, interpreted, and constant execution. Retained values and slices follow the [freezing rules](/reference/constants/#admission-and-freezing) and [execution budgets](/reference/constants/#execution-budgets).
+Vector operations, including capacity operations, support native, interpreted, and constant execution. Retained values and slices follow the [freezing rules](/reference/constants/#constant-results-and-storage) and [execution budgets](/reference/constants/#execution-budgets).
 
 ## Enums
 

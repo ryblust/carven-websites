@@ -1,5 +1,5 @@
 ---
-title: "Prepare data before your program runs"
+title: "Compile-time execution"
 description: "Parse configuration, retain its result, and test the same algorithms at compile time and runtime."
 section: compile-time
 source: docs/language/constants.md
@@ -46,9 +46,9 @@ The runtime output shows the changed copy followed by the original template:
 
 [Run the configuration example](/playground/#example=json-config), change the worker count or add a tag, and compare the two output lines. The JSON library's parsing, mutation, and writing functions are `const fn`, so the same operations can run in either stage.
 
-## Keep the result's type
+## Retain typed results and copy them at runtime
 
-The parsed template retains its `Value` type and complete contents. `var config = defaults` makes an independent copy that the running program can modify. The same approach works for lookup tables built with loops and mutable locals. See [constant results and storage](/reference/constants/#admission-and-freezing) for other result types and borrowed views.
+The parsed template retains its `Value` type and complete contents. `var config = defaults` makes an independent copy that the running program can modify. The same approach works for lookup tables built with loops and mutable locals. See [constant results and storage](/reference/constants/#constant-results-and-storage) for other result types and borrowed views.
 
 ## Choose the execution stage
 

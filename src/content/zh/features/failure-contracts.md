@@ -1,11 +1,11 @@
 ---
-title: "在能够恢复的地方处理失败"
+title: "失败与恢复"
 description: "拒绝坏记录、保留错误详情，并检查每个函数留给调用者的责任。"
 section: failure-contracts
 source: docs/language/failures.md
 ---
 
-## 拒绝一条记录，继续处理下一条
+## 拒绝坏记录，继续处理
 
 日志处理器需要区分字段缺失和数字无效，但一条坏记录不应使后面的有效记录被丢弃。让解析函数描述可能发生的失败，再由逐条处理记录的循环恢复。
 
@@ -59,7 +59,7 @@ rejected: nope malformed
 
 [运行解析器](/zh/playground/#example=log-analysis)。[完整日志分析器](https://github.com/ryblust/carven/tree/main/examples/log_analyzer) 还包含字节分行、UTF-8 校验、凭据脱敏、统计和 JSON 输出。这里的小例子接收已经合法的文本，重点展示解析和逐条恢复。
 
-## 保留独立失败，或者定义应用错误
+## 保留或转换失败类型
 
 一层函数可以用 `throw A + B` 保留独立的失败类型，让调用者直接分别恢复。上面的解析器采用另一种做法：把库失败映射为自己的 `RecordError` 成员。根据调用者需要的信息选择接口。
 
@@ -69,6 +69,6 @@ rejected: nope malformed
 
 异步函数使用相同的失败契约：`await operation()?` 等待完成后传播失败。[批次工作流](/zh/playground/#example=async-workflow)将其用于多个操作。组合、取消与清理规则见[异步参考](/zh/reference/async/)。
 
-## 区分恢复与停止执行
+## 恢复、断言与终止
 
 类型化失败用于调用者可以处理的条件，断言用于检查不变量。[失败与终止规则](/zh/reference/failures/)区分可恢复的失败与执行终止，[C++ 互操作](/zh/reference/interop/#noexcept)说明原生异常的处理。

@@ -7,6 +7,7 @@ import { createHighlighterCore } from 'shiki/core';
 import { createOnigurumaEngine } from 'shiki/engine/oniguruma';
 import cpp from '@shikijs/langs/cpp';
 import shellscript from '@shikijs/langs/shellscript';
+import powershell from '@shikijs/langs/powershell';
 import json from '@shikijs/langs/json';
 import lua from '@shikijs/langs/lua';
 import carven from './syntax/carven.ts';
@@ -19,9 +20,14 @@ const languageLabels: Record<string, string> = {
   cv: 'Carven',
   cpp: 'C++',
   sh: 'Shell',
+  shell: 'Shell',
   shellscript: 'Shell',
+  powershell: 'PowerShell',
   json: 'JSON',
   lua: 'Lua',
+  text: 'Text',
+  txt: 'Text',
+  plaintext: 'Text',
 };
 
 export class Markdown extends Context.Service<
@@ -48,7 +54,7 @@ export class Markdown extends Context.Service<
             createHighlighterCore({
               engine: createOnigurumaEngine(import('shiki/wasm')),
               themes: [paper, vesperBlack],
-              langs: [carven, shellscript, cpp, json, lua],
+              langs: [carven, shellscript, powershell, cpp, json, lua],
             }),
           catch: (cause) => new ContentError({ file: 'syntax', operation: 'render', cause }),
         }),
@@ -84,7 +90,7 @@ export class Markdown extends Context.Service<
               });
               if (options?.codeBlockFrame === false) return highlighted;
               // Labels are fixed display strings, never interpolated from authored HTML.
-              const label = languageLabels[language] ?? '';
+              const label = languageLabels[language] ?? 'Text';
 
               return `<div class="code-wrap"><div class="code-head"><span>${label}</span></div>${highlighted}</div>`;
             },

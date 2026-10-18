@@ -8,7 +8,7 @@ source: docs/language/modules.md
 
 ## 拆成两个文件
 
-继续在 Carven 仓库根目录保存 math.cv：
+在练习目录中，将 math.cv 保存到 main.cv 旁边：
 
 ```carven
 fn add(left: i32, right: i32) -> i32 => left + right;
@@ -25,7 +25,7 @@ println(add(20, 22));
 把两个文件都传给编译器：
 
 ```sh
-./xmakew run carven main.cv math.cv
+carven main.cv math.cv
 ```
 
 输出 42。导入不搜索磁盘，编译批次必须已经包含 math.cv；只传 main.cv 会报告 `CV-IMPORT-RESOLUTION`。输入顺序不控制函数是否能被引用。
@@ -35,7 +35,7 @@ println(add(20, 22));
 想查看生成的 C++，运行：
 
 ```sh
-./xmakew run carven compile --stdout main.cv math.cv
+carven compile --stdout main.cv math.cv
 ```
 
 输出显示 main.cv 与 math.cv 的生成文件。将产物写入目录或用于 C++ 构建的方法见[工具链参考](/zh/reference/toolchain/)。
@@ -66,7 +66,7 @@ import math using { add, subtract };
 println(add(20, 22), subtract(20, 4));
 ```
 
-运行 `./xmakew run carven main.cv math.cv`，输出 `42 16`。
+运行 `carven main.cv math.cv`，输出 `42 16`。
 
 用 `carven-format` 排版导入列表；[工作流章节](/zh/learn/workflow/)介绍具体命令。
 
@@ -82,7 +82,7 @@ private fn delivery(quantity: i32) -> i32 => if quantity >= 10 { 0 } else { 8 };
 export fn total(price: i32, quantity: i32) -> i32 => price * quantity + delivery(quantity);
 ```
 
-替换仓库根目录的 main.cv：
+替换练习目录中的 main.cv：
 
 ```carven
 import pricing::quote using total;
@@ -93,14 +93,14 @@ println(total(12, 3));
 把这些文件传给编译器：
 
 ```sh
-./xmakew run carven main.cv crafts/pricing/quote.cv
+carven main.cv crafts/pricing/quote.cv
 ```
 
 输出 44。`total` 从 pricing Craft 导出，内部可以调用同一模块的私有辅助函数 `delivery`，main.cv 则不能导入该辅助函数。去掉 `total` 的 `export` 后，它只在 pricing 内可见，main.cv 的导入会被拒绝。
 
 公开接口使用的类型必须对调用者可见。导出类型和函数时的完整规则见[模块可见性参考](/zh/reference/modules/)。
 
-## 项目构建
+## 用 Xmake 构建项目
 
 文件增多后由 Xmake 收集批次和原生依赖。在使用 Carven 的项目的 xmake.lua 中：
 
@@ -141,4 +141,4 @@ write_line(names.length(), names[1]);
 
 ## 练习
 
-回到最初的 main.cv 与 math.cv。把它们放到 src 下，将 main 的导入改成 `.math`，运行 `./xmakew run carven src/main.cv src/math.cv`。把 add 改成 private，确认另一个模块不能再导入；恢复裸声明。
+回到最初的 main.cv 与 math.cv。把它们放到 src 下，将 main 的导入改成 `.math`，运行 `carven src/main.cv src/math.cv`。把 add 改成 private，确认另一个模块不能再导入；恢复裸声明。

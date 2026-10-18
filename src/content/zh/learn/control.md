@@ -1,5 +1,5 @@
 ---
-title: "选择分支与重复执行"
+title: "分支与循环"
 description: 用条件、整数区间、模式匹配和循环更新组织执行。
 section: learn
 lesson: 3

@@ -10,6 +10,8 @@ To run a source program locally, use `carven main.cv`. Use `carven check main.cv
 
 ## Invocation
 
+Make `carven` available in your terminal and keep its matching toolchain resources. Run commands from your application directory, using source paths relative to it. See [source inputs](#source-inputs) for module path rules.
+
 ```text
 carven [--tests] [--timings] <source-file>... [-- <arguments>...]
 carven compile [options...] [<input>...]
@@ -419,7 +421,7 @@ replay compile-time output.
 
 ## carven-format
 
-carven-format is a separate source formatter, not a `carven` subcommand. Build it with `./xmakew build carven-format` from the Carven repository root; the commands below can also be invoked through `./xmakew run carven-format`.
+carven-format is a separate source formatter, not a `carven` subcommand. Make its executable available in your terminal before using the commands below. Source-build instructions are in the [formatter documentation](https://github.com/ryblust/carven/tree/main/tools/format).
 
 | Command                            | Behavior                                                |
 | ---------------------------------- | ------------------------------------------------------- |

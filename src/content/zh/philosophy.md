@@ -1,5 +1,5 @@
 ---
-title: "设计取舍与类型推断"
+title: "语言设计取舍"
 description: "利用上下文推断类型，同时明确表达访问、所有权、失败处理和执行阶段。"
 section: philosophy
 source: docs/development/principles.md

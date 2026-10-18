@@ -19,7 +19,7 @@ source: docs/language/standard.md
 | 测试断言与停止       | [`check`、`require`、`fail`](/zh/reference/entry-testing/#测试操作)        |
 | 取地址               | [`addressof`](/zh/reference/pointers/#使用-addressof-取地址)               |
 | 文本查询与修改       | [`str` 与 `String`](/zh/reference/text/)                                   |
-| 序列查询与视图       | [数组与切片](/zh/reference/slices/#操作)                                   |
+| 序列查询与视图       | [数组与切片](/zh/reference/slices/#切片操作)                               |
 | 向量与掩码操作       | [SIMD 原语](/zh/reference/simd/)                                           |
 | 标量类型与转换       | [数值、布尔、字符与单元类型](/zh/reference/types/#标量类型)                |
 | 动态数组             | [`Vector<T>`](/zh/reference/aggregates/#动态数组-vector)                   |

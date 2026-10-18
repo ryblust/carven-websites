@@ -1,30 +1,26 @@
 ---
-title: "Advanced project: build the Carven language server"
+title: "Project: language server"
 description: Apply JSON document changes, run analysis asynchronously, return diagnostics, and close the session in carven-lsp.
 section: learn
 lesson: 20
 source: tools/lsp/README.md
 ---
 
-## Prepare the project and the task
+## Prepare the project
 
-Build a tool for Carven using Carven. Your task is to accept a document change from an editor, analyze the changed text while continuing to receive messages, and send diagnostics back. After the user fixes the code, send an empty diagnostics array to clear the error. Finish by delivering queued replies and closing the session's tasks.
+A language server accepts document changes from an editor, analyzes the changed text while continuing to receive messages, and returns diagnostics. After the user fixes the code, it sends an empty diagnostics array to clear the error. At shutdown, it delivers queued replies and closes the session's tasks.
 
 The `carven-lsp` application implements this flow in Carven. A separate `carven-analyzer` process supplies compiler analysis. Use JSON to read and construct messages, Async to coordinate input and analysis, and owned values to carry text between those steps.
 
-Complete [async workflows](/learn/async/) and the [JSON input project](/learn/data-pipeline/) first. Work in the Carven repository on a POSIX host with the compiler prerequisites from [your first program](/learn/first-program/). Install Node.js 24.12 or newer and pnpm for the protocol tests.
+Complete [async workflows](/learn/async/) and the [JSON input project](/learn/data-pipeline/) first. Prepare `carven` as in [your first program](/learn/first-program/). The standalone edit example below uses only the compiler and a copy of `protocol.cv`. To modify the full server, obtain the [language-server project](https://github.com/ryblust/carven/tree/main/tools/lsp) on a POSIX host and follow its build and test instructions. Protocol tests require Node.js 24.12 or newer and pnpm.
 
-From the repository root, prepare the application and run its checks:
+To run the full server, make `carven-lsp` available in your terminal and start it with an explicit analyzer path:
 
 ```sh
-pnpm install --frozen-lockfile
-./xmakew build
-./xmakew build carven-lsp
-./xmakew test carven-lsp/protocol
-./xmakew test carven-test-lsp-framing/framing
+carven-lsp --analyzer /absolute/path/to/carven-analyzer
 ```
 
-Start the server with `./xmakew run carven-lsp`. Configure an editor to launch the built executable; pass `--analyzer /absolute/path/to/carven-analyzer`, or put the analyzer on PATH. The xmake run command supplies that PATH entry. The server exchanges framed messages on standard input and output.
+Configure an editor to launch the same executable and arguments. Alternatively, put `carven-analyzer` on PATH and omit `--analyzer`. The server exchanges framed messages on standard input and output.
 
 Start with a small runnable edit below. For the remaining stages, open `tools/lsp/main.cv` in the existing application: main connects the children and analyze processes jobs. Its message loop carries the edit through analysis and diagnostic publication. Each stage has an observable result to check.
 
@@ -32,7 +28,7 @@ Start with a small runnable edit below. For the remaining stages, open `tools/ls
 
 First, turn an editor message into new document text. Keep the URI, text, and editor version in a struct. Use `&document` to change that state, and keep the new text local until all changes have succeeded.
 
-Save this complete program as `document_edit.cv` in the repository root. It uses the project's `apply_change` function, which handles both whole-text replacements and UTF-16 ranged edits:
+Create a separate exercise directory. Copy the project's `tools/lsp/protocol.cv` to the same relative path under that directory, and save this complete program beside `tools/` as `document_edit.cv`. Its `apply_change` function handles both whole-text replacements and UTF-16 ranged edits:
 
 ```carven
 import tools.lsp.protocol using { apply_change, ProtocolError };
@@ -100,10 +96,10 @@ for text in inputs {
 }
 ```
 
-Run it with the protocol module:
+From the exercise directory, run it with the protocol module:
 
 ```sh
-./xmakew run carven interpret document_edit.cv tools/lsp/protocol.cv
+carven interpret document_edit.cv tools/lsp/protocol.cv
 ```
 
 Standard output is:
@@ -210,7 +206,7 @@ The worker handles each `.Data(bytes)` job and returns on `.End` after the chann
 
 Serialize the result with `to_json()`, then send an owned packet back to events. The packet can outlive the local body String. `session` receives that result and passes it to `complete` to release the active job and prepare notifications.
 
-Check this step with the gated analyzer scenario in `tools/lsp/tests/protocol.ts`. It holds an analyzer reply while more editor messages arrive. Verify that the server accepts those messages and eventually publishes the newest document version. Run `./xmakew test carven-lsp/protocol` after changing the scheduling code.
+Check this step with the gated analyzer scenario in `tools/lsp/tests/protocol.ts`. It holds an analyzer reply while more editor messages arrive. Verify that the server accepts those messages and eventually publishes the newest document version. When modifying the server project, run `./xmakew test carven-lsp/protocol` from that checkout root after changing the scheduling code.
 
 ## Return diagnostics for the current text
 
@@ -289,4 +285,4 @@ Check shutdown in `tools/lsp/tests/protocol.ts`: the client sends shutdown, rece
 2. Add a UTF-16 ranged edit around an emoji. Check the resulting text, then check a diagnostic's reported range in the protocol test.
 3. Extend the gated analyzer test with another edit while a reply is held. Verify that only diagnostics for the current text are published and that shutdown still finishes.
 
-Run all language-server groups with `./xmakew test -g lsp`. The implementation is in [tools/lsp](https://github.com/ryblust/carven/tree/main/tools/lsp); the task spans `server.cv`, `protocol.cv`, and the async loop in `main.cv`. For individual contracts, use [JSON values](/reference/json/), [async operations](/reference/async/), and [input and output](/reference/io/).
+When modifying the server project, run all language-server groups from its checkout root with `./xmakew test -g lsp`. The [tools/lsp implementation](https://github.com/ryblust/carven/tree/main/tools/lsp) spans `server.cv`, `protocol.cv`, and the async loop in `main.cv`. For individual contracts, use [JSON values](/reference/json/), [async operations](/reference/async/), and [input and output](/reference/io/).

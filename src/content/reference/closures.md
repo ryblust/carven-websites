@@ -8,7 +8,7 @@ source: docs/language/functions.md
 
 A lambda is an anonymous function written as `[captures](parameters) => expression` or `[captures](parameters) { statements }`. Use an inferred binding to own its concrete closure value; use a `fn(...) -> R` parameter when a function needs to call a callback.
 
-## Minimal example
+## Value and Write captures
 
 ```carven
 var offset = 2;

@@ -60,13 +60,12 @@ The stderr report shows total time, stage durations, and their shares of the tot
 
 ## Format source with `carven-format`
 
-`carven-format` is a separate formatter for `.cv` source. Build it from the Carven repository root, then preview one file, check a directory, or update files:
+`carven-format` is a separate formatter for `.cv` source. Make its executable available in your terminal. From your exercise directory, preview one file, check the directory, or update files:
 
 ```sh
-./xmakew build carven-format
-./xmakew run carven-format main.cv
-./xmakew run carven-format check examples
-./xmakew run carven-format write examples
+carven-format main.cv
+carven-format check .
+carven-format write .
 ```
 
 The first run previews formatted source on stdout. `check` lists files needing changes and returns 1 when differences exist; `write` updates them in place. The [CLI reference](/reference/cli/) covers file selection, help, and exit codes.
@@ -86,7 +85,7 @@ Longer selections expand to one name per line, including a comma after the last 
 
 The formatter preserves expression-bodied functions and written import order.
 
-## Put tests at the appropriate layer
+## Separate static, runtime, and interop tests
 
 Use `const test` for compile-time algorithms and test for runtime behavior; both may omit the name, and failures then identify the test by file, line, and column. Exercise native interop in a C++ build so the tests also cover linking, destruction, and exception boundaries.
 

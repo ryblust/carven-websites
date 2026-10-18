@@ -60,13 +60,12 @@ stderr 报告显示总耗时、各阶段耗时及其占比，不会混入 stdout
 
 ## 用 `carven-format` 格式化源码
 
-`carven-format` 是独立的 `.cv` 源码格式化工具。在 Carven 仓库根目录构建后，先预览单文件，再检查或修改整个目录：
+`carven-format` 是独立的 `.cv` 源码格式化工具。先确保终端可以调用它，再从练习目录预览单文件、检查整个目录或修改文件：
 
 ```sh
-./xmakew build carven-format
-./xmakew run carven-format main.cv
-./xmakew run carven-format check examples
-./xmakew run carven-format write examples
+carven-format main.cv
+carven-format check .
+carven-format write .
 ```
 
 第一条运行命令在 stdout 预览格式化结果。`check` 列出需要调整的文件，有差异时返回 1；`write` 原地修改文件。文件选择、帮助与退出码见[命令行参考](/zh/reference/cli/)。
@@ -86,7 +85,7 @@ import <vector> using std::{ vector, allocator };
 
 格式化工具保留表达式体函数和源码中的导入顺序。
 
-## 测试放在哪一层
+## 区分编译期、运行时与互操作测试
 
 编译期算法使用 `const test`，运行时行为使用 test；两者都可以省略名字，失败时以文件、行和列标识测试。原生互操作在 C++ 构建中测试，同时覆盖链接、析构和异常边界。
 

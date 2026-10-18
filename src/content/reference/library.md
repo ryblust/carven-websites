@@ -19,7 +19,7 @@ Named built-ins follow ordinary name lookup and can be shadowed. See [standard m
 | Test assertions and stopping | [`check`, `require`, `fail`](/reference/entry-testing/#test-operations)       |
 | Address creation             | [`addressof`](/reference/pointers/#address-values-and-target-access)          |
 | Text queries and mutation    | [`str` and `String`](/reference/text/)                                        |
-| Sequence queries and views   | [Arrays and slices](/reference/slices/#operations)                            |
+| Sequence queries and views   | [Arrays and slices](/reference/slices/#slice-operations)                      |
 | Vector and mask operations   | [SIMD primitives](/reference/simd/)                                           |
 | Scalar types and conversions | [Numeric, Boolean, character, and unit types](/reference/types/#scalar-types) |
 | Dynamic arrays               | [`Vector<T>`](/reference/aggregates/#owning-vectors)                          |

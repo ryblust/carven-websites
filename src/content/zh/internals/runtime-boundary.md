@@ -27,7 +27,7 @@ async fn main() {
 
 默认绑定和导入规则见[模块参考](/zh/reference/modules/)；查找 API 所属模块时，使用[标准 API 索引](/zh/reference/library/)。
 
-## 区分公共接口、语义和原生实现
+## API、编译器语义与原生支持
 
 同一项能力可以同时使用以下三层：
 
@@ -43,7 +43,7 @@ async fn main() {
 
 Standard Craft 位于 `crafts/carven/std/`，需要原生支持的能力在自身包内提供实现。Runtime Craft 位于 `crafts/carven/runtime/`。构建编译器不依赖这些 Craft 的 C++ 头文件和库；构建生成的原生应用时，再加入所用能力需要的支持。
 
-## 区分运行支持与执行阶段
+## 运行支持与执行阶段
 
 **Runtime Craft** 是原生支持包的名称，**运行时执行**是普通程序调用的执行阶段。`const` 初始化器或静态测试要求在编译器进程中执行；普通调用即便实参已知，也仍在运行时执行。
 

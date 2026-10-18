@@ -18,10 +18,10 @@ extern "C++" auto main(int argc, const char* const* argv) noexcept -> int {
     if (argc < 2) {
         return 1;
     }
-    const auto args = std::span(argv + 2, static_cast<std::size_t>(argc - 2));
+    const auto args = std::vector<std::string>(argv + 2, argv + argc);
     const auto command = std::string_view(argv[1]);
     if (command == "format") {
-        if (args.size() != 1uz || std::string_view(args.front()) != "main.cv") {
+        if (args.size() != 1uz || args.front() != "main.cv") {
             return 2;
         }
         auto sources = SourceManager();

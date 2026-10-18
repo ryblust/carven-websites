@@ -1,5 +1,5 @@
 ---
-title: "Built-in capabilities and runtime support"
+title: "Built-ins and runtime support"
 description: "Distinguish compiler-owned semantics, standard module visibility, and the native support that executes a program."
 section: internals
 source: docs/development/principles.md
@@ -27,7 +27,7 @@ Module ownership and default visibility are separate properties. A standard modu
 
 Use the [module reference](/reference/modules/) to look up default bindings and import rules, and the [standard API index](/reference/library/) to find an API's module.
 
-## Separate the API, semantics, and native implementation
+## API, compiler semantics, and native support
 
 One capability can use all three layers:
 
@@ -43,7 +43,7 @@ For `when_all`, the public entry belongs to `std::async`, the compiler checks it
 
 The Standard Craft lives in `crafts/carven/std/`, with native support beside capabilities that need it. The Runtime Craft lives in `crafts/carven/runtime/`. The compiler build is independent of their C++ headers and libraries; a generated native application builds with the support its capabilities require.
 
-## Distinguish runtime support from execution stage
+## Runtime support and execution stages
 
 **Runtime Craft** names a native support package. **Runtime execution** names the stage of ordinary program calls. A `const` initializer or static test selects compiler-side execution; an ordinary call remains at runtime even when its arguments are known.
 

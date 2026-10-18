@@ -13,6 +13,7 @@ export function MobileChapters({
   children: ReactNode;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const heading = useRef<HTMLElement>(null);
   const ready = useHydrated();
   const router = useRouter();
   const dialogId = useId();
@@ -52,6 +53,7 @@ export function MobileChapters({
           aria-expanded={open}
           onClick={() => {
             dialog.current?.showModal();
+            heading.current?.focus({ preventScroll: true });
             setOpen(true);
           }}
         >
@@ -77,7 +79,9 @@ export function MobileChapters({
       >
         <div className="chapter-drawer-panel">
           <div className="chapter-drawer-heading">
-            <strong>{label}</strong>
+            <strong ref={heading} tabIndex={-1} autoFocus>
+              {label}
+            </strong>
             <button type="button" aria-label={closeLabel} onClick={() => dialog.current?.close()}>
               ×
             </button>

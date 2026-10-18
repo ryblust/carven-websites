@@ -127,6 +127,9 @@
 
   font-family: var(--sans);
   font-size: 100%;
+  /* Keep wide API tables and code from triggering mobile text inflation. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   /* Shared UI line boxes stay stable when the fallback script changes. */
   line-height: 1.5;
   background: var(--bg);

@@ -50,13 +50,14 @@ println(units.length()); // 2
 
 结构体与载荷枚举支持类型参数及失败集合参数：
 
-```carven
+```carven run
 struct Box<T> { value: T }
 enum Maybe<T> { None, Some(T) }
 
 let boxed = Box<i32> { value: 7 };
 let present = Maybe<i32>::Some(7);
 let absent: Maybe<String> = .None;
+println(boxed.value, present == .Some(7), absent == .None); // 7 true true
 ```
 
 参数只在所属声明内可见，可用于字段、载荷、嵌套的参数化名义类型、数组、元组、切片、指针与 Operation。`throw E` 声明失败集合参数，可以进入失败契约，不能充当对象类型。

@@ -22,7 +22,7 @@ println(greeting);
 
 You may also use `::std::printf` for an explicit global C++ path. Carven does not read header contents. The C++ compiler checks function existence, overloads, and argument validity. `carven interpret` accepts files with header imports, but it stops with `CV-INTERPRET-ADMISSION` when execution reaches a native call such as `printf`; run native code with `carven`.
 
-## Native types
+## Construct and use C++ types
 
 ```carven
 import <vector> using std::vector;
@@ -35,7 +35,7 @@ println(count, values[3]);
 
 The output is `4 4`. C++ performs the braced construction, including class template argument deduction; `vector<i32> { 1, 2, 3 }` states the element type explicitly. C++ decides construction, methods, and conversion validity; the `usize` annotation requests destination construction. Native indexing follows provider rules and does not automatically gain Carven array bounds checks.
 
-## Choose a standard capability or a native dependency
+## Choose between standard APIs and C++ libraries
 
 For growable Carven data use `Vector<T>` from the data chapter. For JSON use the owning `std::json` API; neither requires a third-party C++ dependency:
 

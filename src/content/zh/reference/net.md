@@ -18,7 +18,7 @@ source: docs/language/net.md
 
 `NetError` 是含 `System(i32)`、`Closed`、`Conflict`、`NoProgress` 的载荷枚举。`System` 携带平台错误码；`Closed` 表示连接不存在或已关闭。同方向操作冲突及写入无进展的规则见下文。
 
-## 源码操作
+## 连接读写
 
 `std::net` 提供 `ConnectionView`、`NetError`，以及操作原生宿主连接的冷操作。
 

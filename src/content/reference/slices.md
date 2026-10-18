@@ -24,7 +24,7 @@ fn main() {
 
 `array.slice()` and `vector.slice()` explicitly create views. Both owners also accept `slice(start, end)` to select a subrange directly. When `[T]` is expected, `[T; N]` and `Vector<T>` may implicitly create the same view in initialization, assignment, arguments, returns, and aggregate element positions. Array literals use the expected slice element type, including `[]`. An empty slice formed from a zero-length array retains no backing storage. Without slice context, an array remains an array. A Write argument needs an actual slice slot.
 
-## Operations
+## Slice operations
 
 | Operation             | Result                                  |
 | --------------------- | --------------------------------------- |
@@ -57,7 +57,7 @@ fn table_view() -> [i32] => table;
 
 This element storage has static lifetime and may be copied, stored, and returned. The constant declaration does not gain source-level address identity. Native code cannot depend on uses or artifacts sharing the same address.
 
-Element preservation and supported result types follow the [freezing rules](/reference/constants/#admission-and-freezing). Retaining arrays and constructing constant subslices count toward the shared [execution budgets](/reference/constants/#execution-budgets).
+Element preservation and supported result types follow the [freezing rules](/reference/constants/#constant-results-and-storage). Retaining arrays and constructing constant subslices count toward the shared [execution budgets](/reference/constants/#execution-budgets).
 
 ## Slices in compile-time execution
 

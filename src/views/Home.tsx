@@ -7,7 +7,6 @@ import { Sketch } from '../components/Sketch';
 import { CompilationFlow } from '../components/CompilationFlow';
 import { ArrowUpRight, Play } from 'lucide-react';
 import { UIIcon } from '../components/UIIcon';
-import { repository } from '../lib/site';
 import { homeExamples } from '../generated/home-examples';
 import { homeCodeLoaders } from '../generated/home-tokens';
 import initialStep from '../generated/home-tokens/asyncWorkflow';
@@ -469,8 +468,8 @@ export default function Home({ locale }: { locale: Locale }) {
           <h2 id="quickstart-heading">{t('运行第一个程序。', 'Run your first program.')}</h2>
           <p>
             {t(
-              '构建编译器需要 Git、Xmake，以及支持 C++26 的 LLVM/Clang 工具链；生成的程序使用 C++20。',
-              'Building the compiler requires Git, Xmake, and an LLVM/Clang toolchain with C++26 support. Generated programs use C++20.',
+              '先把 carven 所在目录加入 PATH，具体步骤见「写第一个程序」。原生运行还需要支持 C++20 的工具链，默认使用 clang++。',
+              'Add the carven executable directory to PATH; see “Write your first program” for setup. Native execution also needs a C++20 toolchain and uses clang++ by default.',
             )}
           </p>
           <div className="home-actions">
@@ -487,26 +486,22 @@ export default function Home({ locale }: { locale: Locale }) {
         </header>
         <div className="code-window terminal">
           <div className="terminal-step">
-            <p>{t('1 · 构建编译器', '1 · Build the compiler')}</p>
+            <p>{t('1 · 检查编译器', '1 · Check the compiler')}</p>
             <pre>
               <code>
-                <span className="prompt">git clone {repository}.git</span>
-                {'\n'}
-                <span className="prompt">cd carven</span>
-                {'\n'}
-                <span className="prompt">./xmakew build</span>
+                <span className="prompt">carven --version</span>
               </code>
             </pre>
           </div>
           <div className="terminal-step">
-            <p>{t('2 · 在仓库根目录保存 main.cv', '2 · Save main.cv in the repository root')}</p>
+            <p>{t('2 · 在练习目录保存 main.cv', '2 · Save main.cv in an exercise directory')}</p>
             <div dangerouslySetInnerHTML={{ __html: homeExamples.quickstart }} />
           </div>
           <div className="terminal-step">
-            <p>{t('3 · 运行', '3 · Run')}</p>
+            <p>{t('3 · 在该目录运行', '3 · Run from that directory')}</p>
             <pre>
               <code>
-                <span className="prompt">./xmakew run carven main.cv</span>
+                <span className="prompt">carven main.cv</span>
                 {'\n'}
                 <span className="terminal-output">Answer: 42</span>
               </code>

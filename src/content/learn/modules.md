@@ -8,7 +8,7 @@ source: docs/language/modules.md
 
 ## Split the program into two files
 
-Continue in the Carven repository root and save math.cv:
+In your exercise directory, save math.cv beside main.cv:
 
 ```carven
 fn add(left: i32, right: i32) -> i32 => left + right;
@@ -25,7 +25,7 @@ println(add(20, 22));
 Pass both files to the compiler:
 
 ```sh
-./xmakew run carven main.cv math.cv
+carven main.cv math.cv
 ```
 
 The output is 42. Import does not search the filesystem: the compilation batch must already include math.cv. Passing only main.cv reports `CV-IMPORT-RESOLUTION`. Input order does not control whether a function can be referenced.
@@ -35,7 +35,7 @@ The filename without .cv becomes part of the module name. It must contain only l
 To inspect the generated C++, run:
 
 ```sh
-./xmakew run carven compile --stdout main.cv math.cv
+carven compile --stdout main.cv math.cv
 ```
 
 The output shows the generated files for main.cv and math.cv. See the [toolchain reference](/reference/toolchain/) to write artifacts to a directory or use them in a C++ build.
@@ -66,11 +66,11 @@ import math using { add, subtract };
 println(add(20, 22), subtract(20, 4));
 ```
 
-Run `./xmakew run carven main.cv math.cv`. The output is `42 16`.
+Run `carven main.cv math.cv`. The output is `42 16`.
 
 Use `carven-format` to arrange import lists; the [workflow chapter](/learn/workflow/) shows its commands.
 
-## Declare the audience
+## Control declaration visibility
 
 private is visible only within its module. A bare declaration is visible within its craft domain. export is visible to all domains in the current batch. Ordinary application files share the unprefixed domain, so the example's bare add can be imported by main.
 
@@ -82,7 +82,7 @@ private fn delivery(quantity: i32) -> i32 => if quantity >= 10 { 0 } else { 8 };
 export fn total(price: i32, quantity: i32) -> i32 => price * quantity + delivery(quantity);
 ```
 
-Replace main.cv in the repository root:
+Replace main.cv in the exercise directory:
 
 ```carven
 import pricing::quote using total;
@@ -93,14 +93,14 @@ println(total(12, 3));
 Pass these files to the compiler:
 
 ```sh
-./xmakew run carven main.cv crafts/pricing/quote.cv
+carven main.cv crafts/pricing/quote.cv
 ```
 
 The output is 44. `total` is exported from the pricing craft. It can call the private `delivery` helper in its own module; main.cv cannot import that helper. Removing `export` from `total` makes it visible only within pricing and rejects the import from main.cv.
 
 A public interface must use types visible to its callers. See [module visibility](/reference/modules/) when exporting types as well as functions.
 
-## Build a project
+## Build with Xmake
 
 As the project grows, let Xmake collect the batch and native dependencies. In a consuming project's xmake.lua:
 
@@ -141,4 +141,4 @@ The [module reference](/reference/modules/#standard-modules-and-defaults) lists 
 
 ## Exercise
 
-Return to the first main.cv and math.cv pair. Move them under src, change main's import to `.math`, and run `./xmakew run carven src/main.cv src/math.cv`. Make add private and confirm that another module cannot import it, then restore the bare declaration.
+Return to the first main.cv and math.cv pair. Move them under src, change main's import to `.math`, and run `carven src/main.cv src/math.cv`. Make add private and confirm that another module cannot import it, then restore the bare declaration.

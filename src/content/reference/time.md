@@ -38,10 +38,11 @@ construct the same nominal type and check scaling at compilation. Dynamic values
 use checked functions such as `milliseconds(value)?`. Nanoseconds describe the
 representation, not wakeup accuracy.
 
-```carven
+```carven run
 import std::time using { Duration, milliseconds };
 
 const delay: Duration = milliseconds(250)?;
+println(delay.nanoseconds); // 250000000
 ```
 
 ## Monotonic time points
@@ -96,13 +97,14 @@ a timer. `sleep_until(point)` supplies the same absolute waiting capability.
 Both accept pending cancellation before checking whether the deadline is already
 due. Creating or discarding an unstarted operation performs no waiting.
 
-```carven
+```carven run
 import std::time using { TimePoint, RangeError, sleep, sleep_until };
 
 async fn main() throw RangeError {
     await sleep(250ms)?;
     let deadline = TimePoint::after(100ms)?;
     await sleep_until(deadline);
+    println("wait complete");
 }
 ```
 

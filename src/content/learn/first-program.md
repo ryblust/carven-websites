@@ -10,19 +10,33 @@ This is the first hands-on chapter. See the [tutorial overview](/learn/) for the
 
 ## Prepare the compiler
 
-Carven generates C++. Building the compiler requires Git, Xmake 3.1.1, and LLVM/Clang with libc++ supporting the project's C++26 modules. LLVM 23 is the validated toolchain version; on Windows, use LLVM-MinGW. Generated programs use C++20.
+Use `carven` with its matching [Crafts resources](https://github.com/ryblust/carven/blob/main/docs/toolchain/cli.md#source-collection). For a source build, follow the [compiler build instructions](https://github.com/ryblust/carven#development); they explain where to find the built executable.
+
+Add the directory containing `carven` (`carven.exe` on Windows) to `PATH`. Replace the example path with that directory's absolute path.
+
+On macOS and Linux:
 
 ```sh
-git clone https://github.com/ryblust/carven.git
-cd carven
-./xmakew build
+export PATH="/absolute/path/to/compiler-directory:$PATH"
 ```
 
-On Windows, the repository wrapper is `.\xmakew.ps1`. Direct native execution uses a C++ toolchain without requiring Xmake. With an installed compiler, replace `./xmakew run carven` with `carven`.
+In Windows PowerShell:
+
+```powershell
+$env:Path = "C:\path\to\compiler-directory;$env:Path"
+```
+
+These changes apply to the current terminal. To keep them for future terminals, add the directory in your shell startup configuration or Windows user `Path`. Check that the command is available:
+
+```sh
+carven --version
+```
+
+Carven generates C++20. Native execution also needs a C++20-capable compiler, SDK, and linker in your environment. The default compiler is `clang++`; set `CXX` to select another compiler. Interpretation and semantic checking do not require native compilation.
 
 ## Write your first file
 
-Save this as `main.cv` in the compiler repository root:
+Create a directory for your exercises and open a terminal there. Save this as `main.cv`:
 
 ```carven run
 let unit_price = 1200;
@@ -35,7 +49,7 @@ println("Order total:", unit_price * quantity);
 Click **Run** in the code block to execute this example in your browser. To run the saved file locally:
 
 ```sh
-./xmakew run carven main.cv
+carven main.cv
 ```
 
 Output:
@@ -49,19 +63,19 @@ Direct execution generates C++, compiles it, links it, and runs the executable. 
 ## Inspect the generated result
 
 ```sh
-./xmakew run carven compile --stdout main.cv
+carven compile --stdout main.cv
 ```
 
 compile only generates artifacts. `--stdout` separates files with filename headings for inspection. To use the output in a build, write it to a directory:
 
 ```sh
-./xmakew run carven compile -o generated main.cv
+carven compile -o generated main.cv
 ```
 
 This program also fits the interpreter's supported subset:
 
 ```sh
-./xmakew run carven interpret main.cv
+carven interpret main.cv
 ```
 
 The output is still Order total: 3600. Use this command when you want to run supported Carven code without compiling C++. Later chapters use native execution by default, so their examples also work when they call C++ or create capturing closures.
@@ -69,22 +83,22 @@ The output is still Order total: 3600. Use this command when you want to run sup
 ## Check without running
 
 ```sh
-./xmakew run carven check main.cv
+carven check main.cv
 ```
 
 check validates the source without running the program; explicitly requested compile-time work still executes. A successful check prints `carven: check passed` on stderr. Add `--timings` to see stage durations on stderr:
 
 ```sh
-./xmakew run carven check --timings main.cv
+carven check --timings main.cv
 ```
 
 ## Saving and running later examples
 
-Unless a lesson gives another filename, save each complete example as main.cv. Replace the previous example. Run `./xmakew run carven main.cv`. If a chapter contains several complete programs, run them separately rather than joining them in one file or batch. File names must be valid identifiers: `main.cv` and `order_items.cv` work, `my-file.cv` does not.
+Unless a lesson gives another filename, save each complete example as main.cv. Replace the previous example. Run `carven main.cv`. If a chapter contains several complete programs, run them separately rather than joining them in one file or batch. File names must be valid identifiers: `main.cv` and `order_items.cv` work, `my-file.cv` does not.
 
 A fragment that extends an earlier program says which declarations to keep. Multi-file examples list every file to pass to the compiler. The testing chapter introduces the separate commands for running tests; ordinary execution runs the application, not its tests.
 
-Later command tables use `carven` as shorthand for the executable. If it is not installed, use `./xmakew run carven` in the source repository. Native compilation commands still use clang++.
+Run each lesson from its exercise directory. Source paths are relative to that directory; the compiler repository is not required. Native compilation examples use `clang++`.
 
 ## Give the entry a name
 

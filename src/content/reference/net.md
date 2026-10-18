@@ -18,7 +18,7 @@ Import `ConnectionView`, `NetError`, `borrow`, `read`, `write`, or `write_all` f
 
 `NetError` is a payload enum with `System(i32)`, `Closed`, `Conflict`, and `NoProgress`. `System` carries the platform error code; `Closed` reports an absent or closed connection. Direction conflicts and stalled writes are described below.
 
-## Source operations
+## Connection reads and writes
 
 `std::net` provides `ConnectionView`, `NetError`, and cold operations
 over connections supplied by a native host:

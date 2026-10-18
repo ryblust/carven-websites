@@ -1,5 +1,5 @@
 ---
-title: "Project: validate and summarize JSON input"
+title: "Project: JSON input"
 description: "Read JSON records, explain rejected data, and summarize accepted amounts without losing the rest of the input."
 section: learn
 lesson: 18

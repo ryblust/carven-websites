@@ -1,5 +1,5 @@
 ---
-title: "Organize calculations with functions"
+title: "Calculations with functions"
 description: "Name calculations, declare parameter types, and make return paths explicit."
 section: learn
 lesson: 4

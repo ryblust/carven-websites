@@ -64,13 +64,14 @@ These names are default bindings from `std::core`. Integer widths include the si
 
 Structs and payload enums can declare type and failure-set parameters:
 
-```carven
+```carven run
 struct Box<T> { value: T }
 enum Maybe<T> { None, Some(T) }
 
 let boxed = Box<i32> { value: 7 };
 let present = Maybe<i32>::Some(7);
 let absent: Maybe<String> = .None;
+println(boxed.value, present == .Some(7), absent == .None); // 7 true true
 ```
 
 A parameter is scoped to its declaration. Field and payload types can use type

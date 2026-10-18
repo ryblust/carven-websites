@@ -30,7 +30,7 @@ stock = 1;
 println(snapshot, sent, stock);
 ```
 
-From the Carven repository root, run `./xmakew run carven access.cv`. The output is `7 9 1`. read_stock leaves stock unchanged. restock changes it from 7 to 9. dispatch takes its value. Before reading stock again, the caller must assign a new value. These are Read, Write, and Take. A call repeats the parameter marker so the caller can see which access it grants.
+Save the program as access.cv in your exercise directory and run `carven access.cv`. The output is `7 9 1`. read_stock leaves stock unchanged. restock changes it from 7 to 9. dispatch takes its value. Before reading stock again, the caller must assign a new value. These are Read, Write, and Take. A call repeats the parameter marker so the caller can see which access it grants.
 
 stock becomes unavailable after dispatch. A complete ordinary assignment restores a `var`. Even for copyable `i32`, Take changes source availability. A `let` cannot be restored by assignment because it is not writable.
 
@@ -96,7 +96,7 @@ Run `carven main.cv` to print `5 7 9`. `for &count` binds Write access to each e
 
 Leaving a scope cleans up its local values. This also happens when return or break leaves that scope early. A view cannot keep its source alive simply by being stored somewhere that lasts longer.
 
-## Who keeps borrowed storage valid
+## Keep borrowed storage alive
 
 Copying text is useful when both copies need independent lives. When a function only needs to read existing text, a view avoids that copy. The view refers to the original String, so that String must stay alive and unchanged while the view exists.
 
@@ -117,7 +117,7 @@ The output is `Carven`, then `Carven + C++`. The inner braces limit the life of 
 
 The [text chapter](/learn/text/) applies this choice between owning a copy and borrowing a view.
 
-## Keep fields behind a class
+## Control field access with a class
 
 A class groups private fields with the operations allowed to use them. Its receivers use the same three access modes. Save this as `stock.cv`:
 
@@ -143,7 +143,7 @@ let sent = stock.dispatch();
 println(sent);
 ```
 
-Run `./xmakew run carven stock.cv`. The output is:
+Run `carven stock.cv`. The output is:
 
 ```text
 Stock 9
@@ -154,7 +154,7 @@ Only code inside the class body can read units or construct a Stock. Other code 
 
 A class is still a value; its fields determine copying and cleanup. Printing shows only the class name. See the [class reference](/reference/aggregates/) for construction, access, and comparison rules.
 
-## Keep one result while handing on another
+## Transfer one tuple element
 
 A tuple can carry both a label and a count. Give them separate local names when the next step should receive the label but you still need the count:
 
@@ -168,7 +168,7 @@ println(delivered, count);
 
 It prints `accepted 3`. After Take, label is unavailable, but count is still a separate value. Naming the two parts lets you hand one on without losing access to the other.
 
-## Hand on a value without fixing its type
+## Transfer values through a generic function
 
 A wrapper sometimes needs to pass along a whole result regardless of its type. T, the type parameter introduced with generic records, lets this function preserve the caller's type:
 

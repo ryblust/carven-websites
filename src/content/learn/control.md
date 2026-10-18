@@ -1,5 +1,5 @@
 ---
-title: "Choose branches and repeat work"
+title: "Branches and loops"
 description: "Organize execution with conditions, integer ranges, pattern matching, and loop updates."
 section: learn
 lesson: 3
