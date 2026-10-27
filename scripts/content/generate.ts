@@ -1,6 +1,5 @@
 import { Effect } from 'effect';
-import { homeExamples } from '../../src/content/home-examples.ts';
-import { homeShowcase } from '../../src/content/home-showcase.ts';
+import { readFile } from 'node:fs/promises';
 import { ContentRepository } from './ContentRepository.ts';
 import { Markdown } from './Markdown.ts';
 import { ContentError, parseArticle } from './model.ts';
@@ -92,43 +91,24 @@ export const generateContent = Effect.fn('generateContent')(function* (root: str
     }
   }
 
-  const names = Array.from(
-    new Set(
-      homeShowcase.flatMap((example) => [
-        example.code,
-        example.cpp,
-        ...('cpp26' in example ? [example.cpp26] : []),
-      ]),
+  const hero = Object.fromEntries(
+    yield* Effect.forEach(
+      [
+        ['main.cv', 'hero.cv'],
+        ['build.cv', 'hero-build.cv'],
+      ] as const,
+      ([name, file]) =>
+        Effect.gen(function* () {
+          const source = yield* Effect.tryPromise({
+            try: () => readFile(new URL(`../../src/content/${file}`, import.meta.url), 'utf8'),
+            catch: (cause) => new ContentError({ file, operation: 'read', cause }),
+          });
+          return [name, yield* markdown.highlight(file, source.trimEnd())] as const;
+        }),
+      { concurrency: 2 },
     ),
   );
-  const examples = yield* Effect.forEach(names, (name) =>
-    Effect.gen(function* () {
-      const language = name.endsWith('Cpp') ? 'cpp' : 'cv';
-      const tokens = yield* markdown.tokens(`home-examples/${name}`, homeExamples[name], language);
-      return { name, tokens };
-    }),
-  );
-  const quickstart = yield* markdown.render(
-    'home-examples/quickstart',
-    '```cv\n' + homeExamples.quickstart + '\n```',
-    { codeBlockFrame: false },
-  );
-  const projectBuild = yield* markdown.render(
-    'home-examples/project-build',
-    '```cv\n' + homeExamples.projectBuild + '\n```',
-    { codeBlockFrame: false },
-  );
-  const projectInlineTests = yield* markdown.render(
-    'home-examples/project-inline-tests',
-    '```cv\n' + homeExamples.projectInlineTests + '\n```',
-    { codeBlockFrame: false },
-  );
-  yield* repository.publish(
-    root,
-    articles,
-    { quickstart, projectBuild, projectInlineTests },
-    Object.fromEntries(examples.map(({ name, tokens }) => [name, tokens])),
-  );
+  yield* repository.publish(root, articles, hero);
   yield* Effect.logInfo(`Prepared ${articles.length} articles.`);
 
   return articles.map((article) => article.path);

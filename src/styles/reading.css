@@ -4,24 +4,18 @@
   --reading-content-width: 760px;
   --reading-outline-width: 200px;
   --reading-column-gap: 32px;
-  width: min(
-    calc(
-      var(--reading-navigation-width) + var(--reading-content-width) +
-        var(--reading-outline-width) + 2 * var(--reading-column-gap)
-    ),
-    calc(100% - 64px)
-  );
-  margin-inline: auto;
   display: grid;
-  grid-template-columns: var(--reading-navigation-width) minmax(0, 1fr) var(--reading-outline-width);
+  /* Balance the side tracks so spare space stays on both sides of the reading column. */
+  grid-template-columns:
+    minmax(var(--reading-navigation-width), 1fr) minmax(0, var(--reading-content-width))
+    minmax(var(--reading-navigation-width), 1fr);
   gap: var(--reading-column-gap);
-  justify-content: center;
   padding-block: var(--space-7) var(--space-9);
 }
 
 .article-overview.article-shell {
-  width: min(760px, calc(100% - 72px));
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, var(--reading-content-width));
+  justify-content: center;
 }
 
 .article-overview .page-outline,
@@ -115,6 +109,15 @@
 }
 
 @media (min-width: 801px) {
+  .reading-nav {
+    width: var(--reading-navigation-width);
+  }
+
+  .page-outline {
+    width: var(--reading-outline-width);
+    justify-self: end;
+  }
+
   .reading-nav-inner {
     display: flex;
     flex-direction: column;
@@ -305,10 +308,8 @@
 
 @media (max-width: 1180px) {
   .article-shell {
-    grid-template-columns: var(--reading-navigation-width) minmax(0, 1fr);
-    max-width: calc(
-      var(--reading-navigation-width) + var(--reading-content-width) + var(--reading-column-gap)
-    );
+    grid-template-columns: var(--reading-navigation-width) minmax(0, var(--reading-content-width));
+    justify-content: start;
   }
 
   .page-outline {
@@ -355,7 +356,6 @@
 @media (max-width: 800px) {
   .article-shell,
   .article-overview.article-shell {
-    width: calc(100% - 40px);
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-5);
     padding-block: 20px 56px;

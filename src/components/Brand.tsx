@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { localizedPath, type Locale } from '../lib/i18n';
 import { href } from '../lib/site';
+import mark from '../assets/carven-mark.svg?raw';
 
 export function Wordmark({ priority = false }: { priority?: boolean }) {
   return (
@@ -30,13 +31,10 @@ export function Brand({
       to={localizedPath('/', locale)}
       aria-label={locale === 'en' ? 'Carven home' : 'Carven 首页'}
     >
-      <img
+      <span
         className="brand-symbol"
-        src={href('/brand/carven-mark.svg')}
-        alt=""
-        width={36}
-        height={36}
-        decoding="async"
+        aria-hidden="true"
+        dangerouslySetInnerHTML={{ __html: mark }}
       />
       {!iconOnly && <Wordmark />}
     </Link>

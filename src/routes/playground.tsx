@@ -6,7 +6,7 @@ export const Route = createFileRoute('/playground')({
   head: () =>
     pageHead(
       'Playground',
-      'Run and test Carven projects in your browser, edit input files, and call a pricing rule in an interactive preview.',
+      'Run and test Carven projects in your browser. Edit components and charts in a live view, call pricing rules, and work with input files.',
       '/playground/',
     ),
   component: () => <Playground locale="en" />,

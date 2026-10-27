@@ -1,0 +1,11 @@
+import std::build using project;
+
+project({
+    targets: [{
+        name: "hello",
+        kind: .Executable,
+        sources: ["main.cv"],
+        ...
+    }],
+    ...
+})?;

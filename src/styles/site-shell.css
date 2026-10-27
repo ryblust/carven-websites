@@ -11,8 +11,14 @@
   min-height: var(--header-height);
   display: flex;
   align-items: center;
-  gap: var(--space-6);
+  gap: 26px;
   position: relative;
+}
+
+.site-header .wordmark {
+  width: 36px;
+  min-height: 44px;
+  justify-content: flex-start;
 }
 
 .wordmark {
@@ -27,9 +33,10 @@
 
 .desktop-nav {
   display: flex;
-  gap: var(--space-6);
+  gap: 24px;
   margin-left: auto;
   align-items: center;
+  white-space: nowrap;
 }
 
 .desktop-nav a {
@@ -249,7 +256,7 @@
 @media (max-width: 800px) {
   .header-inner {
     flex-wrap: wrap;
-    column-gap: var(--space-3);
+    column-gap: 10px;
     row-gap: 0;
   }
 
@@ -257,8 +264,13 @@
     display: none;
   }
 
+  .site-header .wordmark {
+    margin-right: auto;
+  }
+
   .header-actions {
-    margin-left: auto;
+    margin-left: 0;
+    gap: 2px;
   }
 
   .mobile-nav {
@@ -307,8 +319,8 @@
 
   .mobile-nav nav {
     position: absolute;
-    left: -20px;
-    right: -20px;
+    left: calc(var(--gutter) / -2);
+    right: calc(var(--gutter) / -2);
     top: 100%;
     z-index: 20;
     background: var(--surface);
@@ -358,22 +370,6 @@
   }
 }
 
-.header-inner {
-  width: min(1440px, calc(100% - 72px));
-  gap: 26px;
-}
-
-.site-header .wordmark {
-  width: 44px;
-  min-height: 44px;
-  justify-content: center;
-}
-
-.desktop-nav {
-  gap: 24px;
-  white-space: nowrap;
-}
-
 .header-actions .icon-button:hover {
   background: transparent;
   border-color: transparent;
@@ -396,79 +392,26 @@
   }
 }
 
-@media (max-width: 1300px) {
-  .header-inner {
-    gap: 20px;
-  }
-}
-
-/* Align the full search field with the page content; the mark uses the outer gutter. */
-@media (min-width: 1101px) {
-  .header-inner {
-    width: min(var(--page-width), calc(100% - var(--gutter)));
-    --header-brand-gap: 4px;
-  }
-
-  .site-header .wordmark {
-    position: absolute;
-    inset-inline-end: calc(100% + var(--header-brand-gap));
-    width: 32px;
-  }
-
-  .site-header .brand-symbol {
-    width: 28px;
-    height: 28px;
-  }
-}
-
-@media (min-width: 1360px) {
-  .header-inner {
-    --header-brand-gap: 26px;
-  }
-
-  .site-header .wordmark {
-    width: 44px;
-  }
-
-  .site-header .brand-symbol {
-    width: 36px;
-    height: 36px;
-  }
-}
-
-@media (max-width: 800px) {
-  .header-inner {
-    width: calc(100% - 32px);
-    gap: 10px;
-  }
-
-  .site-header .wordmark {
-    margin-right: auto;
-  }
-
-  .header-actions {
-    margin-left: 0;
-    gap: 2px;
-  }
-
-  .mobile-nav nav {
-    left: -16px;
-    right: -16px;
-  }
-}
-
 @media (max-width: 380px) {
   .header-inner {
-    width: calc(100% - 16px);
-    gap: 4px;
+    column-gap: 4px;
   }
 }
 
 .brand-symbol {
+  --brand-ink: light-dark(#243b70, #8fa9df);
+  --brand-accent: light-dark(#a64b32, #df926e);
   display: block;
   width: 36px;
   height: 36px;
   flex-shrink: 0;
+}
+
+/* Inline SVG inherits the page's selected theme, including manual overrides. */
+.brand-symbol svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 /* The ink wordmark is an image, independent of reading typography. */

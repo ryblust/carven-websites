@@ -1,5 +1,18 @@
-// Small, code-native pen drawings share the palette in both themes.
-export function Sketch({ kind = 'flow' }: { kind?: 'flow' | 'values' }) {
+import { useHydrated, useLocation, useNavigate } from '@tanstack/react-router';
+import { translate, type Locale } from '../lib/i18n';
+import '../styles/hero-sketch.css';
+import { LocaleText } from './LocaleText';
+import parse from 'html-react-parser';
+import { hero } from '../generated/hero';
+
+// Article sketches and the homepage project share the site palette.
+export function Sketch({
+  kind = 'flow',
+  locale = 'en',
+}: {
+  kind?: 'flow' | 'values';
+  locale?: Locale;
+}) {
   if (kind === 'values') {
     return (
       <svg className="article-sketch" viewBox="0 0 240 140" fill="none" aria-hidden="true">
@@ -21,57 +34,96 @@ export function Sketch({ kind = 'flow' }: { kind?: 'flow' | 'values' }) {
     );
   }
 
+  return <ProjectSketch locale={locale} />;
+}
+
+function ProjectSketch({ locale }: { locale: Locale }) {
+  const t = translate(locale);
+  const hydrated = useHydrated();
+  const hash = useLocation({ select: (location) => location.hash });
+  const navigate = useNavigate();
+  const selected = hydrated && hash === 'example-build' ? 'build.cv' : 'main.cv';
+  const files = ['main.cv', 'build.cv'] as const;
+
   return (
-    <svg className="hero-sketch" viewBox="0 0 520 390" fill="none" aria-hidden="true">
-      <path
-        className="sketch-grid"
-        d="M40 70h440M40 110h440M40 150h440M40 190h440M40 230h440M40 270h440M40 310h440M80 40v310m40-310v310m40-310v310m40-310v310m40-310v310m40-310v310m40-310v310m40-310v310m40-310v310m40-310v310"
-      />
-      <g transform="rotate(-6 185 130)">
-        <path className="sketch-paper" d="M72 48 287 51 289 213 69 209Z" />
-        <path d="m65 57-2 159 216 4M73 83l213 3" />
-        <circle cx="88" cy="67" r="2" />
-        <circle cx="99" cy="67" r="2" />
-        <circle cx="110" cy="67" r="2" />
-        <text className="sketch-label" x="205" y="72">
-          main.cv
-        </text>
-        <text x="94" y="121">
-          let idea = 42;
-        </text>
-        <text x="94" y="154">
-          println(idea);
-        </text>
-        <path className="sketch-accent" d="M93 163q58-4 131 0m-128 6 86-1" />
-        <text className="sketch-label" x="94" y="191">
-          a little more clarity.
-        </text>
-      </g>
-      <path
-        className="sketch-accent"
-        d="M308 101c108-17 136 64 80 120m-1-20-3 23 23-4M322 83l7-14m-28 11 1-14m42 27 16-7"
-      />
-      <g transform="rotate(5 345 286)">
-        <path className="sketch-paper" d="m240 238 206-2 3 102-212 1Z" />
-        <path d="m246 344 208-1 1-97M242 266l203-2" />
-        <text className="sketch-label" x="259" y="256">
-          native C++
-        </text>
-        <text x="266" y="309">
-          $ 42
-        </text>
-        <path className="sketch-accent" d="m385 299 9 10 20-25" />
-      </g>
-      <path
-        className="sketch-accent"
-        d="m111 268 5 15 16 5-16 5-5 16-5-16-16-5 16-5ZM52 253l-9 8m13-25-14-3M180 325q13 16 34 9"
-      />
-      <text className="sketch-note" x="318" y="169" transform="rotate(10 318 169)">
-        same power.
-      </text>
-      <text className="sketch-note" x="330" y="191" transform="rotate(10 330 191)">
-        less noise.
-      </text>
-    </svg>
+    <figure className="hero-language">
+      <div className="language-blueprint">
+        <div className="language-project">
+          <div className="language-file-heading">
+            <div
+              className="language-files"
+              role="group"
+              aria-label={t('示例项目文件', 'Example project files')}
+            >
+              {files.map((file) => (
+                <button
+                  key={file}
+                  type="button"
+                  aria-pressed={selected === file}
+                  aria-controls={file === 'main.cv' ? 'hero-main' : 'hero-build'}
+                  onClick={() =>
+                    void navigate({
+                      hash: file === 'build.cv' ? 'example-build' : '',
+                      replace: true,
+                      resetScroll: false,
+                      hashScrollIntoView: false,
+                    })
+                  }
+                >
+                  {file}
+                </button>
+              ))}
+            </div>
+            <span className="language-project-name">hello/</span>
+          </div>
+          <div className="language-source-stage">
+            {files.map((file) => (
+              <div
+                key={file}
+                id={file === 'main.cv' ? 'hero-main' : 'hero-build'}
+                className="language-source"
+                aria-label={t(`${file} 源码`, `${file} source`)}
+                aria-hidden={selected !== file}
+                inert={selected !== file}
+                data-active={selected === file}
+              >
+                {parse(hero[file]!)}
+              </div>
+            ))}
+          </div>
+          <dl
+            className="language-workflow"
+            aria-label={t('在项目目录中运行的命令', 'Commands in the project directory')}
+          >
+            <div>
+              <dt>
+                <code>carven run</code>
+              </dt>
+              <dd>
+                <samp>Hello, World!</samp>
+              </dd>
+            </div>
+            <div>
+              <dt>
+                <code>carven test</code>
+              </dt>
+              <dd>
+                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path d="m4 10 4 4 8-9" />
+                </svg>
+                <LocaleText locale={locale} zh="greeting 内联测试" en="greeting inline test" />
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+      <figcaption>
+        <LocaleText
+          locale={locale}
+          zh="函数和测试写在一起，用 build.cv 声明原生项目。"
+          en="Keep the function and test together. Declare the native project in build.cv."
+        />
+      </figcaption>
+    </figure>
   );
 }

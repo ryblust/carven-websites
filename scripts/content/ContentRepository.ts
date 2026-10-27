@@ -1,8 +1,6 @@
 import { join, relative, resolve, dirname } from 'node:path';
 import { Context, Effect, FileSystem, Layer, Schema } from 'effect';
-import type { KeyedTokensInfo } from '@shikijs/magic-move/core';
 import type { ArticleDocument } from '../../src/content/schema.ts';
-import { precompileCodeSteps } from './code-steps.ts';
 import { ContentError } from './model.ts';
 import { articleRouteModule } from './routes.ts';
 import { referenceSearchModule } from './reference-search.ts';
@@ -25,8 +23,7 @@ export class ContentRepository extends Context.Service<
     publish(
       root: string,
       articles: readonly ArticleDocument[],
-      homeExamples?: Readonly<Record<string, string>>,
-      homeExampleTokens?: Readonly<Record<string, KeyedTokensInfo>>,
+      hero: Record<string, string>,
     ): Effect.Effect<void, ContentError>;
   }
 >()('carven-website/content/ContentRepository') {
@@ -79,8 +76,7 @@ export class ContentRepository extends Context.Service<
       const publish = Effect.fn('ContentRepository.publish')(function* (
         root: string,
         articles: readonly ArticleDocument[],
-        homeExamples: Readonly<Record<string, string>> = {},
-        homeExampleTokens: Readonly<Record<string, KeyedTokensInfo>> = {},
+        hero: Record<string, string>,
       ) {
         const output = resolve(root, 'src/generated');
         const manifest = Object.fromEntries(
@@ -100,6 +96,10 @@ export class ContentRepository extends Context.Service<
             `// Generated from src/content/${article.file}.\nexport default ${JSON.stringify(article.html)};\n`,
           ]),
         );
+        modules.set(
+          'hero.ts',
+          `// Generated from the homepage project in src/content/hero*.cv.\nexport const hero = ${JSON.stringify(hero)};\n`,
+        );
         modules.set('reference-search.ts', referenceSearchModule(articles));
         const routes = articles.map(articleRouteModule);
 
@@ -113,37 +113,6 @@ export class ContentRepository extends Context.Service<
             null,
             2,
           )} as const;\n`,
-        );
-        modules.set(
-          'home-examples.ts',
-          `// Generated from src/content/home-examples.ts. Do not edit.\nexport const homeExamples = ${JSON.stringify(homeExamples)} as const;\n`,
-        );
-        const codeSteps = precompileCodeSteps(homeExampleTokens);
-
-        for (const [targetName, step] of codeSteps) {
-          modules.set(
-            `home-tokens/${targetName}.ts`,
-            `// Generated from src/content/home-examples.ts. Do not edit.\nimport type { CodeStep } from '../../lib/code-tokens.ts';\nexport default ${JSON.stringify(step)} satisfies CodeStep;\n`,
-          );
-        }
-
-        modules.set(
-          'home-tokens.ts',
-          [
-            '// Generated from src/content/home-examples.ts. Do not edit.',
-            "import type { CodeStep } from '../lib/code-tokens.ts';",
-            ...(codeSteps[0]
-              ? [`import initialStep from './home-tokens/${codeSteps[0][0]}.ts';`]
-              : []),
-            'export const homeCodeLoaders = {',
-            ...codeSteps.map(([name], index) =>
-              index === 0
-                ? `  ${name}: () => Promise.resolve(initialStep),`
-                : `  ${name}: () => import('./home-tokens/${name}.ts').then((module) => module.default),`,
-            ),
-            '} satisfies Record<string, () => Promise<CodeStep>>;',
-            '',
-          ].join('\n'),
         );
         modules.set(
           'manifest.ts',

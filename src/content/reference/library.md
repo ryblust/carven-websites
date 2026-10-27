@@ -29,20 +29,20 @@ Named built-ins follow ordinary name lookup and can be shadowed. See [standard m
 
 ## Try complete programs
 
-The native project tutorial provides complete files and local commands. Open a browser example to execute it, change its inputs, and inspect the result. Choose **Test** for the async test example.
+The native project tutorial provides complete files and local commands. Open a browser example to execute it, change its inputs, and inspect the result. Choose **Test** to run a project’s inline tests.
 
-| Task                                                    | Complete example                                               | Rules and explanation                                                               |
-| ------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Build an application and run its same-file inline tests | [Build a native project](/learn/build/)                        | [Build and query API](/reference/build/)                                            |
-| Parse TOML and summarize with hash collections          | [TOML summary](/playground/#example=toml-summary)              | [TOML](/reference/toml/), [collections](/reference/collections/)                    |
-| Execute a closure policy at compile time and runtime    | [Closure policy](/playground/#example=closure-policy)          | [Closures](/learn/closures/), [static execution](/reference/constants/)             |
-| Transfer owned bytes through a bounded channel          | [Producer and consumer](/playground/#example=channel-pipeline) | [Byte channels](/reference/channel/), [async](/learn/async/)                        |
-| Write and read a report in the browser filesystem       | [File report](/playground/#example=file-report)                | [Files and paths](/reference/fs/)                                                   |
-| Run tests that await child tasks                        | [Async tests](/playground/#example=async-tests)                | [Testing](/learn/testing/), [async test contracts](/reference/entry-testing/)       |
-| Call a source function from a page and test its rules   | [Interactive pricing](/playground/#example=pricing-preview)    | [Native and hosted execution](/reference/interop/), [inline tests](/learn/testing/) |
-| Supply text and files, then download a report           | [Input and files](/playground/#example=workspace-report)       | [Standard input](/reference/io/), [files](/reference/fs/)                           |
+| Task                                               | Complete project                                          | Rules and explanation                                                                 |
+| -------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Describe components and update a live view         | [Component studio](/playground/#example=component-studio) | [Records and vectors](/reference/aggregates/), [inline tests](/learn/testing/)        |
+| Check a release manifest and write a budget report | [Release review](/playground/#example=workspace-report)   | [TOML](/reference/toml/), [files](/reference/fs/), [typed failures](/learn/failures/) |
+| Summarize request logs using configuration files   | [Slow requests](/playground/#example=toml-summary)        | [Collections](/reference/collections/), [text](/reference/utf/)                       |
+| Process orders through a bounded async queue       | [Order pipeline](/playground/#example=async-pipeline)     | [Channels](/reference/channel/), [async tests](/reference/entry-testing/)             |
+| Mix audio blocks and handle a partial block        | [SIMD audio](/playground/#example=audio-mixer)            | [SIMD](/reference/simd/)                                                              |
+| Generate native calls to an existing C++ library   | [C++ integration](/playground/#example=native-json)       | [Interop](/learn/interop/)                                                            |
 
-The [interactive pricing project](/playground/#example=pricing-preview) keeps a hosting session active between calls. Amount and discount changes update the quote automatically. Choose **Update preview** to apply source edits; valid updates replace the implementation; a failed source check leaves the previous version available for new inputs. The Files view appears for file examples or actual generated files. Results stay in memory; only **Download** saves a file to your computer. Generated results are excluded from drafts. Each example has its own files and draft, with `main.cv` as the program entry. Use the file tree or tabs to select files, and add a file with the suggested name or a relative path.
+Each project has its own source files, input data and saved draft, with `main.cv` as its entry. Select files using the tree or tabs. File-producing projects keep results in memory; only **Download** saves a file to your computer. Generated results never enter saved drafts. Earlier example URLs still open their original projects.
+
+The [component studio](/playground/#example=component-studio) calls `view` in `scene.cv`. Its returned records describe metrics, bars, notes, and their layout; React renders those descriptions. Source edits apply automatically after a short pause. Input values and component selection remain in the page across source updates. Failed source checks retain the previous implementation. If a valid program returns an incompatible view, the page keeps the previous picture and reports a view error; that does not roll back the program. The same project's inline tests run from the Tests view. These view types belong to the example, not the standard library.
 
 Use the same language for native projects: start with the [declarative build](https://github.com/ryblust/carven/tree/v0.1.0/examples/build/declarative), then [read TOML, generate source, and assemble a build plan](https://github.com/ryblust/carven/tree/v0.1.0/examples/build/imperative). The [build API](/reference/build/) defines targets, dependencies, and queries; [tools and workflow](/learn/workflow/) gives the working steps.
 

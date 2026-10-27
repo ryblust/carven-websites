@@ -20,7 +20,7 @@ export function contentPlugin(): Plugin {
         if (
           !['add', 'change', 'unlink'].includes(event) ||
           path.startsWith('..') ||
-          !path.endsWith('.md')
+          (!path.endsWith('.md') && path !== 'hero.cv' && path !== 'hero-build.cv')
         )
           return;
 
@@ -53,8 +53,7 @@ export function contentPlugin(): Plugin {
         return runtime.dispose();
       };
 
-      // Config dependencies (including homepage examples) trigger a restart rather
-      // than a Markdown watcher event. Publish their current values before serving.
+      // Publish the current articles and hero source before serving.
       try {
         await runtime.runPromise(generateContent(server.config.root).pipe(serial.withPermit), {
           signal: controller.signal,

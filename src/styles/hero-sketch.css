@@ -1,0 +1,172 @@
+.hero-language {
+  width: min(100%, 540px);
+  margin: 0;
+  justify-self: center;
+  container-type: inline-size;
+}
+
+.language-blueprint {
+  padding: 20px 12px;
+  background-image:
+    linear-gradient(var(--paper-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--paper-grid) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: 12px 20px;
+}
+
+.language-project {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 3px 3px 0 var(--shadow);
+}
+
+.language-file-heading {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--quiet);
+  font: 13px/1.5 var(--mono);
+}
+
+.language-files {
+  display: flex;
+}
+
+.language-files button {
+  padding: 12px 18px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--quiet);
+  font: inherit;
+  cursor: pointer;
+}
+
+.language-files button:hover {
+  color: var(--text);
+  background: var(--bg-soft);
+}
+
+.language-files button[aria-pressed='true'] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.language-project-name {
+  align-self: center;
+  margin-right: 18px;
+  font-size: 11px;
+}
+
+.language-source-stage {
+  display: grid;
+}
+
+/* Both files reserve one shared reading area, as the bilingual text slots do. */
+.language-source {
+  grid-area: 1 / 1;
+  min-width: 0;
+  padding: 20px;
+  visibility: hidden;
+}
+
+.language-source[data-active='true'] {
+  visibility: visible;
+}
+
+.language-source pre {
+  padding: 0;
+  overflow: visible;
+  font-size: clamp(12px, 2.6cqw, 14px);
+  line-height: 1.65;
+}
+
+.language-workflow {
+  padding: 12px 20px;
+  border-top: 1px solid var(--line);
+  background: var(--bg-soft);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.language-workflow > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  gap: 12px;
+  align-items: center;
+  padding-block: 7px;
+}
+
+.language-workflow dt {
+  color: var(--prose);
+}
+
+.language-workflow dd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--quiet);
+}
+
+.language-workflow code,
+.language-workflow samp {
+  font: inherit;
+  font-family: var(--mono);
+}
+
+.language-workflow samp {
+  color: var(--ink-emphasis);
+}
+
+.language-workflow dd svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hero-language figcaption {
+  margin-top: 16px;
+  color: var(--quiet);
+  text-align: center;
+  font-size: var(--text-xs);
+  line-height: 1.6;
+}
+
+@container (max-width: 380px) {
+  .language-blueprint {
+    padding-inline: 6px;
+  }
+
+  .language-files button {
+    padding-inline: 12px;
+  }
+
+  .language-project-name {
+    margin-right: 12px;
+  }
+
+  .language-source {
+    padding: 16px 12px;
+  }
+
+  .language-source pre {
+    white-space: pre-wrap;
+  }
+
+  .language-workflow {
+    padding-inline: 12px;
+    font-size: 11px;
+  }
+
+  .language-workflow > div {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 8px;
+  }
+}

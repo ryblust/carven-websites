@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { playgroundExamples } from '../src/playground/examples';
+import heroSource from '../src/content/hero.cv?raw';
+import type { WorkspacePreset } from '../src/playground/workspace-examples';
 import {
   executeWasi,
   parseCrafts,
@@ -12,6 +14,7 @@ const root = new URL('../public/playground-assets/', import.meta.url);
 type RunnablePreset = Extract<(typeof playgroundExamples)[number], { defaultView: 'output' }>;
 const presetOutput: Record<RunnablePreset['id'], string> = {
   'toml-summary': 'api: 2\nweb: 1\naccepted: 3\n',
+  'async-pipeline': 'Orders: 3\nTotal (cents): 5400\n',
   'closure-policy': 'Original quote: 103\nUpdated quote: 110\n',
   'channel-pipeline': 'Backpressure: true\nBatches: 3 total: 60\n',
   'file-report':
@@ -83,10 +86,34 @@ describe('packaged Carven compiler through the browser WASI host', () => {
     };
   });
 
+  it('runs the homepage greeting and its inline test', async () => {
+    const program = await executeWasi(assets, heroSource, 'run');
+    expect(program.exitCode).toBe(0);
+    expect(program.stdout).toBe('Hello, World!\n');
+    const tests = await executeWasi(assets, heroSource, 'test');
+    expect(tests.exitCode).toBe(0);
+    expect(tests.stdout).toBe('');
+  });
+
+  it('ships every project source in the formatter’s default style', async () => {
+    for (const example of playgroundExamples) {
+      const preset: WorkspacePreset = example;
+      for (const [path, source] of Object.entries({ 'main.cv': preset.source, ...preset.files })) {
+        if (!path.endsWith('.cv')) continue;
+        const result = await executeWasi(assets, source, 'format');
+        expect(result.formattedSource, `${example.id}/${path}`).toBe(source);
+      }
+    }
+  });
+
   for (const example of playgroundExamples) {
     if (example.defaultView !== 'output') continue;
     it(`executes the ${example.id} editor preset in a fresh in-memory filesystem`, async () => {
-      const result = await executeWasi(assets, example.source, 'run');
+      const preset: WorkspacePreset = example;
+      const result = await executeWasi(assets, example.source, 'run', undefined, {
+        files: preset.files,
+        stdin: preset.stdin,
+      });
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toBe(presetOutput[example.id]);
       expect(result.stderr).toBe('');

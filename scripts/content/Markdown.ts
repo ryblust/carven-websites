@@ -2,7 +2,6 @@ import { Context, Effect, Layer } from 'effect';
 import { Marked } from 'marked';
 import { gfmHeadingId } from 'marked-gfm-heading-id';
 import { transformerMetaHighlight } from '@shikijs/transformers';
-import { codeToKeyedTokens, type KeyedTokensInfo } from '@shikijs/magic-move/core';
 import { createHighlighterCore } from 'shiki/core';
 import { createOnigurumaEngine } from 'shiki/engine/oniguruma';
 import cpp from '@shikijs/langs/cpp';
@@ -33,16 +32,8 @@ const languageLabels: Record<string, string> = {
 export class Markdown extends Context.Service<
   Markdown,
   {
-    tokens(
-      file: string,
-      source: string,
-      language: string,
-    ): Effect.Effect<KeyedTokensInfo, ContentError>;
-    render(
-      file: string,
-      markdown: string,
-      options?: { codeBlockFrame?: boolean },
-    ): Effect.Effect<string, ContentError>;
+    render(file: string, markdown: string): Effect.Effect<string, ContentError>;
+    highlight(file: string, source: string): Effect.Effect<string, ContentError>;
   }
 >()('carven-website/content/Markdown') {
   static readonly layer = Layer.effect(
@@ -60,11 +51,16 @@ export class Markdown extends Context.Service<
         }),
         (highlighter) => Effect.sync(() => highlighter.dispose()),
       );
-      const render = Effect.fn('Markdown.render')(function* (
-        file: string,
-        markdown: string,
-        options?: { codeBlockFrame?: boolean },
-      ) {
+      const colors = {
+        themes: { light: paper.name, dark: vesperBlack.name },
+        defaultColor: false,
+      } as const;
+      const highlight = (file: string, source: string) =>
+        Effect.try({
+          try: () => highlighter.codeToHtml(source, { lang: 'carven', ...colors }),
+          catch: (cause) => new ContentError({ file, operation: 'render', cause }),
+        });
+      const render = Effect.fn('Markdown.render')(function* (file: string, markdown: string) {
         const marked = new Marked({ gfm: true });
         marked.use(gfmHeadingId());
         marked.use({
@@ -75,8 +71,7 @@ export class Markdown extends Context.Service<
               const runnable = (language === 'carven' || language === 'cv') && meta.includes('run');
               const highlighted = highlighter.codeToHtml(text, {
                 lang: language,
-                themes: { light: paper.name, dark: vesperBlack.name },
-                defaultColor: false,
+                ...colors,
                 meta: { __raw: meta.filter((value) => value !== 'run').join(' ') },
                 transformers: [
                   transformerMetaHighlight(),
@@ -88,7 +83,6 @@ export class Markdown extends Context.Service<
                   },
                 ],
               });
-              if (options?.codeBlockFrame === false) return highlighted;
               // Labels are fixed display strings, never interpolated from authored HTML.
               const label = languageLabels[language] ?? 'Text';
 
@@ -102,18 +96,7 @@ export class Markdown extends Context.Service<
           catch: (cause) => new ContentError({ file, operation: 'render', cause }),
         });
       });
-      const tokens = (file: string, source: string, language: string) =>
-        Effect.try({
-          try: () =>
-            codeToKeyedTokens(highlighter, source, {
-              lang: language,
-              themes: { light: paper.name, dark: vesperBlack.name },
-              defaultColor: false,
-            }),
-          catch: (cause) => new ContentError({ file, operation: 'render', cause }),
-        });
-
-      return Markdown.of({ render, tokens });
+      return Markdown.of({ render, highlight });
     }),
   );
 }

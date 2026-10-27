@@ -34,8 +34,9 @@ for (const file of outputFiles.filter((file) => extname(file) === '.html')) {
   const expectedLanguage = file.slice(root.length).startsWith('/zh/') ? 'zh-CN' : 'en';
   if (getElementsByTagName('html', dom)[0]?.attribs.lang !== expectedLanguage)
     failures.push(`${file}: incorrect document language, expected ${expectedLanguage}`);
-  const titles = getElementsByTagName('title', dom);
-  const descriptions = getElementsByTagName('meta', dom).filter(
+  const head = getElementsByTagName('head', dom)[0];
+  const titles = getElementsByTagName('title', head?.children ?? []);
+  const descriptions = getElementsByTagName('meta', head?.children ?? []).filter(
     (element) => element.attribs.name === 'description',
   );
   if (titles.length !== 1) failures.push(`${file}: expected one title, got ${titles.length}`);

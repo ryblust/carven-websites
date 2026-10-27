@@ -13,6 +13,8 @@ import {
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import Playground from '../src/views/Playground';
 import Home from '../src/views/Home';
+import heroSource from '../src/content/hero.cv?raw';
+import heroBuildSource from '../src/content/hero-build.cv?raw';
 import { playgroundExamples } from '../src/playground/examples';
 import type { Locale } from '../src/lib/i18n';
 import {
@@ -23,7 +25,7 @@ import {
 } from '../src/playground/wasi';
 import type { Action, ExecutionInput } from '../src/playground/protocol';
 import { pricingSource } from '../src/playground/workspace-examples';
-import { homeCodeLoaders } from '../src/generated/home-tokens';
+import { sceneSource } from '../src/playground/scene-example';
 
 let assets: CompilerAssets;
 let root: Root | undefined;
@@ -115,19 +117,19 @@ async function mountPage(component: () => ReactNode, entry = '/') {
   return host;
 }
 
-async function mountPlayground(entry = '/') {
+async function mountPlayground(entry = '/#example=hello') {
   const host = await mountPage(() => <Playground locale="en" />, entry);
   await act(async () => {
-    await vi.waitFor(() =>
-      expect(host.querySelector('[aria-label="main.cv source editor"]')).not.toBeNull(),
-    );
+    await vi.waitFor(() => expect(host.querySelector('.cm-content')).not.toBeNull());
   });
 
   return host;
 }
 
 async function replaceSource(host: HTMLElement, source: string, filename = 'main.cv') {
-  const editor = host.querySelector<HTMLElement>(`[aria-label="${filename} source editor"]`)!;
+  const editor = host.querySelector<HTMLElement>(
+    `[aria-label="${filename} source editor"], [aria-label="${filename} 源码编辑器"]`,
+  )!;
   // Select all and paste through CodeMirror's normal DOM input handlers. jsdom
   // supplies no system clipboard, so the paste event carries the user's text.
   await act(() => {
@@ -240,75 +242,31 @@ describe('Playground Check from edited source to visible result', () => {
   });
 });
 
-describe('Homepage examples and Playground navigation', () => {
-  it('keeps the active example unchanged and delays loading feedback for slow switches', async () => {
-    const host = await mountPage(() => <Home locale="en" />);
-    const choices = [...host.querySelectorAll<HTMLButtonElement>('.showcase-tabs button')];
-    const previous = host.querySelector('.why-code-block code')!.textContent;
-    await act(() => choices[0]!.click());
-    expect(host.querySelector('.why-code-block code')!.textContent).toBe(previous);
-    expect(host.querySelector('[role="status"]')?.textContent).not.toContain('Loading');
-    const next = await homeCodeLoaders.closurePolicy();
-    let finish!: () => void;
-    vi.spyOn(homeCodeLoaders, 'closurePolicy').mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          finish = () => resolve(next);
-        }),
-    );
-    const code = host.querySelector('.why-code-block code')!;
-    await act(() => choices[1]!.click());
-    expect(host.querySelector('[role="status"]')?.textContent).not.toContain('Loading');
-    expect(code.textContent).toBe(previous);
-    await vi.waitFor(async () => {
-      await act(async () => {});
-      expect(host.querySelector('[role="status"]')?.textContent).toContain('Loading');
-    });
-    expect(code.textContent).toBe(previous);
-    await act(async () => finish());
-    expect(choices[1]!.getAttribute('aria-pressed')).toBe('true');
-    expect(code.textContent).not.toBe(previous);
-  });
-
+describe('Homepage and Playground navigation', () => {
   it.each(['en', 'zh'] as const)(
-    'links the %s native build and inline-test introduction to its tutorials',
-    async (locale: Locale) => {
+    'links the %s introduction to learning resources',
+    async (locale) => {
       const host = await mountPage(() => <Home locale={locale} />);
-      const build = host.querySelector<HTMLElement>('#project-build')!;
-      const links = [...build.querySelectorAll<HTMLAnchorElement>('a')].map(
-        (link) => new URL(link.href).pathname,
+      const displayedSource = () =>
+        host.querySelector('.hero-language [aria-hidden="false"] pre code')?.textContent;
+      expect(displayedSource()).toBe(heroSource.trimEnd());
+      const buildFile = [...host.querySelectorAll('button')].find(
+        (button) => button.textContent === 'build.cv',
+      )!;
+      await act(() => buildFile.click());
+      await vi.waitFor(() => expect(displayedSource()).toBe(heroBuildSource.trimEnd()));
+      const mainFile = [...host.querySelectorAll('button')].find(
+        (button) => button.textContent === 'main.cv',
+      )!;
+      await act(() => mainFile.click());
+      await vi.waitFor(() => expect(displayedSource()).toBe(heroSource.trimEnd()));
+      const prefix = locale === 'zh' ? '/zh' : '';
+      const links = [...host.querySelectorAll<HTMLAnchorElement>('a')].map(
+        (link) => new URL(link.href),
       );
-      expect(links).toContain(locale === 'zh' ? '/zh/learn/build/' : '/learn/build/');
-      expect(links).toContain(locale === 'zh' ? '/zh/reference/build/' : '/reference/build/');
-    },
-  );
-
-  it.each(['en', 'zh'] as const)(
-    'opens every %s homepage example in its shared preset',
-    async (locale: Locale) => {
-      const host = await mountPage(() => <Home locale={locale} />);
-      const choices = [...host.querySelectorAll<HTMLButtonElement>('.showcase-tabs button')];
-      expect(choices.length).toBeGreaterThan(0);
-      const ids = new Set<string>();
-
-      for (const choice of choices) {
-        await act(() => choice.click());
-        await vi.waitFor(async () => {
-          await act(async () => {});
-          expect(choice.getAttribute('aria-pressed')).toBe('true');
-        });
-        const link = host.querySelector<HTMLAnchorElement>(
-          '.showcase-caption-item[aria-hidden="false"] .showcase-try',
-        )!;
-        expect(link).not.toBeNull();
-        const url = new URL(link.href);
-        expect(url.pathname).toBe(locale === 'zh' ? '/zh/playground/' : '/playground/');
-        const id = new URLSearchParams(url.hash.slice(1)).get('example')!;
-        expect(playgroundExamples.some((example) => example.id === id)).toBe(true);
-        ids.add(id);
+      for (const path of ['/learn/first-program/', '/learn/build/', '/reference/interop/']) {
+        expect(links.some((url) => url.pathname === `${prefix}${path}`)).toBe(true);
       }
-
-      expect(ids.size).toBe(choices.length);
     },
   );
 
@@ -332,7 +290,12 @@ describe('Homepage examples and Playground navigation', () => {
         (button) => button.textContent === 'Copy',
       )!;
       await act(async () => copy.click());
-      expect(copied).toBe(example.source);
+      const project = example as { files?: Record<string, string>; selectedFile?: string };
+      expect(copied).toBe(
+        project.selectedFile && project.files
+          ? project.files[project.selectedFile]
+          : example.source,
+      );
       expect((host.querySelector('#playground-result-view') as HTMLSelectElement).value).toBe(
         example.defaultView,
       );
@@ -422,7 +385,7 @@ describe('Homepage examples and Playground navigation', () => {
     });
     const select = host.querySelector<HTMLSelectElement>('#playground-example')!;
     await act(() => {
-      select.value = 'simd-bytes';
+      select.value = 'toml-summary';
       select.dispatchEvent(new Event('change', { bubbles: true }));
     });
     expect((host.querySelector('#playground-result-view') as HTMLSelectElement).value).toBe(
@@ -482,12 +445,16 @@ it('updates the hosted pricing preview from edited source and tests that same he
 });
 
 it('keeps edited data and standard input in the workspace draft and renders the generated report', async () => {
+  const manifest =
+    '[release]\nname = "edited"\nbudget = 100\n[[artifact]]\npath = "app.js"\nbytes = 42\n';
   const host = await mountPlayground('/#example=workspace-report');
   const file = [...host.querySelectorAll('button')].find(
-    (button) => button.textContent === 'items.txt',
+    (button) => button.textContent === 'release.toml',
   )!;
   await act(() => file.click());
-  const data = host.querySelector<HTMLTextAreaElement>('[aria-label="items.txt file contents"]')!;
+  const data = host.querySelector<HTMLTextAreaElement>(
+    '[aria-label="release.toml file contents"]',
+  )!;
   const input = host.querySelector<HTMLTextAreaElement>('[aria-label="Standard input contents"]')!;
   const setText = (element: HTMLTextAreaElement, text: string) => {
     Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(
@@ -496,23 +463,23 @@ it('keeps edited data and standard input in the workspace draft and renders the 
     );
     element.dispatchEvent(new Event('input', { bubbles: true }));
   };
-  await act(() => setText(data, 'Updated item\n'));
+  await act(() => setText(data, manifest));
   await act(() => setText(input, 'Edited title\n'));
   const run = [...host.querySelectorAll('button')].find((button) => button.textContent === 'Run')!;
   await act(async () => run.click());
   expect(host.querySelector('[aria-label="report.txt"]')?.textContent).toBe(
-    'Edited title\n====================\nUpdated item\n',
+    'Edited title\nRelease edited\napp.js: 42 bytes\nTotal: 42 / 100 bytes\n',
   );
   await act(() => root!.unmount());
   root = undefined;
   const reopened = await mountPlayground('/#example=workspace-report');
   const reopenedFile = [...reopened.querySelectorAll('button')].find(
-    (button) => button.textContent === 'items.txt',
+    (button) => button.textContent === 'release.toml',
   )!;
   await act(() => reopenedFile.click());
   expect(
-    reopened.querySelector<HTMLTextAreaElement>('[aria-label="items.txt file contents"]')?.value,
-  ).toBe('Updated item\n');
+    reopened.querySelector<HTMLTextAreaElement>('[aria-label="release.toml file contents"]')?.value,
+  ).toBe(manifest);
   expect(
     reopened.querySelector<HTMLTextAreaElement>('[aria-label="Standard input contents"]')?.value,
   ).toBe('Edited title\n');
@@ -569,7 +536,12 @@ it.each(['en', 'zh'] as const)(
 );
 
 it('adds suggested files immediately, derives folders from paths, and keeps example projects separate', async () => {
-  const host = await mountPlayground('/#example=hello');
+  const host = await mountPlayground('/#example=async-pipeline');
+  const main = [...host.querySelectorAll('button')].find(
+    (button) => button.textContent === 'main.cv',
+  )!;
+  await act(() => main.click());
+  await replaceSource(host, 'println("Answer: 42");');
   const button = (label: string) =>
     [...host.querySelectorAll('button')].find(
       (item) => item.textContent === label || item.getAttribute('aria-label') === label,
@@ -614,7 +586,7 @@ it('adds suggested files immediately, derives folders from paths, and keeps exam
   expect(
     [...host.querySelectorAll('.playground-file-tabs button')].map((item) => item.textContent),
   ).not.toContain(suggested);
-  await switchTo('hello');
+  await switchTo('async-pipeline');
   expect(
     [...host.querySelectorAll('.playground-file-tabs button')].map((item) => item.textContent),
   ).toContain(suggested);
@@ -749,6 +721,95 @@ it('keeps the previous output visible while rerunning the same Playground action
   await act(async () => release());
   expect(output()).toBe('previous output\n');
 });
+
+it.each(['en', 'zh'] as const)(
+  'updates the %s component view from source while preserving interaction state and the last valid view',
+  async (locale) => {
+    const host = await mountPage(
+      () => <Playground locale={locale} />,
+      '/#example=component-studio',
+    );
+    const waitForView = async (title: string) =>
+      vi.waitFor(async () => {
+        await act(async () => {});
+        expect(host.querySelector('.scene-heading h3')?.textContent).toBe(title);
+      });
+    await waitForView(locale === 'zh' ? '组件画布' : 'Component canvas');
+    expect(host.querySelector('.scene-node-title')?.textContent).toBe(
+      locale === 'zh' ? '当前输入' : 'Current input',
+    );
+    expect(host.querySelector('.scene-bar-label')?.textContent).toContain(
+      locale === 'zh' ? '原值' : 'Linear',
+    );
+    const range = host.querySelector<HTMLInputElement>('.scene-input input')!;
+    const activity = async (value: string) =>
+      act(() => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+          range,
+          value,
+        );
+        range.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    await activity('80');
+    const chart = host.querySelector<HTMLButtonElement>('.scene-node-bars')!;
+    await act(() => chart.click());
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.querySelector('.scene-node-note')?.textContent).toContain(
+        locale === 'zh' ? '已选中图表' : 'Chart selected',
+      );
+    });
+    const edited = sceneSource
+      .replace('Component canvas', 'A changed studio')
+      .replace('组件画布', '更新后的工作台')
+      .replace('columns: columns', 'columns: 1')
+      .replace('value * 12', 'value * 15');
+    await replaceSource(host, edited, 'scene.cv');
+    await waitForView(locale === 'zh' ? '更新后的工作台' : 'A changed studio');
+    expect(range.value).toBe('80');
+    expect(host.querySelector('.scene-node-bars')?.getAttribute('aria-pressed')).toBe('true');
+    expect(host.querySelectorAll('.scene-metric')[1]?.textContent).toMatch(/1[,，]?200/);
+    const broken = edited.replace('metric(1,', 'metric("bad",');
+    await replaceSource(host, broken, 'scene.cv');
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.querySelector('.playground-reload-error')?.textContent).toContain(
+        'CV-TYPE-MISMATCH',
+      );
+    });
+    expect(host.querySelector('.scene-heading h3')?.textContent).toBe(
+      locale === 'zh' ? '更新后的工作台' : 'A changed studio',
+    );
+    await activity('40');
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.querySelector('.scene-metric')?.textContent).toBe('40');
+    });
+    await replaceSource(host, edited.replace('columns: 1', 'columns: 4'), 'scene.cv');
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.querySelector('.playground-reload-error')?.textContent).toContain(
+        locale === 'zh' ? '视图未更新' : 'View not updated',
+      );
+    });
+    expect(host.querySelector('.scene-metric')?.textContent).toBe('40');
+    await replaceSource(host, edited, 'scene.cv');
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.querySelector('.playground-reload-error')).toBeNull();
+    });
+    const view = host.querySelector<HTMLSelectElement>('#playground-result-view')!;
+    await act(() => {
+      view.value = 'tests';
+      view.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    const test = [...host.querySelectorAll('button')].find(
+      (button) => button.textContent === (locale === 'zh' ? '测试' : 'Test'),
+    )!;
+    await act(async () => test.click());
+    expect(host.querySelector('.playground-result-body')?.textContent).toContain('0 failed');
+  },
+);
 
 it('keeps preview labels and controls stable during a pending drag update and publishes only the latest quote', async () => {
   const post = CompilerWorker.prototype.postMessage;

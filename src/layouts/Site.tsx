@@ -1,10 +1,11 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Link, useLocation } from '@tanstack/react-router';
+import { Link, useLocation, useHydrated } from '@tanstack/react-router';
 import { Languages, Menu, X } from 'lucide-react';
 import { UIIcon } from '../components/UIIcon';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { DocumentSearch } from '../components/DocumentSearch';
-import { Brand } from '../components/Brand';
+import { LocaleText } from '../components/LocaleText';
+import { Brand, Wordmark } from '../components/Brand';
 import { GitHubIcon } from '../components/GitHubIcon';
 import { localeOf, localizedPath, translate } from '../lib/i18n';
 import { repository } from '../lib/site';
@@ -81,6 +82,7 @@ const footer = [
 ] as const;
 
 export default function Site({ children }: Props) {
+  const hydrated = useHydrated();
   const content = useRef<HTMLElement>(null);
   const pathname = useLocation({
     select: (location) => location.pathname,
@@ -88,6 +90,7 @@ export default function Site({ children }: Props) {
   const hash = useLocation({ select: (location) => location.hash });
   const locale = localeOf(pathname);
   const t = translate(locale);
+  const text = (zh: string, en: string) => <LocaleText locale={locale} zh={zh} en={en} />;
   const designReading = designReadingGroups.some((group) =>
     group.readings.some((item) => localizedPath(item.path, locale) === pathname),
   );
@@ -136,6 +139,10 @@ export default function Site({ children }: Props) {
             <ThemeToggle locale={locale} />
             <Link
               className="language-switch icon-button"
+              hash={hydrated ? hash : undefined}
+              search={true}
+              resetScroll={false}
+              hashScrollIntoView={false}
               to={localizedPath(pathname, locale === 'en' ? 'zh' : 'en')}
               hrefLang={locale === 'en' ? 'zh-CN' : 'en'}
               lang={locale === 'en' ? 'zh-CN' : 'en'}
@@ -184,13 +191,19 @@ export default function Site({ children }: Props) {
       <footer className="site-footer">
         <div className="container footer-inner">
           <div className="footer-brand">
-            <Brand locale={locale} />
-            <p>{t('C++ 的力量，从容表达。', 'The power of C++, clearly expressed.')}</p>
+            <Link
+              className="wordmark"
+              to={localizedPath('/', locale)}
+              aria-label={t('Carven 首页', 'Carven home')}
+            >
+              <Wordmark />
+            </Link>
+            <p>{text('C++ 的力量，从容表达。', 'The power of C++, clearly expressed.')}</p>
             <p className="footer-note">
               <a href={`${repository}/releases/tag/v${import.meta.env.CARVEN_VERSION}`}>
                 Carven {import.meta.env.CARVEN_VERSION}
               </a>{' '}
-              {t(
+              {text(
                 'Carven 开发中，可能有不兼容变更。',
                 'Carven is in development; breaking changes are possible.',
               )}
@@ -202,7 +215,7 @@ export default function Site({ children }: Props) {
                     href={`${repository}/commit/${import.meta.env.COMPILER_REVISION.slice(0, 40)}`}
                     title={import.meta.env.COMPILER_REVISION}
                   >
-                    {t('编译器', 'Compiler')} {import.meta.env.COMPILER_REVISION.slice(0, 8)}
+                    {text('编译器', 'Compiler')} {import.meta.env.COMPILER_REVISION.slice(0, 8)}
                     {import.meta.env.COMPILER_REVISION.endsWith('-dirty') &&
                       t('（本地改动）', ' (local changes)')}
                   </a>
@@ -213,12 +226,12 @@ export default function Site({ children }: Props) {
           <nav className="footer-columns" aria-label={t('页脚导航', 'Footer navigation')}>
             {footer.map((group) => (
               <div key={group.english}>
-                <h2>{t(group.label, group.english)}</h2>
+                <h2>{text(group.label, group.english)}</h2>
                 <ul>
                   {group.links.map((item) => (
                     <li key={item.path}>
                       <Link to={localizedPath(item.path, locale)} activeOptions={{ exact: true }}>
-                        {t(item.label, item.english)}
+                        {text(item.label, item.english)}
                       </Link>
                     </li>
                   ))}

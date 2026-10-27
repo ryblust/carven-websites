@@ -91,11 +91,17 @@ analysis; runtime tests run sequentially with separate execution budgets and
 skip the program entry. The result includes test output, diagnostics, and the
 pass/fail summary. A failed test returns a nonzero exit status.
 
-The presets include TOML-driven request summaries with hash collections,
-captured pricing policies, a bounded producer/consumer channel, a virtual-file
-release report, and async test suites. Older preset links remain available.
+The main menu contains six complete projects: a live component view, a TOML
+release-budget report, a configured request-log summary, an async order pipeline,
+a SIMD audio mixer, and C++ library integration. Projects combine source files,
+inputs and inline tests. Earlier example URLs still resolve, but those smaller
+examples no longer crowd the main menu.
 Native project builds use the local toolchain; follow the project-build link
 beside the editor for multi-file build, run, and test commands.
+
+Preset `.cv` files are stored in the packaged formatter's default style. Format
+acts on the file being edited; Reset restores the project's original files and
+input. The WASI tests check that formatting each preset source leaves it unchanged.
 
 The interpreter runs supported Carven source, including closures, async
 composition, JSON, TOML, collections, channels, and SIMD. Standard input comes from
@@ -139,6 +145,22 @@ an isolated worker. A busy cancellation or timeout discards that worker; the nex
 host worker can restore the last accepted source before checking a new candidate.
 Project reset, example switch, and navigation close the session and discard that
 checkpoint. Asynchronous browser service bridges are not implemented.
+
+The component-studio preset calls `view(value, selected, language)` in `scene.cv`.
+This adapter calls `model(value, selected, language, 2, 1)`, keeping the three-argument
+entry point for existing saved projects. The page passes 0 for English or 1 for Chinese; `localized` in `ui.cv` selects
+the labels in Carven, so chart and component text follows the interface language.
+Both locales share the same source files and saved project draft.
+Its `Scene` record describes metrics, bars, notes, and a column count. `ui.cv`
+defines those example types and constructors; they are not standard APIs. React
+maps stable node IDs to components and SVG bars. Source edits coalesce for 300 ms
+before analysis and reload; parameter edits reuse the accepted program. Page
+inputs and selected IDs live outside the returned view and survive hot reload.
+Invalid source retains the previous implementation. Invalid view data retains
+only the previous rendered scene and reports a separate view error, without
+claiming a compiler rollback. Inline tests share `scene.cv` and use the normal
+isolated Test action. Browser transitions interpolate bar widths and respect
+reduced-motion preferences; they do not trigger compiler calls per frame.
 
 Each example is an independent project with its own complete file inventory and
 draft. Switching examples replaces the current project; it does not append files.
@@ -190,3 +212,12 @@ Build the compiler assets before running `pnpm test`. WASI execution tests and
 page interaction tests execute the packaged compiler. Page tests use jsdom with
 a worker transport adapter; layout, focus and browser workers are checked in the
 browser.
+
+## Component studio
+
+The component studio uses ordinary Carven records to describe component values,
+layout and visibility. These types belong to the example, not a built-in UI
+framework. Input events call Carven through a persistent hosting session;
+React renders the returned model and handles browser input. Stable node IDs
+and CSS bar transitions preserve the existing elements. Files stay in the
+worker's in-memory workspace unless the user downloads them.

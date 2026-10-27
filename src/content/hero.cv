@@ -1,0 +1,7 @@
+fn greet(name: str) => f"Hello, {name}!";
+
+println(greet("World"));
+
+test "greeting" {
+    check(greet("World") == "Hello, World!");
+}

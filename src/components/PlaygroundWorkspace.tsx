@@ -11,7 +11,7 @@ export default function PlaygroundWorkspace({
   results: ReactNode;
 }) {
   const t = translate(locale);
-  const [split, setSplit] = useState(55);
+  const [split, setSplit] = useState(58);
   const [dragging, setDragging] = useState(false);
   const workspace = useRef<HTMLDivElement>(null);
   const drag = useRef<{ pointer: number; x: number; split: number } | null>(null);
@@ -64,7 +64,7 @@ export default function PlaygroundWorkspace({
           drag.current = null;
           setDragging(false);
         }}
-        onDoubleClick={() => resize(55)}
+        onDoubleClick={() => resize(58)}
         onKeyDown={(event) => {
           const step = event.shiftKey ? 10 : 2;
           const next = { ArrowLeft: split - step, ArrowRight: split + step, Home: 25, End: 75 }[

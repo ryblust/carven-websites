@@ -1,4 +1,4 @@
-import { homeExamples } from '../content/home-examples.ts';
+import { languageExamples } from './language-examples.ts';
 import { extraExamples } from './extra-examples.ts';
 import { workspaceExamples } from './workspace-examples.ts';
 
@@ -8,11 +8,57 @@ export const playgroundExamples = [
     id: 'toml-summary',
     title: { en: 'Count slow requests by service', zh: '按服务统计慢请求' },
     description: {
-      en: 'Parse a latency threshold during compilation, exclude ignored services with HashSet, and count slow requests with HashMap.',
-      zh: '编译期解析耗时阈值，用 HashSet 排除忽略的服务，再用 HashMap 统计慢请求。',
+      en: 'Edit a TOML policy and a request log. Exclude ignored services with HashSet, count slow requests with HashMap, and test the policy independently.',
+      zh: '修改 TOML 策略和请求日志，用 HashSet 排除忽略的服务，再用 HashMap 统计慢请求。策略也有独立的内联测试。',
     },
     defaultView: 'output',
-    source: homeExamples.tomlSummary,
+    source: `import std::fs using read_text;
+import std::toml using TOMLValue;
+import .summary using summarize;
+
+let settings = read_text("settings.toml")?;
+let config = TOMLValue::parse(settings.as_str())?;
+let requests = read_text("requests.log")?;
+let report = summarize(config, requests.as_str())?;
+
+for entry in report.counts.entries() {
+    println(f"{entry.key}: {entry.value}");
+}
+
+println(f"accepted: {report.accepted}");
+`,
+    files: {
+      'summary.cv': extraExamples.requestSummary,
+      'settings.toml': 'minimum_ms = 20\nignored = ["health"]\n',
+      'requests.log': 'api 25\nhealth 100\napi 35\nweb 18\nweb 40\n',
+    },
+    selectedFile: 'summary.cv',
+  },
+  {
+    id: 'async-pipeline',
+    title: { en: 'Process orders through a bounded queue', zh: '通过有界队列处理订单' },
+    description: {
+      en: 'Read order amounts from a file, transfer owned messages through a bounded channel, and wait for every accepted order. Run the adjacent async tests to check totals and completion.',
+      zh: '从文件读取订单金额，通过有界通道传递有所有权的消息，并等待已接收订单全部处理完毕。旁边的异步测试会检查合计和完成行为。',
+    },
+    defaultView: 'output',
+    source: `import std::fs using { read_text, FileError }
+import std::utf using { lines, UTF8Error }
+import std::core using NumberParseError;
+import .pipeline using process;
+
+async fn main() throw FileError + UTF8Error + NumberParseError {
+    let text = read_text("orders.txt")?;
+    let result = await process(&&lines(text.as_str()))?;
+    println("Orders:", result.orders);
+    println("Total (cents):", result.total);
+}
+`,
+    files: {
+      'pipeline.cv': extraExamples.orderPipeline,
+      'orders.txt': '1200\n1800\n2400\n',
+    },
+    selectedFile: 'pipeline.cv',
   },
   {
     id: 'closure-policy',
@@ -22,7 +68,7 @@ export const playgroundExamples = [
       zh: '编译期检查捕获的费用，复制报价策略，再通过泛型回调比较原设置与新设置的报价。',
     },
     defaultView: 'output',
-    source: homeExamples.closurePolicy,
+    source: languageExamples.closurePolicy,
   },
   {
     id: 'channel-pipeline',
@@ -63,7 +109,7 @@ export const playgroundExamples = [
       zh: '在编译期解析默认配置，运行时修改一份独立副本，原配置保持不变。',
     },
     defaultView: 'output',
-    source: homeExamples.configuration,
+    source: languageExamples.configuration,
   },
   {
     id: 'log-analysis',
@@ -73,7 +119,7 @@ export const playgroundExamples = [
       zh: '把每行拆成耗时和消息；遇到格式错误时报告该行，继续处理后面的记录。',
     },
     defaultView: 'output',
-    source: homeExamples.logAnalysis,
+    source: languageExamples.logAnalysis,
   },
   {
     id: 'async-workflow',
@@ -83,7 +129,7 @@ export const playgroundExamples = [
       zh: '并发筛除两批数据中的负数并计算合计值，再选择达到目标值的结果。',
     },
     defaultView: 'output',
-    source: homeExamples.asyncWorkflow,
+    source: languageExamples.asyncWorkflow,
   },
   {
     id: 'async-scope',
@@ -93,7 +139,7 @@ export const playgroundExamples = [
       zh: '同一段异步代码在编译期和运行时都先执行一轮工作，再取消、关闭子任务，最后读取计数。',
     },
     defaultView: 'output',
-    source: homeExamples.asyncScope,
+    source: languageExamples.asyncScope,
   },
   {
     id: 'audio-mixer',
@@ -103,7 +149,7 @@ export const playgroundExamples = [
       zh: '每次混合八个浮点样本，统计限幅样本数，并在编译时检查最后不足八个样本的尾部。',
     },
     defaultView: 'output',
-    source: homeExamples.audioMixer,
+    source: languageExamples.audioMixer,
   },
   {
     id: 'hello',
@@ -113,7 +159,7 @@ export const playgroundExamples = [
       zh: '计算一个值并输出。',
     },
     defaultView: 'output',
-    source: homeExamples.quickstart,
+    source: languageExamples.quickstart,
   },
   {
     id: 'structured-output',
@@ -123,7 +169,7 @@ export const playgroundExamples = [
       zh: '输出包含枚举和数组的结构体。',
     },
     defaultView: 'output',
-    source: homeExamples.display,
+    source: languageExamples.display,
   },
   {
     id: 'typed-failures',
@@ -133,7 +179,7 @@ export const playgroundExamples = [
       zh: '传播类型化失败，并显式处理每种情况。',
     },
     defaultView: 'output',
-    source: homeExamples.failures,
+    source: languageExamples.failures,
   },
   {
     id: 'static-text',
@@ -143,7 +189,7 @@ export const playgroundExamples = [
       zh: '在编译期生成帮助文本，并用静态测试验证。',
     },
     defaultView: 'output',
-    source: homeExamples.constants,
+    source: languageExamples.constants,
   },
   {
     id: 'specialization',
@@ -153,7 +199,7 @@ export const playgroundExamples = [
       zh: '编译时固定 INV-DDDD 格式，再在运行时检查编号是否符合要求。',
     },
     defaultView: 'output',
-    source: homeExamples.specialization,
+    source: languageExamples.specialization,
   },
   {
     id: 'simd-bytes',
@@ -163,7 +209,7 @@ export const playgroundExamples = [
       zh: '按 32 字节块统计分隔符，用掩码排除最后一块的补零位置。',
     },
     defaultView: 'output',
-    source: homeExamples.simd,
+    source: languageExamples.simd,
   },
   {
     id: 'native-json',
@@ -173,6 +219,19 @@ export const playgroundExamples = [
       zh: '用 nlohmann/json 合并 JSON 配置。在这里生成 C++，然后在本地运行。',
     },
     defaultView: 'cpp',
-    source: homeExamples.native,
+    source: languageExamples.native,
   },
 ] as const;
+
+const projectIds = [
+  'component-studio',
+  'workspace-report',
+  'toml-summary',
+  'async-pipeline',
+  'audio-mixer',
+  'native-json',
+] as const;
+
+export const playgroundProjects = projectIds.map((id) =>
+  playgroundExamples.find((example) => example.id === id)!,
+);

@@ -8,6 +8,7 @@ import {
   WasiHostingSession,
 } from '../src/playground/wasi';
 import { pricingSource, workspaceExamples } from '../src/playground/workspace-examples';
+import { playgroundProjects } from '../src/playground/examples';
 import { readQuote } from '../src/components/PlaygroundPreview';
 
 let assets: CompilerAssets;
@@ -93,7 +94,17 @@ describe('Playground workspaces and hosted calls', () => {
     const example = workspaceExamples[1];
     const result = await executeWasi(assets, example.source, 'run', undefined, {
       stdin: 'Edited title\n',
-      files: { 'items.txt': 'First item\nSecond item\n' },
+      files: {
+        ...example.files,
+        'release.toml': `[release]
+name = "docs"
+budget = 1000
+
+[[artifact]]
+path = "guide.html"
+bytes = 320
+`,
+      },
     });
     expect(result.stderr).toBe('');
     expect(result.exitCode).toBe(0);
@@ -101,7 +112,7 @@ describe('Playground workspaces and hosted calls', () => {
     expect(result.artifacts).toEqual([
       {
         path: 'report.txt',
-        content: 'Edited title\n====================\nFirst item\nSecond item\n',
+        content: 'Edited title\nRelease docs\nguide.html: 320 bytes\nTotal: 320 / 1000 bytes\n',
       },
     ]);
     const isolated = await executeWasi(
@@ -111,6 +122,19 @@ describe('Playground workspaces and hosted calls', () => {
     );
     expect(isolated.exitCode).toBe(0);
     expect(isolated.stdout).toBe('false\n');
+  });
+
+  it('runs the curated projects’ inline tests without executing their entry programs', async () => {
+    for (const id of ['workspace-report', 'toml-summary', 'async-pipeline']) {
+      const example = playgroundProjects.find((item) => item.id === id)!;
+      const result = await executeWasi(assets, example.source, 'test', undefined, {
+        files: 'files' in example ? example.files : undefined,
+      });
+      expect(result.exitCode, id).toBe(0);
+      expect(result.stderr, id).toContain('passed; 0 failed');
+      expect(result.stdout, id).toBe('');
+      expect(result.artifacts, id).toEqual([]);
+    }
   });
 
   it('rejects traversal, packaged-library overrides, excessive inputs and invalid call arguments', () => {

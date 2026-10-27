@@ -121,8 +121,8 @@
   --corner-shape: superellipse(1.5);
 
   --header-height: 78px;
-  --page-width: 1184px;
-  --gutter: 96px;
+  --page-width: 1408px;
+  --gutter: 80px;
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
 
   font-family: var(--sans);
@@ -299,4 +299,17 @@ p {
     --card-line: var(--line);
     --card-description: var(--prose);
   }
+}
+
+.locale-text {
+  display: inline-grid;
+  min-inline-size: 0;
+  vertical-align: top;
+}
+.locale-text > span {
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+.locale-text > [data-active='true'] {
+  visibility: visible;
 }

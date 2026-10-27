@@ -30,7 +30,7 @@ import PlaygroundWorkspace from '../components/PlaygroundWorkspace';
 import PlaygroundDiagnostics from '../components/PlaygroundDiagnostics';
 import type { PlaygroundEditorHandle } from '../components/PlaygroundEditor';
 import { translate, type Locale } from '../lib/i18n';
-import { playgroundExamples as examples } from '../playground/examples';
+import { playgroundExamples as examples, playgroundProjects } from '../playground/examples';
 import { ExecutionSession, PlaygroundError, type Progress } from '../playground/client';
 import { href } from '../lib/site';
 import type { Action, ExecutionInput, ExecutionResult } from '../playground/protocol';
@@ -41,20 +41,23 @@ import PlaygroundFiles from '../components/PlaygroundFiles';
 import PlaygroundProjectTree from '../components/PlaygroundProjectTree';
 import type { DiagnosticLocation } from '../playground/diagnostics';
 import { LatestTask } from '../playground/latest-task';
+import PlaygroundScene from '../components/PlaygroundScene';
+import { readScene, type Scene } from '../playground/scene';
 import '../styles/playground.css';
+import '../styles/scene.css';
 
 const PlaygroundEditor = lazy(() => import('../components/PlaygroundEditor'));
 
 const assetsBase = href('/playground-assets/');
-const initialExample = examples.find((example) => example.id === 'toml-summary') ?? examples[0]!;
+const initialExample = playgroundProjects[0]!;
 const activeExampleKey = 'carven.playground.v1.active';
 const draftKey = (id: string) => `carven.playground.v2.${id}`;
 
 interface PreviewRequest {
   files: Record<string, string>;
   stdin: string;
-  price: number;
-  percent: number;
+  entry: string;
+  call: NonNullable<ExecutionInput['call']>;
   apply: boolean;
   project: number;
 }
@@ -102,6 +105,14 @@ export default function Playground({ locale }: { locale: Locale }) {
   const [fileError, setFileError] = useState('');
   const [price, setPrice] = useState(1200);
   const [percent, setPercent] = useState(25);
+  const [level, setLevel] = useState(60);
+  const [selectedNode, setSelectedNode] = useState(0);
+  const [scene, setScene] = useState<{
+    value: Scene;
+    sourceKey: string;
+    hosting?: ExecutionResult['hosting'];
+  }>();
+  const [sceneError, setSceneError] = useState('');
   const [quote, setQuote] = useState<{
     value: Quote;
     sourceKey: string;
@@ -128,6 +139,9 @@ export default function Playground({ locale }: { locale: Locale }) {
   const hash = useLocation({ select: (location) => location.hash });
   const navigate = useNavigate();
   const pricing = exampleId === 'pricing-preview';
+  const studio = exampleId === 'component-studio';
+  const live = pricing || studio;
+  const liveSourceKey = studio ? JSON.stringify(files) : '';
   const preset: WorkspacePreset = example;
   const showFiles =
     preset.producesFiles || (resultAction !== 'call' && (result?.artifacts.length ?? 0) > 0);
@@ -146,30 +160,46 @@ export default function Playground({ locale }: { locale: Locale }) {
   const executionId = useRef(0);
   const [previewTasks] = useState(() => new LatestTask());
 
-  function requestPreview(apply = false) {
+  function requestPreview(apply = false, delay = 40) {
     pendingApply.current ||= apply;
     const request: PreviewRequest = {
       files,
       stdin,
-      price,
-      percent,
+      entry: studio ? 'scene.cv' : 'pricing.cv',
+      call: studio
+        ? { name: 'view', arguments: [level, selectedNode, locale === 'zh' ? 1 : 0] }
+        : { name: 'quote', arguments: [price, percent] },
       apply: pendingApply.current,
       project: project.current,
     };
-    previewTasks.schedule(
-      async (current) => {
-        pendingApply.current = false;
-        await execute('call', request, current);
-      },
-      apply ? 0 : 40,
-    );
+    previewTasks.schedule(async (current) => {
+      pendingApply.current = false;
+      await execute('call', request, current);
+    }, delay);
   }
-  const schedulePreview = useEffectEvent(() => requestPreview());
+  const schedulePreview = useEffectEvent(() => {
+    const changed = studio && liveSourceKey !== lastReload.current?.sourceKey;
+    requestPreview(changed, changed && activeSources.current ? 300 : 40);
+  });
 
   useEffect(() => {
-    if (pricing && tab === 'preview' && supported) schedulePreview();
+    if (live && tab === 'preview' && supported && projectReady) schedulePreview();
     else previewTasks.cancel();
-  }, [price, percent, pricing, tab, supported, projectRevision, previewTasks]);
+  }, [
+    price,
+    percent,
+    level,
+    selectedNode,
+    locale,
+    live,
+    studio,
+    liveSourceKey,
+    tab,
+    supported,
+    projectReady,
+    projectRevision,
+    previewTasks,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -217,20 +247,20 @@ export default function Playground({ locale }: { locale: Locale }) {
     }
   }
 
-  function invalidate() {
+  function invalidate(keepResult = false) {
     executionId.current += 1;
     executing.current = false;
     previewTasks.cancel();
     pendingApply.current = false;
     session.cancel();
     setBusy(false);
-    setResult(undefined);
+    if (!keepResult) setResult(undefined);
     setMessage('');
     if (tab === 'files' && !preset.producesFiles) setTab('output');
   }
 
   function edit(text: string) {
-    invalidate();
+    invalidate(studio && tab === 'preview');
     setSource(text);
     const next = { ...files, [filename]: text };
     setFiles(next);
@@ -238,7 +268,7 @@ export default function Playground({ locale }: { locale: Locale }) {
   }
 
   function selectFile(path: string) {
-    if (busy) invalidate();
+    if (busy && tab !== 'preview') invalidate();
     setFilename(path);
     setSource(files[path]!);
     setFileError('');
@@ -287,6 +317,10 @@ export default function Playground({ locale }: { locale: Locale }) {
     setSource(next[preset.selectedFile ?? 'main.cv']!);
     setStdin(preset.stdin ?? '');
     setQuote(undefined);
+    setScene(undefined);
+    setSceneError('');
+    setLevel(60);
+    setSelectedNode(0);
     persistWorkspace(next, preset.stdin ?? '');
   }
 
@@ -305,6 +339,10 @@ export default function Playground({ locale }: { locale: Locale }) {
     setExampleId(id);
     setTab(next.defaultView);
     setQuote(undefined);
+    setScene(undefined);
+    setSceneError('');
+    setLevel(60);
+    setSelectedNode(0);
     setNewFile(undefined);
     setFileError('');
 
@@ -361,7 +399,7 @@ export default function Playground({ locale }: { locale: Locale }) {
 
   function run(action: Action) {
     if (action === 'call') {
-      requestPreview(true);
+      requestPreview(true, 0);
       return;
     }
     if (executing.current) invalidate();
@@ -378,7 +416,7 @@ export default function Playground({ locale }: { locale: Locale }) {
     executing.current = true;
     const id = ++executionId.current;
     const applySource = !!preview && (preview.apply || !activeSources.current);
-    const background = !!preview && !applySource;
+    const background = !!preview && (studio ? !!activeSources.current : !applySource);
 
     if (!background) {
       setBusy(true);
@@ -407,7 +445,7 @@ export default function Playground({ locale }: { locale: Locale }) {
     try {
       const entry =
         action === 'call'
-          ? 'pricing.cv'
+          ? preview!.entry
           : ['format', 'ast', 'tokens'].includes(action)
             ? filename
             : 'main.cv';
@@ -422,10 +460,7 @@ export default function Playground({ locale }: { locale: Locale }) {
         stdin: preview?.stdin ?? stdin,
         ...(action === 'call'
           ? {
-              call: {
-                name: 'quote',
-                arguments: [preview?.price ?? price, preview?.percent ?? percent],
-              },
+              call: preview!.call,
             }
           : {}),
       };
@@ -457,11 +492,36 @@ export default function Playground({ locale }: { locale: Locale }) {
       }
       // Parameter updates keep the existing status and controls in place.
       // Publish a new action result only when its outcome changes.
-      if (!background || result?.exitCode !== next.exitCode || resultAction !== 'call')
+      if (
+        !background ||
+        applySource ||
+        result?.exitCode !== next.exitCode ||
+        resultAction !== 'call'
+      )
         setResult(next);
       if (background && next.exitCode === 0) setMessage('');
       if (tab === 'files' && !preset.producesFiles && !next.artifacts.length) setTab('output');
-      if (action === 'call' && next.exitCode === 0) {
+      if (action === 'call' && studio) {
+        const value = next.exitCode === 0 ? readScene(next) : undefined;
+        if (value) {
+          setScene({
+            value,
+            sourceKey: JSON.stringify(activeSources.current ?? executionFiles),
+            hosting: next.hosting,
+          });
+          setSceneError('');
+        } else {
+          setSceneError(
+            next.stderr ||
+              (next.hosting?.diagnostics
+                ? ''
+                : t(
+                    'view 必须返回包含 title、subtitle、columns 和有效 nodes 的 Scene。上一版画面已保留。',
+                    'view must return a Scene with title, subtitle, columns and valid nodes. The previous view is kept.',
+                  )),
+          );
+        }
+      } else if (action === 'call' && next.exitCode === 0) {
         const value = readQuote(next);
         if (value)
           setQuote({
@@ -535,7 +595,7 @@ export default function Playground({ locale }: { locale: Locale }) {
                 ? 'compile'
                 : tab;
   const primaryActionLabel = {
-    call: t('更新预览', 'Update preview'),
+    call: studio ? t('立即更新', 'Update now') : t('更新预览', 'Update preview'),
     run: t('运行', 'Run'),
     test: t('测试', 'Test'),
     check: t('检查', 'Check'),
@@ -589,8 +649,8 @@ export default function Playground({ locale }: { locale: Locale }) {
         </h1>
         <p>
           {t(
-            '选个例子，改一改，在浏览器里运行、检查、测试，或查看生成的 C++。',
-            'Pick an example, make it yours, and run, check, test, or generate C++ in your browser.',
+            '打开一个项目，修改源码或输入，在浏览器里运行、测试，或查看生成的 C++。',
+            'Open a project, edit its source or inputs, then run, test, or inspect the generated C++ in your browser.',
           )}
         </p>
       </div>
@@ -635,16 +695,18 @@ export default function Playground({ locale }: { locale: Locale }) {
             <div className="playground-pane" id="playground-source-pane">
               <div className="playground-pane-header playground-source-header">
                 <div className="playground-example">
-                  <span className="playground-file-dot" aria-hidden="true" />
                   <label className="sr-only" htmlFor="playground-example">
-                    {t('示例', 'Example')}
+                    {t('项目', 'Project')}
                   </label>
                   <PlaygroundSelect
                     id="playground-example"
                     value={exampleId}
                     onChange={(event) => loadExample(event.target.value)}
                   >
-                    {examples.map((item) => (
+                    {!playgroundProjects.some((item) => item.id === exampleId) && (
+                      <option value={exampleId}>{example.title[locale]}</option>
+                    )}
+                    {playgroundProjects.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.title[locale]}
                       </option>
@@ -853,7 +915,7 @@ export default function Playground({ locale }: { locale: Locale }) {
                         setTab(value);
                     }}
                   >
-                    {pricing && <option value="preview">{t('交互预览', 'Live preview')}</option>}
+                    {live && <option value="preview">{t('交互预览', 'Live preview')}</option>}
                     {showFiles && <option value="files">{t('生成的文件', 'Files')}</option>}
                     <option value="output">{t('输出', 'Output')}</option>
                     <option value="tests">{t('测试结果', 'Tests')}</option>
@@ -893,7 +955,21 @@ export default function Playground({ locale }: { locale: Locale }) {
                 </div>
               </div>
               <div className="playground-result-body">
-                {tab === 'preview' ? (
+                {tab === 'preview' && studio ? (
+                  <PlaygroundScene
+                    locale={locale}
+                    scene={scene?.value}
+                    level={level}
+                    onLevel={setLevel}
+                    selected={selectedNode}
+                    onSelect={setSelectedNode}
+                    hosting={
+                      resultAction === 'call' ? (result?.hosting ?? scene?.hosting) : scene?.hosting
+                    }
+                    pendingSource={!!scene && scene.sourceKey !== JSON.stringify(files)}
+                    error={sceneError}
+                  />
+                ) : tab === 'preview' ? (
                   <PlaygroundPreview
                     locale={locale}
                     price={price}
