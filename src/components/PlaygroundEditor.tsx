@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useEffectEvent,
-  useImperativeHandle,
-  useLayoutEffect,
-  useRef,
-  type Ref,
-} from 'react';
+import { useEffectEvent, useImperativeHandle, useLayoutEffect, useRef, type Ref } from 'react';
 import { EditorView, keymap } from '@codemirror/view';
 import { isolateHistory } from '@codemirror/commands';
 import { Annotation, Prec } from '@codemirror/state';
@@ -22,12 +15,14 @@ export interface PlaygroundEditorHandle {
 
 export default function PlaygroundEditor({
   source,
+  filename = 'main.cv',
   locale,
   onChange,
   onRun,
   ref,
 }: {
   source: string;
+  filename?: string;
   locale: Locale;
   onChange: (source: string) => void;
   onRun: () => void;
@@ -74,7 +69,7 @@ export default function PlaygroundEditor({
     [],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!host.current) return;
     const t = translate(locale);
     const instance = new EditorView({
@@ -82,7 +77,7 @@ export default function PlaygroundEditor({
       state: sourceEditorState(currentSource.current, [
         EditorView.contentAttributes.of({
           id: 'playground-source',
-          'aria-label': t('main.cv 源码编辑器', 'main.cv source editor'),
+          'aria-label': t(`${filename} 源码编辑器`, `${filename} source editor`),
           'aria-describedby': 'playground-editor-help',
           spellcheck: 'false',
           autocapitalize: 'off',
@@ -115,9 +110,9 @@ export default function PlaygroundEditor({
       instance.destroy();
       view.current = null;
     };
-  }, [locale]);
+  }, [locale, filename]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const instance = view.current;
     if (instance && instance.state.doc.toString() !== source.replace(/\r\n?/g, '\n')) {
       // An explicit reset is an undoable edit. Ordinary typing already lives in

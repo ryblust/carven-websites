@@ -1,4 +1,5 @@
 export interface DiagnosticLocation {
+  file?: string;
   line: number;
   /** One-based UTF-8 byte column, as reported by the packaged compiler. */
   column: number;
@@ -10,18 +11,24 @@ export interface DiagnosticPart {
 }
 
 /** Recognize source-frame anchors, never location-like text inside a message. */
-export function diagnosticParts(text: string): DiagnosticPart[] {
+export function diagnosticParts(text: string, files: string[] = ['main.cv']): DiagnosticPart[] {
   const parts: DiagnosticPart[] = [];
-  const anchors = /^[ \t]*(?:-->|:::)[ \t]+(\/?main\.cv:([1-9][0-9]*):([1-9][0-9]*))[ \t]*\r?$/gm;
+  const anchors =
+    /^[ \t]*(?:-->|:::)[ \t]+(\/?([A-Za-z0-9_./-]+\.cv):([1-9][0-9]*):([1-9][0-9]*))[ \t]*\r?$/gm;
   let previous = 0;
 
   for (const match of text.matchAll(anchors)) {
-    const line = Number(match[2]);
-    const column = Number(match[3]);
+    const file = match[2]!;
+    if (!files.includes(file)) continue;
+    const line = Number(match[3]);
+    const column = Number(match[4]);
     if (!Number.isSafeInteger(line) || !Number.isSafeInteger(column)) continue;
     const start = match.index + match[0].indexOf(match[1]!);
     if (start > previous) parts.push({ text: text.slice(previous, start) });
-    parts.push({ text: match[1]!, location: { line, column } });
+    parts.push({
+      text: match[1]!,
+      location: { line, column, ...(file === 'main.cv' ? {} : { file }) },
+    });
     previous = start + match[1]!.length;
   }
 

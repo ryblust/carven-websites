@@ -1,4 +1,11 @@
-export type Action = 'run' | 'test' | 'check' | 'compile' | 'format' | 'ast' | 'tokens';
+export type Action = 'run' | 'test' | 'check' | 'compile' | 'format' | 'ast' | 'tokens' | 'call';
+
+export interface ExecutionInput {
+  entry?: string;
+  files?: Record<string, string>;
+  stdin?: string;
+  call?: { name: string; arguments: number[] };
+}
 
 export interface ExecutionResult {
   stdout: string;
@@ -8,6 +15,11 @@ export interface ExecutionResult {
   durationMs: number;
   truncated: boolean;
   formattedSource?: string;
+  hosting?: {
+    status: 'loaded' | 'reloaded' | 'unchanged' | 'retained' | 'unavailable';
+    revision: number;
+    diagnostics: string;
+  };
 }
 
 const record = (value: unknown): value is Record<string, unknown> =>
@@ -23,6 +35,14 @@ export function isExecutionResult(value: unknown): value is ExecutionResult {
     Number.isFinite(value.durationMs) &&
     value.durationMs >= 0 &&
     typeof value.truncated === 'boolean' &&
+    (value.hosting === undefined ||
+      (record(value.hosting) &&
+        ['loaded', 'reloaded', 'unchanged', 'retained', 'unavailable'].includes(
+          value.hosting.status as string,
+        ) &&
+        Number.isSafeInteger(value.hosting.revision) &&
+        (value.hosting.revision as number) >= 0 &&
+        typeof value.hosting.diagnostics === 'string')) &&
     (value.formattedSource === undefined ||
       (typeof value.formattedSource === 'string' &&
         !value.formattedSource.includes('\0') &&

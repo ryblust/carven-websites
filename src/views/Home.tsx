@@ -1,4 +1,4 @@
-import { useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { MorphingCode } from '../components/MorphingCode';
 import { Link } from '@tanstack/react-router';
 import { localizedPath, translate, type Locale } from '../lib/i18n';
@@ -39,8 +39,27 @@ export default function Home({ locale }: { locale: Locale }) {
   const [loading, setLoading] = useState(false);
   const pending = loading || committing;
   const [loadError, setLoadError] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
+
+  useEffect(() => {
+    if (!pending) {
+      setShowLoading(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowLoading(true), 150);
+    return () => clearTimeout(timer);
+  }, [pending]);
 
   async function choose(index: number, nextLanguage: CodeLanguage) {
+    if (
+      !pending &&
+      !loadError &&
+      index === selected &&
+      codeName(index, nextLanguage) === codeName(selected, language)
+    ) {
+      intent.current = { selected: index, language: nextLanguage };
+      return;
+    }
     intent.current = { selected: index, language: nextLanguage };
     const generation = ++request.current;
     setLoadError(false);
@@ -399,7 +418,7 @@ export default function Home({ locale }: { locale: Locale }) {
                       '示例加载失败，请重新选择。',
                       'Could not load the example. Select it to retry.',
                     )
-                  : pending
+                  : pending && showLoading
                     ? t('正在载入…', 'Loading…')
                     : t('Carven 与 C++ 对照', 'Carven and C++, side by side')}
               </span>

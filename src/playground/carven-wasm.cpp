@@ -17,6 +17,9 @@ import :source.manager;
 import :support.process;
 import std;
 
+auto run_browser_host(std::span<const std::string> args) noexcept -> int;
+auto close_browser_host() noexcept -> void;
+
 // The browser host installs an isolated source tree at this root.
 auto process::executable() noexcept -> std::expected<std::filesystem::path, std::error_code> {
     return "/bin/carven";
@@ -117,19 +120,22 @@ auto browser_bindings() noexcept -> std::vector<ExecutionNativeBinding> {
 
 } // namespace
 
-extern "C++" auto main(int argc, const char* const* argv) noexcept -> int {
-    if (argc < 2) {
+auto run_browser_command(std::span<const std::string> command_line) noexcept -> int {
+    if (command_line.empty()) {
         return 1;
     }
-    const auto args = std::vector<std::string>(argv + 2, argv + argc);
-    const auto command = std::string_view(argv[1]);
+    const auto args = command_line.subspan(1uz);
+    const auto command = std::string_view(command_line.front());
     const auto native_bindings = browser_bindings();
+    if (command == "host") {
+        return run_browser_host(args);
+    }
     if (command == "format") {
-        if (args.size() != 1uz || args.front() != "main.cv") {
+        if (args.size() != 1uz) {
             return 2;
         }
         auto sources = SourceManager();
-        const auto source = sources.append_file("main.cv");
+        const auto source = sources.append_file(args.front());
         if (!source) {
             std::println(std::cerr, "carven-format: {}", source.error().message);
             return 2;
@@ -155,4 +161,20 @@ extern "C++" auto main(int argc, const char* const* argv) noexcept -> int {
         return run_compilation_command(args, CompilationCommand::Compile, native_bindings);
     }
     return 1;
+}
+
+extern "C" auto carven_execute() noexcept -> int {
+    auto command = std::ifstream(".playground-command");
+    auto args = std::vector<std::string>();
+    for (auto line = std::string(); std::getline(command, line);) {
+        args.push_back(std::move(line));
+    }
+    const auto result = run_browser_command(args);
+    std::cout.flush();
+    std::cerr.flush();
+    return result;
+}
+
+extern "C" auto carven_close() noexcept -> void {
+    close_browser_host();
 }

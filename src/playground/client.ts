@@ -1,4 +1,9 @@
-import { isExecutionResult, type Action, type ExecutionResult } from './protocol';
+import {
+  isExecutionResult,
+  type Action,
+  type ExecutionInput,
+  type ExecutionResult,
+} from './protocol';
 import type { CompilerAssets } from './wasi';
 
 export type Progress = 'loading' | 'running';
@@ -20,11 +25,14 @@ type WorkerFactory = () => WorkerPort;
 const createWorker: WorkerFactory = () =>
   new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
 
-// Each task has its own worker. Termination stops synchronous WASM immediately.
+// Hosted calls reuse one worker; other actions keep isolated runtimes.
+// Termination still stops a busy WASM worker immediately.
 export class ExecutionSession {
   private generation = 0;
   private pending?: { worker: WorkerPort; finish: () => void };
   private readonly compilers = new Map<string, CompilerAssets>();
+  private hosting?: { base: string; worker: WorkerPort };
+  private checkpoint?: { base: string; source: string; input: ExecutionInput };
 
   constructor(private readonly workerFactory: WorkerFactory = createWorker) {}
 
@@ -33,11 +41,20 @@ export class ExecutionSession {
     this.pending?.finish();
   }
 
+  close() {
+    this.cancel();
+    this.hosting?.worker.postMessage({ type: 'close' });
+    this.hosting?.worker.terminate();
+    this.hosting = undefined;
+    this.checkpoint = undefined;
+  }
+
   run(
     assetsBase: string,
     source: string,
     action: Action,
     progress: (phase: Progress) => void = () => {},
+    input: ExecutionInput = {},
   ): Promise<ExecutionResult | undefined> {
     this.cancel();
 
@@ -45,10 +62,17 @@ export class ExecutionSession {
       return Promise.reject(new PlaygroundError('too-large'));
     }
     const base = new URL(assetsBase, globalThis.location?.href ?? import.meta.url).href;
+    if (
+      (this.hosting && this.hosting.base !== base) ||
+      (this.checkpoint && this.checkpoint.base !== base)
+    )
+      this.close();
     const id = this.generation;
 
     return new Promise((resolve, reject) => {
-      const worker = this.workerFactory();
+      const reuseHosting = action === 'call' && this.hosting !== undefined;
+      const worker = action === 'call' && this.hosting ? this.hosting.worker : this.workerFactory();
+      if (action === 'call') this.hosting = { base, worker };
       let settled = false;
       let timer: ReturnType<typeof setTimeout>;
 
@@ -59,7 +83,10 @@ export class ExecutionSession {
         clearTimeout(timer);
         worker.removeEventListener('message', onMessage);
         worker.removeEventListener('error', onError);
-        worker.terminate();
+        if (action !== 'call' || !result || result.truncated || result.exitCode === 137) {
+          worker.terminate();
+          if (this.hosting?.worker === worker) this.hosting = undefined;
+        }
         if (this.pending?.worker === worker) this.pending = undefined;
         if (id !== this.generation) resolve(undefined);
         else if (error) reject(error);
@@ -111,6 +138,14 @@ export class ExecutionSession {
             data.result.exitCode !== 0 ||
             typeof data.result.formattedSource === 'string')
         ) {
+          if (
+            action === 'call' &&
+            data.result.hosting &&
+            !data.result.truncated &&
+            data.result.exitCode !== 137 &&
+            ['loaded', 'reloaded', 'unchanged'].includes(data.result.hosting.status)
+          )
+            this.checkpoint = { base, source, input };
           finish(data.result);
         } else {
           finish(
@@ -136,6 +171,8 @@ export class ExecutionSession {
           action,
           assetsBase: base,
           compiler: this.compilers.get(base),
+          input,
+          checkpoint: action === 'call' && !reuseHosting ? this.checkpoint : undefined,
         });
       } catch {
         finish(undefined, new PlaygroundError('unsupported'));

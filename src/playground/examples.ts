@@ -1,7 +1,9 @@
 import { homeExamples } from '../content/home-examples.ts';
 import { extraExamples } from './extra-examples.ts';
+import { workspaceExamples } from './workspace-examples.ts';
 
 export const playgroundExamples = [
+  ...workspaceExamples,
   {
     id: 'toml-summary',
     title: { en: 'Count slow requests by service', zh: '按服务统计慢请求' },
@@ -34,6 +36,7 @@ export const playgroundExamples = [
   },
   {
     id: 'file-report',
+    producesFiles: true,
     title: { en: 'Build a release report from files', zh: '从文件生成发布报告' },
     description: {
       en: 'Write a sample TOML manifest, read and total its artifacts, then save a report. Files are isolated to this invocation.',

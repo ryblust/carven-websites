@@ -44,8 +44,6 @@
   top: calc(var(--header-height) + var(--space-6));
   max-height: calc(100dvh - var(--header-height) - var(--space-7));
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
   overscroll-behavior: contain;
   padding-bottom: var(--space-5);
 }
@@ -138,20 +136,7 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
-    scrollbar-width: thin;
-    scrollbar-color: transparent transparent;
     padding: 2px 8px 2px 2px;
-  }
-
-  .desktop-chapters .chapter-list:hover,
-  .desktop-chapters .chapter-list:focus-within {
-    scrollbar-color: var(--line) transparent;
-  }
-
-  @media (forced-colors: active) {
-    .desktop-chapters .chapter-list {
-      scrollbar-color: auto;
-    }
   }
 }
 

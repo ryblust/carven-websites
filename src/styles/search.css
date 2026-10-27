@@ -1,5 +1,5 @@
 /* Site search trigger, dialog, results, and responsive presentation. */
-body:has(.search-dialog[open]) {
+body:has(:is(.search-dialog, .chapter-drawer)[open]) {
   overflow: hidden;
 }
 

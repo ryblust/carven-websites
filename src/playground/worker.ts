@@ -1,4 +1,11 @@
-import { executeWasi, loadCompilerAssets, validateInput, type CompilerAssets } from './wasi';
+import {
+  executeWasi,
+  loadCompilerAssets,
+  validateInput,
+  validateExecutionInput,
+  type CompilerAssets,
+  WasiHostingSession,
+} from './wasi';
 
 interface WorkerScope {
   location: Location;
@@ -7,10 +14,16 @@ interface WorkerScope {
 }
 
 const scope = globalThis as unknown as WorkerScope;
+let hosting: WasiHostingSession | undefined;
 
 scope.onmessage = (event) => {
   void (async () => {
     const request = event.data as Record<string, unknown> | null;
+    if (request?.type === 'close') {
+      hosting?.close();
+      hosting = undefined;
+      return;
+    }
     if (!request || !Number.isInteger(request.id) || typeof request.assetsBase !== 'string') return;
     const id = request.id;
     const report = (type: string, data: Record<string, unknown>) =>
@@ -19,6 +32,7 @@ scope.onmessage = (event) => {
 
     try {
       const input = validateInput(request.source, request.action);
+      const workspace = validateExecutionInput(request.input);
       const base = new URL(request.assetsBase, scope.location.href);
       if (
         base.origin !== scope.location.origin ||
@@ -38,7 +52,20 @@ scope.onmessage = (event) => {
       if (!request.compiler) report('assets', { compiler });
       stage = 'execution';
       report('progress', { phase: 'running' });
-      report('result', { result: await executeWasi(compiler, input.source, input.action) });
+      if (input.action === 'call' && !hosting) {
+        hosting = new WasiHostingSession(compiler);
+        const checkpoint = request.checkpoint as { source?: unknown; input?: unknown } | undefined;
+        if (checkpoint) {
+          const previous = validateInput(checkpoint.source, 'call');
+          await hosting.run(previous.source, validateExecutionInput(checkpoint.input));
+        }
+      }
+      report('result', {
+        result:
+          input.action === 'call'
+            ? await hosting!.run(input.source, workspace)
+            : await executeWasi(compiler, input.source, input.action, undefined, workspace),
+      });
     } catch (error) {
       report('error', {
         code: stage,

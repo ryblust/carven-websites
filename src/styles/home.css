@@ -182,11 +182,6 @@
   overflow-x: auto;
   font-size: var(--text-sm);
   line-height: 1.65;
-  scrollbar-width: none;
-}
-
-.project-build-code pre::-webkit-scrollbar {
-  display: none;
 }
 
 .project-build-files {
@@ -508,14 +503,6 @@
   overflow: auto;
   overscroll-behavior-x: contain;
   contain: layout paint;
-}
-
-.showcase-code :is(.why-code-block, .code-window-result, .showcase-details) {
-  scrollbar-width: none;
-}
-
-.showcase-code :is(.why-code-block, .code-window-result, .showcase-details)::-webkit-scrollbar {
-  display: none;
 }
 
 .why-code-block pre {

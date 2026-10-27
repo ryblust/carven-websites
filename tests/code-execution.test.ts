@@ -164,4 +164,41 @@ describe('running article code blocks', () => {
     await finish(1, completed('retried successfully'));
     await vi.waitFor(() => expect(outputs(root)).toEqual(['retried successfully']));
   });
+
+  it('keeps previous output and avoids flashing progress for a fast identical rerun', async () => {
+    const root = fixture([['cv', true]]);
+    const button = root.querySelector<HTMLButtonElement>('.run-button')!;
+    await start(button, 1);
+    await finish(0, completed('same result'));
+    const panel = root.querySelector<HTMLElement>('.code-run-result')!;
+    await start(button, 2);
+    expect(panel.hidden).toBe(false);
+    expect(outputs(root)).toEqual(['same result']);
+    expect(root.querySelector('[role="status"]')?.textContent).toBe('Completed');
+    expect(button.textContent).toBe('Run');
+    await finish(1, completed('same result'));
+    expect(outputs(root)).toEqual(['same result']);
+    expect(button.textContent).toBe('Run');
+  });
+
+  it('shows slow-run progress and preserves previous output on stop or failure', async () => {
+    const root = fixture([['cv', true]]);
+    const button = root.querySelector<HTMLButtonElement>('.run-button')!;
+    await start(button, 1);
+    await finish(0, completed('last valid output'));
+    await start(button, 2);
+    session.run.mock.calls[1]![3]('running');
+    await vi.waitFor(() => expect(button.textContent).toBe('Stop'));
+    expect(root.querySelector('[role="status"]')?.textContent).toBe('Running…');
+    expect(outputs(root)).toEqual(['last valid output']);
+    button.click();
+    expect(root.querySelector('[role="status"]')?.textContent).toBe('Stopped');
+    await finish(1, completed('late output'));
+    await start(button, 3);
+    pending[2]!.reject(new Error('worker failed'));
+    await vi.waitFor(() =>
+      expect(root.querySelector('[role="status"]')?.textContent).toContain('Previous output kept'),
+    );
+    expect(outputs(root)).toEqual(['last valid output']);
+  });
 });

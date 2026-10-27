@@ -1,0 +1,54 @@
+/* Native scrollbars share the site's quiet borders and rounded controls.
+ * Keep overflow and gutter decisions with each layout. */
+:root {
+  --scrollbar-size: 6px;
+  scrollbar-gutter: stable;
+}
+
+:where(*) {
+  --scrollbar-color: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-color) transparent;
+}
+
+/* A quiet page-position marker stays visible; nested areas reveal on demand. */
+:root,
+:where([data-scrolling]) {
+  --scrollbar-color: var(--line);
+}
+
+@media (hover: hover) {
+  :where(*:hover) {
+    --scrollbar-color: var(--line);
+  }
+}
+
+:where(.reading-nav-inner, .page-outline-inner, .chapter-list, .search-results):focus-within {
+  --scrollbar-color: var(--line);
+}
+
+:where(*)::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+:where(*)::-webkit-scrollbar-track,
+:where(*)::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+:where(*)::-webkit-scrollbar-thumb {
+  border-radius: var(--radius-pill);
+  background: var(--scrollbar-color);
+}
+
+@media (forced-colors: active) {
+  :where(*) {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+
+  :where(*)::-webkit-scrollbar-thumb {
+    background: CanvasText;
+  }
+}

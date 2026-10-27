@@ -78,3 +78,73 @@ describe('browser execution results', () => {
     ).rejects.toMatchObject({ code: 'too-large' });
   });
 });
+
+it('keeps an idle hosting worker across calls and isolated checks, then closes it with the project', async () => {
+  const host = new WorkerDouble();
+  const check = new WorkerDouble();
+  const factory = vi.fn().mockReturnValueOnce(host).mockReturnValueOnce(check);
+  const terminate = vi.spyOn(host, 'terminate');
+  const session = new ExecutionSession(factory);
+  const hosted = {
+    ...result,
+    hosting: { status: 'loaded' as const, revision: 1, diagnostics: '' },
+  };
+  const first = session.run('/assets/', 'valid', 'call');
+  host.reply({ id: host.sent[0]!.id, type: 'result', result: hosted });
+  await first;
+  session.cancel();
+  expect(terminate).not.toHaveBeenCalled();
+  const checked = session.run('/assets/', 'check', 'check');
+  check.reply({ id: check.sent[0]!.id, type: 'result', result });
+  await checked;
+  const second = session.run('/assets/', 'valid', 'call');
+  host.reply({
+    id: host.sent[1]!.id,
+    type: 'result',
+    result: { ...hosted, hosting: { ...hosted.hosting, status: 'unchanged' } },
+  });
+  await second;
+  expect(factory).toHaveBeenCalledTimes(2);
+  expect(terminate).not.toHaveBeenCalled();
+  session.close();
+  expect(terminate).toHaveBeenCalledTimes(1);
+});
+
+it('restores the last accepted source after cancelling a busy host and clears it when switching projects', async () => {
+  const firstWorker = new WorkerDouble();
+  const recovered = new WorkerDouble();
+  const nextProject = new WorkerDouble();
+  const factory = vi
+    .fn()
+    .mockReturnValueOnce(firstWorker)
+    .mockReturnValueOnce(recovered)
+    .mockReturnValueOnce(nextProject);
+  const session = new ExecutionSession(factory);
+  const first = session.run('/assets/', 'accepted', 'call');
+  firstWorker.reply({
+    id: firstWorker.sent[0]!.id,
+    type: 'result',
+    result: { ...result, hosting: { status: 'loaded', revision: 1, diagnostics: '' } },
+  });
+  await first;
+  const pending = session.run('/assets/', 'bad candidate', 'call');
+  session.cancel();
+  expect(await pending).toBeUndefined();
+  const retry = session.run('/assets/', 'bad candidate', 'call');
+  expect(recovered.sent[0]).toMatchObject({ checkpoint: { source: 'accepted' } });
+  recovered.reply({
+    id: recovered.sent[0]!.id,
+    type: 'result',
+    result: {
+      ...result,
+      hosting: { status: 'retained', revision: 1, diagnostics: 'invalid candidate' },
+    },
+  });
+  await retry;
+  session.close();
+  const fresh = session.run('/assets/', 'next project', 'call');
+  expect(nextProject.sent[0]).toMatchObject({ checkpoint: undefined });
+  nextProject.reply({ id: nextProject.sent[0]!.id, type: 'result', result });
+  await fresh;
+  session.close();
+});

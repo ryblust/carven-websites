@@ -31,14 +31,18 @@ source: docs/language/standard.md
 
 原生项目教程给出完整文件和本地命令。浏览器示例可打开后直接执行，再修改输入观察结果；异步测试选择「测试」操作。
 
-| 任务                             | 完整示例                                               | 规则与讲解                                                               |
-| -------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------ |
-| 构建普通应用并运行同文件内联测试 | [构建原生项目](/zh/learn/build/)                       | [构建与查询 API](/zh/reference/build/)                                   |
-| 解析 TOML，并用哈希集合汇总      | [TOML 配置汇总](/zh/playground/#example=toml-summary)  | [TOML](/zh/reference/toml/)、[集合](/zh/reference/collections/)          |
-| 在编译期与运行时调用闭包策略     | [闭包策略](/zh/playground/#example=closure-policy)     | [闭包](/zh/learn/closures/)、[静态执行](/zh/reference/constants/)        |
-| 通过有界通道传递拥有型字节       | [生产与消费](/zh/playground/#example=channel-pipeline) | [字节通道](/zh/reference/channel/)、[异步](/zh/learn/async/)             |
-| 在浏览器文件系统中写入并读取报告 | [文件报告](/zh/playground/#example=file-report)        | [文件与路径](/zh/reference/fs/)                                          |
-| 运行等待子任务的测试             | [异步测试](/zh/playground/#example=async-tests)        | [测试](/zh/learn/testing/)、[异步测试契约](/zh/reference/entry-testing/) |
+| 任务                               | 完整示例                                               | 规则与讲解                                                               |
+| ---------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------ |
+| 构建普通应用并运行同文件内联测试   | [构建原生项目](/zh/learn/build/)                       | [构建与查询 API](/zh/reference/build/)                                   |
+| 解析 TOML，并用哈希集合汇总        | [TOML 配置汇总](/zh/playground/#example=toml-summary)  | [TOML](/zh/reference/toml/)、[集合](/zh/reference/collections/)          |
+| 在编译期与运行时调用闭包策略       | [闭包策略](/zh/playground/#example=closure-policy)     | [闭包](/zh/learn/closures/)、[静态执行](/zh/reference/constants/)        |
+| 通过有界通道传递拥有型字节         | [生产与消费](/zh/playground/#example=channel-pipeline) | [字节通道](/zh/reference/channel/)、[异步](/zh/learn/async/)             |
+| 在浏览器文件系统中写入并读取报告   | [文件报告](/zh/playground/#example=file-report)        | [文件与路径](/zh/reference/fs/)                                          |
+| 运行等待子任务的测试               | [异步测试](/zh/playground/#example=async-tests)        | [测试](/zh/learn/testing/)、[异步测试契约](/zh/reference/entry-testing/) |
+| 从网页调用源码函数，并测试业务规则 | [交互式定价](/zh/playground/#example=pricing-preview)  | [原生与宿主执行](/zh/reference/interop/)、[内联测试](/zh/learn/testing/) |
+| 提供文本和文件，再下载生成的报告   | [输入与文件](/zh/playground/#example=workspace-report) | [标准输入](/zh/reference/io/)、[文件](/zh/reference/fs/)                 |
+
+[交互式定价项目](/zh/playground/#example=pricing-preview)会在多次调用之间保留宿主会话。修改金额和折扣会自动更新报价；源码修改通过「更新预览」检查并应用。有效源码会替换实现；源码检查失败时，上一版仍可处理新输入。「生成的文件」只在文件示例或实际产生文件后出现。产物留在内存中，只有点击「下载」才保存到电脑，也不会写入项目草稿。每个示例拥有独立的文件和草稿，以 `main.cv` 为程序入口。可以通过文件树或标签切换文件，也可以使用建议文件名或相对路径添加文件。
 
 本地项目继续使用同一语言：先看[声明式构建](https://github.com/ryblust/carven/tree/v0.1.0/examples/build/declarative)，再看[读取 TOML、生成源码和组装构建计划](https://github.com/ryblust/carven/tree/v0.1.0/examples/build/imperative)。[构建 API](/zh/reference/build/)说明目标、依赖和查询；[工具工作流](/zh/learn/workflow/)给出使用步骤。
 

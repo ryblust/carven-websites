@@ -9,13 +9,14 @@ import {
   wasi as wasiDefinitions,
   type Inode,
 } from '@bjorn3/browser_wasi_shim';
-import type { Action, ExecutionResult } from './protocol';
+import type { Action, ExecutionInput, ExecutionResult } from './protocol';
 
 export const maxSourceBytes = 64 * 1024;
 export const maxOutputBytes = 128 * 1024;
 const maxWasmBytes = 128 * 1024 * 1024;
 const maxCraftsBytes = 8 * 1024 * 1024;
-
+export { validFilePath, validateExecutionInput } from './workspace.ts';
+import { validateExecutionInput } from './workspace.ts';
 export interface CompilerAssets {
   module: WebAssembly.Module;
   files: Record<string, string>;
@@ -122,7 +123,8 @@ export function validateInput(
     action !== 'compile' &&
     action !== 'format' &&
     action !== 'ast' &&
-    action !== 'tokens'
+    action !== 'tokens' &&
+    action !== 'call'
   )
     throw new Error('Unknown compiler action.');
 
@@ -164,10 +166,10 @@ export class CapturedOutput {
   }
 }
 
-function filesystem(source: string, files: Record<string, string>) {
+function filesystem(source: string, files: Record<string, string>, input: ExecutionInput) {
   const root = new Directory(new Map<string, Inode>());
 
-  const insert = (path: string, content: string) => {
+  const insert = (path: string, content: string, readonly = true) => {
     const parts = path.split('/');
     let directory = root;
 
@@ -183,13 +185,15 @@ function filesystem(source: string, files: Record<string, string>) {
 
     directory.contents.set(
       parts.at(-1)!,
-      new File(new TextEncoder().encode(content), { readonly: true }),
+      new File(new TextEncoder().encode(content), { readonly }),
     );
   };
 
   for (const [path, content] of Object.entries(files)) insert(path, content);
   insert('bin/carven', '');
-  insert('main.cv', source);
+  for (const [path, content] of Object.entries(input.files ?? {}))
+    insert(path, content, path.endsWith('.cv'));
+  insert(input.entry ?? 'main.cv', source);
   root.contents.set('generated', new Directory(new Map()));
   // Construct the finished hierarchy bottom-up so the shim sets parent inodes.
   const finalize = (directory: Directory): Directory =>
@@ -221,32 +225,32 @@ function generatedArtifacts(root: PreopenDirectory): ExecutionResult['artifacts'
   return artifacts;
 }
 
-export async function executeWasi(
-  assets: CompilerAssets,
-  source: string,
-  action: Action,
-  outputLimit = maxOutputBytes,
-): Promise<ExecutionResult> {
-  validateInput(source, action);
-  const started = performance.now();
-  const output = new CapturedOutput(
-    action === 'format' ? Math.min(outputLimit, maxSourceBytes) : outputLimit,
-  );
-  const args =
-    action === 'run'
-      ? ['carven', 'interpret', '--max-steps', '100000', 'main.cv']
-      : action === 'test'
-        ? ['carven', 'interpret', '--tests', '--max-steps', '100000', 'main.cv']
-        : action === 'compile'
-          ? ['carven', 'compile', '--no-query', '-o', 'generated', 'main.cv']
-          : action === 'ast' || action === 'tokens'
-            ? ['carven', 'dump', action, 'main.cv']
-            : ['carven', action, 'main.cv'];
-  const root = filesystem(source, assets.files);
+function outputFiles(root: PreopenDirectory, input: ExecutionInput): ExecutionResult['artifacts'] {
+  const files: ExecutionResult['artifacts'] = [];
+  const collect = (directory: Directory, prefix: string) => {
+    for (const [name, entry] of [...directory.contents].sort(([a], [b]) => a.localeCompare(b))) {
+      const path = `${prefix}${name}`;
+      if (!prefix && ['crafts', 'bin', 'generated'].includes(name)) continue;
+      if (entry instanceof Directory) collect(entry, `${path}/`);
+      else if (entry instanceof File && !entry.readonly) {
+        const content = new TextDecoder().decode(entry.data);
+        if (input.files?.[path] !== content) files.push({ path, content });
+      }
+    }
+  };
+  collect(root.dir, '');
+  return files;
+}
+
+async function createRuntime(assets: CompilerAssets) {
+  let output = new CapturedOutput();
+  let input = validateExecutionInput();
+  let root = filesystem('', assets.files, input);
+  let stdin = new OpenFile(new File([]));
   const wasi = new WASI(
-    args,
+    [],
     ['PWD=/', 'LANG=C.UTF-8', 'NO_COLOR=1', 'TERM=dumb'],
-    [new OpenFile(new File([])), output.fd('stdout'), output.fd('stderr'), root],
+    [stdin, output.fd('stdout'), output.fd('stderr'), root],
     { debug: false },
   );
   // The shim's default readlink returns ENOTSUP, which breaks libc canonical().
@@ -262,8 +266,8 @@ export async function executeWasi(
 
     return status.ret === 0 ? wasiDefinitions.ERRNO_INVAL : status.ret;
   };
-  // Standard input is a closed in-memory file. The shim handles clock polling
-  // only, while the compiler's input cursor polls for readability before reading.
+  // The shim handles clock polling only. Make the supplied input immediately
+  // readable, then report EOF after its last byte.
   const poll = wasi.wasiImport.poll_oneoff!;
   wasi.wasiImport.poll_oneoff = (
     subscriptions: number,
@@ -284,8 +288,13 @@ export async function executeWasi(
           wasiDefinitions.ERRNO_SUCCESS,
           wasiDefinitions.EVENTTYPE_FD_READ,
         ).write_bytes(memory, events);
-        memory.setBigUint64(events + 16, 0n, true);
-        memory.setUint16(events + 24, wasiDefinitions.EVENTRWFLAGS_FD_READWRITE_HANGUP, true);
+        const remaining = Math.max(0, stdin.file.data.byteLength - Number(stdin.file_pos));
+        memory.setBigUint64(events + 16, BigInt(remaining), true);
+        memory.setUint16(
+          events + 24,
+          remaining === 0 ? wasiDefinitions.EVENTRWFLAGS_FD_READWRITE_HANGUP : 0,
+          true,
+        );
         if (completed !== undefined) memory.setUint32(completed, 1, true);
 
         return wasiDefinitions.ERRNO_SUCCESS;
@@ -321,40 +330,214 @@ export async function executeWasi(
     wasi_snapshot_preview1: wasi.wasiImport,
   });
   const memory = instance.exports.memory;
-  const start = instance.exports._start;
-  if (!(memory instanceof WebAssembly.Memory) || typeof start !== 'function') {
-    throw new Error('Compiler module has no WASI command entry.');
+  const execute = instance.exports.carven_execute;
+  if (!(memory instanceof WebAssembly.Memory) || typeof execute !== 'function') {
+    throw new Error('Compiler module has no browser reactor entry.');
   }
-  let exitCode: number;
-
-  try {
-    exitCode = wasi.start({ exports: { memory, _start: start as () => unknown } });
-  } catch (error) {
-    if (error instanceof OutputLimit) exitCode = 125;
-    else {
-      exitCode = 137;
-      // Preserve compiler diagnostics if the module subsequently traps.
+  wasi.initialize({ exports: { memory, _initialize: instance.exports._initialize as () => void } });
+  let usable = true;
+  return {
+    install(source: string, workspace: ExecutionInput) {
+      input = workspace;
+      root = filesystem(source, assets.files, workspace);
+      stdin = new OpenFile(new File(new TextEncoder().encode(workspace.stdin)));
+      wasi.fds[0] = stdin;
+      wasi.fds[3] = root;
+    },
+    execute(args: string[], action: Action, outputLimit = maxOutputBytes): ExecutionResult {
+      const started = performance.now();
+      output = new CapturedOutput(
+        action === 'format' ? Math.min(outputLimit, maxSourceBytes) : outputLimit,
+      );
+      artifactBytes = 0;
+      wasi.fds[1] = output.fd('stdout');
+      wasi.fds[2] = output.fd('stderr');
+      root.dir.contents.set('generated', new Directory(new Map()));
+      root.dir.contents.set(
+        '.playground-command',
+        new File(new TextEncoder().encode(args.join('\n')), { readonly: true }),
+      );
+      let exitCode: number;
       try {
-        output
-          .fd('stderr')
-          .fd_write(new TextEncoder().encode('\nCompiler execution stopped unexpectedly.\n'));
-      } catch (failure) {
-        if (!(failure instanceof OutputLimit)) throw failure;
+        exitCode = execute() as number;
+      } catch (error) {
+        // A JS trap bypasses C++ unwinding, so never reenter this instance.
+        usable = false;
+        if (error instanceof OutputLimit) exitCode = 125;
+        else {
+          exitCode = 137;
+          try {
+            output
+              .fd('stderr')
+              .fd_write(new TextEncoder().encode('\nCompiler execution stopped unexpectedly.\n'));
+          } catch (failure) {
+            if (!(failure instanceof OutputLimit)) throw failure;
+          }
+        }
       }
+      const stdout = output.text('stdout');
+      return {
+        stdout,
+        stderr: output.text('stderr'),
+        exitCode,
+        artifacts:
+          exitCode === 0
+            ? action === 'compile' || action === 'call'
+              ? generatedArtifacts(root)
+              : outputFiles(root, input)
+            : [],
+        durationMs: Math.round(performance.now() - started),
+        truncated: output.truncated,
+        ...(action === 'format' && exitCode === 0 && !output.truncated
+          ? { formattedSource: stdout }
+          : {}),
+      };
+    },
+    close() {
+      if (usable) (instance.exports.carven_close as () => void)();
+      usable = false;
+    },
+  };
+}
+
+function validatedWorkspace(source: string, action: Action, workspace: ExecutionInput) {
+  validateInput(source, action);
+  const input = validateExecutionInput(workspace);
+  const files = { ...input.files, [input.entry!]: source };
+  validateExecutionInput({ ...input, files });
+  return { ...input, files };
+}
+
+export class WasiHostingSession {
+  private readonly assets: CompilerAssets;
+  private runtime?: Awaited<ReturnType<typeof createRuntime>>;
+  private sourceKey?: string;
+  private revision = 0;
+  private rejected?: { key: string; diagnostics: string };
+  private entry?: string;
+
+  constructor(assets: CompilerAssets) {
+    this.assets = assets;
+  }
+
+  async run(
+    source: string,
+    workspace: ExecutionInput,
+    outputLimit = maxOutputBytes,
+  ): Promise<ExecutionResult> {
+    const input = validatedWorkspace(source, 'call', workspace);
+    if (!input.call) throw new Error('Function call is missing.');
+    if (this.entry && this.entry !== input.entry) this.close();
+    this.entry = input.entry;
+    this.runtime ??= await createRuntime(this.assets);
+    this.runtime.install(source, input);
+    const files = Object.entries(input.files)
+      .filter(([path]) => path.endsWith('.cv'))
+      .sort(([a], [b]) => a.localeCompare(b));
+    const key = JSON.stringify([input.entry, input.call.name, files]);
+    let status: NonNullable<ExecutionResult['hosting']>['status'] = 'unchanged';
+    let diagnostics = '';
+    let update: ExecutionResult | undefined;
+    if (key !== this.sourceKey) {
+      if (this.rejected?.key === key) {
+        diagnostics = this.rejected.diagnostics;
+      } else {
+        update = this.runtime.execute(
+          ['host', 'update', input.entry!, input.call.name, ...files.map(([path]) => path)],
+          'call',
+          outputLimit,
+        );
+        if (update.exitCode === 0) {
+          status = this.revision ? 'reloaded' : 'loaded';
+          this.sourceKey = key;
+          this.revision += 1;
+          this.rejected = undefined;
+        } else {
+          diagnostics = update.stderr;
+          this.rejected = { key, diagnostics };
+          if (update.truncated || update.exitCode === 137) {
+            this.close();
+            return update;
+          }
+        }
+      }
+      if (diagnostics) status = this.revision ? 'retained' : 'unavailable';
+    }
+    if (!this.revision) {
+      return {
+        stdout: update?.stdout ?? '',
+        stderr: '',
+        exitCode: 1,
+        artifacts: [],
+        durationMs: update?.durationMs ?? 0,
+        truncated: false,
+        hosting: { status: 'unavailable', revision: 0, diagnostics },
+      };
+    }
+    const result = this.runtime.execute(
+      ['host', 'call', input.call.name, ...input.call.arguments.map(String)],
+      'call',
+      outputLimit,
+    );
+    const combined = {
+      ...result,
+      stdout: (update?.stdout ?? '') + result.stdout,
+      durationMs: (update?.durationMs ?? 0) + result.durationMs,
+      hosting: { status, revision: this.revision, diagnostics },
+    };
+    if (result.truncated || result.exitCode === 137) this.close();
+    return combined;
+  }
+
+  close() {
+    try {
+      this.runtime?.close();
+    } finally {
+      this.runtime = undefined;
+      this.sourceKey = undefined;
+      this.rejected = undefined;
+      this.revision = 0;
+      this.entry = undefined;
     }
   }
+}
 
-  const stdout = output.text('stdout');
-
-  return {
-    stdout,
-    stderr: output.text('stderr'),
-    exitCode,
-    artifacts: action === 'compile' && exitCode === 0 ? generatedArtifacts(root) : [],
-    ...(action === 'format' && exitCode === 0 && !output.truncated
-      ? { formattedSource: stdout }
-      : {}),
-    durationMs: Math.round(performance.now() - started),
-    truncated: output.truncated,
-  };
+export async function executeWasi(
+  assets: CompilerAssets,
+  source: string,
+  action: Action,
+  outputLimit = maxOutputBytes,
+  workspace: ExecutionInput = {},
+): Promise<ExecutionResult> {
+  const input = validatedWorkspace(source, action, workspace);
+  if (action === 'call') {
+    const hosting = new WasiHostingSession(assets);
+    try {
+      return await hosting.run(source, input, outputLimit);
+    } finally {
+      hosting.close();
+    }
+  }
+  const entry = input.entry!;
+  const roots = [
+    entry,
+    ...Object.keys(input.files).filter((path) => path.endsWith('.cv') && path !== entry),
+  ];
+  const args =
+    action === 'run'
+      ? ['interpret', '--max-steps', '100000', entry]
+      : action === 'test'
+        ? ['interpret', '--tests', '--max-steps', '100000', ...roots]
+        : action === 'compile'
+          ? ['compile', '--no-query', '-o', 'generated', ...roots]
+          : action === 'ast' || action === 'tokens'
+            ? ['dump', action, entry]
+            : [action, ...(action === 'format' ? [entry] : roots)];
+  const runtime = await createRuntime(assets);
+  try {
+    runtime.install(source, input);
+    return runtime.execute(args, action, outputLimit);
+  } finally {
+    runtime.close();
+  }
 }

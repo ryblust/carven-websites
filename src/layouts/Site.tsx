@@ -9,6 +9,7 @@ import { GitHubIcon } from '../components/GitHubIcon';
 import { localeOf, localizedPath, translate } from '../lib/i18n';
 import { repository } from '../lib/site';
 import { designReadingGroups } from '../lib/design-readings';
+import { installScrollbars } from '../lib/scrollbars';
 
 interface Props {
   children: ReactNode;
@@ -91,6 +92,8 @@ export default function Site({ children }: Props) {
     group.readings.some((item) => localizedPath(item.path, locale) === pathname),
   );
   const previousPath = useRef(pathname);
+
+  useEffect(() => installScrollbars(document), []);
 
   useEffect(() => {
     if (previousPath.current !== pathname) content.current?.focus({ preventScroll: true });

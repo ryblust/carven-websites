@@ -21,6 +21,9 @@ target("carven-wasm")
     add_files(path.join(source, "src/**.cppm"))
     add_files(path.join(source, "src/**.cpp|carven.cpp|support/process.cpp|driver/cli.cpp"))
     add_includedirs(path.join(source, "crafts"))
+    add_includedirs(path.join(source, "tools/hosting/include"))
+    add_files(path.join(source, "tools/hosting/src/**.cppm"))
+    add_files(path.join(source, "tools/hosting/src/**.cpp|standard.cpp"))
     for _, component in ipairs({"collections", "channel", "fs"}) do
         add_files(path.join(source, "crafts/carven/std", component, "native.cpp"))
     end
@@ -30,11 +33,13 @@ target("carven-wasm")
     end
     add_files(path.join(playground, "carven-wasm.cpp"))
     add_files(path.join(playground, "native-io.cpp"))
+    add_files(path.join(playground, "hosting.cpp"))
     -- std.cppm includes <csignal> and <csetjmp>, whose WASI headers require these.
     add_defines("_WASI_EMULATED_SIGNAL")
     add_cxxflags("-fno-rtti", "-mexception-handling", {force = true})
     -- The compiler and typed native bridges need more than WASI's default 64 KiB stack.
-    add_ldflags("-Wl,-z,stack-size=2097152", {force = true})
+    -- A reactor keeps hosting sessions alive between browser calls.
+    add_ldflags("-mexec-model=reactor", "-Wl,--export=carven_execute", "-Wl,--export=carven_close", "-Wl,-z,stack-size=2097152", {force = true})
     after_build(function ()
         import("core.base.json")
         local files = {}

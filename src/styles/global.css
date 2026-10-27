@@ -2,6 +2,7 @@
  * Keep responsive and preference rules with the component they affect. */
 @import './chinese-rounded.css';
 @import './base.css';
+@import './scrollbars.css';
 @import './controls.css';
 @import './site-shell.css';
 @import './search.css';

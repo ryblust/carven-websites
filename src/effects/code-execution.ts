@@ -40,16 +40,31 @@ export function enhanceCodeExecution(root: HTMLElement, locale: Locale): () => v
 
       let request = 0;
       let running = false;
+      let feedback: ReturnType<typeof setTimeout> | undefined;
+      let phase = t('正在加载编译器…', 'Loading compiler…');
+      let lastOutput: string | undefined;
+
+      const setStatus = (text: string) => {
+        if (status.textContent !== text) status.textContent = text;
+      };
 
       const setRunning = (value: boolean) => {
         running = value;
-        button.toggleAttribute('data-running', value);
-        button.textContent = value ? t('停止', 'Stop') : t('运行', 'Run');
-        button.setAttribute(
-          'aria-label',
-          value ? t('停止运行', 'Stop execution') : t('运行 Carven 代码', 'Run Carven code'),
-        );
+        clearTimeout(feedback);
         panel.setAttribute('aria-busy', String(value));
+        if (value) {
+          feedback = setTimeout(() => {
+            panel.hidden = false;
+            setStatus(phase);
+            button.toggleAttribute('data-running', true);
+            button.textContent = t('停止', 'Stop');
+            button.setAttribute('aria-label', t('停止运行', 'Stop execution'));
+          }, 150);
+          return;
+        }
+        button.toggleAttribute('data-running', value);
+        if (button.textContent !== t('运行', 'Run')) button.textContent = t('运行', 'Run');
+        button.setAttribute('aria-label', t('运行 Carven 代码', 'Run Carven code'));
       };
 
       const stop = () => {
@@ -57,7 +72,8 @@ export function enhanceCodeExecution(root: HTMLElement, locale: Locale): () => v
         request += 1;
         session?.cancel();
         setRunning(false);
-        status.textContent = t('已停止', 'Stopped');
+        panel.hidden = false;
+        setStatus(t('已停止', 'Stopped'));
         if (active === stop) active = undefined;
       };
 
@@ -82,9 +98,7 @@ export function enhanceCodeExecution(root: HTMLElement, locale: Locale): () => v
         active?.();
         active = stop;
         const id = ++request;
-        panel.replaceChildren(status);
-        panel.hidden = false;
-        status.textContent = t('正在加载编译器…', 'Loading compiler…');
+        phase = t('正在加载编译器…', 'Loading compiler…');
         setRunning(true);
 
         try {
@@ -95,30 +109,44 @@ export function enhanceCodeExecution(root: HTMLElement, locale: Locale): () => v
             href('/playground-assets/'),
             code.textContent ?? '',
             'run',
-            (phase) => {
+            (nextPhase) => {
               if (disposed || id !== request) return;
-              status.textContent =
-                phase === 'loading'
+              phase =
+                nextPhase === 'loading'
                   ? t('正在加载编译器…', 'Loading compiler…')
                   : t('正在运行…', 'Running…');
+              if (button.hasAttribute('data-running')) setStatus(phase);
             },
           );
           if (disposed || id !== request || !result) return;
 
-          status.textContent = result.truncated
-            ? t('输出已达到上限', 'Output limit reached')
-            : result.exitCode !== 0
-              ? t('运行失败', 'Execution failed')
-              : result.stdout || result.stderr
-                ? t('运行完成', 'Completed')
-                : t('运行完成，没有输出', 'Completed without output');
-          stream(t('标准输出', 'Standard output'), result.stdout);
-          stream(t('诊断', 'Diagnostics'), result.stderr);
+          panel.hidden = false;
+          setStatus(
+            result.truncated
+              ? t('输出已达到上限', 'Output limit reached')
+              : result.exitCode !== 0
+                ? t('运行失败', 'Execution failed')
+                : result.stdout || result.stderr
+                  ? t('运行完成', 'Completed')
+                  : t('运行完成，没有输出', 'Completed without output'),
+          );
+          const output = JSON.stringify([result.stdout, result.stderr]);
+          if (output !== lastOutput) {
+            panel.replaceChildren(status);
+            stream(t('标准输出', 'Standard output'), result.stdout);
+            stream(t('诊断', 'Diagnostics'), result.stderr);
+            lastOutput = output;
+          }
         } catch {
           if (disposed || id !== request) return;
-          status.textContent = t(
-            '运行未完成，请重试。',
-            'Execution could not complete. Try again.',
+          panel.hidden = false;
+          setStatus(
+            lastOutput
+              ? t(
+                  '运行未完成，保留上次输出。请重试。',
+                  'Execution could not complete. Previous output kept. Try again.',
+                )
+              : t('运行未完成，请重试。', 'Execution could not complete. Try again.'),
           );
         } finally {
           if (!disposed && id === request) {
@@ -134,6 +162,7 @@ export function enhanceCodeExecution(root: HTMLElement, locale: Locale): () => v
       button.addEventListener('click', onClick);
       cleanups.push(() => {
         request += 1;
+        clearTimeout(feedback);
         button.removeEventListener('click', onClick);
         button.remove();
         panel.remove();
