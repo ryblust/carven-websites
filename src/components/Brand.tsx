@@ -17,14 +17,28 @@ export function Wordmark({ priority = false }: { priority?: boolean }) {
   );
 }
 
-export function Brand({ locale = 'zh' }: { locale?: Locale }) {
+export function Brand({
+  locale = 'zh',
+  iconOnly = false,
+}: {
+  locale?: Locale;
+  iconOnly?: boolean;
+}) {
   return (
     <Link
       className="wordmark"
       to={localizedPath('/', locale)}
       aria-label={locale === 'en' ? 'Carven home' : 'Carven 首页'}
     >
-      <Wordmark />
+      <img
+        className="brand-symbol"
+        src={href('/brand/carven-mark.svg')}
+        alt=""
+        width={36}
+        height={36}
+        decoding="async"
+      />
+      {!iconOnly && <Wordmark />}
     </Link>
   );
 }

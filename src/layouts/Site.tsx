@@ -104,7 +104,7 @@ export default function Site({ children }: Props) {
       </a>
       <header className="site-header">
         <div className="container header-inner">
-          <Brand locale={locale} />
+          <Brand locale={locale} iconOnly />
           <DocumentSearch key={locale} locale={locale} />
           <nav className="desktop-nav" aria-label={t('主导航', 'Main navigation')}>
             {nav.map((item) => (

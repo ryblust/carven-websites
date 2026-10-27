@@ -14,18 +14,18 @@ export const Route = createRootRoute({
     links: [
       {
         rel: 'icon',
-        href: href('/favicon.ico') + '?v=paper-3',
+        href: href('/favicon.ico') + '?v=cv-1',
         sizes: '16x16 32x32 48x48 64x64 128x128 256x256',
       },
       {
         rel: 'icon',
-        href: href('/favicon-32.png') + '?v=paper-3',
+        href: href('/favicon-32.png') + '?v=cv-1',
         type: 'image/png',
         sizes: '32x32',
       },
       {
         rel: 'icon',
-        href: href('/favicon.svg') + '?v=paper-3',
+        href: href('/favicon.svg') + '?v=cv-1',
         type: 'image/svg+xml',
         sizes: 'any',
       },
