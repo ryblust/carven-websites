@@ -13,7 +13,7 @@ The table below lists the 33 lexically reserved keywords: they cannot name ordin
 | Keyword                                    | Role                                                                                                               |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
 | `as`                                       | [Explicit type conversion](/reference/types/#as-conversions) or [import alias](/reference/modules/#import-aliases) |
-| [`async`](/reference/async/)               | Declare a cold async function or a lexical child with async let                                                    |
+| [`async`](/reference/async/)               | Declare a cold async function, an async test, or a lexical child with `async let`                                  |
 | [`await`](/reference/async/)               | Await completion within the owning execution context                                                               |
 | [`cancel`](/reference/async/)              | Request cancellation of a lexical child                                                                            |
 | [`break`](/reference/control/#break)       | Leave the nearest loop                                                                                             |
@@ -23,7 +23,7 @@ The table below lists the 33 lexically reserved keywords: they cannot name ordin
 | [`continue`](/reference/control/#continue) | Start the next loop iteration                                                                                      |
 | [`else`](/reference/control/#if)           | Fallback branch of an if                                                                                           |
 | [`enum`](/reference/aggregates/)           | Declare a numeric or payload enum                                                                                  |
-| [`export`](/reference/modules/)            | Publish a module interface                                                                                         |
+| [`export`](/reference/modules/)            | Expose a declaration to other Crafts                                                                               |
 | [`false`](/reference/lexical/)             | Boolean false literal                                                                                              |
 | [`fn`](/reference/functions/)              | Declare a function or callable-view type                                                                           |
 | [`for`](/reference/control/#for)           | Iterate a sequence or loop with steps                                                                              |
@@ -92,6 +92,7 @@ A keyword may participate in several forms. This table links each combination to
 | `const if` / `const for`                  | [Static control](/reference/functions/#static-control)                                                                                             |
 | `const { ... }` / `const "label" { ... }` | [Constant blocks](/reference/constants/#constant-blocks)                                                                                           |
 | `const test`                              | [Compile-time tests](/reference/entry-testing/#const-test)                                                                                         |
+| `async test` / `const async test`         | [Async tests](/reference/entry-testing/#async-tests)                                                                                               |
 | `import(cpp)` / `export(cpp)`             | [Native function boundaries](/reference/interop/)                                                                                                  |
 
 ## Builtin names and syntax symbols

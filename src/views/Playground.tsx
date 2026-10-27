@@ -30,8 +30,7 @@ import '../styles/playground.css';
 const PlaygroundEditor = lazy(() => import('../components/PlaygroundEditor'));
 
 const assetsBase = href('/playground-assets/');
-const initialExample =
-  examples.find((example) => example.id === 'structured-output') ?? examples[0]!;
+const initialExample = examples.find((example) => example.id === 'toml-summary') ?? examples[0]!;
 const activeExampleKey = 'carven.playground.v1.active';
 const draftKey = (id: string) => `carven.playground.v2.${id}`;
 
@@ -77,7 +76,9 @@ export default function Playground({ locale }: { locale: Locale }) {
   const [result, setResult] = useState<ExecutionResult>();
   const [message, setMessage] = useState('');
   const [saved, setSaved] = useState(true);
-  const [tab, setTab] = useState<'output' | 'diagnostics' | 'cpp' | 'ast' | 'tokens'>('output');
+  const [tab, setTab] = useState<'output' | 'tests' | 'diagnostics' | 'cpp' | 'ast' | 'tokens'>(
+    'output',
+  );
   const [resultAction, setResultAction] = useState<Action>();
   const [session] = useState(() => new ExecutionSession());
   const editorRef = useRef<PlaygroundEditorHandle>(null);
@@ -172,7 +173,9 @@ export default function Playground({ locale }: { locale: Locale }) {
           ? action
           : action === 'run'
             ? 'output'
-            : 'diagnostics',
+            : action === 'test'
+              ? 'tests'
+              : 'diagnostics',
     );
 
     try {
@@ -184,7 +187,7 @@ export default function Playground({ locale }: { locale: Locale }) {
       }
       setResult(next);
       setBusy(false);
-      if (next.exitCode !== 0 && next.stderr) setTab('diagnostics');
+      if (next.exitCode !== 0 && next.stderr && action !== 'test') setTab('diagnostics');
     } catch (error) {
       setBusy(false);
       setMessage(
@@ -213,13 +216,25 @@ export default function Playground({ locale }: { locale: Locale }) {
 
   const artifact = result?.artifacts.find((file) => file.path === 'main.cpp');
   const outputResult =
-    resultAction === 'run' || resultAction === 'check' || resultAction === 'compile'
+    resultAction === 'run' ||
+    resultAction === 'test' ||
+    resultAction === 'check' ||
+    resultAction === 'compile'
       ? result
       : undefined;
   const primaryAction =
-    tab === 'output' ? 'run' : tab === 'diagnostics' ? 'check' : tab === 'cpp' ? 'compile' : tab;
+    tab === 'output'
+      ? 'run'
+      : tab === 'tests'
+        ? 'test'
+        : tab === 'diagnostics'
+          ? 'check'
+          : tab === 'cpp'
+            ? 'compile'
+            : tab;
   const primaryActionLabel = {
     run: t('运行', 'Run'),
+    test: t('测试', 'Test'),
     check: t('检查', 'Check'),
     compile: t('生成 C++', 'Generate C++'),
     ast: t('查看 AST', 'Inspect AST'),
@@ -227,6 +242,7 @@ export default function Playground({ locale }: { locale: Locale }) {
   }[primaryAction];
   const primaryActionIcon = {
     run: Play,
+    test: CircleCheck,
     check: Check,
     compile: CodeXml,
     ast: Network,
@@ -261,13 +277,22 @@ export default function Playground({ locale }: { locale: Locale }) {
         </h1>
         <p>
           {t(
-            '选个例子，改一改，在浏览器里检查、运行，或查看生成的 C++。',
-            'Pick an example, make it yours, and check, run, or generate C++ in your browser.',
+            '选个例子，改一改，在浏览器里运行、检查、测试，或查看生成的 C++。',
+            'Pick an example, make it yours, and run, check, test, or generate C++ in your browser.',
           )}
         </p>
       </div>
 
       <p className="playground-description">{example.description[locale]}</p>
+      <p className="playground-native-note">
+        {t('需要构建原生项目？', 'Building a native project?')}{' '}
+        <a href={href(locale === 'zh' ? '/zh/reference/build/' : '/reference/build/')}>
+          {t(
+            '用 build.cv 定义目标，在本机运行 carven build、carven run 和 carven test。',
+            'Define targets with build.cv and run carven build, carven run, and carven test locally.',
+          )}
+        </a>
+      </p>
 
       {supported === false && (
         <div className="playground-connection" role="status">
@@ -379,6 +404,7 @@ export default function Playground({ locale }: { locale: Locale }) {
                     const value = event.target.value;
                     if (
                       value === 'output' ||
+                      value === 'tests' ||
                       value === 'diagnostics' ||
                       value === 'cpp' ||
                       value === 'ast' ||
@@ -388,6 +414,7 @@ export default function Playground({ locale }: { locale: Locale }) {
                   }}
                 >
                   <option value="output">{t('输出', 'Output')}</option>
+                  <option value="tests">{t('测试结果', 'Tests')}</option>
                   <option value="diagnostics">{t('诊断', 'Diagnostics')}</option>
                   <option value="cpp">C++</option>
                   <option value="ast">AST</option>
@@ -425,7 +452,9 @@ export default function Playground({ locale }: { locale: Locale }) {
                 <pre tabIndex={0} aria-label="main.cpp">
                   {artifact.content}
                 </pre>
-              ) : tab === 'diagnostics' && result && (result.stderr || outputResult?.stdout) ? (
+              ) : (tab === 'diagnostics' || (tab === 'tests' && resultAction === 'test')) &&
+                result &&
+                (result.stderr || outputResult?.stdout) ? (
                 <PlaygroundDiagnostics
                   text={result.stderr}
                   stdout={outputResult?.stdout}
@@ -445,23 +474,28 @@ export default function Playground({ locale }: { locale: Locale }) {
                     : tab === 'output'
                       ? outputResult?.stdout ||
                         (outputResult
-                          ? t('程序没有标准输出。', 'The program produced no standard output.')
+                          ? t('本次操作没有标准输出。', 'This action produced no standard output.')
                           : t(
                               '运行程序，输出会出现在这里。',
                               'Run your program to see its output here.',
                             ))
-                      : tab === 'diagnostics'
-                        ? result?.stderr ||
-                          (result
-                            ? t('没有诊断信息。', 'No diagnostics.')
-                            : t(
-                                '编译器诊断会出现在这里。',
-                                'Compiler diagnostics will appear here.',
-                              ))
-                        : t(
-                            '点击“生成 C++”，查看当前源码生成的 main.cpp。',
-                            'Choose “Generate C++” to inspect main.cpp generated from your current source.',
-                          )}
+                      : tab === 'tests'
+                        ? t(
+                            '点击“测试”，解释执行当前文件中的 test 和 async test。const test 在分析时执行；原生项目测试在本机运行 carven test。',
+                            'Choose “Test” to interpret test and async test blocks in this file. Static tests run during analysis; use carven test locally for native project tests.',
+                          )
+                        : tab === 'diagnostics'
+                          ? result?.stderr ||
+                            (result
+                              ? t('没有诊断信息。', 'No diagnostics.')
+                              : t(
+                                  '编译器诊断会出现在这里。',
+                                  'Compiler diagnostics will appear here.',
+                                ))
+                          : t(
+                              '点击“生成 C++”，查看当前源码生成的 main.cpp。',
+                              'Choose “Generate C++” to inspect main.cpp generated from your current source.',
+                            )}
                 </pre>
               )}
             </div>

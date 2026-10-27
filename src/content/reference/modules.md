@@ -8,9 +8,9 @@ source: docs/language/modules.md
 
 ## Three import path forms
 
-Use `import` to make another module's declarations available in the current file. For example, `import std::json using Value;` selects the JSON value type. Imports go before other declarations; an import does not run the imported module or search the filesystem for more source files.
+Use `import` to make another module's declarations available in the current file. For example, `import std::json using JSONValue;` selects the JSON value type. Imports go before other declarations. An import binds declarations without running the imported module's program entry; required static work still executes during analysis.
 
-The driver or build system supplies the complete set of source modules for one compilation. Imports resolve within that set and the compiler-provided standard modules. Every source input has one canonical
+The driver or build system supplies explicit source roots and candidate project and Craft modules. Imports select the reached source closure from those candidates. Semantic name resolution uses the loaded modules and compiler-provided standard declarations. Explicit roots are checked even when no other module imports them; unused candidate files are not analyzed. Every source input has one canonical
 module path, a nonempty sequence of components matching
 `[A-Za-z_][A-Za-z0-9_]*`, including keyword spellings.
 The driver decides how filenames map to these module paths. Language name resolution uses the resulting paths.
@@ -33,6 +33,9 @@ Module imports use one of three structured references:
 - `model.user` starts at the importing module's domain root;
 - `.value` starts in the importing module's logical module directory;
 - `json::parser` starts at the external craft `json` and names `crafts.json.parser`.
+
+An import with a `using { ... }` list ends with `}` and has no trailing semicolon.
+Single-name and wildcard imports end with `;`.
 
 A module's logical directory is its canonical path without the final module
 name; removing that name does not change the module domain. The reference
@@ -98,14 +101,15 @@ Defaults bind selected names; they do not implicitly import every export of a mo
 
 This table lists public compiler-provided exports and the default bindings for their modules. Source modules can add other exports.
 
-| Provided module | Exports                                                                                                                                                                 | Default bindings supplied                 |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| `std::core`     | `bool`, `char`, `void`, `str`, `String`; `i8`, `i16`, `i32`, `i64`, `isize`; `u8`, `u16`, `u32`, `u64`, `usize`; `f32`, `f64`; `Vector`, `Range`; `assert`, `addressof` | These listed names                        |
-| `std::io`       | `print`, `println`, `eprint`, `eprintln`                                                                                                                                | Printing names and source-defined `stdin` |
-| `std::testing`  | `check`, `require`, `fail`                                                                                                                                              | These listed names                        |
-| `std::async`    | `Operation`, `cancel_requested`, `cancel_point`, `yield_once`, `wait_ready`, `close`, `when_all`, `when_any`, `first_successful`                                        | None                                      |
-| `std::simd`     | `u8x16`, `mask16`, `f32x4`, `mask4`, `u8x32`, `mask32`, `f32x8`, `mask8`                                                                                                | These listed names                        |
-| `std::time`     | `timeout`                                                                                                                                                               | None                                      |
+| Provided module    | Exports                                                                                                                                                                 | Default bindings supplied                 |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `std::core`        | `bool`, `char`, `void`, `str`, `String`; `i8`, `i16`, `i32`, `i64`, `isize`; `u8`, `u16`, `u32`, `u64`, `usize`; `f32`, `f64`; `Vector`, `Range`; `assert`, `addressof` | These listed names                        |
+| `std::io`          | `print`, `println`, `eprint`, `eprintln`                                                                                                                                | Printing names and source-defined `stdin` |
+| `std::testing`     | `check`, `require`, `fail`                                                                                                                                              | These listed names                        |
+| `std::async`       | `Operation`, `cancel_requested`, `cancel_point`, `yield_once`, `wait_ready`, `close`, `when_all`, `when_any`, `first_successful`                                        | None                                      |
+| `std::simd`        | `u8x16`, `mask16`, `f32x4`, `mask4`, `u8x32`, `mask32`, `f32x8`, `mask8`                                                                                                | These listed names                        |
+| `std::time`        | `timeout`                                                                                                                                                               | None                                      |
+| `std::collections` | `Hash`, `Equal`                                                                                                                                                         | These listed names                        |
 
 Explicit imports of default names use ordinary import usage tracking. Test helpers
 require an active test; `assert` works outside tests.
@@ -152,7 +156,7 @@ depth follows the capability, while implementation files follow their responsibi
 
 ```carven
 import std::core using String as Text;
-import std::async using { Operation, when_all as join };
+import std::async using { Operation, when_all as join }
 import std::simd.bytes using load_block as load_bytes;
 import std::simd.floats using load_block as load_floats;
 ```
@@ -232,6 +236,16 @@ Visibility follows the defining craft, not the spelling used to import it.
 Official standard-library modules belong to the `carven` craft, including those
 selected through `std::`. Ordinary application modules share the unprefixed
 module domain and can import each other's bare declarations.
+
+Use bare declarations for ordinary project APIs shared between source files.
+Use `export` for APIs consumed from another craft. Merely splitting a project into
+modules or selecting an entry through the hosting API does not require `export`.
+`export(cpp)` requests a generated C++ callable interface and retains the same
+Carven audience as a bare function. Its signature types need no cross-craft
+`export` unless a separate Carven declaration exposes them across crafts.
+The two public boundaries use separate declarations; a declaration cannot combine
+`export` with `export(cpp)`. This keeps each outward API explicit while allowing
+both boundaries to reuse ordinary project code.
 
 Every declaration is visible in its defining module. In expressions, `::`
 selects type-associated operations, enum cases, or qualified native names.

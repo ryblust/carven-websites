@@ -64,7 +64,7 @@ var count: i32; // Compile error: an initializer is required.
 
 ## const
 
-A `const` initializer must execute at compilation. Any Carven function it calls must be declared `const fn`. Type checking, executor admission, and execution budgets apply to the initializer.
+A `const` initializer must execute at compilation. Named source functions it calls must be declared `const fn`; known lambdas must satisfy the static execution requirements. Type checking, executor admission, and execution budgets apply to the initializer.
 
 ```carven run
 const fn twice(value: i32) -> i32 => value * 2;

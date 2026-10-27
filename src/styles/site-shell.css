@@ -402,6 +402,40 @@
   }
 }
 
+/* Align the full search field with the page content; the mark uses the outer gutter. */
+@media (min-width: 1101px) {
+  .header-inner {
+    width: min(var(--page-width), calc(100% - var(--gutter)));
+    --header-brand-gap: 4px;
+  }
+
+  .site-header .wordmark {
+    position: absolute;
+    inset-inline-end: calc(100% + var(--header-brand-gap));
+    width: 32px;
+  }
+
+  .site-header .brand-symbol {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+@media (min-width: 1360px) {
+  .header-inner {
+    --header-brand-gap: 26px;
+  }
+
+  .site-header .wordmark {
+    width: 44px;
+  }
+
+  .site-header .brand-symbol {
+    width: 36px;
+    height: 36px;
+  }
+}
+
 @media (max-width: 800px) {
   .header-inner {
     width: calc(100% - 32px);

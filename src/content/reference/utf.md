@@ -10,7 +10,7 @@ Use `std::utf` when byte input needs to become valid text, or when text needs sp
 
 ## Public text types
 
-Import these declarations from `std::utf` when naming them. Struct fields are public. `UTF8ErrorKind` and `TextError` are numeric enums with the default `i32` underlying type; `UTF8DecodeResult` and `SplitField` are payload enums.
+Import these declarations from `std::utf` when naming them. Struct fields are public. `UTF8ErrorKind` and `TextError` are numeric enums with the default `i32` underlying type; `UTF8DecodeResult` and `TextSplitField` are payload enums.
 
 | Type                 | Fields or cases                                                                                |
 | -------------------- | ---------------------------------------------------------------------------------------------- |
@@ -20,10 +20,10 @@ Import these declarations from `std::utf` when naming them. Struct fields are pu
 | `UTF8Encoded`        | `bytes: [u8; 4]`, `width: usize`                                                               |
 | `UTF8DecodeResult`   | `End`, `Scalar(char, usize)`; scalar and encoded byte width                                    |
 | `TextError`          | Nullary `OutOfBounds`, `NotCharBoundary`, `EmptySeparator`                                     |
-| `Split`              | `found: bool`, `before: str`, `after: str`                                                     |
-| `SplitField`         | `Value(str)`, `End`                                                                            |
+| `TextSplit`          | `found: bool`, `before: str`, `after: str`                                                     |
+| `TextSplitField`     | `Value(str)`, `End`                                                                            |
 
-`UTF8Validator` and `SplitCursor` are source classes with private state. Their constructors and methods appear below.
+`UTF8Validator` and `TextSplitCursor` are source classes with private state. Their constructors and methods appear below.
 
 ## Encoding, decoding, and validation
 
@@ -59,7 +59,7 @@ Use `str::from_utf8` when the caller controls the backing lifetime and a copy is
 unnecessary.
 
 ```carven run
-import std::utf using { to_string, UTF8Error };
+import std::utf using { to_string, UTF8Error }
 
 fn main() throw UTF8Error {
     let bytes: [u8; 4] = [0xf0, 0x9f, 0x98, 0x80];
@@ -77,7 +77,8 @@ All operations below are `const fn` and also run at runtime.
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `substring(text: str, start: usize, end: usize) -> str throw TextError` | Borrow `[start, end)` UTF-8 bytes; both offsets must be scalar boundaries                               |
 | `starts_with(text: str, prefix: str) -> bool`                           | Compare the prefix without allocation                                                                   |
-| `split_once(text: str, separator: str) -> Split throw TextError`        | Borrow `before` and `after`; `found` distinguishes a separator from an absent one                       |
+| `ends_with(text: str, suffix: str) -> bool`                             | Compare exact suffix bytes; an empty suffix matches                                                     |
+| `split_once(text: str, separator: str) -> TextSplit throw TextError`    | Borrow `before` and `after`; `found` distinguishes a separator from an absent one                       |
 | `split(text: str, separator: str) -> Vector<String> throw TextError`    | Independent owning fields, including leading, adjacent, and trailing empty fields                       |
 | `lines(text: str) -> Vector<String>`                                    | Independent lines delimited by LF or CRLF, including empty lines; no extra line after a final delimiter |
 
@@ -88,7 +89,7 @@ UTF-8 separator and reports `EmptySeparator` for an empty separator. It performs
 no whitespace normalization. An absent separator returns `found: false`, the
 entire input as `before`, and an empty `after`.
 
-`Split` and substring results borrow the original input, including results
+`TextSplit` and substring results borrow the original input, including results
 returned through helper functions. Their lifetimes and mutations follow ordinary
 ownership checks. `split` and `lines` return owners and copy the fields, so callers
 can retain the collection independently of the input. Empty text yields one empty
@@ -96,7 +97,7 @@ split field and zero lines. A lone CR is content; only CR immediately before LF 
 stripped.
 
 ```carven
-import std::utf using { split_once, TextError };
+import std::utf using { split_once, TextError }
 
 fn setting(text: str) -> String throw TextError {
     let pair = split_once(text, "=")?;
@@ -109,7 +110,7 @@ fn setting(text: str) -> String throw TextError {
 All source functions and methods on this page are `const fn`. [Constant result and budget rules](/reference/constants/) apply. An encoding array can supply a retained constant slice:
 
 ```carven
-import std::utf using { encode_utf8, encoded_bytes, validate_utf8 };
+import std::utf using { encode_utf8, encoded_bytes, validate_utf8 }
 
 const encoded = encode_utf8('😀');
 const bytes = encoded_bytes(encoded);
@@ -152,14 +153,14 @@ input is still permitted.
 
 ## Borrowed splitting cursor
 
-| Call                                     | Access and result                                               |
-| ---------------------------------------- | --------------------------------------------------------------- |
-| `SplitCursor::new()`                     | New `SplitCursor`; no typed failure                             |
-| `cursor.next(text: str, separator: str)` | Write cursor; `SplitField` borrowing `text`; throws `TextError` |
+| Call                                     | Access and result                                                   |
+| ---------------------------------------- | ------------------------------------------------------------------- |
+| `TextSplitCursor::new()`                 | New `TextSplitCursor`; no typed failure                             |
+| `cursor.next(text: str, separator: str)` | Write cursor; `TextSplitField` borrowing `text`; throws `TextError` |
 
-`SplitCursor::new()` creates an offset-only cursor. Call
-`cursor.next(text, separator)?` explicitly; `SplitField::Value(str)` borrows the
-original input, while `SplitField::End` marks exhaustion. Empty input yields one
+`TextSplitCursor::new()` creates an offset-only cursor. Call
+`cursor.next(text, separator)?` explicitly; `TextSplitField::Value(str)` borrows the
+original input, while `TextSplitField::End` marks exhaustion. Empty input yields one
 empty field, and leading, adjacent, and trailing empty fields are preserved.
 Separators may contain multiple UTF-8 bytes; an empty separator reports
 `TextError::EmptySeparator`, including after exhaustion.

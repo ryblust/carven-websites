@@ -10,7 +10,7 @@ source: docs/language/constants.md
 
 ## 编写并验证同一个算法
 
-保存为 routes.cv。只保留启用且路径以 `/` 开头的路由。starts_with 检查前缀，其余是普通筛选循环。新增的两个写法是：const fn 允许编译时调用函数，const test 在编译时检查结果：
+保存为 routes.cv。只保留启用且路径以 `/` 开头的路由。`starts_with` 检查前缀，其余是普通筛选循环。新增的两个写法是：`const fn` 允许编译时调用函数，`const test` 在编译时检查结果：
 
 ```carven run
 import std::utf using starts_with;
@@ -23,11 +23,9 @@ struct Route {
 const fn enabled_paths(routes: [Route]) -> Vector<String> {
     var result: Vector<String> = [];
     for route in routes {
-        if route.enabled && starts_with(route.path, "/") {
-            result.push(route.path);
-        }
+        if route.enabled && starts_with(route.path, "/") => result.push(route.path);
     }
-    return &&result;
+    return result;
 }
 
 const routes: Vector<Route> = [
@@ -49,19 +47,18 @@ for path in paths {
 }
 ```
 
-依次输出 `/health` 和 `/users`。它直接构造长度可变的 Vector，无须另外计算长度或声明最大容量的结果数组。`[Route]` 参数借用输入，返回的向量保存所选路径的独立副本。
+依次输出 `/health` 和 `/users`。它直接构造长度可变的 `Vector`，无须另外计算长度或声明最大容量的结果数组。`[Route]` 参数借用输入，返回的向量保存所选路径的独立副本。
 
 `const fn` 允许编译期执行；在普通运行时初始化式中调用 `enabled_paths(routes)` 仍在运行时执行。计算阶段由调用上下文决定。支持的操作与执行限制见[常量参考](/zh/reference/constants/)。
 
 ## 构造经过检查的配置
 
-把这个独立程序保存为 config.cv。在编译期解析默认 JSON 配置，再修改运行时副本。`Value::parse` 创建数据树，get 取得成员，as_i64 读取其中的整数。set 用一个 JSON 值替换成员，to_json 则把整棵树序列化为 String：
+把这个独立程序保存为 config.cv。在编译期解析默认 JSON 配置，再修改运行时副本。`JSONValue::parse` 创建数据树，get 取得成员，`as_i64` 读取其中的整数。set 用一个 JSON 值替换成员，`to_json` 则把整棵树序列化为 `String`：
 
 ```carven run
-import std::json using Value;
+import std::json using JSONValue;
 
-const defaults = Value::parse(r#"{"retries":3,"enabled":true}"#)?;
-const compact = defaults.to_json()?;
+const defaults = JSONValue::parse(r#"{"retries":3,"enabled":true}"#)?;
 
 const test "configuration" {
     let retries = try {
@@ -70,25 +67,25 @@ const test "configuration" {
         _ => fail("configuration must contain integer retries"),
     };
     check(retries == 3);
-    check(compact == r#"{"retries":3,"enabled":true}"#);
 }
 
 var active = defaults;
-active.set("retries", &&Value::integer(5))?;
+let compact = active.to_json()?;
+active.set("retries", &&JSONValue::integer(5))?;
 println(compact);
 println(active.to_json()?);
 ```
 
-执行 `carven config.cv`，输出：
+执行 `carven run config.cv`，输出：
 
 ```text
 {"retries":3,"enabled":true}
 {"retries":5,"enabled":true}
 ```
 
-`const` 初始化式要求编译期执行。JSON 操作遵循普通类型化失败规则：已知有效的输入也仍需要 `?`。要求编译期完成的计算若失败且没有恢复，编译就会失败。配置测试用 catch 与 fail，把意外的解析失败变成明确的测试失败。
+`const defaults` 初始化式在编译期解析模板，`let compact` 在运行时序列化它。JSON 操作遵循普通类型化失败规则：已知有效的输入也仍需要 `?`。要求编译期完成的计算若失败且没有恢复，编译就会失败。配置测试用 catch 与 fail，把意外的值查询失败变成明确的测试失败。
 
-准备完成后，compact 仍是 String，defaults 仍是 Value。把 defaults 复制给 active，运行中的程序便得到自己的可编辑配置。`Value::integer(5)` 构造 JSON 数值，`&&` 通过 set 把它转移给 active。因此这次修改只改变 active，不影响 defaults 或 compact。
+保留的 defaults 仍是 `JSONValue`，运行时序列化生成 `String` 类型的 compact。把 defaults 复制给 active，运行中的程序便得到自己的可编辑配置。`JSONValue::integer(5)` 构造 JSON 数值，`&&` 通过 set 把它转移给 active。因此这次修改只改变 active，不影响 defaults 或 compact。
 
 ## 在编译期处理解析失败
 
@@ -141,7 +138,7 @@ const "prepare data" {
 println("Running");
 ```
 
-`carven check prepare.cv` 在分析时输出 `Preparing 3 routes`，随后报告检查通过。`carven prepare.cv` 还会从运行时入口输出 `Running`。编译期间打印保持所选的 stdout 或 stderr 通道。`compile --stdout` 把所有编译期程序输出改送 stderr，让 stdout 只包含产物列表。
+`carven check prepare.cv` 在分析时输出 `Preparing 3 routes`，随后以状态 0 退出。`carven run prepare.cv` 还会从运行时入口输出 `Running`。编译期间打印保持所选的 `stdout` 或 `stderr` 通道。`compile --stdout` 把所有编译期程序输出改送 `stderr`，让 `stdout` 只包含产物列表。
 
 标签可省略，用于在诊断中标识代码块。模块级静态代码块执行一次，可以读取常量，不能读取运行时值。执行顺序与函数内代码块的规则见[常量参考](/zh/reference/constants/)。
 
@@ -184,7 +181,7 @@ fn scale(value: i32, const divisor: i32) -> i32 {
 println(scale(2, 0), scale(2, 4));
 ```
 
-运行 `carven scaling.cv` 或 `carven interpret scaling.cv`，输出 `0 50`。`const if` 为每个静态实参选择分支。除数为零的实例跳过另一个分支里的 `100 / divisor`。每个源码分支仍接受类型、失败与所有权检查。静态选择的完整规则见[常量参考](/zh/reference/constants/)。
+运行 `carven run scaling.cv` 或 `carven interpret scaling.cv`，输出 `0 50`。`const if` 为每个静态实参选择分支。除数为零的实例跳过另一个分支里的 `100 / divisor`。每个源码分支仍接受类型、失败与所有权检查。静态选择的完整规则见[常量参考](/zh/reference/constants/)。
 
 ## 练习
 

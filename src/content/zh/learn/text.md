@@ -8,7 +8,7 @@ source: docs/language/text.md
 
 ## 选择独立文本或借用视图
 
-构造标题，保存副本，再扩展原文本。用 String 让两个值分别保存自己的文本：
+构造标题，保存副本，再扩展原文本。用 `String` 让两个值分别保存自己的文本：
 
 ```carven run
 var title: String = "Carven";
@@ -20,7 +20,7 @@ println(snapshot);
 println(title);
 ```
 
-输出两行 `Carven language` 和 `Carven language!`。append 追加文本，push 追加一个字符；字符用单引号表示，如 `'!'`。复制 `String` 会得到独立的文本存储。类型注解为 `String` 时，字面量会构造 String；没有这个类型要求时，普通字面量默认为不管理底层存储的 `str`。
+输出两行 `Carven language` 和 `Carven language!`。append 追加文本，push 追加一个字符；字符用单引号表示，如 `'!'`。复制 `String` 会得到独立的文本存储。类型注解为 `String` 时，字面量会构造 `String`；没有这个类型要求时，普通字面量默认为不管理底层存储的 `str`。
 
 已有 `str` 变成独立 `String` 要写 `text as String` 或 `String::from_str(text)`。参数类型为 `str` 时，可以直接借用 `String`，也可以显式调用 `.as_str()`。
 
@@ -67,7 +67,7 @@ text.append("!");
 println(view);
 ```
 
-view 借用 text 的底层存储；借用存在期间，text 不能修改。把 println 提前也不会解除借用。命名视图的借用会持续到作用域结束，不会在最后一次使用后自动结束。可以把视图使用放进更小的分支作用域，或复制文本，得到管理自己文本存储的 `String`。
+view 借用 text 的底层存储；借用存在期间，text 不能修改。把 `println` 提前也不会解除借用。命名视图的借用会持续到作用域结束，不会在最后一次使用后自动结束。可以把视图使用放进更小的分支作用域，或复制文本，得到管理自己文本存储的 `String`。
 
 要把文本追加到自身，先为输入创建独立副本，再修改目标。把下面代码作为独立程序运行，不保留错误示例中的视图：
 
@@ -136,7 +136,7 @@ println(sum(values), sum(middle));
 
 ## 拆分为独立字符串
 
-报告可能是一整段 String，但接下来要逐行保留和处理。标准库的 lines 函数为这些行创建独立 String：
+报告可能是一整段 `String`，但接下来要逐行保留和处理。标准库的 lines 函数为这些行创建独立 `String`：
 
 ```carven run
 import std::utf using lines;

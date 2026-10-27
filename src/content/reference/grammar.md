@@ -301,7 +301,7 @@ Choose a longer fence when the payload contains a matching line.
 Lexical analysis uses maximal munch. The punctuator set is:
 
 ```text
-( ) [ ] { } , . .. ..= : ;
+( ) [ ] { } , . .. ... ..= : ;
 + - * / % ! ? = < > & | ^ ~
 += -= *= /= %= != == <= >= ++ --
 && || << >> &= |= ^= <<= >>=
@@ -336,7 +336,7 @@ module-declaration = enum-declaration
                    | function-definition
                    | module-constant-declaration;
 
-cpp-import-function-declaration = [ "private" ],
+cpp-import-function-declaration = [ visibility-modifier ],
                                   "import", "(", "cpp", ")",
                                   function-head, [ "=", cpp-function-target ], ";";
 
@@ -367,19 +367,23 @@ import-declaration = module-import-declaration
                    | cpp-header-import-declaration;
 
 module-import-declaration = "import", module-reference,
-                            using-clause, ";";
+                            "using", ( using-list | ( import-item | "*" ), ";" );
 
 cpp-header-import-declaration = "import",
                                 ( CPP_ANGLE_HEADER_NAME
                                 | CPP_QUOTE_HEADER_NAME ),
-                                [ "using", cpp-import-selection ], ";";
+                                ( ";"
+                                | "using", cpp-using-list
+                                | "using", cpp-name,
+                                  ( [ import-alias ], ";"
+                                  | "::", ( cpp-using-list | "*", ";" ) ) );
 
 cpp-name = identifier-shaped-name, { "::", identifier-shaped-name };
-cpp-import-selection = cpp-using-list
-                     | cpp-name, [ "::", ( cpp-using-list | "*" ) ];
 
-cpp-using-list = "{", identifier-shaped-name,
-                 { ",", identifier-shaped-name }, [ "," ], "}";
+cpp-import-item = identifier-shaped-name, [ import-alias ];
+
+cpp-using-list = "{", cpp-import-item,
+                 { ",", cpp-import-item }, [ "," ], "}";
 
 module-reference = module-path
                  | ".", module-path
@@ -388,23 +392,22 @@ module-reference = module-path
 module-component = IDENTIFIER | reserved-keyword;
 module-path = module-component, { ".", module-component };
 
-using-clause = "using", import-selection;
-
-import-selection = import-item | "*" | using-list;
-import-item = IDENTIFIER, [ "as", IDENTIFIER ];
+import-alias = "as", IDENTIFIER;
+import-item = IDENTIFIER, [ import-alias ];
 
 using-list = "{", import-item, { ",", import-item }, [ "," ], "}";
 ```
 
 Module components accept every identifier-shaped spelling, including keywords.
-C++ selection paths and lists also accept keyword spellings as names. Carven lists
-contain simple export names with optional local aliases; qualified
-names, nested lists, and wildcards are not list items. Native selections do not
-accept aliases. A shared C++ path precedes
-the list: `import <print> using std::{ print, println };`.
+C++ selection paths and lists also accept keyword spellings as original names.
+Both module and native selections accept optional local aliases, which must be
+identifiers. Lists contain simple names with optional aliases; qualified names,
+nested lists, and wildcards are not list items. A shared C++ path precedes the
+list: `import <print> using std::{ print, println as write_line }`.
 
-The semicolon terminates the complete import declaration. A closing brace ends
-only the nested `using-list`.
+List imports end with `}` and reject a following semicolon. Non-list imports
+require a terminating semicolon. These rules apply to source modules and C++
+headers; line breaks do not terminate imports.
 
 For a batch supplying the named modules and native headers, imports have these forms:
 
@@ -412,7 +415,7 @@ For a batch supplying the named modules and native headers, imports have these f
 import math using answer;
 import .math using *;
 import json::parser using parse;
-import geometry.vector using { Point, length };
+import geometry.vector using { Point, length }
 import <cstdint>;
 import "native/provider.hpp";
 ```
@@ -511,28 +514,39 @@ throw-clause = "throw", ( "(", ")" | named-type, { "+", named-type } );
 
 Function definitions are top-level items or class operations. `import(cpp)` uses the same function
 head, an optional `= ::qualified::target` binding, and `;`;
-`export(cpp)` uses either function-body form.
+`export(cpp)` uses either function-body form. Ordinary `export` visibility may
+prefix `import(cpp)`; `export(cpp)` and `import(cpp)` cannot be combined.
+`export(cpp)` retains bare Carven visibility; its `export` token belongs to the
+C++ interface form, not the ordinary visibility modifier.
+An exported declaration selects one public boundary. `export(cpp)` cannot take
+an ordinary visibility prefix or a list of destinations; `fn` has no native
+interface annotation. `export` and `export(cpp)` are separate declaration forms,
+not modifiers to stack on one declaration.
 Both `const async fn` and `async const fn` apply the same two modifiers.
-`async` must introduce a function declaration.
+`async` introduces a function declaration, a test declaration, or an `async let` binding.
 
 The optional `const` before `fn` declares that the function can execute in the
-static stage. In a `const fn` body, semantically reachable source calls must select
-known `const fn` targets, including through local callable bindings. Ordinary
-constant conditions do not remove this definition check; operations after an
-unconditional return need no executor capability.
+static stage. In a `const fn` body, semantically reachable named source calls must
+select known `const fn` targets. Known lambda signatures and bodies are checked
+recursively; unknown callable targets fail admission. Ordinary constant conditions
+do not remove this definition check; operations after an unconditional return
+need no executor capability.
 A `const` function parameter requires a static argument at each call. It takes
 no access marker and is never the `self` receiver. Lambda parameters use
 `parameter` without this modifier.
 `throw` introduces the callable's failure contract after the success result.
 `throws` is an ordinary identifier. Nested functions and default arguments have
 no syntax.
-Named functions support checked parameterized bodies; parameterized class
-operations are not supported.
+Named functions and class operations support checked parameterized bodies.
+Class operations inherit their owner's parameters and may declare additional
+parameters with the same clause.
 
 ```text
 type-parameter-clause = "<", generic-parameter,
                         { ",", generic-parameter }, [ "," ], ">";
-generic-parameter = [ "throw" ], IDENTIFIER;
+generic-parameter = [ "throw" ], IDENTIFIER,
+                    [ ":", capability-bound, { "+", capability-bound } ];
+capability-bound = qualified-name;
 ```
 
 A plain identifier declares a type parameter; `throw E` declares a failure-set
@@ -550,7 +564,7 @@ scope. `private` and `export` may prefix the declaration through the common
 ### 3.6 Tests
 
 ```text
-test-declaration = [ "const" ], "test", [ STRING_LITERAL ], test-block;
+test-declaration = [ function-modifier ], "test", [ STRING_LITERAL ], test-block;
 
 test-block = "{", { statement }, "}";
 ```
@@ -558,6 +572,9 @@ test-block = "{", { statement }, "}";
 A test declaration is a top-level item and cannot follow `export`. It has no
 parameter or result syntax. A name is optional; explicit names must be unique
 within their module. Anonymous tests are identified by source location in reports.
+`async test` admits await and lexical children. `const test` and `const async test`
+execute during analysis; both admit static asynchronous operations. Combined
+modifiers accept either order, with `const async test` as the canonical spelling.
 
 `check`, `require`, `fail`, and the printing names are ordinary identifiers.
 Their calls use the ordinary expression grammar in tests, functions, and lambdas.
@@ -642,20 +659,22 @@ expression. An empty ordinary block is valid.
 ### 5.2 Statement Categories
 
 ```text
-statement = variable-declaration
+statement = simple-statement
           | const-block
-          | return-statement
-          | throw-statement
-          | rethrow-statement
-          | break-statement
-          | continue-statement
-          | cancel-statement
           | while-statement
           | for-statement
-          | assignment-statement
-          | update-statement
-          | expression-statement
           | control-flow-statement;
+
+simple-statement = variable-declaration
+                 | return-statement
+                 | throw-statement
+                 | rethrow-statement
+                 | break-statement
+                 | continue-statement
+                 | cancel-statement
+                 | assignment-statement
+                 | update-statement
+                 | expression-statement;
 
 assignment-statement = assignment-form, ";";
 
@@ -663,13 +682,14 @@ update-statement = update-form, ";";
 
 expression-statement = expression, ";";
 
-control-flow-statement = if-form | match-form | try-form;
+control-flow-statement = if-statement | match-form | try-form;
 
 const-block = "const", [ STRING_LITERAL ], ordinary-block;
 ```
 
-A direct unparenthesized `if-form`, `match-form`, or `try-form` at the beginning
-of a statement is terminated by its own structure.
+A direct unparenthesized `if`, `match`, or `try` at the beginning of a statement
+starts a `control-flow-statement`; it is not a `simple-statement`. Parentheses
+can make a control expression part of an expression statement.
 
 The grammar has no standalone `{ ... }` block statement.
 `const` blocks may appear at module scope or within statement blocks and do not
@@ -791,8 +811,8 @@ permitted only in range patterns. Step and implicit-reverse forms are not suppor
 
 ## 6. Branch Blocks
 
-`if-form` branches, protected `try-form` bodies, and braced match or catch arms
-use `branch-block`.
+Braced `if-statement` branches, `if-form` result branches, protected `try-form`
+bodies, and braced match or catch arms use `branch-block`.
 
 ```text
 branch-block = "{", { statement }, [ branch-result ], "}";
@@ -800,8 +820,9 @@ branch-block = "{", { statement }, [ branch-result ], "}";
 branch-result = expression;
 ```
 
-A branch block is a structural component of `if-form`, `match-form`, or
-`try-form`; it is not a general expression and cannot appear independently.
+A branch block is a structural component of `if-statement`, `if-form`,
+`match-form`, or `try-form`; it is not a general expression and cannot appear
+independently.
 
 ## 7. Expressions
 
@@ -974,9 +995,9 @@ positional-initializer-list = expression,
                               { ",", expression },
                               [ "," ];
 
-field-initializer-list = field-initializer,
-                         { ",", field-initializer },
-                         [ "," ];
+field-initializer-list = "..."
+                       | field-initializer, { ",", field-initializer },
+                         [ "," | ",", "..." ];
 
 field-initializer = IDENTIFIER, ":", expression;
 
@@ -1019,14 +1040,24 @@ information is sufficient.
 ## 8. Conditional Forms
 
 ```text
+if-statement = [ "const" ], "if", expression, if-statement-body,
+               { "else", "if", expression, if-statement-body },
+               [ "else", if-statement-body ];
+
+if-statement-body = branch-block | "=>", simple-statement;
+
 if-form = [ "const" ], "if", expression, branch-block,
           { "else", "if", expression, branch-block },
           [ "else", branch-block ];
 ```
 
-The same syntactic form may occur wherever an expression is admitted and at the
-beginning of a statement. Whether it requires branch results is a language
-semantic rule, not a grammar alternative.
+At the beginning of a statement, each conditional branch may use either a
+block or `=>` followed by one simple statement with its required semicolon.
+Direct nested control statements and `const` blocks require braces. All
+`else if` and `else` arms belong to the same chain.
+
+In expression position, `if-form` requires braced result branches. Arrow
+branches do not produce a value.
 
 A leading `const` makes the whole chain a static selection; `else if` arms do
 not repeat it.
@@ -1165,9 +1196,10 @@ expression grammar outside a pattern.
 ### 10.5 Construction and Calls
 
 `T { ... }` supplies an explicit construction type. `{ ... }` omits the type
-and accepts only named fields or an empty initializer; semantic analysis requires
+and accepts only named fields, a trailing `...` default marker, or an empty
+initializer; semantic analysis requires
 a known expected type. In match and catch arm bodies, a leading `{` followed by
-`IDENTIFIER :` begins a construction expression. Other leading braces begin a
+`IDENTIFIER :` or `...` begins a construction expression. Other leading braces begin a
 branch block, so an empty `{}` remains an empty block. Use `({})` for an empty
 construction arm. Required function and control-flow bodies remain blocks.
 These decisions use tokens only, without name or type lookup.

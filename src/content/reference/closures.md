@@ -35,7 +35,7 @@ Value captures cannot be assigned or Taken. Write capture bindings cannot be Tak
 
 ## Closure identity and copying
 
-Each lambda source expression has a unique concrete type that cannot be spelled by hand. Repeated execution of one expression produces values of that type; two identical-looking lambda expressions have different types.
+A concrete closure type is identified by its lambda expression and enclosing generic arguments. Repeated evaluation in the same concrete generic instance produces values of the same type. Separate lambda expressions have distinct types, even when their syntax matches. The concrete type has no source spelling; an inferred binding preserves it.
 
 Same-type closure assignment copies value captures and rebinds Write captures to the source closure's referents rather than assigning to the referents themselves. `let copy = closure` owns independent captured values; Write captures still alias original storage. Capturing a closure containing Write captures by value still permits mutation of those original referents.
 
@@ -110,3 +110,9 @@ println(step(1), wide(2)); // 2 3
 ```
 
 Neither call needs `?`. Calls through parameters, `var` views, or targets that cannot be resolved use the view's contract: with `var step: fn(i32) -> i32 throw E = exact;`, `step(1)` requires `?` and otherwise reports `CV-EFFECT-UNMARKED`.
+
+## Static and interpreted execution
+
+Closure owners, value and Write captures, callable views, and view widening execute in the interpreter and in static roots. A lambda's reached body must satisfy static execution requirements; named source callees must be `const fn`. Generic enclosing arguments participate in closure identity. A closure cannot capture an unknown type by value without a proven Copy capability.
+
+Calls select the closure object before evaluating arguments; each capture use in the body reads that object's current captured value or Write target. Closure owners and callable views stay local to execution and cannot be frozen as constants. Their completed invocation results may freeze under ordinary value rules.

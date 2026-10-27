@@ -20,11 +20,11 @@ Before generating a call, the compiler needs to know its argument types, possibl
   <figcaption>Carven checks source contracts and generates C++; the C++ toolchain compiles, links, and optimizes the native program.</figcaption>
 </figure>
 
-The driver collects project files and standard-library sources into a source batch. Imports resolve within that batch. Parsing builds a `SyntaxProgram`; semantic analysis completes declarations and bodies in `ProgramDraft`, then publishes a checked `SemIRProgram`. The backend then uses the checked result to generate C++. The native toolchain checks delegated C++ operations, compiles, links, and optimizes the program.
+The driver treats explicitly selected files as analysis roots. Project modules and installed Crafts supply dependency candidates; imports load only the required source closure into a source batch. Parsing builds a `SyntaxProgram`; semantic analysis completes declarations and bodies in `ProgramDraft`, then publishes a checked `SemIRProgram`. The backend then uses the checked result to generate C++. The native toolchain checks delegated C++ operations, compiles, links, and optimizes the program.
 
 ## Shared analysis across compiler commands
 
-`check`, `interpret`, `compile`, and direct execution share semantic analysis and required compile-time work. After analysis, they stop, enter the executor, or proceed to the C++ backend. See [compiler commands](/reference/cli/) for invocation and outputs.
+`check`, `interpret`, and `compile` share semantic analysis and required compile-time work. After analysis, they stop, enter the executor, or proceed to the C++ backend. `carven run` and project commands execute Standard Craft build code, which invokes the compiler and schedules native tools. See [compiler commands](/reference/cli/) for invocation and outputs.
 
 ## Analysis, execution, and C++ generation
 
@@ -44,7 +44,7 @@ After bodies are finalized, analysis also determines which calls and awaits may 
 
 Constant initializers, `const` blocks, static tests, and interpretation share an executor for typed values, control flow, and storage. The executor applies resource budgets and checks operations such as indexing against the values present during execution.
 
-Each entry configures the executor's capabilities and execution host. The [constant reference](/reference/constants/) defines compile-time operations and retained results; the [command reference](/reference/cli/#interpretation) defines interpreter execution.
+Each frontend supplies native execution bindings for the capabilities its source uses. The core shares value storage and operation implementations with Runtime Craft. Static execution requires an admitted binding when it reaches a native call; loading a declaration alone does not execute its provider. The [constant reference](/reference/constants/) defines compile-time operations and retained results; the [command reference](/reference/cli/#interpretation) defines interpreter execution.
 
 </details>
 
@@ -75,12 +75,12 @@ Semantic analysis establishes what is valid. Backend preparation and realization
 
 Build systems need reusable analysis results; editors need current source information. Both use the same analysis pipeline.
 
-Standard-library analysis can retain `CheckedDefinitions` for generic and staged functions alongside the executable program. A consumer uses those definitions to construct its own instances. `compiler.artifact` packages the program, optional definitions, module ownership, and whether the result can be cached. Multiple generation requests can reuse one checked program without repeating compile-time work.
+Analysis of a Craft can retain `CheckedDefinitions` for generic and staged functions alongside the executable program. A consumer uses those definitions to construct its own instances. `compiler.artifact` packages the program, optional definitions, module ownership, and whether the result can be cached. Multiple generation requests can reuse one checked program without repeating compile-time work.
 
-The workspace layer manages document revisions, parsed snapshots, navigation indexes, and bounded analysis caches. Each uncached selection runs the complete semantic checks. Queries can retain known source information after an error, but that information does not establish that the program is valid. Reached input, clock reads, and waits produce workspace diagnostics so editor analysis does not perform those host effects.
+The workspace layer manages document revisions, parsed snapshots, navigation indexes, and bounded analysis caches. Each uncached selection runs the complete semantic checks. Queries can retain known source information after an error, but that information does not establish that the program is valid. Workspace analysis uses cached parsed documents and the same imported source closure as compilation. Native environment effects are diagnosed when reached, so editor analysis does not perform those effects. The LSP uses project queries and document revisions to select source inputs and publish results for the current text.
 
 ## Implementation references
 
 - [Built-in capabilities and runtime support](/internals/runtime-boundary/) explains what the generated program needs to run.
 - [C++ generation and native integration](/features/cpp-generation/) follows a real module into generated interfaces and implementations.
-- The repository's [semantic representation](https://github.com/ryblust/carven/blob/main/docs/compiler/analysis/semir.md) and [backend architecture](https://github.com/ryblust/carven/blob/main/docs/compiler/backend/README.md) describe the internal types and phase contracts.
+- The repository's [semantic representation](https://github.com/ryblust/carven/blob/v0.1.0/docs/compiler/analysis/semir.md) and [backend architecture](https://github.com/ryblust/carven/blob/v0.1.0/docs/compiler/backend/README.md) describe the internal types and phase contracts.

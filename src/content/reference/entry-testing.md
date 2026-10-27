@@ -8,7 +8,7 @@ source: docs/language/execution.md
 
 ## Entries
 
-A compilation batch has at most one program entry: either a function named main or a file containing top-level executable statements. Multiple entries are diagnosed at their source locations. C++ generation may have no entry, but program execution requires one.
+A module has at most one program entry: a function named `main` or top-level executable statements. Checking and C++ generation may process several modules with independent entries in one batch. Each executable links one entry and its dependencies; interpreted program execution requires exactly one entry across its inputs.
 
 Top-level statements form an implicit entry in order, with declarations allowed among them. Top-level `const` bindings remain module constants; constant blocks execute during analysis and do not form an entry; `let`/`var` are entry locals that module functions cannot capture. An implicit entry has no source callable name, parameters, or declared failure set; it infers outward failures from its body, like a private function without a throw clause. It follows ordinary function-body inference, access, cleanup, and failure-handling rules, so top-level statements may propagate with `?`:
 
@@ -27,7 +27,7 @@ println(load(false)?);
 println("not reached");
 ```
 
-Native execution prints `42`, then reports the escaped failure type and structural payload on stderr and exits with `EXIT_FAILURE`. `carven interpret` prints `42`, then reports the same payload under `CV-INTERPRET-EXECUTION` at the throw location with its call path.
+Native execution prints `42`, then reports the escaped failure type and structural payload on `stderr` and exits with `EXIT_FAILURE`. `carven interpret` prints `42`, then reports the same payload under `CV-INTERPRET-EXECUTION` at the throw location with its call path.
 
 An explicit main is selected regardless of module path, craft, or visibility. It may have no parameters or one unannotated Read command-line parameter. The wrapper owns a Vector<String> of arguments excluding the executable name; the parameter borrows it and supports ordinary indexing, iteration, printing, and views. Synchronous and async entries retain the owner until execution and lexical child closure complete. Ordinary function parameters still require types.
 
@@ -46,9 +46,9 @@ fn main(args) {
 }
 ```
 
-Save this as `main.cv` and run `carven main.cv -- alpha beta`. It prints `alpha` and `beta` on separate lines.
+Save this as `main.cv` and run `carven run main.cv -- alpha beta`. It prints `alpha` and `beta` on separate lines.
 
-An explicit main with outward failures requires a throw clause, including private main; omission reports `CV-EFFECT-THROW-PUBLISHED`. Normal completion produces process status zero; a Carven return value is not the status. A typed failure escaping either entry produces C++ `EXIT_FAILURE` and one stderr report containing its type and structural payload. Ordinary local cleanup completes first; the wrapper retains the payload through reporting and destroys it before exit. Native reports point to the entry declaration because failure values carry no source location. Catching the failure and completing normally gives zero and no failure report.
+An explicit main with outward failures requires a throw clause, including private main; omission reports `CV-EFFECT-THROW-PUBLISHED`. Normal completion produces process status zero; a Carven return value is not the status. A typed failure escaping either entry produces C++ `EXIT_FAILURE` and one `stderr` report containing its type and structural payload. Ordinary local cleanup completes first; the wrapper retains the payload through reporting and destroys it before exit. Native reports point to the entry declaration because failure values carry no source location. Catching the failure and completing normally gives zero and no failure report.
 
 ## Test declarations
 
@@ -62,7 +62,7 @@ test "addition" {
 }
 ```
 
-`carven --tests main.cv` runs native runtime tests; `carven interpret --tests main.cv` runs admitted runtime tests. Both require at least one runtime test and skip the program entry. `carven check main.cv` and ordinary compilation analyze runtime tests without running them. `compile --tests` emits module tests, a runner, and a default test entry while suppressing the program entry wrapper. `--tests=runner` retains that wrapper and emits tests and a runner; the consumer owns entry selection. Generation allows an empty suite.
+`carven test [target]` builds native runtime tests through the current directory's `build.cv`; omitting the name selects all targets. Targets without runtime tests skip native test compilation. `carven interpret --tests main.cv` directly runs supported runtime tests, requires at least one, and skips the program entry. `check` and ordinary compilation analyze runtime tests without running them. `compile --tests` emits tests, a runner, and a test entry while suppressing the program entry wrapper. `--tests=runner` retains that wrapper and emits tests and a runner; the consumer selects its entry. Generation allows an empty suite.
 
 ## Test operations
 
@@ -83,7 +83,7 @@ Direct assert, check, and require calls evaluate their condition exactly once. O
 
 A failed check reports and continues. A failed require or fail reports and stops the entire current test, including nested Carven helpers and views. Test stopping differs from return, break, and typed failure; try cannot catch it. After ordinary cleanup, the runner proceeds to the next test. This propagation cannot cross arbitrary native C++ callbacks.
 
-The runner supplies test context for check/require/fail to the synchronous Carven call chain without a source context argument. Calling them at runtime without an active test violates the runtime contract. Builtins follow ordinary lookup and shadowing: locals, module declarations, and explicit imports can shadow them, while native namespace wildcards do not shadow known builtins. Using one as a value requires concrete `fn(...) -> void` context.
+The runner supplies test context for check/require/fail to the Carven call chain without a source context argument, including across await and synchronous or async helpers. Calling them at runtime without an active test violates the runtime contract. Builtins follow ordinary lookup and shadowing: locals, module declarations, and explicit imports can shadow them, while native namespace wildcards do not shadow known builtins. Using one as a value requires concrete `fn(...) -> void` context.
 
 ## assert
 
@@ -91,7 +91,7 @@ assert needs no test context and is always enabled, independently of native buil
 
 | Where it fails         | Result                                                                         |
 | ---------------------- | ------------------------------------------------------------------------------ |
-| Native program or test | Reports to stderr and aborts the process without ordinary stack cleanup        |
+| Native program or test | Reports to `stderr` and aborts the process without ordinary stack cleanup      |
 | `carven interpret`     | Reports and stops the whole execution, including any remaining tests; status 1 |
 | Compile-time execution | Emits `CV-ASSERT` and stops the current evaluation                             |
 
@@ -106,7 +106,7 @@ println(checked_index(3, 3));
 println("not reached");
 ```
 
-`carven main.cv` prints `1`, then reports on stderr and aborts (status 134 on POSIX, from `SIGABRT`):
+The native executable prints `1`, then reports on `stderr` and aborts (child status 134 on POSIX, from `SIGABRT`). `carven run main.cv` reports that child failure as a build error and returns 1:
 
 ```text
 main.cv:2:5: error: assertion failed
@@ -138,7 +138,7 @@ test {
 }
 ```
 
-`carven --tests main.cv` and `carven interpret --tests main.cv` print the same report on stderr and return 1:
+`carven interpret --tests main.cv` prints the following report on `stderr` and returns 1. In a project whose `build.cv` selects this file as a source root, `carven test` reports the same test failure:
 
 ```text
 main.cv:9:5: error: check failed
@@ -153,7 +153,7 @@ main.cv:9:5: error: check failed
 carven: tests: 1 passed; 1 failed
 ```
 
-Reports appear when the operation fails. Successful cases have no individual report, and several failed checks in one test count as one failed case. The run finishes with `carven: tests: N passed; M failed` on stderr; program printing keeps its original stream. A final note identifies a stopped test or aborted execution. Native custom reporters control their own output and receive no default summary. Compile-time diagnostics keep their error codes and source excerpts and use the same condition, operand, and message layout.
+Reports appear when the operation fails. Successful cases have no individual report, and several failed checks in one test count as one failed case. The run finishes with `carven: tests: N passed; M failed` on `stderr`; program printing keeps its original stream. A final note identifies a stopped test or aborted execution. Native custom reporters control their own output and receive no default summary. Compile-time diagnostics keep their error codes and source excerpts and use the same condition, operand, and message layout.
 
 ## Assertion explanations
 
@@ -181,3 +181,23 @@ const test "square at compile time" {
 A failed check is a compile error but continues the current test. A failed require/fail, execution error, or exhausted budget stops that test; subsequent `const` tests still run. Failure message text counts toward cumulative text work. An ordinary required constant initializer has no active test, so executing test operations there is rejected.
 
 Constant tests validate compile-time execution. Runtime tests execute either as generated native code or within the interpreter subset. Use native execution to cover C++ integration; interpretation does not validate generated C++ or native linking.
+
+## Async tests
+
+`async test` awaits operations and starts lexical children directly. The runner executes tests sequentially; each test owns a root that closes its children before the next test. `check`, `require`, and `fail` keep their active test context across await and synchronous or async helpers. Failed `require` or `fail` stops the root and children, releases local values, then proceeds to the next test. Root cancellation marks the test as failed. No test may declare outward failures; synchronous runtime tests cannot await.
+
+```carven
+import std::async using yield_once;
+
+async fn answer() -> i32 {
+    await yield_once();
+    return 42;
+}
+
+async test "child completes" {
+    async let child = answer();
+    check(await child == 42);
+}
+```
+
+`const test` and `const async test` execute during analysis and both admit supported static asynchronous operations. Either modifier order parses; use `const async test` as the canonical spelling. `carven test [target]` builds and runs project test blocks through `build.cv`. `carven interpret --tests main.cv` runs supported runtime tests directly without native compilation.

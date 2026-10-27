@@ -20,11 +20,11 @@ source: docs/compiler/README.md
   <figcaption>编译器检查源语言契约并生成 C++；C++ 工具链负责原生编译、链接与优化。</figcaption>
 </figure>
 
-驱动将项目文件和标准库源码收集成一个源码批次，导入在该批次内解析。解析将源码批次构造成 `SyntaxProgram`，语义分析在 `ProgramDraft` 中完成声明和函数体，再发布检查后的 `SemIRProgram`。后端再根据检查结果生成 C++，原生工具链检查委托的 C++ 操作，并编译、链接和优化程序。
+驱动把显式选择的文件作为分析根。项目模块和已安装 Craft 提供依赖候选，导入只把实际需要的源码闭包加载到分析批次。解析将源码批次构造成 `SyntaxProgram`，语义分析在 `ProgramDraft` 中完成声明和函数体，再发布检查后的 `SemIRProgram`。后端再根据检查结果生成 C++，原生工具链检查委托的 C++ 操作，并编译、链接和优化程序。
 
 ## 各命令共用的分析流程
 
-`check`、`interpret`、`compile` 和直接运行共享语义分析及必需的编译期工作。分析完成后，它们分别结束、进入执行器，或继续通过后端生成 C++。调用方式与输出见[编译器命令](/zh/reference/cli/)。
+`check`、`interpret` 和 `compile` 共享语义分析及必需的编译期工作。分析完成后，它们分别结束、进入执行器，或继续通过后端生成 C++。`carven run` 与项目命令执行 Standard Craft 构建代码，由它调用编译器并调度原生工具。调用方式与输出见[编译器命令](/zh/reference/cli/)。
 
 ## 分析、执行与 C++ 生成
 
@@ -44,7 +44,7 @@ source: docs/compiler/README.md
 
 常量初始化器、`const` 块、静态测试和解释执行共享一套处理有类型值、控制流和存储的执行器。执行器应用资源预算，并根据执行中的实际值检查索引等操作。
 
-各入口为执行器配置可用能力与执行宿主。编译期操作及结果保留规则见[常量参考](/zh/reference/constants/)，解释执行见[命令参考](/zh/reference/cli/#解释执行)。
+各前端为源码需要的能力提供原生执行绑定。核心与 Runtime Craft 共享值存储和操作实现。静态执行到达原生调用时才要求获准的绑定，仅加载声明不会执行提供方。编译期操作及结果保留规则见[常量参考](/zh/reference/constants/)，解释执行见[命令参考](/zh/reference/cli/#解释执行)。
 
 </details>
 
@@ -75,12 +75,12 @@ source: docs/compiler/README.md
 
 构建系统需要可复用的分析结果，编辑器需要当前源码的信息。两者使用同一条分析主线。
 
-标准库分析可以在可执行程序之外保留泛型及分阶段函数的 `CheckedDefinitions`，消费者使用这些定义构造自己的实例。`compiler.artifact` 封装程序、可选定义、模块归属及是否可缓存。多个生成请求可以复用同一已检查程序，无需重复编译期工作。
+Craft 分析可以在可执行程序之外保留泛型及分阶段函数的 `CheckedDefinitions`，消费者使用这些定义构造自己的实例。`compiler.artifact` 封装程序、可选定义、模块归属及是否可缓存。多个生成请求可以复用同一已检查程序，无需重复编译期工作。
 
-工作区管理文档版本、解析快照、导航索引和有容量限制的分析缓存。没有可用缓存时，每次分析请求都执行完整的语义检查。错误后的查询可以保留已知源码信息，但不代表程序有效。到达输入、时钟读取或等待时，工作区给出诊断，避免编辑器分析实际读取输入、查询时钟或等待。
+工作区管理文档版本、解析快照、导航索引和有容量限制的分析缓存。没有可用缓存时，每次分析请求都执行完整的语义检查。错误后的查询可以保留已知源码信息，但不代表程序有效。工作区分析复用已解析文档，并采用与编译相同的导入源码闭包。到达原生环境操作时会给出诊断，避免编辑器分析实际执行这些操作。LSP 通过项目查询和文档版本选择源码输入，发布与当前文本对应的结果。
 
 ## 实现参考
 
 - [内建能力与运行支持](/zh/internals/runtime-boundary/) 解释生成程序运行所需的支持。
 - [C++ 生成与原生集成](/zh/features/cpp-generation/) 展示真实模块如何成为接口和实现。
-- 仓库的[语义表示](https://github.com/ryblust/carven/blob/main/docs/compiler/analysis/semir.md)及[后端架构](https://github.com/ryblust/carven/blob/main/docs/compiler/backend/README.md)定义内部类型与阶段契约。
+- 仓库的[语义表示](https://github.com/ryblust/carven/blob/v0.1.0/docs/compiler/analysis/semir.md)及[后端架构](https://github.com/ryblust/carven/blob/v0.1.0/docs/compiler/backend/README.md)定义内部类型与阶段契约。

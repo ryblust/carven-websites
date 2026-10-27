@@ -97,7 +97,6 @@ source: src/diagnostics/code.cpp
 | `CV-LINT-UNUSED-IMPORT`                   | Warning  | Unused import.                                                              |
 | `CV-LINT-UNUSED-LOCAL`                    | Warning  | Unused local binding.                                                       |
 | `CV-LINT-UNUSED-PARAMETER`                | Warning  | Unused function parameter.                                                  |
-| `CV-LINT-RETURN-COPY`                     | Warning  | Returned owner is copied where it could be transferred.                     |
 | `CV-MATCH-DUPLICATE-ALTERNATIVE`          | Error    | Duplicate match alternative.                                                |
 | `CV-MATCH-NON-EXHAUSTIVE`                 | Error    | Non-exhaustive value match.                                                 |
 | `CV-MATCH-BINDING-MISMATCH`               | Error    | Or-pattern bindings do not agree.                                           |

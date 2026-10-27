@@ -34,6 +34,8 @@ A body with no return operands infers `void`. Bare `return;` also requires `void
 
 `=> expression` returns that expression under the same access, lifetime, and failure rules as `return expression;`. A void expression is valid, including `return action();`. Propagating a fallible result requires `?`, as in `return action()?;`. A block's final expression is not an implicit return.
 
+Returning a complete local owner or Take parameter by name implicitly transfers it, including in an expression body. Calls still require the declared access marker on arguments. Active borrows must permit the transfer.
+
 ## Parameter access
 
 Read lets a function inspect an argument, Write (`&`) lets it change the caller's storage, and Take (`&&`) transfers ownership to the function. Snapshot, borrowing, aliasing, and native parameter rules are defined by [access and ownership](/reference/ownership/).
@@ -65,7 +67,7 @@ Declare type and failure-set parameters after the function name. The compiler ch
 failure-set parameter. The two kinds are distinct.
 
 ```carven run
-fn relay<T>(&&value: T) -> T => &&value;
+fn relay<T>(&&value: T) -> T => value;
 
 let number = 42;
 let result = relay(&&number);
@@ -74,6 +76,15 @@ println(result); // 42
 
 An unknown type supports Read and Write access and whole-value Take. It provides
 no implicit copying, default construction, comparison, or formatting capability.
+Type parameters can require `Hash` and `Equal` capabilities, for example `T: Hash + Equal`. Both names are available by default and through `std::collections`; bounds apply to functions and nominal types and are checked at definitions and applications. Failure-set parameters cannot carry these bounds.
+
+```carven
+const fn key_hash<T: Hash>(value: T) -> u64 => Hash::hash(value);
+const fn same<T: Equal>(left: T, right: T) -> bool => Equal::equal(left, right);
+```
+
+The operations read their operands and support static execution. `Equal` uses existing equality; `Hash` supports integers, booleans, characters, text, and arrays or tuples of hashable elements. Equal text has equal hashes across `String` and `str`; floating-point values have no `Hash`. Hash values are for in-memory lookup, not persistent identities. User `concept` and `impl` declarations are not supported.
+
 Known arrays, slices, tuple shapes, and nominal fields retain their ordinary
 operations. Array extents and nominal failure payload types must be independent
 of type parameters. A failure-set parameter represents a set of those payload
@@ -81,9 +92,15 @@ types, including the empty set.
 Named external C++ types may depend on type parameters. Their native
 construction, calls, and conversions are checked by C++ after concrete
 substitution.
-Parameterized closures, callable-view signatures that depend on rigid type or
-failure parameters, and `import(cpp)` or `export(cpp)` parameterized function
-declarations are not supported.
+Callable-view signatures can use type and failure-set parameters. Generic calls
+infer those arguments from the callable's parameter, result, and failure contracts
+under the same bounded inference rules as other types. The resulting callable
+view has a concrete signature at each application. Lambda expressions inside a
+parameterized function use its type and failure-set arguments in their captures,
+parameters, and results. They follow the same definition-time capability rules;
+a value capture of an unknown type parameter has no proven Copy capability.
+Lambdas do not declare their own type parameters. Parameterized `import(cpp)` and
+`export(cpp)` function declarations are not supported.
 
 Operations can retain type formation requirements. Dereferencing `ptr<T>`, for
 example, requires a non-void target. The requirement follows generic forwarding
@@ -107,11 +124,12 @@ An actual type or failure set may depend on an inferred callable contract.
 The compiler first completes those declarations, then selects the concrete function instance. It does not treat an unfinished failure set as empty.
 This also applies to generic calls in static roots.
 
-`const fn` definitions use the same universal rules and require semantically
-reachable source calls to select known `const fn` targets. Static calls need concrete
-type and failure-set arguments. A body-local `const` initializer cannot require an
-unresolved generic environment; ordinary generic calls can execute once their type
-and failure-set arguments are concrete.
+`const fn` definitions use the same universal rules. Semantically reachable named
+source calls must select known `const fn` targets. Known lambda signatures and
+bodies are checked recursively; unknown callable targets fail admission. Static
+calls need concrete type and failure-set arguments. A body-local `const` initializer
+cannot require an unresolved generic environment; ordinary generic calls can execute
+once their type and failure-set arguments are concrete.
 Recursion requires a completed result signature. Concrete applications share
 instances keyed by the definition and ordered canonical type or failure-set
 arguments.
@@ -200,9 +218,7 @@ are not evaluated during specialization:
 
 ```carven run
 fn scale(value: i32, const divisor: i32) -> i32 {
-    const if divisor == 0 {
-        return 0;
-    } else {
+    const if divisor == 0 => return 0; else {
         const factor = 100 / divisor;
         return value * factor;
     }

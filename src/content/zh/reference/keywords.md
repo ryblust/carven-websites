@@ -13,7 +13,7 @@ source: docs/language/grammar.md
 | 关键字                                        | 作用                                                                                        |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `as`                                          | [显式类型转换](/zh/reference/types/#as-转换表)或[导入别名](/zh/reference/modules/#导入别名) |
-| [`async`](/zh/reference/async/)               | 声明异步函数，或用 async let 启动子任务                                                     |
+| [`async`](/zh/reference/async/)               | 声明异步函数、异步测试，或用 `async let` 启动子任务                                         |
 | [`await`](/zh/reference/async/)               | 在所属执行上下文等待完成                                                                    |
 | [`cancel`](/zh/reference/async/)              | 请求取消一个 async let 子任务                                                               |
 | [`break`](/zh/reference/control/#break)       | 退出最近的循环                                                                              |
@@ -23,7 +23,7 @@ source: docs/language/grammar.md
 | [`continue`](/zh/reference/control/#continue) | 进入循环的下一次迭代                                                                        |
 | [`else`](/zh/reference/control/#if)           | if 未选中其他分支时的分支                                                                   |
 | [`enum`](/zh/reference/aggregates/)           | 声明数值或载荷枚举                                                                          |
-| [`export`](/zh/reference/modules/)            | 声明对外可见的模块接口                                                                      |
+| [`export`](/zh/reference/modules/)            | 将声明公开给其他 Craft                                                                      |
 | [`false`](/zh/reference/lexical/)             | 布尔假字面量                                                                                |
 | [`fn`](/zh/reference/functions/)              | 声明函数或可调用视图类型                                                                    |
 | [`for`](/zh/reference/control/#for)           | 遍历序列或执行带步进的循环                                                                  |
@@ -92,6 +92,7 @@ println(counter.read()); // 3
 | `const if` / `const for`                  | [静态控制](/zh/reference/functions/#静态控制)                                                           |
 | `const { ... }` / `const "label" { ... }` | [常量块](/zh/reference/constants/#常量块)                                                               |
 | `const test`                              | [编译期测试](/zh/reference/entry-testing/#const-test)                                                   |
+| `async test` / `const async test`         | [异步测试](/zh/reference/entry-testing/#异步测试)                                                       |
 | `import(cpp)` / `export(cpp)`             | [原生函数边界](/zh/reference/interop/)                                                                  |
 
 ## 内建名字与语法符号

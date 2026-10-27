@@ -8,7 +8,7 @@ source: docs/language/execution.md
 
 ## 入口
 
-一个编译批次最多一个程序入口，可以是名为 main 的函数，也可以是一个包含顶层可执行语句的文件。多个入口在各源位置诊断。生成 C++ 可以没有入口，执行程序必须有入口。
+每个模块最多一个程序入口，可以是名为 `main` 的函数，也可以是顶层可执行语句。检查和生成 C++ 可以同时处理多个各自带入口的模块；每个可执行产物只链接一个入口及其依赖。解释执行要求输入批次恰有一个入口。
 
 顶层语句按顺序组成隐式入口。声明可穿插其中；顶层 `const` 绑定仍是模块常量，常量块在分析时执行且不形成入口，`let`/`var` 是入口局部变量，模块函数不能捕获它们。隐式入口没有可供源码调用的函数名、参数或声明失败集合；它像没有 throw 子句的私有函数一样，从函数体推断向外失败。它使用普通函数体的推断、访问、清理和失败处理规则，因此顶层语句可以用 `?` 传播失败：
 
@@ -27,7 +27,7 @@ println(load(false)?);
 println("not reached");
 ```
 
-原生执行打印 `42`，然后在 stderr 报告逃逸失败的类型和结构化载荷，以 `EXIT_FAILURE` 退出。`carven interpret` 打印 `42`，然后在 throw 位置以 `CV-INTERPRET-EXECUTION` 报告同一载荷并附调用路径。
+原生执行打印 `42`，然后在 `stderr` 报告逃逸失败的类型和结构化载荷，以 `EXIT_FAILURE` 退出。`carven interpret` 打印 `42`，然后在 throw 位置以 `CV-INTERPRET-EXECUTION` 报告同一载荷并附调用路径。
 
 显式 main 的模块路径、craft 与可见性不影响选择。它可无参，或有一个无类型注解的 Read 命令行参数。它借用入口包装函数持有的 `Vector<String>`，不含可执行文件名，可索引、迭代、打印和借用。同步和异步入口都保留所有者，直到执行结束且词法子任务全部关闭。普通函数参数仍要求类型。
 
@@ -43,9 +43,9 @@ fn main(args) {
 }
 ```
 
-保存为 `main.cv`，运行 `carven main.cv -- alpha beta`，依次输出 `alpha`、`beta`。
+保存为 `main.cv`，运行 `carven run main.cv -- alpha beta`，依次输出 `alpha`、`beta`。
 
-有向外失败的显式 main 必须写 throw 子句，包括 private main；省略时报告 `CV-EFFECT-THROW-PUBLISHED`。正常完成返回进程状态零，Carven 返回值不作为状态。带类型的失败逃出任一种入口时产生 C++ `EXIT_FAILURE`，并在 stderr 输出一条包含类型和结构化载荷的报告。普通局部清理先完成，包装器将载荷保留到报告完成并在退出前销毁。失败值不携带源位置，所以原生报告指向入口声明。捕获后正常完成则返回零且没有失败报告。
+有向外失败的显式 main 必须写 throw 子句，包括 private main；省略时报告 `CV-EFFECT-THROW-PUBLISHED`。正常完成返回进程状态零，Carven 返回值不作为状态。带类型的失败逃出任一种入口时产生 C++ `EXIT_FAILURE`，并在 `stderr` 输出一条包含类型和结构化载荷的报告。普通局部清理先完成，包装器将载荷保留到报告完成并在退出前销毁。失败值不携带源位置，所以原生报告指向入口声明。捕获后正常完成则返回零且没有失败报告。
 
 ## 测试声明
 
@@ -59,7 +59,7 @@ test "addition" {
 }
 ```
 
-`carven --tests main.cv` 原生运行普通测试，`carven interpret --tests main.cv` 执行解释器支持的普通测试；两者要求至少一条运行时测试，且跳过程序入口。`carven check main.cv` 和普通编译只分析运行时测试，不执行它们。`compile --tests` 生成模块测试、runner 和默认测试入口，抑制程序入口包装。`--tests=runner` 保留程序入口包装并生成测试与 runner，由调用方选择入口。生成允许空测试集。
+`carven test [target]` 通过当前目录的 `build.cv` 构建原生测试，省略名字选择全部目标；没有运行时测试的目标跳过原生测试编译。`carven interpret --tests main.cv` 直接运行支持的运行时测试，要求至少一项并跳过程序入口。`check` 和普通编译只分析运行时测试。`compile --tests` 生成测试、runner 和测试入口，抑制程序入口包装；`--tests=runner` 保留该包装并生成测试与 runner，由消费者选择入口。生成允许空测试集。
 
 ## 测试操作
 
@@ -80,17 +80,17 @@ fail(message);
 
 失败的 check 报告后继续；失败的 require 和 fail 报告并停止整个当前测试，包括通过辅助函数和可调用视图进行的嵌套 Carven 调用。停止测试不同于 return、break 和类型化失败，try 捕获不到。普通清理完成后 runner 执行下一测试。该传播不能穿过任意原生 C++ 回调。
 
-runner 为同步 Carven 调用链提供 check/require/fail 所需的测试上下文，源码没有上下文实参。在没有活动测试的运行时调用它们违反运行时契约。内建名字遵守普通查找和遮蔽规则；局部名字、模块声明和显式 import 可以遮蔽它们，C++ 命名空间的通配导入则不会遮蔽已知内建名字。作为值使用时需要具体 `fn(...) -> void` 上下文。
+runner 为 Carven 调用链提供 check/require/fail 所需的测试上下文，源码没有上下文实参；上下文会跨 await 以及同步或异步辅助函数保留。在没有活动测试的运行时调用它们违反运行时契约。内建名字遵守普通查找和遮蔽规则；局部名字、模块声明和显式 import 可以遮蔽它们，C++ 命名空间的通配导入则不会遮蔽已知内建名字。作为值使用时需要具体 `fn(...) -> void` 上下文。
 
 ## assert
 
 assert 不需要测试上下文，并且总是启用，与原生构建配置和 `NDEBUG` 无关。它不是类型化失败，try 无法恢复。
 
-| 失败位置           | 结果                                       |
-| ------------------ | ------------------------------------------ |
-| 原生程序或测试     | 向 stderr 报告并中止进程，不执行普通栈清理 |
-| `carven interpret` | 报告并停止整个执行，包括剩余测试；状态 1   |
-| 编译期执行         | 产生 `CV-ASSERT` 并停止当前求值            |
+| 失败位置           | 结果                                         |
+| ------------------ | -------------------------------------------- |
+| 原生程序或测试     | 向 `stderr` 报告并中止进程，不执行普通栈清理 |
+| `carven interpret` | 报告并停止整个执行，包括剩余测试；状态 1     |
+| 编译期执行         | 产生 `CV-ASSERT` 并停止当前求值              |
 
 ```carven
 fn checked_index(index: usize, len: usize) -> usize {
@@ -103,7 +103,7 @@ println(checked_index(3, 3));
 println("not reached");
 ```
 
-`carven main.cv` 打印 `1`，随后在 stderr 报告并中止（POSIX 上因 `SIGABRT` 返回 134）：
+原生可执行程序打印 `1`，随后在 `stderr` 报告并中止（POSIX 上因 `SIGABRT` 产生子进程状态 134）。`carven run main.cv` 将该失败报告为构建错误，自身返回 1：
 
 ```text
 main.cv:2:5: error: assertion failed
@@ -135,7 +135,7 @@ test {
 }
 ```
 
-`carven --tests main.cv` 与 `carven interpret --tests main.cv` 在 stderr 输出相同报告并返回 1：
+`carven interpret --tests main.cv` 在 `stderr` 输出以下报告并返回 1。在 `build.cv` 将此文件列为源码根的项目中，`carven test` 也报告同样的测试失败：
 
 ```text
 main.cv:9:5: error: check failed
@@ -150,7 +150,7 @@ main.cv:9:5: error: check failed
 carven: tests: 1 passed; 1 failed
 ```
 
-报告在操作失败时立即输出。成功用例没有单独报告；同一测试中多次 check 失败只计为一个失败用例。运行结束时在 stderr 输出 `carven: tests: N passed; M failed`；程序打印保持原来的流。最后的 note 标明停止执行的测试或中止的执行。原生自定义报告器自行控制输出，不会收到默认汇总。编译期诊断保留错误代码与源码摘录，并使用相同的 condition、operands 和 message 布局。
+报告在操作失败时立即输出。成功用例没有单独报告；同一测试中多次 check 失败只计为一个失败用例。运行结束时在 `stderr` 输出 `carven: tests: N passed; M failed`；程序打印保持原来的流。最后的 note 标明停止执行的测试或中止的执行。原生自定义报告器自行控制输出，不会收到默认汇总。编译期诊断保留错误代码与源码摘录，并使用相同的 condition、operands 和 message 布局。
 
 ## 断言解释
 
@@ -178,3 +178,23 @@ const test "square at compile time" {
 失败 check 是编译错误但继续当前测试；失败 require/fail、执行错误或预算耗尽停止当前测试，后续 `const test` 仍执行。失败消息文本计入累计文本工作预算。普通必需常量初始化器没有活动测试，执行测试操作会被拒绝。
 
 常量测试验证编译期执行。运行时测试可通过生成的原生代码或解释器子集执行；C++ 集成须用原生模式覆盖，解释执行不验证生成 C++ 或原生链接。
+
+## 异步测试
+
+`async test` 可以直接等待操作和启动词法子任务。runner 顺序执行测试，每个测试有自己的根任务，在开始下个测试前关闭全部子任务。`check`、`require`、`fail` 的测试上下文跨 await 和同步、异步辅助调用保持有效。失败的 `require` 或 `fail` 停止测试根及其子任务，释放局部值，然后继续下个测试。根任务取消记为测试失败。测试不能声明向外失败；同步运行时测试不能 await。
+
+```carven
+import std::async using yield_once;
+
+async fn answer() -> i32 {
+    await yield_once();
+    return 42;
+}
+
+async test "child completes" {
+    async let child = answer();
+    check(await child == 42);
+}
+```
+
+`const test` 和 `const async test` 都在分析期执行，均可使用静态执行支持的异步操作。两个修饰符的顺序均可解析，统一使用 `const async test`。`carven test [target]` 通过 `build.cv` 构建并运行项目测试；`carven interpret --tests main.cv` 无需原生编译即可运行解释器支持的运行时测试。

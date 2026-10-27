@@ -18,6 +18,21 @@ println(label);
 
 The output is `in stock`. A value-producing if needs else and compatible branch result types. The final expression without a semicolon supplies the branch value; with a semicolon it is an ordinary statement.
 
+## Write a short statement branch
+
+Use `=>` when a branch contains one simple statement:
+
+```carven run
+fn clamp_count(value: i32) -> i32 {
+    if value < 0 => return 0;
+    return value;
+}
+
+println(clamp_count(-3), clamp_count(12));
+```
+
+The output is `0 12`. The semicolon ends the branch statement. Use braces for several statements or nested control flow. A branch that produces a value, such as the label above, keeps its braced form.
+
 ## Keep local names inside a branch
 
 Calculate a temporary price inside a branch, then read the original price afterward. Save this separate program as main.cv:
@@ -33,7 +48,7 @@ if price < 20 {
 println(price);
 ```
 
-Run `carven main.cv`. It prints `15` and `12` on separate lines. The inner price is a new binding; its initializer reads the outer price. After the branch ends, the outer binding is visible again.
+Run `carven run main.cv`. It prints `15` and `12` on separate lines. The inner price is a new binding; its initializer reads the outer price. After the branch ends, the outer binding is visible again.
 
 ## Sum a range
 
@@ -81,7 +96,7 @@ for index in positions {
 }
 ```
 
-This prints `0..4`, then 0 through 3 on separate lines. `code.byte_length()` returns a usize byte count. usize is an unsigned integer type used for lengths and indices. This gives the literal 0 the same type, so positions has type `Range<usize>`. See [expected types](/reference/types/) when combining bounds of different integer types.
+This prints `0..4`, then 0 through 3 on separate lines. `code.byte_length()` returns a `usize` byte count. `usize` is an unsigned integer type used for lengths and indices. This gives the literal 0 the same type, so positions has type `Range<usize>`. See [expected types](/reference/types/) when combining bounds of different integer types.
 
 ## Choose a result by interval
 
@@ -100,7 +115,7 @@ The output is `pass`. Read the arms in order: below 0 is invalid; 0 through 59 n
 
 match selects the first matching arm and checks coverage of all inputs. Removing the `101..` arm produces a missing-coverage error. Use match to classify a value; use if to decide actions from general conditions.
 
-Bounds can also be runtime values; then a `_` fallback is usually needed. See the [control-flow Reference](/reference/control/) for bound evaluation and dynamic-pattern coverage rules.
+Bounds can also be runtime values; then a `_` fallback is usually needed. See the [control-flow reference](/reference/control/) for bound evaluation and dynamic-pattern coverage rules.
 
 ## while and C-style for
 
@@ -115,9 +130,7 @@ while index < 3 {
 }
 
 for var i = 0; i < 3; ++i {
-    if i == 1 {
-        continue;
-    }
+    if i == 1 => continue;
     println(i);
 }
 ```
@@ -130,22 +143,20 @@ Use a conditionless while when the body decides when to stop. In this separate m
 var candidate = 1;
 
 while {
-    if candidate * candidate >= 20 {
-        break;
-    }
+    if candidate * candidate >= 20 => break;
     ++candidate;
 }
 
 println(candidate);
 ```
 
-Run `carven main.cv` to print `5`. `break` exits the loop immediately, leaving candidate at the value that passed the check.
+Run `carven run main.cv` to print `5`. `break` exits the loop immediately, leaving candidate at the value that passed the check.
 
 ## Evaluate only the selected path
 
 `&&` and `||` can skip work: `&&` stops when its left side is false; `||` stops when its left side is true. Likewise, only the selected if or match branch runs.
 
-Guard a division when the input count may be zero. Run this separate main.cv with `carven main.cv`:
+Guard a division when the input count may be zero. Run this separate main.cv with `carven run main.cv`:
 
 ```carven run
 let count = 0;
@@ -157,7 +168,7 @@ println(enough, empty_or_enough);
 
 It prints `false true`. Both conditions skip division: the first stops at false, the second at true. Change count to 4; both evaluate the division and print `true true`.
 
-Every branch must contain valid code, even inside `if false`. The [compile-time chapter](/learn/constants/) introduces const if when the choice should affect the generated program.
+Every branch must contain valid code, even inside `if false`. The [compile-time chapter](/learn/constants/) introduces `const if` when the choice should affect the generated program.
 
 ## Exercise
 

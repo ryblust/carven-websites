@@ -11,6 +11,11 @@ import {
 const root = new URL('../public/playground-assets/', import.meta.url);
 type RunnablePreset = Extract<(typeof playgroundExamples)[number], { defaultView: 'output' }>;
 const presetOutput: Record<RunnablePreset['id'], string> = {
+  'toml-summary': 'api: 2\nweb: 1\naccepted: 3\n',
+  'closure-policy': 'Original quote: 103\nUpdated quote: 110\n',
+  'channel-pipeline': 'Backpressure: true\nBatches: 3 total: 60\n',
+  'file-report':
+    'Release storefront\nindex.html: 280 bytes\napp.js: 420 bytes\nTotal: 700 / 1000 bytes\n',
   'json-config': '{"workers":8,"tags":["stable","observed"]}\n{"workers":2,"tags":["stable"]}\n',
   'log-analysis': '37ms: token=[redacted]\nrejected: nope malformed\n42ms: 超时\n',
   'async-workflow': 'west: 3 records, total 12\neast: 3 records, total 9\nselected 1: 21\n',
@@ -42,19 +47,25 @@ describe('Playground compiler assets', () => {
     ]);
     const base = new URL('https://example.test/project/playground-assets/');
     const fetchAsset = vi.fn(async (url: URL) => {
-      if (url.href === new URL('carven.wasm', base).href) return new Response(wasm);
-      if (url.href === new URL('crafts.json', base).href) return new Response(crafts);
+      if (url.pathname === new URL('carven.wasm', base).pathname) return new Response(wasm);
+      if (url.pathname === new URL('crafts.json', base).pathname) return new Response(crafts);
       return new Response(null, { status: 404 });
     });
     vi.stubGlobal('fetch', fetchAsset);
+    vi.stubEnv('COMPILER_REVISION', 'release-commit');
 
     try {
       const assets = await loadCompilerAssets(base);
+      expect(fetchAsset.mock.calls.map(([url]) => url.searchParams.get('v'))).toEqual([
+        'release-commit',
+        'release-commit',
+      ]);
       const result = await executeWasi(assets, 'println("你好");', 'run');
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toBe('你好\n');
     } finally {
       vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
     }
   });
 });
@@ -84,13 +95,37 @@ describe('packaged Carven compiler through the browser WASI host', () => {
     });
   }
 
+  it('runs the async test preset without executing a program entry', async () => {
+    const example = playgroundExamples.find((item) => item.id === 'async-tests')!;
+    const result = await executeWasi(
+      assets,
+      `${example.source}\nprintln("entry must not run");`,
+      'test',
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toBe('carven: tests: 2 passed; 0 failed\n');
+    expect(result.truncated).toBe(false);
+  });
+
+  it('reports failed tests while continuing with later test blocks', async () => {
+    const result = await executeWasi(
+      assets,
+      'test "fails" { check(1 == 2); }\nasync test "continues" { println("next test"); check(true); }\nprintln("entry must not run");',
+      'test',
+    );
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe('next test\n');
+    expect(result.stderr).toContain('carven: tests: 1 passed; 1 failed');
+  });
+
   it('uses the WASI host clock for static and interpreted timer operations', async () => {
     const result = await executeWasi(
       assets,
       `
-import std::time using { TimePoint, sleep, RangeError };
+import std::time using { TimePoint, sleep, TimeRangeError }
 const { await sleep(1ms)?; }
-async fn main() throw RangeError {
+async fn main() throw TimeRangeError {
     let before = TimePoint::now();
     await sleep(1ms)?;
     assert(!TimePoint::now().is_before(before));
@@ -130,6 +165,102 @@ async fn main() throw IOError {
     expect(result.stdout).toBe('end of input\n');
   });
 
+  it('uses the portable hashing provider for owned collection keys', async () => {
+    const result = await executeWasi(
+      assets,
+      `import std::collections using HashSet;
+var names = HashSet<String>::new();
+let item: String = "alpha";
+assert(names.insert(&&item));
+let query: String = "alpha";
+println(names.contains(query), names.length());`,
+      'run',
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toBe('true 1\n');
+  });
+
+  it('exchanges owned messages through the browser channel provider', async () => {
+    const result = await executeWasi(
+      assets,
+      `import std::channel using ByteChannel;
+async fn main() {
+let channel = ByteChannel::new(1);
+assert(await channel.send(&&[1u8, 2u8]));
+channel.close();
+match await channel.receive() {
+    .Data(bytes) => println(bytes.length()),
+    .End => assert(false),
+}
+match await channel.receive() {
+    .Data(_) => assert(false),
+    .End => println("closed"),
+}
+}`,
+      'run',
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toBe('2\nclosed\n');
+  });
+
+  it('keeps filesystem writes inside one invocation', async () => {
+    const written = await executeWasi(
+      assets,
+      `import std::fs using { write_text, read_text }
+write_text("message.txt", "hello")?;
+println(read_text("message.txt")?);`,
+      'run',
+    );
+    expect(written.exitCode).toBe(0);
+    expect(written.stderr).toBe('');
+    expect(written.stdout).toBe('hello\n');
+    const fresh = await executeWasi(
+      assets,
+      `import std::fs using { status, PathKind }
+assert(status("message.txt")? == PathKind::Missing);
+println("isolated");`,
+      'run',
+    );
+    expect(fresh.exitCode).toBe(0);
+    expect(fresh.stderr).toBe('');
+    expect(fresh.stdout).toBe('isolated\n');
+  });
+
+  it('executes awaited output through the browser sink', async () => {
+    const result = await executeWasi(
+      assets,
+      'import std::io using { write_stdout_async, IOError }\nasync fn main() throw IOError { await write_stdout_async(&&[97u8, 115u8, 121u8, 110u8, 99u8, 10u8])?; }',
+      'run',
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toBe('async\n');
+  });
+
+  it('closes a cancelled writer before it can publish output', async () => {
+    const result = await executeWasi(
+      assets,
+      `import std::async using { yield_once, close }
+import std::io using { write_stdout_async, IOError }
+async fn write_later() throw IOError {
+    await yield_once();
+    await write_stdout_async(&&[88u8])?;
+}
+async fn main() {
+    async let writer = write_later();
+    cancel writer;
+    await close(writer);
+    println("closed");
+}`,
+      'run',
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toBe('closed\n');
+  });
+
   it('generates the native JSON preset while reporting the browser execution boundary', async () => {
     const example = playgroundExamples.find((item) => item.id === 'native-json')!;
     const compiled = await executeWasi(assets, example.source, 'compile');
@@ -155,7 +286,7 @@ async fn main() throw IOError {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toBe('准备 完成\n');
     expect(result.stderr).toContain('compile-time stderr\n');
-    expect(result.stderr).toContain('check passed');
+    expect(result.stderr).toBe('compile-time stderr\n');
     expect(result.artifacts).toEqual([]);
   });
 

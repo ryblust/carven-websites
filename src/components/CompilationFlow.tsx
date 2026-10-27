@@ -43,8 +43,8 @@ export function CompilationFlow({ locale }: { locale: Locale }) {
       title: t('生成 C++', 'Generate C++'),
       artifact: 'main.cpp',
       detail: t(
-        'compile 输出可阅读的 C++20 源文件和所需接口。生成结果可以放进现有的原生构建。',
-        'compile writes readable C++20 source and the required interfaces. Add the generated files to your existing native build.',
+        'compile 输出 C++20 源文件和所需接口，再交给 build.cv 或现有原生构建进行编译。',
+        'compile writes C++20 source and the required interfaces. build.cv or your existing native build compiles those artifacts.',
       ),
       input: t('Carven 源文件', 'Carven source files'),
       output: t('C++ 源文件与接口', 'C++ source and interfaces'),
@@ -54,12 +54,12 @@ export function CompilationFlow({ locale }: { locale: Locale }) {
       title: t('原生构建', 'Build natively'),
       artifact: t('可执行程序', 'Executable'),
       detail: t(
-        'C++ 工具链负责编译、链接和优化。直接运行源文件时默认使用 clang++，可用 CXX 指定其他编译器。',
-        'Your C++ toolchain compiles, links, and optimizes. Running a source file directly uses clang++ by default; set CXX to choose another compiler.',
+        '单个源码程序用 carven run main.cv。项目用 build.cv 描述，再执行 carven build 或 carven run；有多个可执行目标时再指定名称。C++ 工具链负责编译、链接和优化，默认使用 clang++，可用 CXX 选择编译器。',
+        'Use carven run main.cv for a source program. For a project, use build.cv with carven build or carven run; name a target when multiple executables exist. Your C++ toolchain compiles, links, and optimizes; CXX selects the compiler, defaulting to clang++.',
       ),
       input: t('生成的 C++ 与依赖库', 'Generated C++ and libraries'),
       output: t('原生可执行程序', 'A native executable'),
-      command: 'carven main.cv',
+      command: 'carven run main.cv',
     },
   ];
 

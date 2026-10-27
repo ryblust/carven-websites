@@ -26,15 +26,15 @@ struct BadPort { text: str }
 
 // A small in-memory configuration store.
 fn read(key: str) -> str throw Missing + Denied {
-    if key == "denied" { throw Denied { key: key }; }
-    if key == "ok" { return "9000"; }
-    if key == "bad" { return "9x00"; }
+    if key == "denied" => throw Denied { key: key };
+    if key == "ok" => return "9000";
+    if key == "bad" => return "9x00";
 
     throw Missing { key: key };
 }
 
 fn parse(text: str) -> i32 throw BadPort {
-    if text.is_empty() { throw BadPort { text: text }; }
+    if text.is_empty() => throw BadPort { text: text };
 
     var value: i32 = 0;
 
@@ -44,10 +44,10 @@ fn parse(text: str) -> i32 throw BadPort {
         }
 
         value = value * 10 + (byte as i32 - 0x30);
-        if value > 65535 { throw BadPort { text: text }; }
+        if value > 65535 => throw BadPort { text: text };
     }
 
-    if value == 0 { throw BadPort { text: text }; }
+    if value == 0 => throw BadPort { text: text };
 
     return value;
 }
@@ -78,7 +78,7 @@ const fn help_text(commands: [Command; 3]) -> String {
         }
     }
 
-    return &&text;
+    return text;
 }
 
 const help: str = help_text([
@@ -97,7 +97,7 @@ const test {
 }
 
 println(help);`,
-  simd: `import std::simd.bytes using { block_count, load_block };
+  simd: `import std::simd.bytes using { block_count, load_block }
 
 const fn count_delimiters(bytes: [u8], delimiter: u8) -> usize {
     var count: usize = 0;
@@ -118,15 +118,15 @@ const test {
 let row = "name,age,city";
 println(count_delimiters(row.bytes, 0x2c));`,
   specialization: `fn matches(text: str, const pattern: str) -> bool {
-    if text.byte_length() != pattern.byte_length() { return false; }
+    if text.byte_length() != pattern.byte_length() => return false;
 
     const for index in 0..pattern.byte_length() {
         const if pattern.bytes[index] == "D".bytes[0] {
             let byte = text.bytes[index];
             // ASCII digits: 0x30 ('0') through 0x39 ('9').
-            if byte < 0x30 || byte > 0x39 { return false; }
+            if byte < 0x30 || byte > 0x39 => return false;
         } else {
-            if text.bytes[index] != pattern.bytes[index] { return false; }
+            if text.bytes[index] != pattern.bytes[index] => return false;
         }
     }
 
@@ -472,16 +472,16 @@ int main() {
 
     std::cout << config.dump() << '\\n';
 }`,
-  configuration: `import std::json using { Value, ValueError };
+  configuration: `import std::json using { JSONValue, JSONValueError }
 
-const defaults = Value::parse(r#"{"workers":2,"tags":["stable"]}"#)?;
+const defaults = JSONValue::parse(r#"{"workers":2,"tags":["stable"]}"#)?;
 
-fn configure(workers: i64) -> String throw ValueError {
+fn configure(workers: i64) -> String throw JSONValueError {
     var config = defaults;
-    config.set("workers", &&Value::integer(workers))?;
+    config.set("workers", &&JSONValue::integer(workers))?;
 
     var tags = config.get("tags")?;
-    tags.push(&&Value::string("observed"))?;
+    tags.push(&&JSONValue::string("observed"))?;
     config.set("tags", &&tags)?;
 
     return config.to_json()?;
@@ -490,13 +490,14 @@ fn configure(workers: i64) -> String throw ValueError {
 const test "the template starts with two workers" {
     check(try {
         defaults.get("workers")?.as_i64()? == 2
-    } catch { ValueError(_) => false });
+    } catch { JSONValueError(_) => false });
 }
 
 println(configure(8)?);
-println(defaults.to_json()?);`,
+let original = defaults;
+println(original.to_json()?);`,
   logAnalysis: `import std::core using NumberParseError;
-import std::utf using { split_once, TextError };
+import std::utf using { split_once, TextError }
 
 enum RecordError {
     Shape,
@@ -509,7 +510,7 @@ struct Record { milliseconds: u64, message: String }
 fn parse_record(text: str) -> Record throw RecordError {
     try {
         let fields = split_once(text, " ")?;
-        if !fields.found { throw RecordError::Shape; }
+        if !fields.found => throw RecordError::Shape;
 
         return {
             milliseconds: u64::parse(fields.before)?,
@@ -529,7 +530,7 @@ for line in ["37 token=[redacted]", "nope malformed", "42 超时"] {
         RecordError(_) => println("rejected:", line),
     }
 }`,
-  asyncWorkflow: `import std::async using { yield_once, when_all, first_successful };
+  asyncWorkflow: `import std::async using { yield_once, when_all, first_successful }
 
 struct BelowTarget { actual: i32, required: i32 }
 struct Batch { name: String, records: Vector<i32>, total: i32 }
@@ -539,18 +540,18 @@ async fn collect(&&name: String, &&input: [i32; 4]) -> Batch {
 
     for value in input {
         await yield_once();
-        if value < 0 { continue; }
+        if value < 0 => continue;
 
         batch.records.push(value);
         batch.total += value;
     }
 
-    return &&batch;
+    return batch;
 }
 
 async fn eligible(value: i32, target: i32) -> i32 throw BelowTarget {
     await yield_once();
-    if value < target { throw BelowTarget { actual: value, required: target }; }
+    if value < target => throw BelowTarget { actual: value, required: target };
 
     return value;
 }
@@ -628,7 +629,7 @@ int main() {
     loop.run();
     result.get();
 }`,
-  asyncScope: `import std::async using { cancel_point, yield_once, close };
+  asyncScope: `import std::async using { cancel_point, yield_once, close }
 
 const async fn count(&processed: i32) {
     while {
@@ -646,13 +647,17 @@ const async fn run_one() -> i32 {
     cancel worker;
     await close(worker);
 
-    return &&processed;
+    return processed;
 }
 
 const preview = await run_one();
 
-const test "a child closes before its backing is taken" {
-    check(preview == 1);
+const async test "a child closes before its backing is taken" {
+    check(await run_one() == 1);
+}
+
+async test "runtime uses the same cleanup" {
+    check(await run_one() == 1);
 }
 
 async fn main() {
@@ -698,13 +703,13 @@ static_assert(preview == 1);
 int main() {
     std::println("compile time: {}; runtime: {}", preview, run_one());
 }`,
-  audioMixer: `import std::simd.floats using { block_count, load_block };
+  audioMixer: `import std::simd.floats using { block_count, load_block }
 
 enum MixError { Length, NonFinite }
 struct Mix { samples: Vector<f32>, clipped: usize, peak: f32 }
 
 const fn mix(voice: [f32], music: [f32]) -> Mix throw MixError {
-    if voice.length() != music.length() { throw MixError::Length; }
+    if voice.length() != music.length() => throw MixError::Length;
 
     var result: Mix = {};
     result.samples.reserve(voice.length());
@@ -714,7 +719,7 @@ const fn mix(voice: [f32], music: [f32]) -> Mix throw MixError {
         let right = load_block(music, index * 8);
         let combined = left.value + right.value * 0.5;
 
-        if ((~combined.is_finite()) & left.active).any() { throw MixError::NonFinite; }
+        if ((~combined.is_finite()) & left.active).any() => throw MixError::NonFinite;
 
         result.clipped += ((combined.abs() > 1.0) & left.active).count();
         let samples = combined.clamp(-1.0, 1.0).to_array();
@@ -725,7 +730,7 @@ const fn mix(voice: [f32], music: [f32]) -> Mix throw MixError {
         }
     }
 
-    return &&result;
+    return result;
 }
 
 const voice: [f32; 9] = [0.5; 9];
@@ -805,5 +810,157 @@ int main() {
         output.samples.size(), output.clipped, output.peak);
     std::cout << std::format("first={:.3f} second={:.3f} last={:.3f}\\n",
         output.samples[0], output.samples[1], output.samples[8]);
+}`,
+  tomlSummary: `import std::toml using { TOMLValue, TOMLValueError }
+import std::collections using { HashMap, HashSet }
+
+const settings = TOMLValue::parse("""
+    minimum = 20
+    ignored = ["health"]
+    """)?;
+
+struct Request { service: str, milliseconds: i64 }
+struct Summary { counts: HashMap<String, usize>, accepted: usize }
+
+fn summarize(config: TOMLValue, requests: [Request]) -> Summary throw TOMLValueError {
+    let minimum = config.get("minimum")?.as_i64()?;
+    let names = config.get("ignored")?;
+    var ignored = HashSet<String>::new();
+    for name in names.elements()? {
+        let key = name.as_str()? as String;
+        ignored.insert(&&key);
+    }
+
+    var result: Summary = { counts: HashMap<String, usize>::new(), ... };
+    for request in requests {
+        let key = request.service as String;
+        if request.milliseconds < minimum || ignored.contains(key) => continue;
+        let count = result.counts.find_mut(key);
+        if count != nullptr => ++*count;
+        else => result.counts.insert(&&key, &&1);
+        ++result.accepted;
+    }
+    return result;
+}
+
+let report = summarize(settings, [
+    { service: "api", milliseconds: 25 },
+    { service: "health", milliseconds: 100 },
+    { service: "api", milliseconds: 35 },
+    { service: "web", milliseconds: 18 },
+    { service: "web", milliseconds: 40 },
+])?;
+for entry in report.counts.entries() {
+    println(f"{entry.key}: {entry.value}");
+}
+println(f"accepted: {report.accepted}");`,
+  tomlSummaryCpp: `#include <toml++/toml.hpp>
+#include <array>
+#include <cstdint>
+#include <iostream>
+#include <span>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+struct Request { std::string_view service; std::int64_t milliseconds; };
+struct Summary {
+    std::unordered_map<std::string, std::size_t> counts;
+    std::vector<std::string> order;
+    std::size_t accepted = 0;
+};
+
+Summary summarize(const toml::table& config, std::span<const Request> requests) {
+    const auto minimum = config["minimum"].value<std::int64_t>().value();
+    const auto* names = config["ignored"].as_array();
+    if (!names) throw std::runtime_error("ignored must be an array");
+    std::unordered_set<std::string> ignored;
+    for (const auto& name : *names) {
+        ignored.insert(name.value<std::string>().value());
+    }
+
+    Summary result;
+    for (const auto& request : requests) {
+        std::string key{request.service};
+        if (request.milliseconds < minimum || ignored.contains(key)) continue;
+        auto [count, inserted] = result.counts.try_emplace(key, 0);
+        if (inserted) result.order.push_back(key);
+        ++count->second;
+        ++result.accepted;
+    }
+    return result;
+}
+
+int main() {
+    const auto settings = toml::parse(R"(
+        minimum = 20
+        ignored = ["health"]
+    )");
+    const std::array<Request, 5> requests{{
+        {"api", 25}, {"health", 100}, {"api", 35}, {"web", 18}, {"web", 40},
+    }};
+    const auto report = summarize(settings, requests);
+    for (const auto& key : report.order) {
+        std::cout << key << ": " << report.counts.at(key) << '\\n';
+    }
+    std::cout << "accepted: " << report.accepted << '\\n';
+}`,
+  closurePolicy: `fn apply<T, U>(value: T, transform: fn(T) -> U) -> U => transform(value);
+const fn quote(fee: i32) => [fee](amount: i32) => amount + fee;
+
+const test "a captured fee executes during compilation" {
+    let policy = quote(3);
+    check(policy(100) == 103);
+}
+
+var fee = 3;
+let policy = quote(fee);
+let snapshot = policy;
+fee = 10;
+
+println("Original quote:", apply(100, snapshot));
+println("Updated quote:", apply(100, quote(fee)));`,
+  closurePolicyCpp: `#include <iostream>
+
+template <typename T, typename Transform>
+auto apply(const T& value, const Transform& transform) {
+    return transform(value);
+}
+
+constexpr auto quote(int fee) {
+    return [fee](int amount) { return amount + fee; };
+}
+
+static_assert(quote(3)(100) == 103);
+
+int main() {
+    int fee = 3;
+    const auto policy = quote(fee);
+    const auto snapshot = policy;
+    fee = 10;
+
+    std::cout << "Original quote: " << apply(100, snapshot) << '\\n';
+    std::cout << "Updated quote: " << apply(100, quote(fee)) << '\\n';
+}`,
+  projectBuild: `import std::build using project;
+
+project({
+    targets: [{
+        name: "shop",
+        kind: .Executable,
+        sources: ["src/main.cv", "src/pricing.cv"],
+        ...
+    }],
+    ...
+})?;`,
+  projectInlineTests: `fn discounted(price: i32, percent: i32) -> i32 =>
+    price * (100 - percent) / 100;
+
+test "discounted price" {
+    check(discounted(1200, 0) == 1200);
+    check(discounted(1200, 25) == 900);
 }`,
 } as const;

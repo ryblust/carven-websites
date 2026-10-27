@@ -13,7 +13,7 @@ Here `RecordError` keeps the application-level cases. `InvalidLatency` also carr
 
 ```carven run
 import std::core using NumberParseError;
-import std::utf using { split_once, TextError };
+import std::utf using { split_once, TextError }
 
 enum RecordError {
     Shape,
@@ -26,7 +26,7 @@ struct Record { milliseconds: u64, message: String }
 fn parse_record(text: str) -> Record throw RecordError {
     try {
         let fields = split_once(text, " ")?;
-        if !fields.found { throw RecordError::Shape; }
+        if !fields.found => throw RecordError::Shape;
         return {
             milliseconds: u64::parse(fields.before)?,
             message: fields.after as String,
@@ -57,7 +57,7 @@ rejected: nope malformed
 
 When `u64::parse` fails, its catch arm wraps the error as `RecordError::InvalidLatency`. The outer loop handles `RecordError`, prints the rejected input, and moves to the next line. For a valid record, the message is copied into an owned `String`, so the result can be kept independently of its input.
 
-[Run the parser](/playground/#example=log-analysis). The [complete log analyzer](https://github.com/ryblust/carven/tree/main/examples/log_analyzer) adds byte framing, UTF-8 validation, credential redaction, statistics, and JSON output. This smaller example receives already-valid text and focuses on parsing and per-record recovery.
+[Run the parser](/playground/#example=log-analysis). The [complete log analyzer](https://github.com/ryblust/carven/tree/v0.1.0/examples/log_analyzer) adds byte framing, UTF-8 validation, credential redaction, statistics, and JSON output. This smaller example receives already-valid text and focuses on parsing and per-record recovery.
 
 ## Preserve or translate failure types
 
@@ -67,7 +67,7 @@ The [failure reference](/reference/failures/) defines when to declare a failure 
 
 A handler can recover the failures its layer understands and leave the rest to its caller. See [partial catches and residual sets](/reference/failures/#partial-catches-and-residual-sets) for coverage, guarded patterns, and `rethrow`.
 
-Async functions use the same failure contract: `await operation()?` awaits completion and propagates a failure. The [batch workflow](/playground/#example=async-workflow) applies it to several operations. Composition, cancellation, and cleanup are covered in the [async reference](/reference/async/).
+Async functions use the same failure contract: `await operation()?` awaits completion and propagates any failure from the operation. The [batch workflow](/playground/#example=async-workflow) applies it to several operations. Composition, cancellation, and cleanup are covered in the [async reference](/reference/async/).
 
 ## Recovery, assertions, and termination
 

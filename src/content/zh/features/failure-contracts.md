@@ -13,7 +13,7 @@ source: docs/language/failures.md
 
 ```carven run
 import std::core using NumberParseError;
-import std::utf using { split_once, TextError };
+import std::utf using { split_once, TextError }
 
 enum RecordError {
     Shape,
@@ -26,7 +26,7 @@ struct Record { milliseconds: u64, message: String }
 fn parse_record(text: str) -> Record throw RecordError {
     try {
         let fields = split_once(text, " ")?;
-        if !fields.found { throw RecordError::Shape; }
+        if !fields.found => throw RecordError::Shape;
         return {
             milliseconds: u64::parse(fields.before)?,
             message: fields.after as String,
@@ -57,17 +57,17 @@ rejected: nope malformed
 
 `u64::parse` 失败后，对应的 catch 分支把错误包装为 `RecordError::InvalidLatency`。外层循环处理 `RecordError`，打印被拒绝的输入，再继续下一行。有效记录的消息则被复制到具有独立存储的 `String` 中，结果可以独立于输入保留。
 
-[运行解析器](/zh/playground/#example=log-analysis)。[完整日志分析器](https://github.com/ryblust/carven/tree/main/examples/log_analyzer) 还包含字节分行、UTF-8 校验、凭据脱敏、统计和 JSON 输出。这里的小例子接收已经合法的文本，重点展示解析和逐条恢复。
+[运行解析器](/zh/playground/#example=log-analysis)。[完整日志分析器](https://github.com/ryblust/carven/tree/v0.1.0/examples/log_analyzer) 还包含字节分行、UTF-8 校验、凭据脱敏、统计和 JSON 输出。这里的小例子接收已经合法的文本，重点展示解析和逐条恢复。
 
 ## 保留或转换失败类型
 
-一层函数可以用 `throw A + B` 保留独立的失败类型，让调用者直接分别恢复。上面的解析器采用另一种做法：把库失败映射为自己的 `RecordError` 成员。根据调用者需要的信息选择接口。
+函数可以用 `throw A + B` 保留独立的失败类型，让调用者分别处理。上面的解析器采用另一种做法：把库中的失败映射为自己的 `RecordError` 枚举变体。根据调用者需要的信息选择接口。
 
 哪些位置需要声明失败集合、哪些可以推断，见[失败参考](/zh/reference/failures/)。
 
 处理分支可以恢复当前层能够处理的失败，把其他失败留给调用者。覆盖规则、带守卫的模式与 `rethrow` 见[部分 catch 与剩余集合](/zh/reference/failures/#部分-catch-与剩余集合)。
 
-异步函数使用相同的失败契约：`await operation()?` 等待完成后传播失败。[批次工作流](/zh/playground/#example=async-workflow)将其用于多个操作。组合、取消与清理规则见[异步参考](/zh/reference/async/)。
+异步函数使用相同的失败契约：`await operation()?` 等待操作完成，并在操作失败时传播失败。[批次工作流](/zh/playground/#example=async-workflow)将其用于多个操作。组合、取消与清理规则见[异步参考](/zh/reference/async/)。
 
 ## 恢复、断言与终止
 

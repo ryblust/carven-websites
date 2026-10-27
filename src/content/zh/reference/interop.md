@@ -13,9 +13,9 @@ source: docs/language/interop.md
 以下片段展示选择形式；`provider.hpp` 和 `legacy.hpp` 由应用提供：
 
 ```carven
-import <vector> using std::vector;
-import "provider.hpp" using vendor::{ Widget, create };
-import "legacy.hpp" using { Point, calculate };
+import <vector> using std::vector as Items;
+import "provider.hpp" using vendor::{ Widget as Model, create }
+import "legacy.hpp" using { Point, calculate }
 import <vector> using std::*;
 ```
 
@@ -23,7 +23,7 @@ Carven 不解析头文件。没有 using 的导入不创建 Carven 名字。前�
 
 全局 C++ 路径、头文件选择路径和列表项，以及 `.`、`::`、`->` 后的成员名，可以使用形如标识符的 Carven 关键字，例如 `::vendor::async` 和 `handle.cancel()`。导入关键字拼写不会使它成为可直接使用的 Carven 标识符；通过全局路径或已绑定的非关键字前缀访问。Carven 拒绝 C++ 关键字集合中的原生名字，报告 `CV-CPP-IDENTIFIER`。
 
-显式 `using` 把路径末尾的名字绑定到完整 C++ 路径。重复选择同一路径是合法的；末尾名字相同但完整路径不同则报错。显式选择优先于命名空间通配符导入；引用时，同一路径的所有显式导入都标记为已使用。同一路径的重载由 C++ 处理，没有跨路径重载合并。列表项只能是简单标识符，不支持别名、嵌套列表或列表内通配符。
+显式 `using` 把选中的名字绑定到完整 C++ 路径，可用 `as` 指定普通标识符别名。列表项为简单原名及可选别名，不支持嵌套列表或列表内通配符。列表导入以 `}` 结束，无分号；其他导入保留分号。显式选择优先于命名空间通配符，同一本地名字对应不同完整路径时冲突；不同别名可选择同一实体。原生重载由 C++ 检查，不跨路径合并。
 
 局部绑定和模块声明遵循普通名字查找规则。外部导入不能与本模块的声明重名。普通查找未找到名字时，才到通过通配符导入的 C++ 命名空间中查找。外部名字只在当前模块生效，不通过 Carven 模块导入再导出。显式选择有未使用诊断，命名空间通配符导入没有。
 
@@ -80,7 +80,7 @@ Carven 检查已知所有者可用性、显式冲突和已知文本底层存储�
 
 ## `#[cpp]`
 
-用围栏片段定义小型模块内实现。将以下完整示例保存为 `main.cv` 并运行 `carven main.cv`，调用者输出 `42`。
+用围栏片段定义小型模块内实现。将以下完整示例保存为 `main.cv` 并运行 `carven run main.cv`，调用者输出 `42`。
 
 ```carven
 #[cpp] ---
@@ -116,13 +116,17 @@ private import(cpp) fn native_value(value: i32) -> i32 = ::vendor::compute;
 
 目标是以 `::` 开头的限定名字路径，可含命名空间或静态成员；不能是任意表达式，不能写显式模板实参，也不经 Carven 导入或头文件 `using` 选择。C++ 检查声明、重载、模板和链接。
 
-`export(cpp)` 是有体、对全批次可见并进入生成 API 的 Carven 函数：
+`export(cpp)` 声明有函数体的 Carven 函数，并为它生成 C++ 可调用接口。它在 Carven 源码中的可见范围仍限于同一 Craft，不会因此成为其他 Craft 可以导入的 API：
 
 ```carven
-export(cpp) fn value() -> i32 => 42;
+struct Value { number: i32 }
+
+export(cpp) fn value() -> Value => { number: 42 };
 ```
 
-不能直接导出 import(cpp)，需要普通包装函数。导入和导出均遵循普通函数的类型、访问、可见性、所有权与失败声明规则；`void` 单元值也可作参数或聚合元素；参数和聚合中的单元值使用 `carven::runtime::Void`，无失败的同步单元结果使用原生 `void`，可调用视图逃逸和公开类型可见性限制仍适用。
+只为 C++ 调用方需要的入口使用 `export(cpp)`，内部逻辑继续使用普通声明或 `private`。生成的 API 头文件提供这些入口及签名所需的类型，无需把整个 Craft 的实现公开，也无需逐一导出内部辅助函数。
+
+`import(cpp)` 可使用普通 `export` 跨 Craft 暴露源声明。`export(cpp)` 请求生成 C++ 接口，其 Carven 可见范围仍与裸函数相同；两种公开边界不能叠加，需要时用独立包装声明复用项目代码。导入、导出遵循普通类型、访问、所有权和失败规则。单元参数与聚合元素使用 `carven::runtime::Void`，无失败或停止效果的同步单元结果为原生 `void`。可调用视图逃逸及公开类型可见性限制仍适用。
 
 | Carven 契约                  | C++ 表示                                                             |
 | ---------------------------- | -------------------------------------------------------------------- |
@@ -136,15 +140,15 @@ export(cpp) fn value() -> i32 => 42;
 | Read                         | 普通 Read 策略：值快照或 `const` 引用                                |
 | Write                        | 可变引用                                                             |
 | Take                         | 拥有值；导出使用普通转移，导入转发原生右值                           |
-| 无失败结果                   | 普通结果类型，包括 void                                              |
-| 同步声明失败                 | `carven::runtime::Outcome<Result, Failures...>`                      |
+| 无失败或停止效果的同步结果   | 普通结果类型，包括 `void`                                            |
+| 同步失败或停止效果           | `carven::runtime::Outcome<Result, Failures...>`                      |
 | 异步完成契约                 | 冷 `carven::runtime::execution::AsyncOperation<Result, Failures...>` |
 
-生成 API 头文件包含所需生成类型定义、原生头文件环境和运行时支持。调用方使用该头文件和匹配的运行时头文件，在 C++ 源码中调用接口。内部用于停止测试的控制流不计入导出函数的失败声明。若停止测试的控制流逸出原生入口，程序会终止；函数声明的失败仍通过 Outcome 返回。
+生成 API 头文件包含所需生成类型定义、原生头文件环境和运行时支持。调用方使用该头文件和匹配的运行时头文件，在 C++ 源码中调用接口。可能停止的同步函数返回 `Outcome<Result, Failures...>`；没有声明失败时也使用 `Outcome<Result>`。停止状态不计入声明的失败集合，原生调用方应先检查 `is_stopped()`，再取出结果。异步函数通过 `Completion` 保留停止状态。
 
 provider 的作者与调用者负责生命周期、对象保留、重入和值有效性，包括 UTF-8 与 Unicode 标量。编译器不会为导入结果推断新的底层存储借用关系，原生 Write 调用也不能证明旧借用已释放。声明的回调可以在调用期间执行，但原生实现不能在借用生命周期结束后继续保留其可调用值存储。
 
-直接导入且不声明失败的 `char` 结果，以及导出函数的 Read/Take `char` 参数，都会进行 Unicode 标量校验，无效时终止；这不是对聚合、指针、可变引用或 Outcome 的递归校验。
+成功的导入 `char` 结果，以及导出函数的 Read/Take `char` 参数，都会进行 Unicode 标量校验，无效时终止；这不是对聚合、指针、可变引用或 `Outcome` 的递归校验。
 
 省略显式目标绑定时，provider 名不能是 `main`、`std` 或 `carven`。前导下划线的 C++ 保留规则由作者负责。导出 API 中符合 C++ 命名限制的名字保留原拼写；其他名字或以 `cv_escaped_` 开头的名字，使用该前缀加原始 UTF-8 字节的小写十六进制编码。不能原样使用的名字包括 C++ 关键字、含双下划线的名字、以 `_` 加大写字母开头的名字，以及 `stdin`、`stdout`、`stderr`。这些流名称在受支持的 C 运行库中可能是对象式宏。函数名不能与命名空间路径前缀冲突。
 
@@ -160,7 +164,7 @@ provider 的作者与调用者负责生命周期、对象保留、重入和值�
 
 ## 执行与初始化
 
-头导入、源片段和收集的 cpp 不阻止解释或静态执行 Carven 代码；执行器不加载原生实现，也不运行 C++ 静态对象的动态初始化/析构。到达需要原生实现的操作才诊断。依赖这些原生副作用的程序须原生运行。
+头导入、源片段和收集的 C++ 源码提供原生实现，本身不阻止 Carven 语义执行。CLI 通过类型化绑定提供标准能力，公共宿主会话只使用显式传入的绑定，可从 `<carven/hosting/standard.hpp>` 选择 `host_standard_services()`。核心分析与执行不链接这些提供者，也不根据已安装绑定推断源类型。语义执行不加载收集的 C++ 输入，相关动态初始化或析构只有原生运行才执行；已经链接进宿主的提供者则可通过绑定执行。
 
 跨边界的 Read 参数遵循[普通 Read 传参规则](/zh/reference/ownership/#read-值与别名)。包含原生类型的参数使用 `carven::runtime::ReadArg<T>` 实现该策略。异步 provider 必须保存按值传入的 Carven Read 值；包含原生类型的参数对象会一直被借用，直到冷操作关闭。
 
@@ -168,8 +172,30 @@ C++20 协程帧至少保证 32 字节对齐，同时满足平台的基本对齐�
 
 ## Provider 类型支持
 
-含具体 import(cpp) 声明的模块生成 `carven/providers/<canonical/module>.hpp`，提供签名类型别名与完整依赖，包括模块私有名义类型，源可见性规则不变。别名位于 `carven::providers::<encoded module>::cv_escaped_functions::<encoded function>`。
+含具体 `import(cpp)` 的源模块生成 `carven/providers/<canonical/module>.hpp`，提供签名别名及完整定义依赖，包括模块私有名义类型，源码可见性不变。名字位于 `carven::providers::<encoded module>::cv_escaped_functions::<encoded function>`。
 
-`Result` 表示 Carven 结果类型的 C++ 表示，`Completion` 是原生函数实际返回的类型，`Parameter0` 等是形参值类型。`Failure0` 等表示失败载荷类型，按规范化后的失败集合顺序编号。`void` 的 `Result` 为 `carven::runtime::Void`；无失败的同步单元结果使用 `Completion = void`，异步 `Completion` 为冷 `AsyncOperation`。
+`Result` 表示源结果的 C++ 类型，`Completion` 是实际返回载体，`Parameter0` 等是参数值类型，`Argument0` 等是包含引用的精确原生参数类型，`Failure0` 等按规范失败载体顺序编号。显式原生目标保留其手写参数初始化。源 `void` 使用 `Result = carven::runtime::Void`；同步导入的单元结果使用 `Completion = Outcome<void, Failures...>`，异步结果使用冷 `AsyncOperation`。修改源签名时同步核对这些别名。
 
-在原生源文件或 `#[cpp]` 片段中包含该头文件来命名签名类型，并在 C++ 中另行声明 provider 函数。定义签名所用原生类型的头文件，不得反向包含依赖自身的生成 provider 头。该接口是 C++ 源码接口，不规定跨工具链二进制兼容性。
+未显式指定原生目标时，生成接口提供精确的 `invoke` 声明。显式目标继续使用手写头或片段声明。对于规范模块 `host` 中的 `native_value`，可以直接使用签名别名实现：
+
+```cpp
+#include <carven/providers/host.hpp>
+
+namespace carven::providers::host::cv_escaped_functions::native_value {
+auto invoke(Argument0 value) noexcept -> Completion {
+    return Completion::success(value + 1);
+}
+}
+```
+
+同一函数命名空间发布从签名生成的 `service` 宿主契约，包括每个参数的 Read、Write、Take。契约名字为规范源模块、`.` 和函数名；`source_module` 与 `source_name` 分别保留两部分。宿主在解释或托管原生执行中绑定这个契约，普通原生调用仍直接调用提供者。
+
+提供者或导出签名可达的非泛型结构体在所属接口中发布供 ADL 查找的 `carven_type_name(Record*)` 与 `carven_fields(Record*)`。前者返回规范源类型名，后者返回源顺序的字段名和成员指针。宿主据此映射字段类型，包括嵌套记录、向量和已注册原生叶子；这些函数不需要对象。契约把原生源名字与 C++ 载体分开保留。
+
+别名指向 Carven 使用的同一名义定义与字段。这是 C++ 源码接口，不规定跨工具链二进制兼容性。定义签名原生类型的头，不得反向包含依赖自己的生成提供者头。
+
+## 静态与解释宿主
+
+原生头文件导入只描述 C++ 编译关系，不自动让实现可被语义执行。静态或解释执行到达原生调用、成员或转换时，需要宿主注册对应的类型化实现。`import(cpp) const fn` 声明静态执行能力，但绑定默认只允许运行时执行，使用 `.with_static_execution(HostServiceEffects::None)` 或 `.with_static_execution(HostServiceEffects::Environment)` 才显式允许静态执行，契约覆盖整个原生实现及其调用服务。环境效果还要求宿主授权，类型依赖求值仍拒绝这些效果。会话加载、替换和普通调用使用相同绑定。已有不透明原生值可传递或包装，无需为这些普通传递注册原生操作；它们不能冻结为常量，原生默认构造也不受支持。
+
+解释器保持原生对象及异步操作的类型化调用存储直到完成和子任务关闭。原生对象复制可保留注册身份而不复制其目标；资源、隐藏引用、重入和线程约束仍由宿主负责。外部 C++ 实现仍由原生编译器检查，不因头文件或源片段存在就自动加载。

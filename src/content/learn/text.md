@@ -8,7 +8,7 @@ source: docs/language/text.md
 
 ## Own the contents or borrow them
 
-Build a title, save a copy, then extend the original. Use String to give each value its own text storage:
+Build a title, save a copy, then extend the original. Use `String` to give each value its own text storage:
 
 ```carven run
 var title: String = "Carven";
@@ -52,7 +52,7 @@ Hello
 World
 ```
 
-Raw `r"..."` preserves backslashes and braces. Matching `#` delimiters let raw text contain quotes. For multiline text, start the text after the opening triple quotes and put the closing delimiter on its own line. Carven removes common indentation and the opening and final line endings.
+Raw `r"..."` preserves backslashes and braces. Matching `#` delimiters allow quotes inside raw text. For multiline text, start the text after the opening triple quotes and put the closing delimiter on its own line. Carven removes common indentation and the opening and final line endings.
 
 The next chapter introduces interpolation. See the [text reference](/reference/text/) for the complete literal and delimiter rules.
 
@@ -67,7 +67,7 @@ text.append("!");
 println(view);
 ```
 
-view points to text's backing and prevents text from being modified while the view lives. Moving println earlier does not release the borrow. A named view keeps its borrow until its scope ends, even after its last use. Put the view in a smaller branch scope or copy it into an owning `String`.
+view points to text's backing and prevents text from being modified while the view lives. Moving `println` earlier does not release the borrow. A named view keeps its borrow until its scope ends, even after its last use. Put the view in a smaller branch scope or copy it into an owning `String`.
 
 For self-append, give the input independent storage before modifying the target. Run this as a separate program, without the live view from the error example:
 
@@ -136,7 +136,7 @@ A byte view is an ordinary slice, so the same operations apply to text: `text.by
 
 ## Split text into independent owned fields
 
-A report may arrive as one String, while its lines need to be kept and processed separately. The standard lines function makes independent Strings for those lines:
+A report may arrive as one `String`, while its lines need to be kept and processed separately. The standard lines function makes independent Strings for those lines:
 
 ```carven run
 import std::utf using lines;

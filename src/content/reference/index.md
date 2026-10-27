@@ -20,6 +20,7 @@ For a guided introduction, use the [tutorial](/learn/). For design choices and i
 
 | What you need                                                      | Start here                                                                                                                                                                                                                                      |
 | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Native targets in `build.cv`; build, run, test, and query          | [Build a native project](/learn/build/), [build API](/reference/build/)                                                                                                                                                                         |
 | Declarations with `let`, `var`, and `const`                        | [Variable declarations and scope](/reference/bindings/)                                                                                                                                                                                         |
 | Evaluation of `+`, `&&`, `as`, and `..`                            | [Operators and expressions](/reference/operators/), [types and conversions](/reference/types/)                                                                                                                                                  |
 | Forms of `if`, `while`, `for`, and `match`                         | [Branches, loops, and control transfers](/reference/control/)                                                                                                                                                                                   |
@@ -40,6 +41,8 @@ For a guided introduction, use the [tutorial](/learn/). For design choices and i
 
 Start with the [keyword index](/reference/keywords/) when you know a spelling. Use the search at the top to find titles, topics, keywords, or common symbols such as `let`, `break`, and `?`.
 
+To see these rules in complete programs, [try TOML summaries, closure policies, byte channels, file reports, and async tests](/reference/library/#try-complete-programs), then follow the linked API contract. [The project build reference](/reference/build/) covers local `build.cv` plans, native targets, and queries.
+
 ## Defaults and contextual behavior
 
 Some effects follow from a known type or enclosing boundary. Check these rules when an operation appears to do more than its spelling suggests.
@@ -50,7 +53,7 @@ Some effects follow from a known type or enclosing boundary. Check these rules w
 | An omitted type or leading `.Case` / `{ ... }`                | [Local expected-type rules](/reference/types/#expected-types), [construction](/reference/aggregates/#contextual-construction)                 |
 | Owning text or an array used where a view is expected         | [Contextual adaptations](/reference/types/#contextual-adaptations), including borrow lifetime                                                 |
 | Read arguments affected by a later argument's mutation        | [Read values and aliases](/reference/ownership/#read-values-and-aliases)                                                                      |
-| A named owner returned or used to initialize another owner    | [Copying and explicit Take](/reference/ownership/#take-and-availability)                                                                      |
+| A named owner returned or used to initialize another owner    | [Copying, return transfer, and Take](/reference/ownership/#take-and-availability)                                                             |
 | A catch list covers only some failures                        | [Residual forwarding at the try boundary](/reference/failures/#partial-catches-and-residual-sets)                                             |
 | A named text or slice borrow is no longer used                | [Text borrow duration](/reference/text/#borrows-and-mutation), [slice duration](/reference/slices/#borrow-duration); last use does not end it |
 | A `const fn` called with literal arguments                    | [Compile-time capability](/reference/functions/#compile-time-capability); an ordinary call stays at runtime                                   |
@@ -59,7 +62,7 @@ Some effects follow from a known type or enclosing boundary. Check these rules w
 
 ## Libraries, tools, and appendices
 
-Use the [standard API index](/reference/library/) to choose APIs for text, SIMD, async operations, time, input, JSON, and networking. [Compiler commands](/reference/cli/) and [build integration](/reference/toolchain/) describe invoking tools, generating artifacts, and integrating them.
+Use the [standard API index](/reference/library/) to choose text, collections, TOML, JSON, file, process, channel, async, time, SIMD, and networking APIs. [Compiler commands](/reference/cli/) and [build integration](/reference/toolchain/) describe invoking tools, generating artifacts, and integrating them.
 
 The [grammar appendix](/reference/grammar/) gives the complete EBNF. The [diagnostic catalog](/reference/diagnostics/) helps locate errors by compiler code.
 
@@ -91,3 +94,5 @@ See [your first program](/learn/first-program/) for local setup and commands, an
 Carven checks availability, access markers, and borrows of known Carven storage. Providers and callers remain responsible for external address lifetimes, C++ pointer retention, iterator invalidation, reentrancy, and native undefined behavior.
 
 For external storage and concurrency responsibilities, see [C++ access and lifetimes](/reference/interop/#access-and-lifetimes).
+
+Standard modules cover [maps and sets](/reference/collections/), [byte channels](/reference/channel/), [filesystems](/reference/fs/), [processes](/reference/process/), [TOML](/reference/toml/), and [project builds and queries](/reference/build/).

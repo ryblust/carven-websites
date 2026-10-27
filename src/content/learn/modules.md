@@ -22,20 +22,20 @@ import math using add;
 println(add(20, 22));
 ```
 
-Pass both files to the compiler:
+Run the program from its entry file:
 
 ```sh
-carven main.cv math.cv
+carven run main.cv
 ```
 
-The output is 42. Import does not search the filesystem: the compilation batch must already include math.cv. Passing only main.cv reports `CV-IMPORT-RESOLUTION`. Input order does not control whether a function can be referenced.
+The output is 42. The import locates math.cv in the project and selects it as a dependency. You do not need to list it again. Only the reached source closure participates in analysis; an unrelated file does not add diagnostics or static effects. Explicit inputs remain useful when selecting extra roots, including modules whose tests you want to run.
 
 The filename without .cv becomes part of the module name. It must contain only letters, digits, or underscores. It must not start with a digit. `my-math.cv` is rejected; use `my_math.cv`.
 
 To inspect the generated C++, run:
 
 ```sh
-carven compile --stdout main.cv math.cv
+carven compile --stdout main.cv
 ```
 
 The output shows the generated files for main.cv and math.cv. See the [toolchain reference](/reference/toolchain/) to write artifacts to a directory or use them in a C++ build.
@@ -61,18 +61,18 @@ fn subtract(left: i32, right: i32) -> i32 => left - right;
 Replace main.cv with a program that imports both functions:
 
 ```carven
-import math using { add, subtract };
+import math using { add, subtract }
 
 println(add(20, 22), subtract(20, 4));
 ```
 
-Run `carven main.cv math.cv`. The output is `42 16`.
+Run `carven run main.cv`. The output is `42 16`.
 
-Use `carven-format` to arrange import lists; the [workflow chapter](/learn/workflow/) shows its commands.
+A `using { ... }` list ends at `}` without a semicolon; single-name imports end with `;`. Use `carven format` to arrange import lists; the [workflow chapter](/learn/workflow/) shows its commands.
 
 ## Control declaration visibility
 
-private is visible only within its module. A bare declaration is visible within its craft domain. export is visible to all domains in the current batch. Ordinary application files share the unprefixed domain, so the example's bare add can be imported by main.
+Use bare declarations for functions shared between files in your project. Ordinary application files share one module domain, so main.cv can import the example's `add` without `export`. Use `private` for a helper confined to one module and `export` for an API consumed by another Craft.
 
 To expose a function from a separate craft, create the directory crafts/pricing and save crafts/pricing/quote.cv:
 
@@ -90,30 +90,39 @@ import pricing::quote using total;
 println(total(12, 3));
 ```
 
-Pass these files to the compiler:
+Run the entry; the import finds the project's pricing Craft:
 
 ```sh
-carven main.cv crafts/pricing/quote.cv
+carven run main.cv
 ```
 
 The output is 44. `total` is exported from the pricing craft. It can call the private `delivery` helper in its own module; main.cv cannot import that helper. Removing `export` from `total` makes it visible only within pricing and rejects the import from main.cv.
 
 A public interface must use types visible to its callers. See [module visibility](/reference/modules/) when exporting types as well as functions.
 
-## Build with Xmake
+## Describe a native project
 
-As the project grows, let Xmake collect the batch and native dependencies. In a consuming project's xmake.lua:
+Save this as build.cv beside main.cv and math.cv:
 
-```text
-add_repositories("carven-xmake-repo https://github.com/ryblust/carven-xmake-repo.git")
-add_requires("carven")
-target("app")
-    set_kind("binary")
-    add_rules("@carven/carven")
-    add_files("src/**.cv")
+```carven
+import std::build using project;
+
+project({
+    targets: [{
+        name: "app",
+        kind: .Executable,
+        sources: ["main.cv"],
+        ...
+    }],
+    ...
+})?;
 ```
 
-The rule obtains matching compiler and Crafts versions and generates output before C++ dependency scanning. Native include paths and libraries are build inputs; Carven import does not add them automatically.
+The expected `BuildPlan` and `BuildTarget` types supply the record types. Each trailing `...` defaults omitted fields. The main.cv import selects math.cv as a dependency. Run `carven build` to build, `carven run` to build and run, `carven test` to run the target's tests, or `carven query` to inspect its source model. Run these commands in the directory containing build.cv.
+
+If math.cv contains runtime tests, also list it in the target's `sources` to select those tests. Imports load dependencies for analysis; explicit source roots select runtime tests. The [build lesson](/learn/build/) applies this to tests beside business code.
+
+For an existing Xmake or CMake project, use the toolchain's [build integrations](/reference/toolchain/). Keep native include paths, compiler options, and linked libraries in that build configuration.
 
 ## Import a capability and choose local names
 
@@ -127,7 +136,7 @@ let names: Vector<Text> = ["north", "south", "west"];
 write_line(names.length(), names[1]);
 ```
 
-It prints `3 south`. Text means the same type as String; write_line calls the same printing function as println. Aliases are useful when two imported names would clash or a local name makes the code clearer. They do not change how the type or function works.
+It prints `3 south`. `Text` means the same type as `String`; write_line calls the same printing function as `println`. Aliases are useful when two imported names would clash or a local name makes the code clearer. They do not change how the type or function works.
 
 Importing a function only introduces that function's name; if you name a non-default result or error type too, import that type separately.
 
@@ -141,4 +150,4 @@ The [module reference](/reference/modules/#standard-modules-and-defaults) lists 
 
 ## Exercise
 
-Return to the first main.cv and math.cv pair. Move them under src, change main's import to `.math`, and run `carven src/main.cv src/math.cv`. Make add private and confirm that another module cannot import it, then restore the bare declaration.
+Return to the first main.cv and math.cv pair. Move them under src, change main's import to `.math`, and run `carven run src/main.cv`. Make `add` private and confirm that another module cannot import it, then restore the bare declaration.

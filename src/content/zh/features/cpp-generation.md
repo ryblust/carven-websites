@@ -12,24 +12,24 @@ source: docs/compiler/backend/README.md
 流收集器会返回包含独立记录数据的报告，可以用它了解生成结果：
 
 ```carven
-export struct Report {
+struct Report {
     records: Vector<String>,
     total: usize,
     duplicates: usize
 }
 ```
 
-C++ 提供方返回的文本视图只在下一次读取前有效。Carven 把需要保留的记录复制成 `String`，去除重复项，再返回完整报告。`import(cpp)` 声明提供方操作，`export(cpp)` 将收集函数暴露给宿主。[完整源码](https://github.com/ryblust/carven/blob/main/examples/stream_collector/workflow.cv) 展示两个方向。
+C++ 提供方返回的文本视图只在下一次读取前有效。Carven 把记录复制成 `String`，用 `HashSet<String>` 去重，再返回完整报告。集合保留首次出现的插入顺序。`import(cpp)` 声明提供方操作，`export(cpp)` 将收集函数暴露给宿主。[完整源码](https://github.com/ryblust/carven/blob/v0.1.0/examples/stream_collector/workflow.cv) 展示两个方向。
 
 ## 接入现有 C++ 工程
 
 流提供方使用 `import(cpp)`，收集入口使用 `export(cpp)`。这些声明、头文件导入和内联 C++ 片段的完整语法见[互操作参考](/zh/reference/interop/)。
 
-`export(cpp)` 函数获得 `carven/api/<规范模块路径>.hpp` 下的自包含 API 头文件。宿主包含它，在对应的 `carven::api` 模块命名空间调用函数。具体 `import(cpp)` 声明还会获得 `carven/providers` 头文件，为签名类型提供别名；提供方声明和实现仍由 C++ 编写。
+`export(cpp)` 函数获得 `carven/api/<规范模块路径>.hpp` 下的自包含 API 头文件。宿主包含它，在对应的 `carven::api` 模块命名空间调用函数。具体 `import(cpp)` 声明还会获得 `carven/providers` 头文件，为签名提供类型别名和类型明确的宿主接口。没有显式原生目标的导入由生成接口提供 `invoke` 声明；显式目标保留自行编写的 C++ 声明，实现由 C++ 提供。C++ API 涉及的签名类型（如这里的裸 `Report`）无需另加普通 `export`。
 
-完整示例包含 C++ 宿主和 provider。按[流收集器的构建说明](https://github.com/ryblust/carven/tree/main/examples/stream_collector)构建并运行该项目。
+完整示例包含 C++ 宿主和提供方。按[流收集器的构建说明](https://github.com/ryblust/carven/tree/v0.1.0/examples/stream_collector)构建并运行该项目。
 
-宿主在收集期间保留流资源，接收含独立字符串的报告。Xmake 组织源码生成、原生编译和链接。手工构建命令与原生支持要求见[工具链参考](/zh/reference/toolchain/)。
+宿主在收集期间保留流资源，接收含独立字符串的报告。`carven build` 执行项目中普通的 `build.cv` 计划。现有 C++ 工程也可使用已安装的 Xmake 或 CMake 适配器；各消费者根据编译器清单组织源码生成、原生编译和链接。手工构建命令与原生支持要求见[工具链参考](/zh/reference/toolchain/)。
 
 ## 清理部分初始化的对象
 

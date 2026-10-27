@@ -80,9 +80,15 @@ async function boundedDownload(url: URL, limit: number): Promise<Uint8Array<Arra
 }
 
 export async function loadCompilerAssets(base: URL): Promise<CompilerAssets> {
+  const asset = (name: string) => {
+    const url = new URL(name, base);
+    const revision = import.meta.env?.COMPILER_REVISION;
+    if (revision) url.searchParams.set('v', revision);
+    return url;
+  };
   const [wasm, crafts] = await Promise.all([
-    boundedDownload(new URL('carven.wasm', base), maxWasmBytes),
-    boundedDownload(new URL('crafts.json', base), maxCraftsBytes),
+    boundedDownload(asset('carven.wasm'), maxWasmBytes),
+    boundedDownload(asset('crafts.json'), maxCraftsBytes),
   ]);
   const module = await WebAssembly.compile(wasm);
   // The compiler gets WASI capabilities only; it cannot call browser/network APIs.
@@ -111,6 +117,7 @@ export function validateInput(
   }
   if (
     action !== 'run' &&
+    action !== 'test' &&
     action !== 'check' &&
     action !== 'compile' &&
     action !== 'format' &&
@@ -228,11 +235,13 @@ export async function executeWasi(
   const args =
     action === 'run'
       ? ['carven', 'interpret', '--max-steps', '100000', 'main.cv']
-      : action === 'compile'
-        ? ['carven', 'compile', '-o', 'generated', 'main.cv']
-        : action === 'ast' || action === 'tokens'
-          ? ['carven', 'dump', action, 'main.cv']
-          : ['carven', action, 'main.cv'];
+      : action === 'test'
+        ? ['carven', 'interpret', '--tests', '--max-steps', '100000', 'main.cv']
+        : action === 'compile'
+          ? ['carven', 'compile', '--no-query', '-o', 'generated', 'main.cv']
+          : action === 'ast' || action === 'tokens'
+            ? ['carven', 'dump', action, 'main.cv']
+            : ['carven', action, 'main.cv'];
   const root = filesystem(source, assets.files);
   const wasi = new WASI(
     args,

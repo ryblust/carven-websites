@@ -116,6 +116,98 @@
   padding-top: var(--space-9);
 }
 
+.project-build {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  align-items: start;
+  gap: var(--space-8);
+  padding-bottom: var(--space-9);
+  border-bottom: 1px solid var(--line);
+  scroll-margin-top: var(--header-height);
+}
+
+.project-build-examples {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.project-build-copy,
+.project-build-source {
+  min-width: 0;
+}
+
+.project-build-description {
+  margin-top: var(--space-5);
+  color: var(--ink-emphasis);
+  font-size: var(--text-md);
+  line-height: var(--body-leading);
+}
+
+.project-build-commands {
+  margin-top: var(--space-6);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.project-build-commands > p,
+.project-build-files > p {
+  margin-bottom: var(--space-2);
+  color: var(--quiet);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+}
+
+.project-build-commands pre {
+  margin: 0;
+  line-height: 1.9;
+}
+
+.project-build-requirements {
+  margin-top: var(--space-4);
+  color: var(--quiet);
+  font-size: var(--text-sm);
+  line-height: var(--body-leading);
+}
+
+.project-build-source .code-window-bar {
+  min-height: 48px;
+}
+
+.project-build-code pre {
+  margin: 0;
+  padding: var(--space-5);
+  overflow-x: auto;
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  scrollbar-width: none;
+}
+
+.project-build-code pre::-webkit-scrollbar {
+  display: none;
+}
+
+.project-build-files {
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--line);
+  background: var(--bg-soft);
+}
+
+.project-build-files code {
+  color: var(--ink-emphasis);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .project-build {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-7);
+  }
+}
+
 #why-carven {
   padding-top: 64px;
   scroll-margin-top: var(--header-height);
@@ -416,6 +508,14 @@
   overflow: auto;
   overscroll-behavior-x: contain;
   contain: layout paint;
+}
+
+.showcase-code :is(.why-code-block, .code-window-result, .showcase-details) {
+  scrollbar-width: none;
+}
+
+.showcase-code :is(.why-code-block, .code-window-result, .showcase-details)::-webkit-scrollbar {
+  display: none;
 }
 
 .why-code-block pre {

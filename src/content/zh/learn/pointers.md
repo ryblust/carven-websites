@@ -14,15 +14,11 @@ source: docs/language/pointers.md
 
 ```carven run
 fn restock(target: ptr<&i32>, amount: i32) {
-    if target != nullptr {
-        *target += amount;
-    }
+    if target != nullptr => *target += amount;
 }
 
 fn level(source: ptr<i32>) -> i32 {
-    if source == nullptr {
-        return 0;
-    }
+    if source == nullptr => return 0;
     return *source;
 }
 
@@ -32,7 +28,7 @@ restock(nullptr, 2);
 println(stock, level(addressof(stock)), level(nullptr));
 ```
 
-运行 `carven address.cv`，输出 `9 9 0`。空地址的 restock 不修改存储，level 对空地址返回零。`addressof(&stock)` 里的 `&` 和 Write 实参一样请求写访问，所以 stock 必须是 `var`；改成 `let stock` 会报告 `CV-ACCESS-IMMUTABLE`。取地址的对象必须是命名绑定、字段或元素这样的位置：`addressof(1 + 2)` 这类临时值会被拒绝，也没有 `addressof(&&stock)`。
+运行 `carven run address.cv`，输出 `9 9 0`。空地址的 restock 不修改存储，level 对空地址返回零。`addressof(&stock)` 里的 `&` 和 Write 实参一样请求写访问，所以 stock 必须是 `var`；改成 `let stock` 会报告 `CV-ACCESS-IMMUTABLE`。取地址的对象必须是命名绑定、字段或元素这样的位置：`addressof(1 + 2)` 这类临时值会被拒绝，也没有 `addressof(&&stock)`。
 
 刚取得的地址非空，所以在创建处写 `*addressof(stock)` 不需要检查。两个辅助函数接收的是普通指针参数，调用者可能传入 `nullptr`，因此它们在解引用前各自检查。
 
@@ -70,7 +66,7 @@ Write 调用可能修改保存地址的变量或字段，编译器便不再认�
 
 复制 ptr 只会复制地址；Take ptr 会使原来的指针变量不可用。两者都不释放所指对象，其他指针副本也不会自动变成空指针。非空只说明地址不是 nullptr，不代表所指对象仍然存活。
 
-addressof 不延长目标的生命周期。函数返回 `addressof(local)` 不会被 Carven 拒绝，但函数返回后这个地址就悬空了。转移一个值后，不要再使用之前取得的该值地址，即使原变量后来又被赋值。原生目标释放后，也不要继续解引用。其他指针操作见[指针参考](/zh/reference/pointers/)。
+`addressof` 不延长目标的生命周期。函数返回 `addressof(local)` 不会被 Carven 拒绝，但函数返回后这个地址就悬空了。转移一个值后，不要再使用之前取得的该值地址，即使原变量后来又被赋值。原生目标释放后，也不要继续解引用。其他指针操作见[指针参考](/zh/reference/pointers/)。
 
 ## 练习
 

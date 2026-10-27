@@ -6,19 +6,19 @@ lesson: 29
 source: docs/language/io.md
 ---
 
-`std::io` covers two common tasks: write values to stdout or stderr, and read process input as bytes, complete text, or lines. Printing uses synchronous calls; reads return async operations that must be awaited. The framing helpers assemble records when input arrives in chunks.
+`std::io` covers two common tasks: write values to `stdout` or `stderr`, and read process input as bytes, complete text, or lines. Printing uses synchronous calls; reads return async operations that must be awaited. The framing helpers assemble records when input arrives in chunks.
 
 ## Capabilities and imports
 
 Printing and `stdin` are available by default. Import other declarations when
 naming them.
 
-| Capability                                | API                                      |
-| ----------------------------------------- | ---------------------------------------- |
-| Standard output and error                 | `print`, `println`, `eprint`, `eprintln` |
-| Asynchronous standard input               | `stdin`, `Stdin`, `Read<T>`, `IOError`   |
-| Line boundaries in a complete byte buffer | `ByteLines`, `LineBoundary`              |
-| Incremental bounded byte records          | `LineFramer`, `FrameError`               |
+| Capability                                | API                                          |
+| ----------------------------------------- | -------------------------------------------- |
+| Standard output and error                 | `print`, `println`, `eprint`, `eprintln`     |
+| Asynchronous standard input               | `stdin`, `Stdin`, `ReadResult<T>`, `IOError` |
+| Line boundaries in a complete byte buffer | `ByteLines`, `LineBoundary`                  |
+| Incremental bounded byte records          | `LineFramer`, `LineFrameError`               |
 
 ## Printing
 
@@ -34,28 +34,30 @@ eprintln("status", "ready"); // Written to stderr.
 
 Import these source declarations from `std::io` when naming them. They have no default name bindings; the source function `stdin` is a default.
 
-| Type           | Contract                                                                                                                               |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `Read<T>`      | Payload enum: `Data(T)` or nullary `End`                                                                                               |
-| `IOError`      | Payload enum: `System(i32)`, `InputTooLarge(usize)`, `InvalidUTF8(UTF8Error)`; import `UTF8Error` from `std::utf` when naming its type |
-| `LineBoundary` | Payload enum: `Line(usize, usize, bool)` or nullary `End`; start, exclusive end, LF-present flag                                       |
-| `FrameError`   | Payload enum: `TooLong(usize)`, `Truncated`, `Finished`; `TooLong` carries the configured limit                                        |
-| `Stdin`        | Class containing input configuration; methods below                                                                                    |
-| `ByteLines`    | Class containing a traversal offset; methods under [byte framing](#byte-framing)                                                       |
-| `LineFramer`   | Class owning a pending byte record; methods under [byte framing](#byte-framing)                                                        |
+| Type             | Contract                                                                                                                               |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `ReadResult<T>`  | Payload enum: `Data(T)` or nullary `End`                                                                                               |
+| `IOError`        | Payload enum: `System(i32)`, `InputTooLarge(usize)`, `InvalidUTF8(UTF8Error)`; import `UTF8Error` from `std::utf` when naming its type |
+| `LineBoundary`   | Payload enum: `Line(usize, usize, bool)` or nullary `End`; start, exclusive end, LF-present flag                                       |
+| `LineFrameError` | Payload enum: `TooLong(usize)`, `Truncated`, `Finished`; `TooLong` carries the configured limit                                        |
+| `CarriageReturn` | Numeric enum: `Preserve` or `Strip`; controls CR before LF                                                                             |
+| `IncompleteLine` | Numeric enum: `Return` or `Reject`; controls unfinished input at EOF                                                                   |
+| `Stdin`          | Class containing input configuration; methods below                                                                                    |
+| `ByteLines`      | Class containing a traversal offset; methods under [byte framing](#byte-framing)                                                       |
+| `LineFramer`     | Class owning a pending byte record; methods under [byte framing](#byte-framing)                                                        |
 
 ## Standard input
 
 `Stdin::new()` and `stdin()` construct equivalent configuration handles. Completed reads own their returned data.
 
-| Operation                                    | Success                                                       | Nominal failure |
-| -------------------------------------------- | ------------------------------------------------------------- | --------------- |
-| `Stdin::new() -> Stdin` / `stdin() -> Stdin` | Default input configuration                                   | None            |
-| `input.read(max_bytes: usize)`               | `Read<Vector<u8>>`: a chunk of at most `max_bytes`, or `.End` | `IOError`       |
-| `input.read_all(limit: usize)`               | `Vector<u8>` through EOF, including empty input               | `IOError`       |
-| `input.read_text(limit: usize)`              | Owned, validated `String` through EOF                         | `IOError`       |
-| `input.read_line()`                          | `Read<String>`: an owned line, or `.End`                      | `IOError`       |
-| `input.with_line_limit(limit: usize)`        | A new handle with the selected line content byte limit        | None            |
+| Operation                                    | Success                                                             | Nominal failure |
+| -------------------------------------------- | ------------------------------------------------------------------- | --------------- |
+| `Stdin::new() -> Stdin` / `stdin() -> Stdin` | Default input configuration                                         | None            |
+| `input.read(max_bytes: usize)`               | `ReadResult<Vector<u8>>`: a chunk of at most `max_bytes`, or `.End` | `IOError`       |
+| `input.read_all(limit: usize)`               | `Vector<u8>` through EOF, including empty input                     | `IOError`       |
+| `input.read_text(limit: usize)`              | Owned, validated `String` through EOF                               | `IOError`       |
+| `input.read_line()`                          | `ReadResult<String>`: an owned line, or `.End`                      | `IOError`       |
+| `input.with_line_limit(limit: usize)`        | A new handle with the selected line content byte limit              | None            |
 
 All methods use a Read receiver. `with_line_limit` copies the configuration and returns `Stdin`; it does not modify the original handle. The four read methods are synchronous factories returning `Operation<Success, throw IOError>`, where `Success` is the table's successful result. Factory construction has no typed failure; `IOError` is delivered when the operation executes.
 
@@ -122,13 +124,13 @@ caught as `IOError`. Input waits have no implicit elapsed-time limit.
 
 ## Byte framing
 
-| Call                                            | Access       | Result               | Failure                                |
-| ----------------------------------------------- | ------------ | -------------------- | -------------------------------------- |
-| `ByteLines::new()`                              | Associated   | `ByteLines`          | None                                   |
-| `cursor.next(bytes: [u8])`                      | Write cursor | `LineBoundary`       | None; invalid cursor offset terminates |
-| `LineFramer::new(limit: usize, strip_cr: bool)` | Associated   | `LineFramer`         | None                                   |
-| `framer.feed(bytes: [u8])`                      | Write framer | `Vector<Vector<u8>>` | `FrameError`                           |
-| `framer.finish(allow_partial: bool)`            | Write framer | `Read<Vector<u8>>`   | `FrameError`                           |
+| Call                                                             | Access       | Result                   | Failure                                |
+| ---------------------------------------------------------------- | ------------ | ------------------------ | -------------------------------------- |
+| `ByteLines::new()`                                               | Associated   | `ByteLines`              | None                                   |
+| `cursor.next(bytes: [u8])`                                       | Write cursor | `LineBoundary`           | None; invalid cursor offset terminates |
+| `LineFramer::new(limit: usize, carriage_return: CarriageReturn)` | Associated   | `LineFramer`             | None                                   |
+| `framer.feed(bytes: [u8])`                                       | Write framer | `Vector<Vector<u8>>`     | `LineFrameError`                       |
+| `framer.finish(incomplete: IncompleteLine)`                      | Write framer | `ReadResult<Vector<u8>>` | `LineFrameError`                       |
 
 All these functions and methods are `const fn`. `ByteLines` stores no input; its copies traverse independently from the copied offset. `LineFramer` copies own independent pending bytes and framing state.
 
@@ -142,15 +144,33 @@ to traverse a complete buffer. `LineBoundary::Line(start, end, terminated)` iden
 marks exhaustion. Empty input and a final LF do not create phantom records. Keep
 the same buffer for a traversal.
 
-`LineFramer::new(limit, strip_cr)` owns an unfinished record. `feed(bytes)?` returns
-owning byte vectors for every completed LF record, including empty records. The
-limit counts bytes before LF, including a possible CR. If `strip_cr` is true,
-remove CR immediately before LF from the delivered record. Arbitrary block splits
-are allowed. A bare CR at EOF is content.
+`LineFramer::new(limit, carriage_return: CarriageReturn)` owns an unfinished record.
+`feed(bytes)?` returns owning byte vectors for every completed LF record, including
+empty records. The limit counts bytes before LF, including a possible CR.
+`CarriageReturn::Strip` removes CR immediately before LF from the delivered record;
+`Preserve` retains it. Arbitrary block splits are allowed. A bare CR at EOF is content.
 
-`finish(allow_partial)?` seals the attempt and returns `Read::End` or one remaining
-`Read::Data` record. Disallowing an unfinished record reports `FrameError::Truncated`.
+`finish(incomplete: IncompleteLine)?` seals the attempt and returns `ReadResult::End`
+or one remaining `ReadResult::Data` record. `IncompleteLine::Return` delivers the
+unfinished record; `Reject` reports `LineFrameError::Truncated`.
 An oversized record reports `TooLong(limit)` and seals the attempt; already
 returned records remain independent, while records from the failing feed call
 are not delivered. Further feed or finish calls report `Finished`. A zero limit
 accepts empty LF records. All framing methods also support static execution.
+
+## Asynchronous protocol output
+
+For synchronous protocol output, `write_stdout(text: str) -> void throw IOError` writes verbatim text and flushes before returning. This `const fn` reports system failures as `IOError::System(code)`. Import it from `std::io`; it has no default binding.
+
+`write_stdout_async(&&bytes)` returns a cold operation that writes every byte to
+`stdout` or throws `IOError::System(code)`. It retains the owned vector while
+waiting for output readiness, so other tasks continue under pipe backpressure.
+One write may be active at a time; concurrent writes fail with a system busy code.
+Serialize frames with a writer task and a bounded channel.
+
+Cancellation stops the remaining write; a prefix already written stays in the
+stream. On POSIX, the provider temporarily enables nonblocking `stdout` and restores
+its original flags on completion or cancellation. On Windows, synchronous standard
+handles use a cancellable native write; the operation retains its buffer until the
+write has finished or cancellation has completed. Do not mix it with buffered printing,
+`write_stdout`, or external writes while active.

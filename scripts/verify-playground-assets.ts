@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseCrafts } from '../src/playground/wasi.ts';
+import compiler from '../carven-version.json' with { type: 'json' };
 
 const directory = resolve('public/playground-assets');
 
@@ -16,6 +17,8 @@ try {
   parseCrafts(JSON.parse(crafts));
   if (!/^[0-9a-f]{40}(?:-dirty)?$/.test(revision.trim()))
     throw new Error('Invalid packaged compiler revision.');
+  if (!process.env.CARVEN_SOURCE_DIR && revision.trim() !== compiler.revision)
+    throw new Error('Packaged compiler differs from carven-version.json. Run pnpm sync.');
   console.log('WASM compiler assets ready.');
 } catch (error) {
   throw new Error(

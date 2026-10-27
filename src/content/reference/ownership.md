@@ -71,7 +71,7 @@ immutable owner and may itself be taken.
 temporary; taking a member or element of a still-available owner is invalid.
 
 ```carven run
-fn relay<T>(&&value: T) -> T => &&value;
+fn relay<T>(&&value: T) -> T => value;
 
 var values: Vector<i32> = [1, 2, 3];
 let moved = relay(&&values);
@@ -98,10 +98,7 @@ type. Taking a complete owner makes that binding unavailable, including for a
 copyable type. Analysis checks this state transition; the selected C++ operation
 must preserve its ownership and observable effects.
 
-Returning a named owner requires copying that value. Use `return &&owner;` to transfer it; returning does not select Take implicitly. `CV-LINT-RETURN-COPY` reports a returned owner whose type can hold Carven
-`String` storage by value, excluding zero-length array elements, and has no
-native value component, when Take is admitted at that return in every analyzed
-call context. Writing `return &&owner;` states the transfer and removes the warning.
+Returning a name that denotes a complete local `let` or `var` owner or a Take parameter of the current function or lambda implicitly transfers that owner. Parentheses and expression bodies follow the same rule. An active borrow that prevents Take also prevents this return. Read and Write parameters, captures, fields, and indexed elements retain their ordinary access. To return an independent copy of a copyable owner with type `T`, write `return owner as T;`.
 
 Every use of an unavailable binding is invalid. A complete plain assignment to
 a `var` is the only operation that may restore it, and restoration happens only

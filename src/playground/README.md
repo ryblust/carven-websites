@@ -15,15 +15,26 @@ pnpm sync
 pnpm preview
 ```
 
-`pnpm sync` fetches the compiler's latest remote `main` into `.deps/carven/`, then
+`pnpm sync` fetches the exact compiler commit in `carven-version.json` into `.deps/carven/`, then
 builds the Playground, builds the website, runs tests, and checks generated links.
 It stops on failure. Local changes in `.deps/carven/` stop synchronization.
+The current baseline is Carven 0.1.0 at
+`5b10565902fa0a8b614e0c0238311cbf044d8da6`. This command updates compiler assets;
+review and update the authored English and Chinese articles separately.
 
 To use a local compiler checkout without fetching:
 
 ```sh
 CARVEN_SOURCE_DIR=../carven pnpm sync
 ```
+
+`CARVEN_SOURCE_DIR` uses that checkout as it is, including uncommitted changes,
+without fetching or switching commits. Keep it set when building or previewing
+assets from a local revision that differs from the pinned commit.
+
+For a release update, change the version and full commit in `carven-version.json`,
+review the English and Chinese content against that commit, then run `pnpm sync`.
+Default builds require assets from the pinned commit.
 
 Set `WASI_SDK_PATH` to use an SDK installed elsewhere. For website-only development,
 run `pnpm dev` with the existing compiler assets. Restart `pnpm preview` after a
@@ -41,13 +52,16 @@ wrapper without fetching source.
 
 The compiler wrapper builds the website's `xmake.lua` target with C++26, Release
 mode and ThinLTO. CI installs Xmake 3.1.1 and WASI SDK 34, runs `pnpm sync`, and
-uploads the website output for deployment.
+uploads the website output for deployment. Native release archives cannot replace
+this WASI build; the 0.1.0 release does not include a browser compiler.
 
 Outputs in `public/playground-assets/` include `carven.wasm`, `crafts.json`,
 `compiler-revision.txt`, and license notices. `crafts.json` contains the standard
 library's `.cv` sources and is regenerated after each Playground build. Website
 builds validate these assets. The footer displays the packaged compiler revision;
 `-dirty` identifies a checkout with local changes.
+Browser asset requests include that revision to avoid reusing a previous
+release's cached compiler or Crafts.
 
 Record local synchronization baselines and validation evidence in the Git-ignored
 `content-sync.md` at the repository root.
@@ -62,17 +76,36 @@ asset loading and filesystem access; `client.ts` manages worker sessions.
 | --------- | ----------------------------------- |
 | `check`   | Diagnostics and compile-time output |
 | `run`     | Interpreter output                  |
+| `test`    | Runtime and async test results      |
 | `compile` | Generated C++ files                 |
 | `tokens`  | Lexer token dump                    |
 | `ast`     | Parsed syntax-tree dump             |
 | `format`  | Formatted source                    |
 
-The interpreter runs supported Carven source, including async composition, JSON,
-and SIMD. Standard input is empty; clocks and timers use the WASI host. Native
-C++ calls and TCP providers require a native build. Use Generate C++ to export
-source for a native toolchain.
+Choose the Tests result view to run ordinary `test` and `async test` blocks.
+The async-tests preset opens that view automatically. Static tests run during
+analysis; runtime tests run sequentially with separate execution budgets and
+skip the program entry. The result includes test output, diagnostics, and the
+pass/fail summary. A failed test returns a nonzero exit status.
 
-Diagnostics includes captured standard output. Output shows stdout from Check,
+The presets include TOML-driven request summaries with hash collections,
+captured pricing policies, a bounded producer/consumer channel, a virtual-file
+release report, and async test suites. Older preset links remain available.
+Native project builds use the local toolchain; follow the project-build link
+beside the editor for multi-file build, run, and test commands.
+
+The interpreter runs supported Carven source, including closures, async
+composition, JSON, TOML, collections, channels, and SIMD. Standard input is empty;
+clocks and timers use the WASI host. The browser registers portable native
+bindings for collections, channels, the virtual filesystem, and output. Files are
+isolated to the invocation's memory; output uses an immediate browser sink.
+The browser cannot launch processes, call arbitrary native C++, or use TCP
+providers. Use the local toolchain and the host bindings those programs require.
+Use Generate C++ to export source for a native toolchain. Generation uses
+`--no-query` because Craft build queries require a child process; its manifest
+does not contain queried native build settings.
+
+The Diagnostics view includes captured standard output. Output shows stdout from Check,
 Run or Generate C++; syntax dumps and formatted source use their respective views.
 
 Each request owns a worker, WASI instance and filesystem. Cancellation terminates

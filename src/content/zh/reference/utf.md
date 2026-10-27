@@ -10,7 +10,7 @@ source: docs/language/utf.md
 
 ## 公开文本类型
 
-显式使用以下类型名时，从 `std::utf` 导入。结构体字段均公开。`UTF8ErrorKind` 和 `TextError` 是底层类型默认为 `i32` 的数值枚举；`UTF8DecodeResult` 和 `SplitField` 是载荷枚举。
+显式使用以下类型名时，从 `std::utf` 导入。结构体字段均公开。`UTF8ErrorKind` 和 `TextError` 是底层类型默认为 `i32` 的数值枚举；`UTF8DecodeResult` 和 `TextSplitField` 是载荷枚举。
 
 | 类型                 | 字段或分支                                                                                      |
 | -------------------- | ----------------------------------------------------------------------------------------------- |
@@ -20,10 +20,10 @@ source: docs/language/utf.md
 | `UTF8Encoded`        | `bytes: [u8; 4]`、`width: usize`                                                                |
 | `UTF8DecodeResult`   | `End`、`Scalar(char, usize)`；后者携带标量及其编码字节数                                        |
 | `TextError`          | 无载荷的 `OutOfBounds`、`NotCharBoundary`、`EmptySeparator`                                     |
-| `Split`              | `found: bool`、`before: str`、`after: str`                                                      |
-| `SplitField`         | `Value(str)`、`End`                                                                             |
+| `TextSplit`          | `found: bool`、`before: str`、`after: str`                                                      |
+| `TextSplitField`     | `Value(str)`、`End`                                                                             |
 
-`UTF8Validator` 和 `SplitCursor` 是内部状态私有的源码类，构造与方法见下文。
+`UTF8Validator` 和 `TextSplitCursor` 是内部状态私有的源码类，构造与方法见下文。
 
 ## 编码、解码与校验
 
@@ -50,7 +50,7 @@ source: docs/language/utf.md
 数组实参可隐式转为字节视图；文本通过 `.bytes` 提供字节切片。调用者能保证存储生命周期且无需复制时，使用 `str::from_utf8`。
 
 ```carven run
-import std::utf using { to_string, UTF8Error };
+import std::utf using { to_string, UTF8Error }
 
 fn main() throw UTF8Error {
     let bytes: [u8; 4] = [0xf0, 0x9f, 0x98, 0x80];
@@ -67,16 +67,17 @@ fn main() throw UTF8Error {
 | ----------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | `substring(text: str, start: usize, end: usize) -> str throw TextError` | 借用半开 UTF-8 字节区间；两端必须是标量边界                      |
 | `starts_with(text: str, prefix: str) -> bool`                           | 无分配地比较前缀                                                 |
-| `split_once(text: str, separator: str) -> Split throw TextError`        | 借用 `before` 与 `after`；`found` 区分找到分隔符与未找到         |
+| `ends_with(text: str, suffix: str) -> bool`                             | 精确比较后缀字节，空后缀始终匹配                                 |
+| `split_once(text: str, separator: str) -> TextSplit throw TextError`    | 借用 `before` 与 `after`；`found` 区分找到分隔符与未找到         |
 | `split(text: str, separator: str) -> Vector<String> throw TextError`    | 返回独立保存各字段文本的 String 集合，保留开头、相邻及末尾空字段 |
 | `lines(text: str) -> Vector<String>`                                    | 按 LF 或 CRLF 分行，保留空行；末尾分隔符不增加一行               |
 
 子串偏移计 UTF-8 字节，不是 Unicode 标量或字素簇。逆序或越界报告 `OutOfBounds`，位于标量内部报告 `NotCharBoundary`。分割使用精确且非空的 UTF-8 分隔符；空分隔符报告 `EmptySeparator`，不做空白规范化。未找到时 `found` 为 false，`before` 为完整输入，`after` 为空。
 
-`Split` 与子串借用原输入，包括经辅助函数返回的结果。`split` 与 `lines` 复制字段，可独立于输入保留。空文本产生一个空分割字段、零行；单独 CR 是内容，只移除 LF 前的 CR。
+`TextSplit` 与子串借用原输入，包括经辅助函数返回的结果。`split` 与 `lines` 复制字段，可独立于输入保留。空文本产生一个空分割字段、零行；单独 CR 是内容，只移除 LF 前的 CR。
 
 ```carven
-import std::utf using { split_once, TextError };
+import std::utf using { split_once, TextError }
 
 fn setting(text: str) -> String throw TextError {
     let pair = split_once(text, "=")?;
@@ -89,7 +90,7 @@ fn setting(text: str) -> String throw TextError {
 本页源码函数和方法均为 `const fn`，遵循[常量结果与预算规则](/zh/reference/constants/)。编码数组可以提供保留为常量的切片：
 
 ```carven
-import std::utf using { encode_utf8, encoded_bytes, validate_utf8 };
+import std::utf using { encode_utf8, encoded_bytes, validate_utf8 }
 
 const encoded = encode_utf8('😀');
 const bytes = encoded_bytes(encoded);
@@ -111,11 +112,11 @@ C0/C1 与 F5..FF 报告 `InvalidLead`。空输入、内嵌 NUL 与 Unicode 非�
 
 ## 借用分割游标
 
-| 调用                                     | 访问与结果                                                      |
-| ---------------------------------------- | --------------------------------------------------------------- |
-| `SplitCursor::new()`                     | 新 `SplitCursor`，无类型化失败                                  |
-| `cursor.next(text: str, separator: str)` | Write 游标；返回借用 `text` 的 `SplitField`，可抛出 `TextError` |
+| 调用                                     | 访问与结果                                                          |
+| ---------------------------------------- | ------------------------------------------------------------------- |
+| `TextSplitCursor::new()`                 | 新 `TextSplitCursor`，无类型化失败                                  |
+| `cursor.next(text: str, separator: str)` | Write 游标；返回借用 `text` 的 `TextSplitField`，可抛出 `TextError` |
 
-`SplitCursor::new()` 创建只保存偏移的游标。显式调用 `cursor.next(text, separator)?`；`SplitField::Value(str)` 借用输入，`SplitField::End` 标记结束。空输入产生一个空字段，开头、相邻和末尾空字段均保留。支持多字节分隔符；即便游标已经结束，空分隔符仍报告 `EmptySeparator`。
+`TextSplitCursor::new()` 创建只保存偏移的游标。显式调用 `cursor.next(text, separator)?`；`TextSplitField::Value(str)` 借用输入，`TextSplitField::End` 标记结束。空输入产生一个空字段，开头、相邻和末尾空字段均保留。支持多字节分隔符；即便游标已经结束，空分隔符仍报告 `EmptySeparator`。
 
 一次遍历保持同一文本和分隔符。游标不持有文本，也不能识别输入是否被替换；返回字段需要原始底层存储存活且有效。游标副本从相同偏移独立遍历，游标与方法均支持静态执行。

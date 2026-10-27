@@ -6,7 +6,7 @@ lesson: 17
 source: docs/language/constants.md
 ---
 
-Use `carven check main.cv` to evaluate the static roots in each complete example. Examples with top-level runtime statements can also run with `carven main.cv`.
+Use `carven check main.cv` to evaluate the static roots in each complete example. Examples with top-level runtime statements can also run with `carven run main.cv`.
 
 ## Execution stages
 
@@ -19,7 +19,7 @@ stage. A constant keeps the completed result of that execution for later use. Th
 
 ## Constant declarations
 
-A top-level `const` creates a module-scope name for one typed constant:
+A top-level `const` creates a module-scope name for one typed constant. Use a bare declaration for constants shared within the project and `private` for a module-local helper. The `export` declaration below illustrates a public Craft API consumed from another Craft:
 
 ```carven
 private const radix = 10;
@@ -124,12 +124,7 @@ at all in an unselected `const if` arm or an empty `const for`. Runtime control
 does not select it, so a block in an uncalled function, a runtime branch, or a
 runtime loop executes once for its body, and runtime execution never repeats it.
 
-Blocks use the shared static-execution type and operation rules, including
-mutable locals, control flow, aggregates, text, `const fn` calls and failure
-recovery. Type checking, ownership and lifetime validation apply to their
-statements. External C++ construction and calls are outside this execution
-subset. Execution runs in the Carven executor; it does not compile or execute
-C++ providers.
+Blocks use the shared static-execution type and operation rules, including mutable locals, control flow, aggregates, text, `const fn` calls, and failure recovery. Type checking, ownership, and lifetime validation still apply. The Carven executor can invoke native operations only through typed bindings explicitly provided by its host; it does not compile or load C++ provider bodies. Native default construction remains unsupported.
 
 A block has its own lexical scope. Module constants and the enclosing body's
 static bindings (local constants, `const` parameters, and `const for` indices)
@@ -164,11 +159,12 @@ runtime code or test entries.
 
 The constant initializer, const block, or const test that starts one compile-time evaluation is called its static root. Calls made during that evaluation share the root's limits. Executor admission means the operations are supported during compilation; freezing means the completed result can be retained afterwards. They are separate checks.
 
-Static roots can call only explicitly declared `const fn` Carven
-functions, including in local and module constant initializers, array extents,
-`const` blocks, and static tests. Arguments follow the declared type and access
-rules. Every function body undergoes ordinary type, effect, ownership, and
-lifetime validation. A `const fn` can also run at runtime; a runtime call remains
+Static roots can call named Carven functions declared `const fn` and lambdas
+whose bodies satisfy static execution requirements. This applies in local and
+module constant initializers, array extents, `const` blocks, and static tests.
+Arguments follow the declared type and access rules. Every function body undergoes
+ordinary type, effect, ownership, and lifetime validation. A `const fn` can also run
+at runtime; a runtime call remains
 an ordinary call even when all arguments happen to be known.
 
 A `const fn` can modify local state and perform supported host effects, including input, printing, clock queries, and waiting. A static root uses the compiler host's resources; an ordinary runtime call uses the program's resources. Declaring the function performs no execution.
@@ -179,10 +175,12 @@ not acquire that qualification.
 The compiler checks the contract before execution; executing an entire function
 in the static stage does not make its ordinary parameters static inputs.
 
-Each `const fn` definition checks its signature and semantically reachable
-operations for executor capability. Reachable source calls, including through local
-callable bindings, must select a known `const fn`. Unsupported operations or
-unproven callees produce `CV-CONST-ADMISSION` at the definition.
+Each `const fn` definition checks its semantically reachable operations for
+executor capability. Reachable named source calls must select a
+known `const fn`. Known lambda bodies are checked recursively under the same
+rules. An unknown callable-view parameter does not establish static capability.
+Unsupported operations or unproven callees produce `CV-CONST-ADMISSION` at the
+definition.
 Operations after an unconditional return still receive ordinary semantic checks
 but need no executor capability. Paths
 selected by call arguments remain part of the definition's capability check.
@@ -205,7 +203,7 @@ const fn label(count: i32) -> String {
     for index in 0..count {
         result.append_format(f"{index:02}");
     }
-    return &&result;
+    return result;
 }
 
 const name: String = label(3);
@@ -226,9 +224,9 @@ The following operations can execute in a static root, subject to their ordinary
 | Text                                        | Owning construction, `as_str`, byte and character views, byte indexing and byte/character iteration, `append`, `append_format`, `push`, `clear`, and supported interpolation    |
 | Slices                                      | Queries, indexing, subslicing, iteration, and borrowing live array or Vector backing                                                                                            |
 | SIMD                                        | Operations admitted by the [SIMD execution contracts](/reference/simd/)                                                                                                         |
-| Calls                                       | Known `const fn` targets, including local bindings of named `const fn`, and admitted built-in operations                                                                        |
+| Calls                                       | Known `const fn` targets, their local bindings, statically admitted lambdas, and admitted built-in operations                                                                   |
 
-Construction evaluates initializers in source order. Empty array literals require an expected element type. Nested fields, elements, and enum payloads must themselves support execution. Class operations retain their private representation permissions and must have `const fn` capability. Native C++ construction and calls remain outside this execution subset, including native functions declared C++ `constexpr`.
+Construction evaluates initializers in source order. Empty array literals require an expected element type. Nested fields, elements, and enum payloads must support execution. Class operations retain their private representation permissions and require `const fn` capability. Existing opaque native values can pass through functions and aggregates without invoking a native operation. Reached native calls, member access, and conversions require explicit host bindings; C++ `constexpr` alone does not supply one. Opaque native values cannot freeze as constants.
 
 Read arguments containing array, Vector, or String storage observe their contents after all arguments have evaluated. Other supported values are snapshotted at their argument position. Interpolation holes follow the same order: owning String operands are read after all holes complete, and borrowed views keep their backing protected. See [Read values and aliases](/reference/ownership/#read-values-and-aliases) and [formatting](/reference/formatting/).
 
@@ -240,7 +238,9 @@ Local pointer creation, Read and Write calls, and dereference of live local targ
 
 Erased pointer formatting produces `const@nonnull` or `const@null`. These strings can freeze as ordinary text. Non-null erased pointers, including erased C string pointers, remain local execution values.
 
-Static and interpreted execution support direct function-to-view adaptation and same-type view copies. Widening an existing view requires a target borrow and is unsupported for live elements. Empty arrays need no element adaptation. An unresolved adaptation identity produces an execution diagnostic. Calls through callable values require an executable Carven body.
+Static and interpreted execution support closure owners, value and Write captures, callable views, and failure widening. Copies retain value snapshots and Write aliases; widened views borrow their source storage and observe later rebinding. Array adaptation applies elementwise. Calls select a closure's object before arguments; every capture use reads the object's current value or Write target. Closure owners and views remain local to execution and cannot freeze, while their completed invocation results follow ordinary constant-value rules.
+
+Standard filesystem, process, and compiler operations marked `const fn` execute through the compiler host. They observe its working directory and environment and perform effects in the selected stage. Native handles and intermediate results stay local to execution and cannot freeze. Analysis that permits host effects records them as uncacheable; type dependency queries reject host observations.
 
 ## Compile-time failure contracts
 
@@ -313,15 +313,15 @@ Retaining an array or constructing a constant subslice counts element references
 
 Calls in one static root share these limits:
 
-| Limit                                     | Value   |
-| ----------------------------------------- | ------- |
-| Execution steps                           | 100,000 |
-| Nested calls                              | 128     |
-| One text value                            | 1 MiB   |
-| Accumulated text construction and copying | 8 MiB   |
-| Nested slots in one aggregate             | 65,536  |
-| Aggregate levels                          | 64      |
-| Accumulated slot constructions and copies | 524,288 |
+| Limit                                     | Value     |
+| ----------------------------------------- | --------- |
+| Execution steps                           | 1,000,000 |
+| Nested calls                              | 128       |
+| One text value                            | 1 MiB     |
+| Accumulated text construction and copying | 8 MiB     |
+| Nested slots in one aggregate             | 65,536    |
+| Aggregate levels                          | 64        |
+| Accumulated slot constructions and copies | 524,288   |
 
 Slots include sequence and tuple elements, struct fields, and enum payloads. Appending charges added bytes; queries do not copy their receiver. Retained arrays and constant subslices charge their element references. These limits measure work rather than live memory. Format specifications also have a nesting limit.
 

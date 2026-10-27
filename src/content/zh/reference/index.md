@@ -20,6 +20,7 @@ source: docs/language/README.md
 
 | 要查什么                                                         | 从这里开始                                                                                                                                                                                                              |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 用 `build.cv` 定义原生目标并构建、运行、测试、查询               | [构建原生项目](/zh/learn/build/)、[构建 API](/zh/reference/build/)                                                                                                                                                      |
 | `let`、`var`、`const` 怎么声明                                   | [变量声明与作用域](/zh/reference/bindings/)                                                                                                                                                                             |
 | `+`、`&&`、`as`、`..` 怎么求值                                   | [运算符与表达式](/zh/reference/operators/)、[类型与转换](/zh/reference/types/)                                                                                                                                          |
 | `if`、`while`、`for`、`match` 怎么写                             | [分支、循环与控制转移](/zh/reference/control/)                                                                                                                                                                          |
@@ -40,6 +41,8 @@ source: docs/language/README.md
 
 知道具体拼写时，可以先查[关键字索引](/zh/reference/keywords/)。顶部「搜索文档」可以按标题、主题、关键字或常用符号查找，例如 `let`、`break`、`?`。
 
+要从完整程序理解这些规则，可先[运行 TOML 汇总、闭包策略、字节通道、文件报告和异步测试](/zh/reference/library/#试用完整程序)，再回到对应参考页核对契约。[项目构建](/zh/reference/build/)还展示本地 `build.cv`、原生目标和查询。
+
 ## 默认规则与上下文行为
 
 一些效果由已知类型或外围边界决定。遇到「这句代码还会做什么」的问题，可以从下面这些规则查起。
@@ -50,7 +53,7 @@ source: docs/language/README.md
 | 省略类型或使用前导 `.Case`、`{ ... }`        | [局部期望类型规则](/zh/reference/types/#期望类型)、[上下文构造](/zh/reference/aggregates/#上下文构造)                            |
 | 把 String 或数组用在需要借用视图的位置       | [上下文适配](/zh/reference/types/#上下文适配)，以及借用的生命周期                                                                |
 | 后面的实参修改了前面的 Read 实参存储         | [Read 值与别名](/zh/reference/ownership/#read-值与别名)                                                                          |
-| 返回具名所有者，或用它初始化另一个所有者     | [复制与显式 Take](/zh/reference/ownership/#take-与可用性)                                                                        |
+| 返回具名所有者，或用它初始化另一个所有者     | [复制、返回转移与 Take](/zh/reference/ownership/#take-与可用性)                                                                  |
 | catch 列表只覆盖部分失败                     | [try 边界的剩余失败传播](/zh/reference/failures/#部分捕获与剩余集合)                                                             |
 | 具名文本或切片视图后面不再使用               | [文本借用持续时间](/zh/reference/text/#借用与修改)、[切片持续时间](/zh/reference/slices/#借用持续时间)；最后一次使用不会结束借用 |
 | 用字面量实参调用 `const fn`                  | [编译期能力](/zh/reference/functions/#编译期能力)；普通调用仍在运行时执行                                                        |
@@ -59,7 +62,7 @@ source: docs/language/README.md
 
 ## 标准库、工具链与附录
 
-用[标准 API 索引](/zh/reference/library/)选择文本、SIMD、异步、时间、输入、JSON 和网络 API。[编译器命令](/zh/reference/cli/)和[构建与原生集成](/zh/reference/toolchain/)说明如何调用工具、生成和接入产物。
+用[标准 API 索引](/zh/reference/library/)选择文本、集合、TOML、JSON、文件、进程、通道、异步、时间、SIMD 和网络 API。[编译器命令](/zh/reference/cli/)和[构建与原生集成](/zh/reference/toolchain/)说明如何调用工具、生成和接入产物。
 
 [形式语法附录](/zh/reference/grammar/)列出完整 EBNF；[诊断目录](/zh/reference/diagnostics/)帮助按编译器代码定位错误。
 
@@ -91,3 +94,5 @@ source: docs/language/README.md
 Carven 检查已知 Carven 存储的可用性、访问标记和借用关系。对于外部地址的存活、C++ 指针保留、迭代器失效、重入及原生未定义行为，提供者和调用者须遵守相应的 C++ 契约。
 
 外部存储与并发的责任边界，见 [C++ 访问与生命周期](/zh/reference/interop/#访问与生命周期)。
+
+新增标准模块覆盖[映射与集合](/zh/reference/collections/)、[字节通道](/zh/reference/channel/)、[文件系统](/zh/reference/fs/)、[进程](/zh/reference/process/)、[TOML](/zh/reference/toml/)及[项目构建与查询](/zh/reference/build/)。

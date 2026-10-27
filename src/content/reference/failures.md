@@ -99,9 +99,7 @@ Report a failure with `throw`, then propagate it with `?` or handle it with `try
 struct Missing { key: String }
 
 fn lookup(key: str) -> i32 throw Missing {
-    if key == "answer" {
-        return 42;
-    }
+    if key == "answer" => return 42;
     throw Missing { key: key as String };
 }
 

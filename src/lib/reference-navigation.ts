@@ -252,6 +252,56 @@ const groups = [
     title: { zh: '标准模块', en: 'Standard modules' },
     entries: [
       {
+        path: '/reference/collections/',
+        keywords: ['HashMap', 'HashSet', 'Digest', 'hash', 'collections', '哈希', '集合'],
+      },
+      {
+        path: '/reference/channel/',
+        keywords: [
+          'ByteChannel',
+          'ChannelReadResult',
+          'send',
+          'receive',
+          'close',
+          'channel',
+          '通道',
+        ],
+      },
+      {
+        path: '/reference/fs/',
+        keywords: [
+          'fs',
+          'FileReader',
+          'read_text',
+          'write_text',
+          'DirectoryScan',
+          'FileError',
+          '文件',
+          '路径',
+        ],
+      },
+      {
+        path: '/reference/process/',
+        keywords: ['process', 'spawn', 'Process', 'run', 'environment', '进程', '环境'],
+      },
+      {
+        path: '/reference/toml/',
+        keywords: ['toml', 'TOMLValue', 'TOMLError', 'parse', '配置'],
+      },
+      {
+        path: '/reference/build/',
+        keywords: [
+          'build.cv',
+          'std::build',
+          'project',
+          'BuildTarget',
+          'TargetKind',
+          'carven build',
+          '构建',
+          '项目',
+        ],
+      },
+      {
         path: '/reference/async/',
         keywords: [
           'async',
@@ -280,7 +330,7 @@ const groups = [
           'sleep',
           'sleep_until',
           'Timeout',
-          'RangeError',
+          'TimeRangeError',
           'ns',
           'us',
           'ms',
@@ -293,25 +343,33 @@ const groups = [
         keywords: [
           'stdin',
           'Stdin',
-          'Read',
+          'ReadResult',
           'IOError',
           'read_line',
           'read_all',
           'read_text',
           'ByteLines',
           'LineFramer',
-          'FrameError',
+          'LineFrameError',
           '输入',
           '分帧',
         ],
       },
       {
         path: '/reference/json/',
-        keywords: ['json', 'Value', 'JSONError', 'ValueError', 'parse_bytes', 'to_json', '序列化'],
+        keywords: [
+          'json',
+          'JSONValue',
+          'JSONError',
+          'JSONValueError',
+          'parse_bytes',
+          'to_json',
+          '序列化',
+        ],
       },
       {
         path: '/reference/net/',
-        keywords: ['net', 'TCP', 'ConnectionView', 'NetError', 'write_all', '网络', '连接'],
+        keywords: ['net', 'TCP', 'NetConnectionView', 'NetError', 'write_all', '网络', '连接'],
       },
       { path: '/reference/utf/', keywords: ['utf', 'unicode', 'encoding', '编码'] },
       {

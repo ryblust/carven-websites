@@ -12,6 +12,7 @@ import { homeCodeLoaders } from '../generated/home-tokens';
 import initialStep from '../generated/home-tokens/asyncWorkflow';
 import { homeShowcase } from '../content/home-showcase';
 import type { CodeStep } from '../lib/code-tokens';
+import compiler from '../../carven-version.json' with { type: 'json' };
 import '../styles/home.css';
 
 type CodeLanguage = 'carven' | 'cpp' | 'cpp26';
@@ -89,27 +90,24 @@ export default function Home({ locale }: { locale: Locale }) {
       path: '/reference/async/',
     },
     {
-      label: t('编译期异步', 'Async before runtime'),
-      title: t(
-        '启动、取消、关闭，同一流程在两个阶段运行。',
-        'Start, cancel, close. Run the same flow in both stages.',
-      ),
+      label: t('捕获与泛型回调', 'Captures and generic callbacks'),
+      title: t('复制报价策略，保留创建时的费用。', 'Copy a pricing policy. Keep its captured fee.'),
       detail: t(
-        '子任务让计数增加一次，父任务随后请求取消，等待关闭，再取走计数。同一个 const async fn 在编译期和运行时执行，const test 检查编译期结果。',
-        'The child increments a counter once. Its parent requests cancellation, waits for closure, then takes the counter. The same const async fn runs during compilation and at runtime, with const test checking the compile-time result.',
+        'quote 返回拥有费用副本的闭包。复制策略后把外部费用从 3 改成 10，原策略仍报 103，新策略报 110。泛型 apply 从实参和回调推导输入、输出类型，静态测试直接调用已知闭包。',
+        'quote returns a closure owning a copy of its fee. After copying the policy, change the outer fee from 3 to 10: the original quote stays 103 and the new one is 110. Generic apply infers its input and result types; a static test calls a known closure directly.',
       ),
       note: t(
-        '把 Take 移到 close 前，观察借用冲突诊断。',
-        'Move Take before close to see the borrow-conflict diagnostic.',
+        '修改静态测试中的费用，先保留预期报价，观察编译期检查。',
+        'Change the fee in the static test without changing its expected price to see the compile-time check.',
       ),
       ...homeShowcase[1],
-      standard: 'C++23',
-      result: 'compile time: 1; runtime: 1',
+      standard: 'C++20',
+      result: 'Original quote: 103\nUpdated quote: 110',
       comparison: t(
-        'C++23 对照显式驱动 constexpr 状态机，用 static_assert 检查编译期结果。Carven 用同一个 const async fn 和异步驱动器表达流程，并检查子任务的活动借用。',
-        'The C++23 version explicitly drives a constexpr state machine and checks the compile-time result with static_assert. Carven expresses the flow with one const async fn and an async driver, with checks on the child’s active borrows.',
+        'C++20 对照使用捕获 lambda、泛型函数模板和 constexpr 工厂。两者都复制费用并用静态断言检查已知调用；Carven 的 fn(T) -> U 参数是借用的可调用视图。',
+        'The C++20 version uses a captured lambda, a function template, and a constexpr factory. Both copy the fee and check a known call before runtime; Carven’s fn(T) -> U parameter is a borrowed callable view.',
       ),
-      path: '/learn/async/',
+      path: '/reference/closures/',
     },
     {
       label: t('JSON 配置', 'Customize JSON'),
@@ -135,24 +133,27 @@ export default function Home({ locale }: { locale: Locale }) {
       path: '/reference/json/',
     },
     {
-      label: t('编译期生成', 'Build at compile time'),
-      title: t('帮助文本，在程序运行前准备好。', 'Prepare the help text before the program runs.'),
+      label: t('TOML 与哈希集合', 'TOML and hash containers'),
+      title: t(
+        '读取配置，筛选请求，按服务汇总。',
+        'Read config. Filter requests. Count by service.',
+      ),
       detail: t(
-        '从命令定义生成帮助文本，只列出启用的命令。照常写循环、判断和插值；Carven 在编译期构造并检查结果，运行时直接使用静态文本。',
-        'Build help text from command definitions, listing only enabled commands. Use ordinary loops, conditions, and interpolation; Carven builds and checks the result at compile time, leaving static text ready for runtime use.',
+        '编译期解析 TOML 配置，运行时把忽略名单放进 HashSet，再用 HashMap 统计达到耗时门槛的请求。具名构造用 ... 补齐默认字段，返回局部结果时自动转移所有权。',
+        'Parse TOML during compilation. At runtime, put ignored services in a HashSet and count requests at or above the latency threshold with a HashMap. Default omitted record fields with ...; returning the local result transfers its ownership.',
       ),
       note: t(
-        '启用 trace，先不改测试预期：const test 会在编译时指出差异。',
-        'Enable trace without updating the expected text. const test catches the difference at compile time.',
+        '把 minimum 改为 30，或把 web 加入 ignored，观察计数变化。',
+        'Set minimum to 30 or add web to ignored, then compare the counts.',
       ),
       ...homeShowcase[3],
-      result: 'Commands:\n  build: Compile the project\n  run: Run the program',
+      result: 'api: 2\nweb: 1\naccepted: 3',
       comparison: t(
-        'Carven 用 str 保留静态文本视图；C++20 的 freeze 根据结果长度创建数组，再提供 string_view。const test 和 static_assert 分别检查生成的完整文本。',
-        'Carven retains a static text view with str. The C++20 freeze helper sizes an array from the result and provides a string_view. const test and static_assert check the complete generated text.',
+        'C++20 对照用 toml++ 3.4.0 在运行时解析，再用标准库 unordered_map、unordered_set 和保留首次出现顺序的 vector。Carven 的 TOML 和哈希容器来自标准库，HashMap 自带插入顺序。',
+        'The C++20 version parses at runtime with toml++ 3.4.0 and uses std::unordered_map, std::unordered_set, and a vector for first-seen order. Carven supplies TOML and hash containers in its standard library; HashMap retains insertion order.',
       ),
       standard: 'C++20',
-      path: '/features/compile-time/',
+      path: '/reference/collections/',
     },
     {
       label: t('静态特化', 'Specialize runtime code'),
@@ -166,7 +167,7 @@ export default function Home({ locale }: { locale: Locale }) {
         'Change invoice to INV-20x8. The first result becomes false.',
       ),
       ...homeShowcase[4],
-      result: 'INV-2048 → true\nINV-20x8 → false',
+      result: 'true false',
       comparison: t(
         'C++20 对照用 index_sequence 和参数包展开位置，C++26 用 template for；两者用 if constexpr 选择检查。Carven 对应使用 const for 和 const if。',
         'The C++20 version expands positions with index_sequence and a parameter pack; C++26 uses template for. Both select checks with if constexpr. Carven uses const for and const if.',
@@ -209,7 +210,7 @@ export default function Home({ locale }: { locale: Locale }) {
         'Remove BadPort from the port contract, then choose Check to see how the compiler reports the omission.',
       ),
       ...homeShowcase[6],
-      result: 'ok 9000 · missing 8080 · Denied: denied · Bad port: 9x00',
+      result: 'ok 9000\nmissing 8080\nDenied: denied\nBad port: 9x00',
       comparison: t(
         'C++23 用 expected、variant 和显式分支组织成功与失败。Carven 根据传播和恢复行为检查函数声明的失败集合。',
         'The C++23 version represents success and failure with expected, variant, and explicit branches. Carven checks the declared failure set against propagation and recovery.',
@@ -250,7 +251,9 @@ export default function Home({ locale }: { locale: Locale }) {
       <section className="home-intro" aria-labelledby="home-heading">
         <div className="home-hero-copy">
           <p className="eyebrow">
-            {t('原生的力量 · 清晰的表达', 'Native power · Clear expression')}
+            <a href={`https://github.com/ryblust/carven/releases/tag/v${compiler.version}`}>
+              {t(`Carven ${compiler.version} 已发布`, `Carven ${compiler.version} is available`)}
+            </a>
           </p>
           <h1 id="home-heading">
             <span className="sr-only">Carven</span>
@@ -263,8 +266,8 @@ export default function Home({ locale }: { locale: Locale }) {
           </p>
           <p className="home-lead">
             {t(
-              '用清晰的数据归属、失败处理和异步任务编写原生应用，编译为 C++。',
-              'Write native applications with explicit ownership, typed failures, and async tasks. Compile to C++.',
+              '用清晰的数据归属、失败处理和异步任务编写原生应用，也用 Carven 编写构建流程。编译为 C++，接入你的原生工具链。',
+              'Write native applications with explicit ownership, typed failures, and async tasks. Describe their build in Carven and compile to C++.',
             )}
           </p>
           <div className="home-actions">
@@ -275,12 +278,101 @@ export default function Home({ locale }: { locale: Locale }) {
             >
               <UIIcon icon={Play} /> {t('在线运行示例', 'Run an example')}
             </Link>
-            <Link className="button button-secondary" to={localizedPath('/learn/', locale)}>
-              {t('开始学习', 'Start learning')}
+            <Link
+              className="button button-secondary"
+              to={localizedPath('/learn/first-program/', locale)}
+            >
+              {t(`安装 Carven ${compiler.version}`, `Install Carven ${compiler.version}`)}
             </Link>
           </div>
         </div>
         <Sketch />
+      </section>
+
+      <section
+        id="project-build"
+        className="home-section project-build"
+        aria-labelledby="project-build-heading"
+      >
+        <div className="project-build-copy">
+          <header className="section-head">
+            <p className="eyebrow">{t('构建与内联测试', 'Builds and inline tests')}</p>
+            <h2 id="project-build-heading">
+              {t(
+                '测试就在源码里，一条命令运行。',
+                'Keep tests in your source. Run them with one command.',
+              )}
+            </h2>
+            <p>
+              {t(
+                '把 test 写在业务函数旁。build.cv 也是普通的 Carven 程序，本地编译器解释执行它，用 std::build 描述项目目标。',
+                'Write test blocks beside the business functions they check. build.cv is also an ordinary Carven program, interpreted locally with std::build to describe the project targets.',
+              )}
+            </p>
+          </header>
+          <p className="project-build-description">
+            {t(
+              '同一个 shop 应用目标列出业务源码。carven test 编译并运行其中的内联测试，用测试入口替换应用入口；正常运行应用不会执行这些测试。',
+              'List the business source files in the same shop application target. carven test builds and runs their inline tests, replacing the application entry with a test entry. Normal application runs leave those tests unexecuted.',
+            )}
+          </p>
+          <div className="project-build-commands terminal">
+            <p>{t('在项目目录中执行', 'Run from the project directory')}</p>
+            <pre>
+              <code>
+                <span className="prompt">carven build</span>
+                {'\n'}
+                <span className="prompt">carven run</span>
+                {'\n'}
+                <span className="prompt">carven test</span>
+                {'\n'}
+                <span className="prompt">carven query</span>
+              </code>
+            </pre>
+          </div>
+          <p className="project-build-requirements">
+            {t(
+              '在本地安装 Carven 工具链和支持 C++20 的编译器。carven query 提供编辑器发现项目源码所用的目标模型；构建脚本中的普通代码仍会执行。',
+              'Install Carven and a C++20 compiler locally. carven query supplies the target model used by editor source discovery; ordinary code in the build script still executes.',
+            )}
+          </p>
+          <div className="home-actions">
+            <Link className="button button-primary" to={localizedPath('/learn/build/', locale)}>
+              {t('创建这个项目', 'Create this project')} <span aria-hidden="true">→</span>
+            </Link>
+            <Link className="text-link" to={localizedPath('/reference/build/', locale)}>
+              {t('构建 API 参考', 'Build API reference')}
+            </Link>
+          </div>
+        </div>
+        <div className="project-build-examples">
+          <div className="code-window project-build-source">
+            <div className="code-window-bar">
+              <span>src/pricing.cv</span>
+              <span>{t('业务源码与内联测试', 'Business code and inline tests')}</span>
+            </div>
+            <div
+              className="project-build-code"
+              data-filename="src/pricing.cv"
+              dangerouslySetInnerHTML={{ __html: homeExamples.projectInlineTests }}
+            />
+          </div>
+          <div className="code-window project-build-source">
+            <div className="code-window-bar">
+              <span>build.cv</span>
+              <span>{t('项目声明', 'Project declaration')}</span>
+            </div>
+            <div
+              className="project-build-code"
+              data-filename="build.cv"
+              dangerouslySetInnerHTML={{ __html: homeExamples.projectBuild }}
+            />
+            <div className="project-build-files">
+              <p>{t('完整的三个文件见构建教程', 'The build lesson includes all three files')}</p>
+              <code>build.cv · src/pricing.cv · src/main.cv</code>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section id="why-carven" className="home-section showcase" aria-labelledby="showcase-heading">
@@ -433,12 +525,15 @@ export default function Home({ locale }: { locale: Locale }) {
           <header className="section-head">
             <p className="eyebrow">{t('继续使用你的 C++ 工具链', 'Native integration')}</p>
             <h2 id="native-heading">
-              {t('写 Carven，用 C++ 工具链构建。', 'Write Carven. Build with your C++ tools.')}
+              {t(
+                '用 Carven 构建，也接入现有工程。',
+                'Build with Carven. Integrate with existing projects.',
+              )}
             </h2>
             <p>
               {t(
-                'Carven 检查访问、所有权和失败契约，生成可直接阅读的 C++ 源码。接下来，由你的 C++ 工具链完成编译、链接和优化。',
-                'Carven checks access, ownership, and failure contracts, then generates C++ source you can inspect. Your C++ toolchain compiles, links, and optimizes it.',
+                'Carven 检查访问、所有权和失败契约，生成可直接阅读的 C++ 源码。用 build.cv 管理原生构建，或通过已安装的 Xmake、CMake 适配器接入现有目标；C++ 工具链完成编译、链接与优化。',
+                'Carven checks access, ownership, and failure contracts, then generates C++ source you can inspect. Use build.cv for native builds or the installed Xmake and CMake adapters for existing targets. Your C++ toolchain compiles, links, and optimizes the result.',
               )}
             </p>
           </header>
@@ -480,7 +575,7 @@ export default function Home({ locale }: { locale: Locale }) {
               {t('写第一个程序', 'Write your first program')} <span aria-hidden="true">→</span>
             </Link>
             <Link className="text-link" to={localizedPath('/use-cases/', locale)}>
-              {t('接入现有工程', 'Integrate with your project')} <span aria-hidden="true">→</span>
+              {t('应用示例', 'Example applications')} <span aria-hidden="true">→</span>
             </Link>
           </div>
         </header>
@@ -501,7 +596,7 @@ export default function Home({ locale }: { locale: Locale }) {
             <p>{t('3 · 在该目录运行', '3 · Run from that directory')}</p>
             <pre>
               <code>
-                <span className="prompt">carven main.cv</span>
+                <span className="prompt">carven run main.cv</span>
                 {'\n'}
                 <span className="terminal-output">Answer: 42</span>
               </code>

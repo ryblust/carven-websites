@@ -64,7 +64,7 @@ var count: i32; // 编译错误：声明必须带初始化器。
 
 ## const
 
-`const` 初始化器必须能在编译期执行；调用 Carven 函数时，该函数必须声明为 `const fn`。类型检查、执行能力和执行预算都适用于初始化器。
+`const` 初始化器必须能在编译期执行；调用具名源码函数时，该函数必须声明为 `const fn`；已知 lambda 必须满足静态执行要求。类型检查、执行能力和执行预算都适用于初始化器。
 
 ```carven run
 const fn twice(value: i32) -> i32 => value * 2;

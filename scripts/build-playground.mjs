@@ -1,7 +1,7 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const source = resolve(root, process.env.CARVEN_SOURCE_DIR || '.deps/carven');
@@ -16,6 +16,19 @@ if (!existsSync(wrapper)) {
 }
 if (!existsSync(resolve(sdk, 'share/wasi-sysroot/share/libc++/v1/std.cppm'))) {
   throw new Error(`WASI SDK not found at ${sdk}. Install it there or set WASI_SDK_PATH.`);
+}
+
+if (!process.env.CARVEN_SOURCE_DIR) {
+  const compiler = JSON.parse(readFileSync(resolve(root, 'carven-version.json'), 'utf8'));
+  const revision = execFileSync('git', ['-C', source, 'rev-parse', 'HEAD'], {
+    encoding: 'utf8',
+  }).trim();
+  const changes = execFileSync('git', ['-C', source, 'status', '--porcelain'], {
+    encoding: 'utf8',
+  }).trim();
+  if (revision !== compiler.revision || changes) {
+    throw new Error('Compiler checkout differs from carven-version.json. Run pnpm sync.');
+  }
 }
 
 console.log(`Building Playground from ${source}`);

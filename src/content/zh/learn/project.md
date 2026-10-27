@@ -108,7 +108,7 @@ println("Paid:", paid.length(), "Total:", total);
 println("Stock:", inventory[0].remaining(), inventory[1].remaining());
 ```
 
-运行 `carven orders.cv` 或 `carven interpret orders.cv`，两者都输出：
+运行 `carven run orders.cv` 或 `carven interpret orders.cv`，两者都输出：
 
 ```text
 Backorder: 2 1
@@ -121,9 +121,9 @@ Stock: 1 0
 
 对照源码确认以下关系：
 
-- `Stock::purchase` 先检查数量、金额和可用库存，再修改数量。类型化失败保留原库存。乘法前先把两个 i32 操作数转换为 i64。
-- catalog 在编译期构造，inventory 保存可修改的独立副本。每张 Receipt 保存自己的商品名副本，因此不依赖这份库存继续存活。
-- 私有辅助函数 reserve 把 OutOfStock 恢复为 Backorder，并推断剩余失败。循环处理这些失败；后续请求失败时，之前成功的购买仍然有效。
+- `Stock::purchase` 先检查数量、金额和可用库存，再修改数量。类型化失败保留原库存。乘法前先把两个 `i32` 操作数转换为 `i64`。
+- catalog 在编译期构造，inventory 保存可修改的独立副本。每张 `Receipt` 保存自己的商品名副本，因此不依赖这份库存继续存活。
+- 私有辅助函数 reserve 把 `OutOfStock` 恢复为 `Backorder`，并推断剩余失败。循环处理这些失败；后续请求失败时，之前成功的购买仍然有效。
 
 ## 验证并扩展规则
 
@@ -148,8 +148,8 @@ const test "order limit is inclusive" {
 参照[测试课程](/zh/learn/testing/)，为以下情况补充普通测试：
 
 1. 零数量和超出金额上限分别报告预期失败载荷，并保留原库存。
-2. 成功购买后再次请求超出剩余库存的数量，得到携带请求量和可用量的 Backorder，剩余库存不变。
+2. 成功购买后再次请求超出剩余库存的数量，得到携带请求量和可用量的 `Backorder`，剩余库存不变。
 
-用 `carven --tests orders.cv` 或 `carven interpret --tests orders.cv` 运行补充的测试。
+用 `carven interpret --tests orders.cv` 运行补充的测试。验证原生执行时，把 `orders.cv` 加入[普通应用目标的源码](/zh/learn/testing/#运行原生项目测试)，再运行 `carven test`。
 
-进一步练习：增加补货方法，要求数量为正，并在修改前检查新数量是否在 i32 的取值范围内。测试成功更新和拒绝后库存不变的情况。[JSON 输入项目](/zh/learn/data-pipeline/)介绍如何用有大小限制的输入替换固定请求。
+进一步练习：增加补货方法，要求数量为正，并在修改前检查新数量是否在 `i32` 的取值范围内。测试成功更新和拒绝后库存不变的情况。[JSON 输入项目](/zh/learn/data-pipeline/)介绍如何用有大小限制的输入替换固定请求。

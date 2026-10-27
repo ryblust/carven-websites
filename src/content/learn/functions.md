@@ -18,7 +18,7 @@ fn discount(total: i32) => total - 3;
 println(discount(line_total(12, 3)));
 ```
 
-The output is `33`. Declarations and top-level statements can share a file: the functions are declarations, and the final `println` is the program entry. Ordinary parameter types are mandatory. `=> expression;` is an expression body: the function returns that expression's value. line_total states its `i32` result; discount infers `i32` from its expression. Expression bodies are the usual form for short calculations.
+The output is `33`. Declarations and top-level statements can share a file: the functions are declarations, and the final `println` is the program entry. Ordinary parameter types are mandatory. `=> expression;` is an expression body: the function returns that expression's value. `line_total` states its `i32` result; discount infers `i32` from its expression. Expression bodies are the usual form for short calculations.
 
 ## Return explicitly from a block
 
@@ -26,9 +26,7 @@ When a calculation needs several statements, write a block body. The last expres
 
 ```carven run
 fn delivery(total: i32) -> i32 {
-    if total >= 100 {
-        return 0;
-    }
+    if total >= 100 => return 0;
 
     return 8;
 }
@@ -50,7 +48,7 @@ The output is `8 0`. Choose a block when the function needs local steps or early
 
 ## Functions that perform an action
 
-Some functions perform an action instead of calculating a useful result. Their result type is void:
+Some functions perform an action instead of calculating a useful result. Their result type is `void`:
 
 ```carven run
 fn show_total(total: i32) => println("Total:", total);
@@ -58,9 +56,9 @@ fn show_total(total: i32) => println("Total:", total);
 show_total(36);
 ```
 
-The output is `Total: 36`. Call show_total as a statement because its purpose is printing. The compiler infers void, so `-> void` is optional. Use a block when an action needs several statements or an early `return;`.
+The output is `Total: 36`. Call show_total as a statement because its purpose is printing. The compiler infers `void`, so `-> void` is optional. Use a block when an action needs several statements or an early `return;`.
 
-void has one value, `()`, called unit. The async chapter uses it for operations without a business result.
+`void` has one value, `()`, called unit. The `async` chapter uses it for operations without a business result.
 
 ## Declaration order and calls
 
@@ -83,7 +81,7 @@ let (items, shipping) = price_and_delivery(amount((12, 3)));
 println(items, shipping, items + shipping);
 ```
 
-Save this as a separate program. It prints `36 8 44`. `(i32, i32)` states the types of the two positions. The pair passed to amount is one argument, not two separate arguments. Use a struct when names such as price and quantity should remain part of the value wherever it goes; use a tuple for a short local combination.
+Save this as a separate program. It prints `36 8 44`. `(i32, i32)` states the types of the two positions. The pair passed to `amount` is one argument, not two separate arguments. Use a struct when names such as price and quantity should remain part of the value wherever it goes; use a tuple for a short local combination.
 
 ## Exercise
 

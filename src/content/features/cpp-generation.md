@@ -12,24 +12,24 @@ When a module's data or function signature changes, a C++ project needs its decl
 The stream collector shows this with a report that owns the records it returns:
 
 ```carven
-export struct Report {
+struct Report {
     records: Vector<String>,
     total: usize,
     duplicates: usize
 }
 ```
 
-Its C++ provider returns a text view that is valid until the next read. Carven copies records it wants to keep into `String`, removes duplicates, and returns the completed report. `import(cpp)` declares the provider operation; `export(cpp)` exposes the collection function to the host. The [complete source](https://github.com/ryblust/carven/blob/main/examples/stream_collector/workflow.cv) shows both directions.
+Its C++ provider returns a text view that is valid until the next read. Carven copies records into `String`, deduplicates them with `HashSet<String>`, and returns the completed report. The set keeps first-seen insertion order. `import(cpp)` declares the provider operation; `export(cpp)` exposes the collection function to the host. The [complete source](https://github.com/ryblust/carven/blob/v0.1.0/examples/stream_collector/workflow.cv) shows both directions.
 
 ## Connect to an existing C++ project
 
 Use `import(cpp)` for the stream provider and `export(cpp)` for the collection entry. The [interop reference](/reference/interop/) covers these declarations, header imports, and inline C++ fragments.
 
-An `export(cpp)` function receives a self-contained API header under `carven/api/<canonical-module-path>.hpp`. The host includes it and calls the function in its `carven::api` module namespace. A concrete `import(cpp)` declaration also gets a `carven/providers` header with aliases for its signature types; C++ still supplies the provider declaration and implementation.
+An `export(cpp)` function receives a self-contained API header under `carven/api/<canonical-module-path>.hpp`. The host includes it and calls the function in its `carven::api` module namespace. A concrete `import(cpp)` declaration also gets a `carven/providers` header with aliases and a typed host contract for its signature. An import without an explicit native target receives an `invoke` declaration in its generated interface; an explicit target keeps its authored C++ declaration. C++ supplies the implementation. Signature types such as the bare `Report` need no ordinary `export` when the C++ API reaches them.
 
-The complete example includes a C++ host and provider. Follow the [stream collector build instructions](https://github.com/ryblust/carven/tree/main/examples/stream_collector) to build and run that project.
+The complete example includes a C++ host and provider. Follow the [stream collector build instructions](https://github.com/ryblust/carven/tree/v0.1.0/examples/stream_collector) to build and run that project.
 
-The host keeps its streams alive during collection and receives a report with independent strings. Xmake arranges source generation, native compilation, and linking. The [toolchain reference](/reference/toolchain/) gives manual build commands and native support requirements.
+The host keeps its streams alive during collection and receives a report with independent strings. `carven build` executes a project's ordinary `build.cv` plan. Existing C++ projects can instead use the installed Xmake or CMake adapter. Each consumer arranges source generation, native compilation, and linking from the compiler manifest. The [toolchain reference](/reference/toolchain/) gives manual build commands and native support requirements.
 
 ## Clean up partial initialization
 

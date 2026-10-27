@@ -23,11 +23,11 @@ The output is `36 5`. `unit_price` is declared with `let`, so it cannot be reass
 
 `tax_percent` is a `const`: its initializer must **complete at compile time**. Later uses refer to that computed value without creating a runtime variable.
 
-Every declaration needs an initializer. To evaluate an expression and discard its result, use `let _ = ...`. Writing `let ignored = ...` still creates a binding named `ignored`. Discarding the result does not skip evaluation or cleanup.
+Every `let`, `var`, or `const` binding needs an initializer. To evaluate an expression and discard its result, use `let _ = ...`. Writing `let ignored = ...` still creates a binding named `ignored`. Discarding the result does not skip evaluation or cleanup.
 
 ## Choose a type
 
-Unsuffixed integer literals default to `i32`, a signed 32-bit integer, and floating literals to `f64`. Write `: type` after a binding name to choose its type. Here `u8` is an unsigned 8-bit integer from 0 through 255, and `f32` is a 32-bit floating-point type. See the [type directory](/reference/types/) for other numeric types.
+Unsuffixed integer literals default to `i32`, a signed 32-bit integer, and floating literals to `f64`. Write `: type` after a binding name to choose its type. Here `u8` is an unsigned 8-bit integer from 0 through 255, and `f32` is a 32-bit floating-point type. See the [type reference](/reference/types/) for other numeric types.
 
 ```carven run
 let count: u8 = 12;
@@ -69,7 +69,7 @@ quantity += 1;
 println(unit_price * quantity);
 ```
 
-This prints `4800`. Both names are mutable because the declaration uses var. Use let when neither should change. The right-hand side runs once, and the number and nesting of names must match the tuple. `_` can stand in for an element you do not need. Later, functions and async operations will use tuples to return several results together.
+This prints `4800`. Both names are mutable because the declaration uses `var`. Use `let` when neither should change. The right-hand side runs once, and the number and nesting of names must match the tuple. `_` can stand in for an element you do not need. Later, functions and `async` operations will use tuples to return several results together.
 
 ## Exercise
 

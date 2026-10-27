@@ -100,7 +100,7 @@ assert(bounded.is_finite().all());
 `std::simd.bytes` 与 `std::simd.floats` 各自提供 `block_count` 和 `load_block`，签名与块字段见下表。`block_count` 包含不完整的尾块。尾部补零，填充通道标记为不活动；填充值可能匹配时，必须结合 `active` 掩码。`offset` 等于输入长度时得到空块。
 
 ```carven run
-import std::simd.bytes using { block_count, load_block };
+import std::simd.bytes using { block_count, load_block }
 
 const fn count_spaces(bytes: [u8]) -> usize {
     var count: usize = 0;
@@ -164,7 +164,7 @@ fn main() {
 `match_set(value, const set)` 分类 u8x32。`count_where`、`find_where`、`prefix_where` 查询完整切片，分别返回数量、首个匹配偏移、开头匹配长度；未找到为输入长度，空输入都为零。
 
 ```carven
-import std::simd.scan using { one_of, count_where, find_where };
+import std::simd.scan using { one_of, count_where, find_where }
 
 const punctuation = one_of("{}[]:,".bytes);
 const fn count_punctuation(text: str) -> usize => count_where(text.bytes, punctuation);

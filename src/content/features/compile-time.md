@@ -12,15 +12,15 @@ A program may start from the same configuration template on every run. Parse tha
 In this example, `const defaults` asks the compiler to parse the JSON now. `configure` is an ordinary function: it copies the template and applies runtime settings. `const test` checks that the parsed template starts with the expected worker count.
 
 ```carven run
-import std::json using { Value, ValueError };
+import std::json using { JSONValue, JSONValueError }
 
-const defaults = Value::parse(r#"{"workers":2,"tags":["stable"]}"#)?;
+const defaults = JSONValue::parse(r#"{"workers":2,"tags":["stable"]}"#)?;
 
-fn configure(workers: i64) -> String throw ValueError {
+fn configure(workers: i64) -> String throw JSONValueError {
     var config = defaults;
-    config.set("workers", &&Value::integer(workers))?;
+    config.set("workers", &&JSONValue::integer(workers))?;
     var tags = config.get("tags")?;
-    tags.push(&&Value::string("observed"))?;
+    tags.push(&&JSONValue::string("observed"))?;
     config.set("tags", &&tags)?;
     return config.to_json()?;
 }
@@ -28,27 +28,28 @@ fn configure(workers: i64) -> String throw ValueError {
 const test "the template starts with two workers" {
     check(try {
         defaults.get("workers")?.as_i64()? == 2
-    } catch { ValueError(_) => false });
+    } catch { JSONValueError(_) => false });
 }
 
 println(configure(8)?);
-println(defaults.to_json()?);
+let original = defaults;
+println(original.to_json()?);
 ```
 
-The runtime output shows the changed copy followed by the original template:
+The runtime output shows the changed copy followed by an unchanged copy of the template:
 
 ```text
 {"workers":8,"tags":["stable","observed"]}
 {"workers":2,"tags":["stable"]}
 ```
 
-`Value` owns its strings and collections, so the two trees can be changed independently. `get("tags")` also returns an independent child value; after appending a tag, `set` puts that changed child back into the configuration. `&&` transfers the child into the receiving container.
+`JSONValue` owns its strings and collections, so the two trees can be changed independently. `get("tags")` also returns an independent child value; after appending a tag, `set` puts that changed child back into the configuration. `&&` transfers the child into the receiving container.
 
 [Run the configuration example](/playground/#example=json-config), change the worker count or add a tag, and compare the two output lines. The JSON library's parsing, mutation, and writing functions are `const fn`, so the same operations can run in either stage.
 
 ## Retain typed results and copy them at runtime
 
-The parsed template retains its `Value` type and complete contents. `var config = defaults` makes an independent copy that the running program can modify. The same approach works for lookup tables built with loops and mutable locals. See [constant results and storage](/reference/constants/#constant-results-and-storage) for other result types and borrowed views.
+The parsed template retains its `JSONValue` type and complete contents. `var config = defaults` makes an independent copy that the running program can modify. The same approach works for lookup tables built with loops and mutable locals. See [constant results and storage](/reference/constants/#constant-results-and-storage) for other result types and borrowed views.
 
 ## Choose the execution stage
 
@@ -62,6 +63,6 @@ The [identifier example](/playground/#example=specialization) fixes `INV-DDDD` a
 
 ## Verify complete algorithms at both stages
 
-The [audio mixer](https://github.com/ryblust/carven/tree/main/examples/audio_mixer) uses one `const fn` for SIMD mixing, clipping, and statistics. Its static test checks the partial final block; runtime tests also cover invalid gains and mismatched tracks.
+The [audio mixer](https://github.com/ryblust/carven/tree/v0.1.0/examples/audio_mixer) uses one `const fn` for SIMD mixing, clipping, and statistics. Its static test checks the partial final block; runtime tests also cover invalid gains and mismatched tracks.
 
-The [async scope example](/playground/#example=async-scope) goes further: it starts a child, lets it run, cancels it, and waits for cleanup in both stages. Its static test checks the same result that the running program prints.
+The [async scope example](/playground/#example=async-scope) goes further: it starts a child, lets it run, cancels it, and waits for cleanup in both stages. Its static test checks the same result that the running program prints. Use `const async test` to await the flow during compilation and `async test` to await it in a runtime test. Each test owns a root and closes its children before the next test starts.

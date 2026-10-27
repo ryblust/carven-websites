@@ -13,6 +13,7 @@ import {
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import Playground from '../src/views/Playground';
 import Home from '../src/views/Home';
+import { homeExamples as authoredHomeExamples } from '../src/content/home-examples';
 import { playgroundExamples } from '../src/playground/examples';
 import type { Locale } from '../src/lib/i18n';
 import { executeWasi, parseCrafts, type CompilerAssets } from '../src/playground/wasi';
@@ -189,7 +190,7 @@ describe('Playground Check from edited source to visible result', () => {
     );
     await check(host);
     expect(host.querySelector('[aria-label="Standard output"]')?.textContent).toBe('准备 完成\n');
-    expect(host.querySelector('[aria-label="Diagnostics"]')?.textContent).toContain('check passed');
+    expect(host.querySelector('[aria-label="Diagnostics"]')).toBeNull();
     expect(
       [...host.querySelectorAll('[role="status"]')].some((status) =>
         status.textContent?.includes('Completed'),
@@ -220,6 +221,38 @@ describe('Playground Check from edited source to visible result', () => {
 
 describe('Homepage examples and Playground navigation', () => {
   it.each(['en', 'zh'] as const)(
+    'connects inline tests with native project builds before the %s feature examples',
+    async (locale: Locale) => {
+      const host = await mountPage(() => <Home locale={locale} />);
+      const build = host.querySelector<HTMLElement>('#project-build')!;
+      const showcase = host.querySelector<HTMLElement>('#why-carven')!;
+      expect(build).not.toBeNull();
+      expect(
+        build.compareDocumentPosition(showcase) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(build.querySelector('[data-filename="build.cv"] code')?.textContent).toBe(
+        authoredHomeExamples.projectBuild,
+      );
+      expect(build.querySelector('[data-filename="src/pricing.cv"] code')?.textContent).toBe(
+        authoredHomeExamples.projectInlineTests,
+      );
+      const commands = build.querySelector('.project-build-commands code')?.textContent;
+      expect(commands?.split('\n')).toEqual([
+        'carven build',
+        'carven run',
+        'carven test',
+        'carven query',
+      ]);
+      const links = [...build.querySelectorAll<HTMLAnchorElement>('a')].map(
+        (link) => new URL(link.href).pathname,
+      );
+      expect(links).toContain(locale === 'zh' ? '/zh/learn/build/' : '/learn/build/');
+      expect(links).toContain(locale === 'zh' ? '/zh/reference/build/' : '/reference/build/');
+      expect(build.querySelector('[data-runnable], .showcase-try')).toBeNull();
+    },
+  );
+
+  it.each(['en', 'zh'] as const)(
     'opens every %s homepage example in its shared preset',
     async (locale: Locale) => {
       const host = await mountPage(() => <Home locale={locale} />);
@@ -248,7 +281,7 @@ describe('Homepage examples and Playground navigation', () => {
     },
   );
 
-  it.each(['output', 'cpp'] as const)(
+  it.each(['output', 'tests', 'cpp'] as const)(
     'loads a preset from a direct link in the %s view',
     async (view) => {
       const example = playgroundExamples.find((item) => item.defaultView === view)!;
@@ -274,6 +307,65 @@ describe('Homepage examples and Playground navigation', () => {
       );
     },
   );
+
+  it('opens the async test preset in Test mode and reports results from edited source', async () => {
+    const host = await mountPlayground('/#example=async-tests');
+    expect((host.querySelector('#playground-result-view') as HTMLSelectElement).value).toBe(
+      'tests',
+    );
+    const test = [...host.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Test',
+    )!;
+    expect(test.disabled).toBe(false);
+    await act(async () => test.click());
+    expect(host.querySelector('.playground-result-body')?.textContent).toContain(
+      '2 passed; 0 failed',
+    );
+
+    await replaceSource(
+      host,
+      'async test "fails" { check(false); }\nprintln("entry must not run");',
+    );
+    const editor = host.querySelector<HTMLElement>('[aria-label="main.cv source editor"]')!;
+    await act(async () => {
+      editor.focus();
+      editor.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Enter',
+          code: 'Enter',
+          ctrlKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    expect((host.querySelector('#playground-result-view') as HTMLSelectElement).value).toBe(
+      'tests',
+    );
+    expect(host.querySelector('.playground-result-body')?.textContent).toContain(
+      '0 passed; 1 failed',
+    );
+    expect(host.querySelector('.playground-result-body')?.textContent).not.toContain(
+      'entry must not run',
+    );
+    expect(host.querySelector('.playground-status')?.textContent).toContain('Failed');
+  });
+
+  it('asks to run tests instead of displaying a previous program result', async () => {
+    const host = await mountPlayground('/#example=hello');
+    const run = [...host.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Run',
+    )!;
+    await act(async () => run.click());
+    expect(host.querySelector('.playground-result-body')?.textContent).toContain('Answer: 42');
+    const view = host.querySelector<HTMLSelectElement>('#playground-result-view')!;
+    await act(() => {
+      view.value = 'tests';
+      view.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(host.querySelector('.playground-result-body')?.textContent).toContain('Choose “Test”');
+    expect(host.querySelector('.playground-result-body')?.textContent).not.toContain('Answer: 42');
+  });
 
   it('generates native C++ with the editor shortcut and returns to Run when switching presets', async () => {
     const host = await mountPlayground('/#example=native-json');

@@ -52,6 +52,18 @@ println(status); // pass
 let result = if true { 1 }; // 编译错误：值形式缺少 else。
 ```
 
+语句形式的 `if` 分支可以用 `=>` 加一条简单语句，保留该语句的分号。每个分支可独立选择箭头或块体。
+
+```carven run
+fn nonnegative(value: i32) -> i32 {
+    if value < 0 => return 0;
+    return value;
+}
+println(nonnegative(-2)); // 0
+```
+
+箭头体可包含声明、赋值、更新、表达式、取消和控制转移。多条语句，或直接嵌套 `if`、循环、`match`、`try`、`const` 块时使用块体。`const if` 接受相同的语句分支；值形式的 `if` 仍使用花括号结果分支。
+
 ## while
 
 `while condition { ... }` 在每次迭代之前检查条件。条件为 `false` 时结束，可以一次也不执行。`while { ... }` 不检查条件，适用于明确在循环体内退出的流程。
@@ -69,9 +81,7 @@ while count < 3 {
 ```carven run
 var count = 0;
 while {
-    if count == 3 {
-        break;
-    }
+    if count == 3 => break;
     ++count;
 }
 println(count); // 3
@@ -127,9 +137,7 @@ println(total); // 6
 
 ```carven run
 for value in 0..10 {
-    if value == 3 {
-        break;
-    }
+    if value == 3 => break;
     println(value);
 }
 ```
@@ -142,9 +150,7 @@ for value in 0..10 {
 
 ```carven run
 for value in 0..5 {
-    if value % 2 == 0 {
-        continue;
-    }
+    if value % 2 == 0 => continue;
     println(value);
 }
 ```
@@ -161,7 +167,7 @@ fn describe(value: i32) -> str => if value == 0 { "zero" } else { "nonzero" };
 println(describe(3)); // nonzero
 ```
 
-返回具名所有者默认复制；需要转移时明确写 `return &&owner;`。结果推断、所有路径返回和失败处理规则见[函数](/zh/reference/functions/)，转移规则见[所有权](/zh/reference/ownership/)。
+返回具名所有者默认复制；需要转移时明确写 `return owner;`。结果推断、所有路径返回和失败处理规则见[函数](/zh/reference/functions/)，转移规则见[所有权](/zh/reference/ownership/)。
 
 ## match 与模式
 

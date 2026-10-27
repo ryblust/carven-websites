@@ -10,7 +10,7 @@ source: docs/language/functions.md
 
 有时算法相同，设置却不同，例如把每个值乘上选定倍数。闭包就是一个能记住所需状态的小函数。开头方括号里的捕获列表说明，它记住了哪些外部值。
 
-用 `carven main.cv` 运行本课示例。捕获闭包需要原生执行，解释器不执行这些闭包。
+用 `carven run main.cv` 或 `carven interpret main.cv` 运行本课示例。两种方式都支持源码闭包及其捕获。
 
 ```carven
 var factor = 2;
@@ -45,7 +45,7 @@ let scale = [factor](item: i32) => item * factor;
 println(apply(scale, 21), apply([](item) => item + 1, 21));
 ```
 
-输出 `42 22`。参数类型 `fn(i32) -> i32` 表示接收 `i32` 并返回 `i32` 的可调用对象。把 scale 传入时创建借用原闭包的可调用视图：apply 调用原来的闭包，闭包本身在整个调用期间保持存活。第二个调用直接传入不捕获外部值的 lambda，用 `[]` 表示空捕获列表；回调参数的期望类型为 item 提供 `i32`，因此可以省略注解。
+输出 `42 22`。参数类型 `fn(i32) -> i32` 表示接收 `i32` 并返回 `i32` 的可调用对象。把 `scale` 传入时创建借用原闭包的可调用视图：`apply` 调用原来的闭包，闭包本身在整个调用期间保持存活。第二个调用直接传入不捕获外部值的 lambda，用 `[]` 表示空捕获列表；回调参数的期望类型为 item 提供 `i32`，因此可以省略注解。
 
 ## 闭包对象与借用视图
 
@@ -61,9 +61,9 @@ let view: fn(i32) -> i32 = scale;
 println(copy(21), view(21));
 ```
 
-运行 `carven multiplier.cv`，输出 `42 42`。返回的闭包拥有 factor 的副本，因此在 multiplier 返回后仍可使用。copy 是另一个保存捕获值副本的闭包；view 借用 scale 的闭包对象。
+运行 `carven run multiplier.cv`，输出 `42 42`。返回的闭包拥有 factor 的副本，因此在 `multiplier` 返回后仍可使用。copy 是另一个保存捕获值副本的闭包；view 借用 `scale` 的闭包对象。
 
-view 不会延长 scale 的生命周期：视图存在时，scale 必须仍在作用域内，也不能被转移走。函数应返回闭包本身，而不是局部闭包的视图。返回的闭包通过 Write 捕获访问的变量，也必须比闭包活得久。
+view 不会延长 `scale` 的生命周期：视图存在时，`scale` 必须仍在作用域内，也不能被转移走。函数应返回闭包本身，而不是局部闭包的视图。返回的闭包通过 Write 捕获访问的变量，也必须比闭包活得久。
 
 保存视图与回调失败契约的规则见[可调用视图参考](/zh/reference/closures/)。
 
@@ -75,11 +75,9 @@ view 不会延长 scale 的生命周期：视图存在时，scale 必须仍在�
 fn select(values: [i32], accept: fn(i32) -> bool) -> Vector<i32> {
     var result: Vector<i32> = [];
     for value in values {
-        if accept(value) {
-            result.push(value);
-        }
+        if accept(value) => result.push(value);
     }
-    return &&result;
+    return result;
 }
 
 let minimum = 20;
@@ -90,6 +88,32 @@ println(selected.length(), selected[0]);
 
 输出 `2 21`。调用期间借用数组与回调；selected 保存筛选结果，在调用后仍可使用。策略闭包保存捕获的阈值副本。函数不在结果里保留可调用视图。
 
+## 在泛型函数中使用带类型的回调
+
+回调签名可以使用类型参数：
+
+```carven run
+fn apply<T, U>(value: T, callback: fn(T) -> U) -> U => callback(value);
+
+let suffix = "!";
+let label = [suffix](value: i32) => f"item {value}{suffix}";
+println(apply(42, label));
+```
+
+输出 `item 42!`。调用根据值和回调推断 `T` 为 `i32`，`U` 为 `String`。回调在 `apply` 调用期间仍是借用视图。
+
+已知 lambda 的函数体满足静态执行要求时，也可在编译期调用。把下面的独立程序保存后，运行 `carven check main.cv`：
+
+```carven
+const test "captured factor" {
+    let factor = 2;
+    let scale = [factor](value: i32) => value * factor;
+    check(scale(21) == 42);
+}
+```
+
+在该阶段调用具名源码函数时，仍需声明 `const fn`。后面的[编译期章节](/zh/learn/constants/)会进一步介绍静态执行。
+
 ## 练习
 
-在第二个程序里复制 advance，交替调用两个副本，count 仍共享。如果把捕获改成 `[count]`，体内赋值会被拒绝。用只读返回改写它，比较快照与别名。
+在第二个程序里复制 `advance`，交替调用两个副本，count 仍共享。如果把捕获改成 `[count]`，体内赋值会被拒绝。用只读返回改写它，比较快照与别名。

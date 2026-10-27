@@ -108,7 +108,7 @@ println("Paid:", paid.length(), "Total:", total);
 println("Stock:", inventory[0].remaining(), inventory[1].remaining());
 ```
 
-Run `carven orders.cv` or `carven interpret orders.cv`. Both print:
+Run `carven run orders.cv` or `carven interpret orders.cv`. Both print:
 
 ```text
 Backorder: 2 1
@@ -121,9 +121,9 @@ Stock: 1 0
 
 Check these relationships in the source:
 
-- `Stock::purchase` validates quantity, amount, and availability before changing stock. A typed failure leaves stock unchanged. Both i32 operands are widened before multiplication.
-- `catalog` is built during compilation; `inventory` owns a writable copy. Each Receipt owns its product name and can be retained independently of that inventory.
-- The private reserve helper recovers OutOfStock as a Backorder and infers its remaining failures. The loop handles those failures. Earlier successful purchases remain committed when a later request fails.
+- `Stock::purchase` validates quantity, amount, and availability before changing stock. A typed failure leaves stock unchanged. Both `i32` operands are widened before multiplication.
+- `catalog` is built during compilation; `inventory` owns a writable copy. Each `Receipt` owns its product name and can be retained independently of that inventory.
+- The private reserve helper recovers `OutOfStock` as a `Backorder` and infers its remaining failures. The loop handles those failures. Earlier successful purchases remain committed when a later request fails.
 
 ## Check and extend the rules
 
@@ -148,8 +148,8 @@ const test "order limit is inclusive" {
 Use the [testing lesson](/learn/testing/) to add ordinary tests for these cases:
 
 1. Zero quantity and an amount above the limit each report the expected failure payload and preserve stock.
-2. A purchase followed by an oversized request produces a Backorder with the requested and available counts, leaving the remaining stock unchanged.
+2. A purchase followed by an oversized request produces a `Backorder` with the requested and available counts, leaving the remaining stock unchanged.
 
-Run the added tests with `carven --tests orders.cv` or `carven interpret --tests orders.cv`.
+Run the added tests with `carven interpret --tests orders.cv`. To test native execution, include `orders.cv` in the [application target's sources](/learn/testing/#run-native-project-tests) and run `carven test`.
 
-For a further exercise, add a restock method. Require a positive quantity and check that the new count fits i32 before changing it. Test both a successful update and a rejection that preserves stock. The [JSON input project](/learn/data-pipeline/) shows how to replace fixed requests with bounded input.
+For a further exercise, add a restock method. Require a positive quantity and check that the new count fits `i32` before changing it. Test both a successful update and a rejection that preserves stock. The [JSON input project](/learn/data-pipeline/) shows how to replace fixed requests with bounded input.

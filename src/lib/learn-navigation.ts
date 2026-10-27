@@ -25,7 +25,7 @@ const groups = [
   {
     id: 'projects',
     title: { zh: '练习与项目', en: 'Practice and projects' },
-    chapters: ['project', 'data-pipeline', 'workflow', 'lsp'],
+    chapters: ['project', 'data-pipeline', 'build', 'workflow', 'lsp'],
   },
 ] as const;
 

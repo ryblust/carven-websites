@@ -37,7 +37,7 @@ Item {
 
 ## 从默认值开始
 
-替换第一个例子的最后三行，保留 Item 和 total：
+替换第一个例子的最后三行，保留 `Item` 和 `total`：
 
 ```carven
 let item = Item {};
@@ -55,13 +55,13 @@ Item {
 }
 ```
 
-空花括号将整个 Item 默认初始化，两个整数都是零。如果开始指定字段，就必须写全：`Item { price: 12 }` 不会自动补 quantity。
+空花括号将整个 `Item` 默认初始化，两个整数都是零。只指定部分字段时，用末尾的 `...` 默认初始化其余字段：`Item { price: 12, ... }` 的 quantity 是零。`...` 必须位于最后，后面不加逗号。不写该标记时，`Item { price: 12 }` 仍不完整。
 
 零或空确实表示初始状态时，使用默认值；有业务含义的数据仍应明确赋值。各类值的默认初始化规则见[聚合类型参考](/zh/reference/aggregates/)。
 
 ## 按期望类型构造结构体
 
-类型已知时，构造可以省略类型名。再次替换 total 之后的几行：
+类型已知时，构造可以省略类型名。再次替换 `total` 之后的几行：
 
 ```carven
 fn sample() -> Item => { price: 12, quantity: 3 };
@@ -71,7 +71,7 @@ println(total(empty), total(sample()));
 println(total({ price: 5, quantity: 2 }));
 ```
 
-先输出 `0 36`，再输出 `10`。sample 的结果类型、empty 的注解和 total 的参数都提供了 Item。`{}` 默认初始化，命名字段则必须写全。
+先输出 `0 36`，再输出 `10`。`sample` 的结果类型、empty 的注解和 `total` 的参数都提供了 `Item`。`{}` 默认初始化整个值。具名构造也可使用末尾默认标记：`let sample: Item = { price: 12, ... };`。
 
 没有期望类型时，`let item = { price: 12, quantity: 3 };` 以 `CV-TYPE-CONSTRUCT-CONTEXT` 被拒绝；Carven 不会按字段名去找匹配的结构体。其他构造位置的规则见[聚合类型参考](/zh/reference/aggregates/)。
 
@@ -130,11 +130,11 @@ Reply::Number(
 
 带数据的枚举分支用调用构造，不带数据的分支本身就是值。match 必须覆盖所有情况，因此新增分支后，已有匹配可能需要更新。模式中的单个名字创建绑定，`_` 忽略数据。`println` 会显示分支名及其数据。
 
-调用中的 `.Empty` 简写可用，是因为 describe 的参数给出了枚举类型。数值枚举与显式分支值见[枚举参考](/zh/reference/aggregates/)。
+调用中的 `.Empty` 简写可用，是因为 `describe` 的参数给出了枚举类型。数值枚举与显式分支值见[枚举参考](/zh/reference/aggregates/)。
 
 ## 模式守卫与穷尽检查
 
-单独处理正数载荷。保留上一个程序的 Reply，用下面代码替换 describe 和后面的打印语句：
+单独处理正数载荷。保留上一个程序的 `Reply`，用下面代码替换 `describe` 和后面的打印语句：
 
 ```carven
 fn describe(reply: Reply) -> i32 => match reply {
@@ -146,18 +146,16 @@ fn describe(reply: Reply) -> i32 => match reply {
 println(describe(.Empty), describe(.Number(42)), describe(.Number(-3)));
 ```
 
-运行 `carven main.cv`，输出 `0 42 -1`。guard 条件接受 42，拒绝 -3；后面的 `.Number(_)` 覆盖剩余情况。删除兜底分支会使匹配不完整。需要修改匹配数据时，把修改放在选中分支的执行体里，在 guard 条件通过后执行。
+运行 `carven run main.cv`，输出 `0 42 -1`。守卫条件接受 42，拒绝 -3；后面的 `.Number(_)` 覆盖剩余情况。删除兜底分支会使匹配不完整。需要修改匹配数据时，把修改放在选中分支的执行体里，在 守卫条件通过后执行。
 
 ## 用 Vector 扩展集合
 
-数组的长度写在类型里。如果保留多少条结果要由筛选过程决定，就使用 Vector：
+数组的长度写在类型里。如果保留多少条结果要由筛选过程决定，就使用 `Vector`：
 
 ```carven run
 var accepted: Vector<i32> = [];
 for reading in [18, -3, 21] {
-    if reading >= 0 {
-        accepted.push(reading);
-    }
+    if reading >= 0 => accepted.push(reading);
 }
 
 let first = accepted.remove(0);
@@ -183,8 +181,8 @@ let voltage = Reading<f64> { sensor: 102, value: 3.3 };
 println(count.value, voltage.value);
 ```
 
-输出 `21 3.3`。T 是类型占位符。`Reading<i32>` 为 value 选择 i32，`Reading<f64>` 则选择 f64。两者都是具体类型，编译器仍会检查每个字段。外层结构相同、某类数据变化时，这样写比重复定义结构体更方便。
+输出 `21 3.3`。T 是类型占位符。`Reading<i32>` 为 value 选择 `i32`，`Reading<f64>` 则选择 `f64`。两者都是具体类型，编译器仍会检查每个字段。外层结构相同、某类数据变化时，这样写比重复定义结构体更方便。
 
 ## 练习
 
-回到包含 Reply 与 describe 的程序，给 Reply 增加 `Pair(i32, i32)`，在 describe 中返回两个值之和。尝试遗漏 Pair 分支，观察 `CV-MATCH-NON-EXHAUSTIVE` 诊断；补齐后 `describe(.Pair(20, 22))` 应得到 42。然后回到 Item 程序，写一个 `bulk() -> Item`，用表达式体构造 `{ price: 10, quantity: 12 }` 而不写 Item，并打印结果。
+回到包含 `Reply` 与 `describe` 的程序，给 `Reply` 增加 `Pair(i32, i32)`，在 `describe` 中返回两个值之和。尝试遗漏 Pair 分支，观察 `CV-MATCH-NON-EXHAUSTIVE` 诊断；补齐后 `describe(.Pair(20, 22))` 应得到 42。然后回到 `Item` 程序，写一个 `bulk() -> Item`，用表达式体构造 `{ price: 10, quantity: 12 }` 而不写 `Item`，并打印结果。

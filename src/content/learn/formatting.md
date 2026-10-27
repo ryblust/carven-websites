@@ -16,7 +16,7 @@ println();
 eprintln("status", "ready");
 ```
 
-stdout contains `quantity 3 true` followed by a blank line. stderr contains `status ready`. `println` separates adjacent arguments with spaces and adds a newline; eprintln writes to stderr. print/eprint do not add a newline. Text is not a format string: `println("{count}", 3)` prints the braces literally.
+`stdout` contains `quantity 3 true` followed by a blank line. `stderr` contains `status ready`. `println` separates adjacent arguments with spaces and adds a newline; `eprintln` writes to `stderr`. `print` and `eprint` do not add a newline. Text is not a format string: `println("{count}", 3)` prints the braces literally.
 
 ## Control formatting with interpolation
 
@@ -41,13 +41,13 @@ for index in 0..3 {
 println(report);
 ```
 
-The output is `[0][1][2]`. `{}` constructs an empty `String` from the annotated type. append_format writes the formatted result directly into report and requires an f literal at the call. Passing an existing `String` variable does not satisfy this method's syntax; use append for ordinary text.
+The output is `[0][1][2]`. `{}` constructs an empty `String` from the annotated type. `append_format` writes the formatted result directly into `report` and requires an `f` literal at the call. Passing an existing `String` variable does not satisfy this method's syntax; use `append` for ordinary text.
 
 ## Interpolation evaluation and value reads
 
 Holes are evaluated once each, left to right, before formatting. Scalar values are saved at their hole positions. A `String` Read retains its owner, so formatting reads its contents after every hole has been evaluated. Avoid hiding mutations of one object across several holes: use statements to make copies and mutation order explicit.
 
-append_format inputs cannot borrow the append target itself. A length query returns an independent `usize`, so `report.append_format(f"{report.byte_length()}")` is valid. `report.append_format(f"{report}")` conflicts with the target borrow.
+`append_format` inputs cannot borrow the append target itself. A length query returns an independent `usize`, so `report.append_format(f"{report.byte_length()}")` is valid. `report.append_format(f"{report}")` conflicts with the target borrow.
 
 ## Exercise
 

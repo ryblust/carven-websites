@@ -48,7 +48,7 @@ const footer = [
     links: [
       { label: '开始学习', english: 'Start learning', path: '/learn/' },
       { label: '设计与原理', english: 'Design & principles', path: '/design/' },
-      { label: '接入现有工程', english: 'Integrate with C++', path: '/use-cases/' },
+      { label: '应用示例', english: 'Example applications', path: '/use-cases/' },
     ],
   },
   {
@@ -184,6 +184,9 @@ export default function Site({ children }: Props) {
             <Brand locale={locale} />
             <p>{t('C++ 的力量，从容表达。', 'The power of C++, clearly expressed.')}</p>
             <p className="footer-note">
+              <a href={`${repository}/releases/tag/v${import.meta.env.CARVEN_VERSION}`}>
+                Carven {import.meta.env.CARVEN_VERSION}
+              </a>{' '}
               {t(
                 'Carven 开发中，可能有不兼容变更。',
                 'Carven is in development; breaking changes are possible.',

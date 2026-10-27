@@ -40,10 +40,11 @@ the unit value `()` and have no nominal failure alternatives. Cancellation remai
 `await` starts and consumes an operation exactly once. A direct await executes a
 dependency in the current logical task; it does not implicitly yield. Execution
 continues until the dependency actually suspends or completes. A named operation
-does not need `&&` for await or child startup. Ordinary ownership transfer still uses
-`&&`. Operations cannot be copied or captured. Ordinary owning bindings,
-assignment, record fields, Tuple slots, and fixed arrays can hold and transfer
-cold owners under the same Take and lifetime rules.
+does not need `&&` for await or child startup. Passing a named operation to a
+Take parameter requires `&&`; returning a complete local owner or Take parameter
+transfers it implicitly. Operations cannot be copied or captured. Ordinary owning
+bindings, assignment, record fields, Tuple slots, and fixed arrays can hold and
+transfer cold owners under the same Take and lifetime rules.
 An unused named cold owner is destroyed at scope exit without executing its body.
 A bare cold-operation expression statement, such as `next(4);`, is rejected.
 Synchronous functions may accept and return typed cold owners when analysis can
@@ -53,7 +54,7 @@ the complete owner:
 ```carven
 import std::async using Operation;
 
-fn relay(&&pending: Operation<i32>) -> Operation<i32> => &&pending;
+fn relay(&&pending: Operation<i32>) -> Operation<i32> => pending;
 ```
 
 An async successful result cannot itself contain an operation.
@@ -113,7 +114,7 @@ selected nominal failure, or cancellation if every candidate cancelled.
 A pending parent cancellation is accepted before startup and before outward
 commitment. Every composite closes its children before delivering the selected
 outcome. Cancellation requests alone do not release borrowed backing. After
-commitment, later cancellation and loser failures do not replace the outcome.
+commitment, later cancellation and nominal loser failures do not replace the outcome.
 Result assembly follows ordinary value-transfer requirements.
 
 ## Lexical children and cancellation
@@ -169,7 +170,7 @@ values. Candidates may have different result types and declared failure sets.
 Place the import at the module start and the following statements inside an async body, using `next` above:
 
 ```carven
-import std::async using { wait_ready, close };
+import std::async using { wait_ready, close }
 
 async let first = next(4);
 async let second = next(8);
@@ -246,17 +247,18 @@ validity. The compiler does not inspect native implementation code. Result stora
 supports immovable values in place and preserves observable source transfer and
 cleanup.
 
-Executed synchronous helpers in an async body may not transitively stop a test
-through `require` or `fail`. Constructing a cold operation is distinct from
-executing its body for this effect check.
+Async tests and their synchronous or asynchronous helpers may use `check`,
+`require`, and `fail`. A failed `require` or `fail` stops the active test root,
+including its children, and releases local values. Executing test operations
+without an active test violates the runtime contract.
 
 The driver is single-threaded and nonreentrant, with bounded native stack use for
 deep await chains. Scheduling is cooperative, without fairness or cancellation
 latency bounds. An async entry's wrapper drives the root through child closure
 before reporting its outcome.
 
-Async tests, class receivers, async callable values, arbitrary external awaitable
-types and cross-thread resume remain outside this admission boundary.
+Async class receivers, async callable values, arbitrary external awaitable types,
+and cross-thread resume remain outside this admission boundary.
 
 ## Static parameters and execution
 
@@ -278,7 +280,8 @@ it and executes its body in the same semantic execution domain. Stored operation
 unused cold owners, Write access to live local backing, and nominal failure
 propagation follow the ordinary ownership and evaluation rules. A private
 synchronous `const fn` may return an inferred cold operation. Its ordinary body
-cannot use await; static roots, `const` blocks, and `const test` bodies can.
+cannot use await; static roots, `const` blocks, `const test`, and
+`const async test` bodies can.
 Operations are execution-local values and cannot be frozen as constants.
 
 During compile-time execution, source calls must target const functions. Lexical children and async builtins use the same execution rules. Child startup and explicit yield use a FIFO queue; a direct await
@@ -290,6 +293,34 @@ All tasks in a static root share its execution limits and memory domain. Builtin
 input, clocks, and waits use the compiler host and the ordinary cold-operation,
 cancellation, and failure contracts. Native C++ provider bodies remain outside semantic
 execution capability. Runtime calls to the same source definition use C++ coroutines.
+
+## Native header operations
+
+An ordinary header call can initialize an explicitly typed `Operation<T, throw Error>`.
+The annotation supplies the source completion contract; C++ checks that the native
+return type matches its `AsyncOperation<T, Error>` representation. Construct the
+operation directly from the call. Creation evaluates the arguments and calls the
+native factory; `await` starts its cold body. The operation cannot be copied.
+
+```carven
+import std::async using Operation;
+import <carven/std/io/native.hpp> using carven::standard::io;
+
+async fn main() {
+    let bytes = Vector<u8>::from_slice("hello\n".bytes);
+    let pending: Operation<i32> = io::write_output(&&bytes);
+    let code = await pending;
+    assert(code == 0);
+}
+```
+
+Inputs follow the ordinary async ownership rules. Native implementations retain
+or own their required arguments until completion. Interpreted execution retains
+typed call storage and drives the existing native operation without encoding it
+as an ordinary native value. Cancellation closes started work before releasing
+its storage. Interpreted native operations currently drive self-registering waits;
+operations requiring a host-supplied external event source use an explicit host
+contract. The host retains its resources through completion and child closure.
 
 ## Native providers and hosts
 
@@ -327,7 +358,11 @@ nearest timer. With multiple independent sources, waits are capped at ten
 milliseconds so each source can be polled. Standard input registers its source
 while reads are pending. `drive_root` borrows the host source through root and
 child closure, then detaches it. Providers using `Driver::attach` and `detach`
-keep their source alive throughout that registration. Native requests use
+keep their source alive throughout that registration. Several roots may borrow
+one driver and the same event source; each attachment has a matching detach,
+and the source remains registered until its last borrower finishes. The driver
+outlives its borrowing roots. Advancing a root resumes only that root and its
+children, preserving the host's current invocation context. Native requests use
 `TaskContext::request_cancel()` on the driver thread so parked timer cancellation
 is notified.
 

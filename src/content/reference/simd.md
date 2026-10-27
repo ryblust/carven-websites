@@ -139,7 +139,7 @@ assert(bounded.is_finite().all());
 `std::simd.bytes` and `std::simd.floats` each provide `block_count` and `load_block`; their signatures and block fields are listed below. `block_count` includes a partial tail block. Tail lanes are zero-filled and inactive, so include `active` whenever padding could match. An offset equal to the input length produces an empty block.
 
 ```carven run
-import std::simd.bytes using { block_count, load_block };
+import std::simd.bytes using { block_count, load_block }
 
 const fn count_spaces(bytes: [u8]) -> usize {
     var count: usize = 0;
@@ -211,7 +211,7 @@ leading matching run length, including the input length when every byte matches.
 input returns zero for all three queries.
 
 ```carven
-import std::simd.scan using { one_of, count_where, find_where };
+import std::simd.scan using { one_of, count_where, find_where }
 
 const punctuation = one_of("{}[]:,".bytes);
 const fn count_punctuation(text: str) -> usize => count_where(text.bytes, punctuation);

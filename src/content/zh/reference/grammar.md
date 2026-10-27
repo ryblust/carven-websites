@@ -20,7 +20,7 @@ source: docs/language/grammar.md
 
 语句开头未加括号的 if/match/try 是完整控制语句。分支内表达式后有分号是语句，直接跟右花括号是结果候选；嵌套控制继承所在位置的语法角色。branch-block 不是一般块表达式。各逗号列表仅在产生式明确允许时可有一个尾逗号，尾逗号不创建空项；简写的 return/throw/rethrow/break/continue 分支不带分号，多条语句使用分支块。
 
-T { ... } 显式构造，省略类型的 { ... } 仅接受具名字段或空初始化器，需要期望类型。在 match/catch 分支开头，左花括号后若为 IDENTIFIER : 则为构造，否则为分支块；因此 {} 是空块，({}) 才是空构造。函数和控制体仍是块。T(...) 总解析为调用，不依赖名字含义。
+T { ... } 显式构造，省略类型的 `{ ... }` 接受具名字段、末尾 `...` 默认标记或空初始化器，需要期望类型。在 match/catch 分支开头，左花括号后若为 IDENTIFIER : 则为构造，否则为分支块；因此 {} 是空块，({}) 才是空构造。函数和控制体仍是块。T(...) 总解析为调用，不依赖名字含义。
 
 控制语句头部后面需要紧接语句体，因此在头部最外层遇到的 { 始终表示语句体开始；要在这里使用构造表达式，须加括号。此规则同样适用于 if、match、循环的遍历源、区间边界，以及 C 风格 for 的最后一个步进表达式。is 总开始约束模式；裸名字是绑定，不查询符号表；.Case/Owner::Case 是 case 模式，语义再检查身份与元数。模式中的 | 属于或模式，不是位或。
 
@@ -193,7 +193,7 @@ CPP_SOURCE_FRAGMENT = "#[cpp]",
 词法分析使用最长匹配。标点符号集合如下：
 
 ```text
-( ) [ ] { } , . .. ..= : ;
+( ) [ ] { } , . .. ... ..= : ;
 + - * / % ! ? = < > & | ^ ~
 += -= *= /= %= != == <= >= ++ --
 && || << >> &= |= ^= <<= >>=
@@ -226,7 +226,7 @@ module-declaration = enum-declaration
                    | function-definition
                    | module-constant-declaration;
 
-cpp-import-function-declaration = [ "private" ],
+cpp-import-function-declaration = [ visibility-modifier ],
                                   "import", "(", "cpp", ")",
                                   function-head, [ "=", cpp-function-target ], ";";
 
@@ -250,19 +250,23 @@ import-declaration = module-import-declaration
                    | cpp-header-import-declaration;
 
 module-import-declaration = "import", module-reference,
-                            using-clause, ";";
+                            "using", ( using-list | ( import-item | "*" ), ";" );
 
 cpp-header-import-declaration = "import",
                                 ( CPP_ANGLE_HEADER_NAME
                                 | CPP_QUOTE_HEADER_NAME ),
-                                [ "using", cpp-import-selection ], ";";
+                                ( ";"
+                                | "using", cpp-using-list
+                                | "using", cpp-name,
+                                  ( [ import-alias ], ";"
+                                  | "::", ( cpp-using-list | "*", ";" ) ) );
 
 cpp-name = identifier-shaped-name, { "::", identifier-shaped-name };
-cpp-import-selection = cpp-using-list
-                     | cpp-name, [ "::", ( cpp-using-list | "*" ) ];
 
-cpp-using-list = "{", identifier-shaped-name,
-                 { ",", identifier-shaped-name }, [ "," ], "}";
+cpp-import-item = identifier-shaped-name, [ import-alias ];
+
+cpp-using-list = "{", cpp-import-item,
+                 { ",", cpp-import-item }, [ "," ], "}";
 
 module-reference = module-path
                  | ".", module-path
@@ -271,10 +275,8 @@ module-reference = module-path
 module-component = IDENTIFIER | reserved-keyword;
 module-path = module-component, { ".", module-component };
 
-using-clause = "using", import-selection;
-
-import-selection = import-item | "*" | using-list;
-import-item = IDENTIFIER, [ "as", IDENTIFIER ];
+import-alias = "as", IDENTIFIER;
+import-item = IDENTIFIER, [ import-alias ];
 
 using-list = "{", import-item, { ",", import-item }, [ "," ], "}";
 ```
@@ -285,7 +287,7 @@ using-list = "{", import-item, { ",", import-item }, [ "," ], "}";
 import math using answer;
 import .math using *;
 import json::parser using parse;
-import geometry.vector using { Point, length };
+import geometry.vector using { Point, length }
 import <cstdint>;
 import "native/provider.hpp";
 ```
@@ -366,13 +368,15 @@ throw-clause = "throw", ( "(", ")" | named-type, { "+", named-type } );
 ```text
 type-parameter-clause = "<", generic-parameter,
                         { ",", generic-parameter }, [ "," ], ">";
-generic-parameter = [ "throw" ], IDENTIFIER;
+generic-parameter = [ "throw" ], IDENTIFIER,
+                    [ ":", capability-bound, { "+", capability-bound } ];
+capability-bound = qualified-name;
 ```
 
 ## 17 · 测试
 
 ```text
-test-declaration = [ "const" ], "test", [ STRING_LITERAL ], test-block;
+test-declaration = [ function-modifier ], "test", [ STRING_LITERAL ], test-block;
 
 test-block = "{", { statement }, "}";
 ```
@@ -430,20 +434,22 @@ ordinary-block = "{", { statement }, "}";
 ## 20 · 语句类别
 
 ```text
-statement = variable-declaration
+statement = simple-statement
           | const-block
-          | return-statement
-          | throw-statement
-          | rethrow-statement
-          | break-statement
-          | continue-statement
-          | cancel-statement
           | while-statement
           | for-statement
-          | assignment-statement
-          | update-statement
-          | expression-statement
           | control-flow-statement;
+
+simple-statement = variable-declaration
+                 | return-statement
+                 | throw-statement
+                 | rethrow-statement
+                 | break-statement
+                 | continue-statement
+                 | cancel-statement
+                 | assignment-statement
+                 | update-statement
+                 | expression-statement;
 
 assignment-statement = assignment-form, ";";
 
@@ -451,7 +457,7 @@ update-statement = update-form, ";";
 
 expression-statement = expression, ";";
 
-control-flow-statement = if-form | match-form | try-form;
+control-flow-statement = if-statement | match-form | try-form;
 
 const-block = "const", [ STRING_LITERAL ], ordinary-block;
 ```
@@ -685,9 +691,9 @@ positional-initializer-list = expression,
                               { ",", expression },
                               [ "," ];
 
-field-initializer-list = field-initializer,
-                         { ",", field-initializer },
-                         [ "," ];
+field-initializer-list = "..."
+                       | field-initializer, { ",", field-initializer },
+                         [ "," | ",", "..." ];
 
 field-initializer = IDENTIFIER, ":", expression;
 
@@ -712,6 +718,12 @@ lambda-parameter-list = parameter, { ",", parameter }, [ "," ];
 ## 31 · if
 
 ```text
+if-statement = [ "const" ], "if", expression, if-statement-body,
+               { "else", "if", expression, if-statement-body },
+               [ "else", if-statement-body ];
+
+if-statement-body = branch-block | "=>", simple-statement;
+
 if-form = [ "const" ], "if", expression, branch-block,
           { "else", "if", expression, branch-block },
           [ "else", branch-block ];
@@ -795,3 +807,11 @@ throw-form = "throw", expression;
 
 match-expression-arm = expression;
 ```
+
+## 列表导入、默认字段与简短分支
+
+源模块或 C++ 头文件的列表导入以 `}` 结束，禁止随后添加分号。单名和通配导入仍以分号结束。两种来源均允许 `as` 别名，别名必须是普通标识符。
+
+具名构造列表可在末尾写一次 `...`，为所有遗漏字段请求默认初始化；后面没有逗号。`if` 语句分支可以写 `=>` 加一条简单语句，包含该语句的分号；值形式的 `if` 仍用结果块。
+
+`async test` 可以 await 并启动子任务；`const test` 与 `const async test` 均执行静态测试。泛型函数和类操作接受能力约束，如 `T: Hash + Equal`，类操作继承类参数且可声明额外参数。`export` 与 `export(cpp)` 是两种独立公开边界，不能叠加。

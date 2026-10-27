@@ -113,10 +113,20 @@ export const generateContent = Effect.fn('generateContent')(function* (root: str
     '```cv\n' + homeExamples.quickstart + '\n```',
     { codeBlockFrame: false },
   );
+  const projectBuild = yield* markdown.render(
+    'home-examples/project-build',
+    '```cv\n' + homeExamples.projectBuild + '\n```',
+    { codeBlockFrame: false },
+  );
+  const projectInlineTests = yield* markdown.render(
+    'home-examples/project-inline-tests',
+    '```cv\n' + homeExamples.projectInlineTests + '\n```',
+    { codeBlockFrame: false },
+  );
   yield* repository.publish(
     root,
     articles,
-    { quickstart },
+    { quickstart, projectBuild, projectInlineTests },
     Object.fromEntries(examples.map(({ name, tokens }) => [name, tokens])),
   );
   yield* Effect.logInfo(`Prepared ${articles.length} articles.`);

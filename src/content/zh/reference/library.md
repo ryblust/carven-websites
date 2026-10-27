@@ -27,6 +27,21 @@ source: docs/language/standard.md
 | 需导入的异步内建能力 | [Operation、组合、取消与关闭](/zh/reference/async/)                        |
 | 需导入的超时内建操作 | [超时组合](/zh/reference/time/#截止时间组合)                               |
 
+## 试用完整程序
+
+原生项目教程给出完整文件和本地命令。浏览器示例可打开后直接执行，再修改输入观察结果；异步测试选择「测试」操作。
+
+| 任务                             | 完整示例                                               | 规则与讲解                                                               |
+| -------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------ |
+| 构建普通应用并运行同文件内联测试 | [构建原生项目](/zh/learn/build/)                       | [构建与查询 API](/zh/reference/build/)                                   |
+| 解析 TOML，并用哈希集合汇总      | [TOML 配置汇总](/zh/playground/#example=toml-summary)  | [TOML](/zh/reference/toml/)、[集合](/zh/reference/collections/)          |
+| 在编译期与运行时调用闭包策略     | [闭包策略](/zh/playground/#example=closure-policy)     | [闭包](/zh/learn/closures/)、[静态执行](/zh/reference/constants/)        |
+| 通过有界通道传递拥有型字节       | [生产与消费](/zh/playground/#example=channel-pipeline) | [字节通道](/zh/reference/channel/)、[异步](/zh/learn/async/)             |
+| 在浏览器文件系统中写入并读取报告 | [文件报告](/zh/playground/#example=file-report)        | [文件与路径](/zh/reference/fs/)                                          |
+| 运行等待子任务的测试             | [异步测试](/zh/playground/#example=async-tests)        | [测试](/zh/learn/testing/)、[异步测试契约](/zh/reference/entry-testing/) |
+
+本地项目继续使用同一语言：先看[声明式构建](https://github.com/ryblust/carven/tree/v0.1.0/examples/build/declarative)，再看[读取 TOML、生成源码和组装构建计划](https://github.com/ryblust/carven/tree/v0.1.0/examples/build/imperative)。[构建 API](/zh/reference/build/)说明目标、依赖和查询；[工具工作流](/zh/learn/workflow/)给出使用步骤。
+
 ## 按模块查找
 
 按任务选择模块。下表同时列出编译器内建能力与源码定义的标准 API。
@@ -43,6 +58,12 @@ source: docs/language/standard.md
 | 拥有所有权的 JSON 树、校验、解析与写出                     | `std::json`                                             | [JSON](/zh/reference/json/)                                                                                                       |
 | 宿主连接上的 TCP 读写                                      | `std::net`                                              | [网络](/zh/reference/net/)                                                                                                        |
 | 测试断言与报告                                             | `std::testing`                                          | [测试](/zh/reference/entry-testing/)                                                                                              |
+| 拥有型映射、集合、哈希和字节摘要                           | `std::collections`                                      | [集合](/zh/reference/collections/)                                                                                                |
+| 异步任务间的有界消息                                       | `std::channel`                                          | [通道](/zh/reference/channel/)                                                                                                    |
+| 文件、目录和路径                                           | `std::fs`                                               | [文件系统](/zh/reference/fs/)                                                                                                     |
+| 宿主查询和子进程                                           | `std::process`                                          | [进程](/zh/reference/process/)                                                                                                    |
+| 拥有型 TOML 树及借用遍历                                   | `std::toml`                                             | [TOML](/zh/reference/toml/)                                                                                                       |
+| 原生构建计划、项目发现与编译                               | `std::build`, `std::compiler`                           | [项目构建](/zh/reference/build/)                                                                                                  |
 
 `[T]`、`(A, B)`、`ptr<T>`、`fn(...) -> R` 等结构性类型形式属于语言语法，入口见[类型目录](/zh/reference/types/#标量类型)，不通过模块导入选择。
 
@@ -53,14 +74,14 @@ source: docs/language/standard.md
 ```carven run
 import std::async using when_all as join;
 import std::core using String as Text;
-import std::json using { Value, ValueError };
+import std::json using { JSONValue, JSONValueError }
 
-const config = Value::parse(r#"{"workers":4,"enabled":true}"#)?;
+const config = JSONValue::parse(r#"{"workers":4,"enabled":true}"#)?;
 
 async fn title() -> Text => "analysis";
 private async fn workers() -> i64 => config.get("workers")?.as_i64()?;
 
-async fn main() throw ValueError {
+async fn main() throw JSONValueError {
     let (name, count) = await join(title(), workers())?;
     println(f"{name}: {count} workers");
 }

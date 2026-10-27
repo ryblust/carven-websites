@@ -60,18 +60,18 @@ Each constant interpolation result is limited to 1 MiB, with additional cumulati
 
 `print`, `println`, `eprint`, and `eprintln` accept one or more Read values and return `void`. Unit values and character-iteration views are not printable. `println()` and `eprintln()` also allow zero arguments. Their [module bindings](/reference/modules/#standard-modules-and-defaults) follow ordinary lookup.
 
-| Operation | Stream | Ending           |
-| --------- | ------ | ---------------- |
-| print     | stdout | No added newline |
-| `println` | stdout | One newline      |
-| eprint    | stderr | No added newline |
-| eprintln  | stderr | One newline      |
+| Operation  | Stream   | Ending           |
+| ---------- | -------- | ---------------- |
+| `print`    | `stdout` | No added newline |
+| `println`  | `stdout` | One newline      |
+| `eprint`   | `stderr` | No added newline |
+| `eprintln` | `stderr` | One newline      |
 
 Arguments are evaluated once left to right and separated by one space. Scalars save values, `String` retains aliases, and views protect backing. Text is emitted literally, including NUL; `char` emits UTF-8. `println("{value}", 3)` prints `{value} 3`: the text itself is not a format string.
 
 Printing needs no `?`. Buffering and flushing follow the C++ standard library, with no promise to flush every call. Native formatting or output failures terminate. An expected signature may select a printing callable, for example `let output: fn(str, i32) -> void = println;`.
 
-`const fn`, constant blocks, and `const test` can print directly within their supported type subset, including C strings as text. Only required constant execution writes through the compiler host; ordinary runtime calls still print at runtime. Completed output remains after later failure. Output bytes count toward cumulative text work.
+`const fn`, constant blocks, and `const test` can call the printing built-ins directly within their supported type subset, including C strings as text. Only required constant execution writes through the compiler host; ordinary calls write at runtime. Completed output remains after later failure. Output bytes count toward cumulative text work.
 
 ## Structural display
 

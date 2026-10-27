@@ -18,6 +18,21 @@ println(label);
 
 输出 `in stock`。用于产生值的 if 必须有 else，且各分支的结果类型必须兼容。分支最后不带分号的表达式产生分支值；加分号后成为普通语句。
 
+## 简短的语句分支
+
+分支只有一条简单语句时，可以用 `=>`：
+
+```carven run
+fn clamp_count(value: i32) -> i32 {
+    if value < 0 => return 0;
+    return value;
+}
+
+println(clamp_count(-3), clamp_count(12));
+```
+
+输出 `0 12`。分号结束这条分支语句。多条语句或嵌套控制流使用花括号；前面 label 那样产生值的分支仍使用花括号。
+
 ## 把局部名字留在分支中
 
 在分支内计算临时价格，离开分支后再读取原价格。把这个独立程序保存为 main.cv：
@@ -33,7 +48,7 @@ if price < 20 {
 println(price);
 ```
 
-运行 `carven main.cv`，逐行输出 `15` 和 `12`。内层 price 是新绑定，初始化式读取外层 price。分支结束后，外层绑定重新可见。
+运行 `carven run main.cv`，逐行输出 `15` 和 `12`。内层 price 是新绑定，初始化式读取外层 price。分支结束后，外层绑定重新可见。
 
 ## 从范围计算总和
 
@@ -81,7 +96,7 @@ for index in positions {
 }
 ```
 
-先输出 `0..4`，再逐行输出 0 到 3。`code.byte_length()` 返回 usize 字节数。usize 是用于长度和索引的无符号整数类型。字面量 0 由此得到相同类型，因此 positions 是 `Range<usize>`。组合不同整数类型的端点时，查阅[类型参考](/zh/reference/types/)中的期望类型规则。
+先输出 `0..4`，再逐行输出 0 到 3。`code.byte_length()` 返回 `usize` 字节数。`usize` 是用于长度和索引的无符号整数类型。字面量 0 由此得到相同类型，因此 positions 是 `Range<usize>`。组合不同整数类型的端点时，查阅[类型参考](/zh/reference/types/)中的期望类型规则。
 
 ## 按区间选择结果
 
@@ -115,9 +130,7 @@ while index < 3 {
 }
 
 for var i = 0; i < 3; ++i {
-    if i == 1 {
-        continue;
-    }
+    if i == 1 => continue;
     println(i);
 }
 ```
@@ -130,22 +143,20 @@ for var i = 0; i < 3; ++i {
 var candidate = 1;
 
 while {
-    if candidate * candidate >= 20 {
-        break;
-    }
+    if candidate * candidate >= 20 => break;
     ++candidate;
 }
 
 println(candidate);
 ```
 
-运行 `carven main.cv`，输出 `5`。`break` 立即退出循环，candidate 保留通过检查时的值。
+运行 `carven run main.cv`，输出 `5`。`break` 立即退出循环，candidate 保留通过检查时的值。
 
 ## 只执行选中的路径
 
 `&&` 和 `||` 可以跳过不需要的工作：`&&` 左侧为 false 时停止，`||` 左侧为 true 时停止。同样，if 或 match 只执行选中的分支。
 
-输入数量可能为零时，先判断再做除法。把这个独立程序保存为 main.cv，运行 `carven main.cv`：
+输入数量可能为零时，先判断再做除法。把这个独立程序保存为 main.cv，运行 `carven run main.cv`：
 
 ```carven run
 let count = 0;
@@ -157,7 +168,7 @@ println(enough, empty_or_enough);
 
 输出 `false true`。两个条件都跳过除法：第一个在 false 处停止，第二个在 true 处停止。把 count 改成 4，两者都会执行除法，输出 `true true`。
 
-每个分支都必须包含合法代码，即使写在 `if false` 里面。[编译期章节](/zh/learn/constants/)会介绍在生成程序时作选择的 const if。
+每个分支都必须包含合法代码，即使写在 `if false` 里面。[编译期章节](/zh/learn/constants/)会介绍在生成程序时作选择的 `const if`。
 
 ## 练习
 

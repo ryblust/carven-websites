@@ -52,6 +52,18 @@ Value branches of `if`, `match`, and `try` receive the surrounding expected type
 let result = if true { 1 }; // Compile error: value-form if requires else.
 ```
 
+A statement-form `if` branch may use `=>` followed by one simple statement, including its semicolon. Each branch may independently choose an arrow or a block.
+
+```carven run
+fn nonnegative(value: i32) -> i32 {
+    if value < 0 => return 0;
+    return value;
+}
+println(nonnegative(-2)); // 0
+```
+
+Arrow bodies admit declarations, assignments, updates, expressions, cancellation, and control transfer. Use a block for multiple statements or a direct nested `if`, loop, `match`, `try`, or `const` block. `const if` admits the same statement branches. Value-form `if` keeps braced result branches.
+
 ## while
 
 `while condition { ... }` checks the condition before each iteration. A false condition ends the loop, possibly without any iteration. `while { ... }` omits the condition and suits flows that explicitly exit inside the body.
@@ -69,9 +81,7 @@ This prints 0, 1, and 2. A conditionless loop:
 ```carven run
 var count = 0;
 while {
-    if count == 3 {
-        break;
-    }
+    if count == 3 => break;
     ++count;
 }
 println(count); // 3
@@ -127,9 +137,7 @@ Steps admit assignment, prefix increment/decrement, and ordinary expressions; co
 
 ```carven run
 for value in 0..10 {
-    if value == 3 {
-        break;
-    }
+    if value == 3 => break;
     println(value);
 }
 ```
@@ -142,9 +150,7 @@ This prints 0, 1, and 2.
 
 ```carven run
 for value in 0..5 {
-    if value % 2 == 0 {
-        continue;
-    }
+    if value % 2 == 0 => continue;
     println(value);
 }
 ```
@@ -161,7 +167,7 @@ fn describe(value: i32) -> str => if value == 0 { "zero" } else { "nonzero" };
 println(describe(3)); // nonzero
 ```
 
-Returning a named owner copies by default; write `return &&owner;` when transfer is intended. See [functions](/reference/functions/) for result inference, complete return paths, and failure consumption, and [ownership](/reference/ownership/) for transfer.
+Returning a named owner copies by default; write `return owner;` when transfer is intended. See [functions](/reference/functions/) for result inference, complete return paths, and failure consumption, and [ownership](/reference/ownership/) for transfer.
 
 ## match and patterns
 

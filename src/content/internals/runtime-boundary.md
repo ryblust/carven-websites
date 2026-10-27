@@ -37,19 +37,25 @@ One capability can use all three layers:
 | Built-ins      | Types and operations whose type, access, lifetime, failure, and execution semantics the compiler owns                                     |
 | Runtime Craft  | Native representations and operations used by generated C++, including storage, formatting, failure carriers, tests, and the async driver |
 
-For `when_all`, the public entry belongs to `std::async`, the compiler checks its composition rules, and generated C++ uses Runtime Craft support to execute it. For JSON parsing, the standard-source algorithm calls ordinary operations and builds a source-defined `Value`. Both follow Carven's access, ownership, failure, and execution rules.
+For `when_all`, the public entry belongs to `std::async`, the compiler checks its composition rules, and generated C++ uses Runtime Craft support to execute it. For JSON parsing, the standard-source algorithm calls ordinary operations and builds a source-defined `JSONValue`. Both follow Carven's access, ownership, failure, and execution rules.
 
 `print` accepts differently typed arguments in order. `when_all` combines differently typed operation results into a tuple. The compiler uses the argument types to determine each call’s result and execution contract. Source functions express algorithms using the existing language operations.
 
-The Standard Craft lives in `crafts/carven/std/`, with native support beside capabilities that need it. The Runtime Craft lives in `crafts/carven/runtime/`. The compiler build is independent of their C++ headers and libraries; a generated native application builds with the support its capabilities require.
+The Standard Craft lives in `crafts/carven/std/`, with native support beside capabilities that need it. The Runtime Craft lives in `crafts/carven/runtime/`. The compiler core uses shared Runtime Craft storage and execution support. Each execution frontend selects and links the native providers it exposes. A generated application builds with the support its own capabilities require.
 
 ## Runtime support and execution stages
 
 **Runtime Craft** names a native support package. **Runtime execution** names the stage of ordinary program calls. A `const` initializer or static test selects compiler-side execution; an ordinary call remains at runtime even when its arguments are known.
 
-The semantic executor implements supported built-ins and runs standard-source functions during static execution and interpretation. Generated C++ supplies their native representations and operations. Both preserve the same values, evaluation order, access, ownership, and failures within the supported stages.
+The semantic executor implements built-ins and runs source functions during static execution and interpretation. Native calls use bindings supplied by the execution frontend. Generated C++ calls its linked providers directly. Both preserve the same values, evaluation order, access, ownership, and failures within the supported stages.
 
 The [constant reference](/reference/constants/) defines compiler-side execution and host operations; the [command reference](/reference/cli/) describes interpretation.
+
+## Supply native capabilities to source execution
+
+The native CLI binds standard services for collections, channels, files, input/output, and processes. Browser execution supplies the services supported by its WASI host; it cannot launch native processes or call arbitrary C++ libraries. The execution stage and selected host both determine which native calls are available.
+
+A C++ application can also embed source execution with the C++23 Hosting SDK. It includes `carven/hosting/` headers and links `carven-hosting`; compiler module imports are unnecessary. A `HostSession` uses only its supplied bindings. `host_standard_services()` supplies optional standard bindings, and static native calls need explicit static-execution admission. Loading source does not load native libraries.
 
 ## Connect asynchronous work to host resources
 

@@ -9,9 +9,9 @@ interface HomeShowcase {
 
 export const homeShowcase = [
   { code: 'asyncWorkflow', cpp: 'asyncWorkflowCpp', playground: 'async-workflow' },
-  { code: 'asyncScope', cpp: 'asyncScopeCpp', playground: 'async-scope' },
+  { code: 'closurePolicy', cpp: 'closurePolicyCpp', playground: 'closure-policy' },
   { code: 'configuration', cpp: 'configurationCpp', playground: 'json-config' },
-  { code: 'constants', cpp: 'constantsCpp', playground: 'static-text' },
+  { code: 'tomlSummary', cpp: 'tomlSummaryCpp', playground: 'toml-summary' },
   {
     code: 'specialization',
     cpp: 'specializationCpp',

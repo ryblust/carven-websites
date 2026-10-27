@@ -46,9 +46,7 @@ async fn consume<T, throw E>(&&operation: Operation<T, throw E>) -> T throw E {
 struct Missing { key: String }
 
 fn lookup(key: str) -> i32 throw Missing {
-    if key == "answer" {
-        return 42;
-    }
+    if key == "answer" => return 42;
     throw Missing { key: key as String };
 }
 

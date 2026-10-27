@@ -60,12 +60,12 @@ const bytes = f"{'我'}".byte_length();  // usize，值 3
 
 `print`、`println`、`eprint` 和 `eprintln` 接受一个或多个 Read 值并返回 `void`；单元值和字符迭代视图不可打印。`println()` 与 `eprintln()` 也允许零实参。它们的[模块绑定](/zh/reference/modules/#标准模块与默认名字)遵循普通名字查找规则。
 
-| 操作      | 流     | 结尾       |
-| --------- | ------ | ---------- |
-| print     | stdout | 不追加换行 |
-| `println` | stdout | 一个换行   |
-| eprint    | stderr | 不追加换行 |
-| eprintln  | stderr | 一个换行   |
+| 操作       | 流       | 结尾       |
+| ---------- | -------- | ---------- |
+| `print`    | `stdout` | 不追加换行 |
+| `println`  | `stdout` | 一个换行   |
+| `eprint`   | `stderr` | 不追加换行 |
+| `eprintln` | `stderr` | 一个换行   |
 
 实参间插入一个空格，按从左到右一次求值。标量保存值，`String` 保留别名，视图保护底层存储。文本原样输出，含 NUL；`char` 输出 UTF-8。`println("{value}", 3)` 输出 `{value} 3`，文本本身不是格式串。
 

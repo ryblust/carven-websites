@@ -35,7 +35,7 @@ let total = try {
 println("Total:", total);
 ```
 
-运行 `carven quantity.cv`，输出 `Invalid quantity: 0` 和 `Total: 0`。失败类型是结构体，携带被拒绝的值。签名中的 `throw InvalidQuantity` 告诉调用者可能收到哪种失败；函数体里的 `throw ...;` 则报告一次具体失败。throw 语句不提供预期类型，所以要写出失败类型名，不能使用上下文构造 `{ value: quantity }`。
+运行 `carven run quantity.cv`，输出 `Invalid quantity: 0` 和 `Total: 0`。失败类型是结构体，携带被拒绝的值。签名中的 `throw InvalidQuantity` 告诉调用者可能收到哪种失败；函数体里的 `throw ...;` 则报告一次具体失败。throw 语句不提供预期类型，所以要写出失败类型名，不能使用上下文构造 `{ value: quantity }`。
 
 ## 成功值与传播
 
@@ -47,14 +47,14 @@ println("Total:", total);
 
 前面的模块章节介绍了私有辅助函数和公开接口。private 非入口函数可以省略 throw 子句，由编译器推断函数体可能向外传播的失败。顶层语句构成隐式入口，也以同样方式推断向外传播的失败。下一章介绍的闭包同样可以推断失败。
 
-保留 quantity.cv 中的 InvalidQuantity 声明和 line_total 函数。从 `let total = try` 开始，把全部顶层语句替换为这两次直接调用：
+保留 quantity.cv 中的 `InvalidQuantity` 声明和 `line_total` 函数。从 `let total = try` 开始，把全部顶层语句替换为这两次直接调用：
 
 ```carven
 println("Total:", line_total(12, 3)?);
 println("Total:", line_total(12, 0)?);
 ```
 
-这段代码依赖上面的结构体和 line_total。程序先输出 `Total: 36`，第二次调用的 InvalidQuantity 随后离开隐式入口；局部清理结束后，入口包装器在 stderr 报告失败类型和携带的数据，并以 `EXIT_FAILURE` 退出。顶层语句不需要 throw 子句。
+这段代码依赖上面的结构体和 `line_total`。程序先输出 `Total: 36`，第二次调用的 `InvalidQuantity` 随后离开隐式入口；局部清理结束后，入口包装器在 `stderr` 报告失败类型和携带的数据，并以 `EXIT_FAILURE` 退出。顶层语句不需要 throw 子句。
 
 未标记为 private 的普通函数、export 函数和显式 main 若有向外传播的失败，必须显式声明，private main 也不例外。把同样两行放进没有 `throw InvalidQuantity` 的 `fn main() { ... }`，会报告 `CV-EFFECT-THROW-PUBLISHED`。
 
@@ -62,7 +62,7 @@ println("Total:", line_total(12, 0)?);
 
 ## 只恢复自己能处理的失败
 
-把这个独立程序保存为 quote.cv：
+把这个独立程序保存为 `quote.cv`：
 
 ```carven run
 struct MissingPrice {}
@@ -102,24 +102,24 @@ fn main() {
 }
 ```
 
-输出 `12`。quote 用 `+` 组合两个普通成功值，用一个 `?` 标记整个表达式的失败出口。它的私有契约推断为 MissingPrice + Offline；price 失败后不再调用 fee。quote 和 total 都使用表达式函数体：`=>` 直接返回右侧表达式的值，包括整个 try 表达式。
+输出 `12`。`quote` 用 `+` 组合两个普通成功值，用一个 `?` 标记整个表达式的失败出口。它的私有契约推断为 `MissingPrice` + `Offline`；price 失败后不再调用 fee。`quote` 和 `total` 都使用表达式函数体：`=>` 直接返回右侧表达式的值，包括整个 try 表达式。
 
-total 用默认总价恢复 MissingPrice，公开契约只剩 Offline，main 也只需处理后者。
+`total` 用默认总价恢复 `MissingPrice`，公开契约只剩 `Offline`，main 也只需处理后者。
 
-`_ => rethrow` 把剩余的 Offline 失败原样传给调用者。main 没有 throw 子句，因此在本地处理这个失败。自动转发与 guard 条件的完整规则见[部分 catch 参考](/zh/reference/failures/)。
+`_ => rethrow` 把剩余的 `Offline` 失败原样传给调用者。main 没有 throw 子句，因此在本地处理这个失败。自动转发与 guard 条件的完整规则见[部分 catch 参考](/zh/reference/failures/)。
 
-运行 `carven quote.cv`。依次修改 main 中 total 的两个实参，用下表检查结果和选中的恢复路径：
+运行 `carven run quote.cv`。依次修改 main 中 `total` 的两个实参，用下表检查结果和选中的恢复路径：
 
 | has_price | online | 输出 | 路径                     |
 | --------- | ------ | ---- | ------------------------ |
 | true      | true   | 17   | 两步都成功               |
 | false     | true   | 12   | 恢复缺失价格，跳过 fee   |
-| true      | false  | 0    | Offline 传给 main 恢复   |
+| true      | false  | 0    | `Offline` 传给 main 恢复 |
 | false     | false  | 12   | price 先失败，不调用 fee |
 
 ### 调用者漏掉一种失败
 
-在 main 中，把 `total(false, true)?` 改成 `quote(false, true)?`，并把 Offline 处理分支换成 `MissingPrice(_) => 12,`。运行 `carven check quote.cv`。编译器报告 `CV-EFFECT-CATCH-NON-EXHAUSTIVE`，因为 catch 遗漏了 Offline；同时报告 `CV-EFFECT-THROW-PUBLISHED`，因为 main 没有允许该失败向外传播的契约。
+在 main 中，把 `total(false, true)?` 改成 `quote(false, true)?`，并把 `Offline` 处理分支换成 `MissingPrice(_) => 12,`。运行 `carven check quote.cv`。编译器报告 `CV-EFFECT-CATCH-NON-EXHAUSTIVE`，因为 catch 遗漏了 `Offline`；同时报告 `CV-EFFECT-THROW-PUBLISHED`，因为 main 没有允许该失败向外传播的契约。
 
 增加 `Offline(_) => 0,` 分支来处理它，或声明 `fn main() throw Offline` 来传播它。继续之前恢复原来的 main。
 
@@ -162,9 +162,9 @@ Not a complete u16 number
 Reserved port: 0
 ```
 
-u16::parse 检查完整文本与范围，不截断或回绕。它拒绝前导空白、前导加号与尾随内容。零在 u16 的取值范围内，却违反本应用策略。两个失败类型为调用者保留这个区别。
+`u16::parse` 检查完整文本与范围，不截断或回绕。它拒绝前导空白、前导加号与尾随内容。零在 `u16` 的取值范围内，却违反本应用策略。两个失败类型为调用者保留这个区别。
 
-失败契约中显式写出了 NumberParseError，因此从 `std::core` 导入该类型。[编译期章节](/zh/learn/constants/)会复用这套解析和校验来准备配置。
+失败契约中显式写出了 `NumberParseError`，因此从 `std::core` 导入该类型。[编译期章节](/zh/learn/constants/)会复用这套解析和校验来准备配置。
 
 ## 副作用与入口状态
 
@@ -174,4 +174,4 @@ u16::parse 检查完整文本与范围，不截断或回绕。它拒绝前导空
 
 ## 练习
 
-先恢复首个带有顶层 try 的 quantity.cv 程序。把调用改为 `line_total(12, 3)`，应只输出 `Total: 36`。再增加 TooExpensive 失败限制总价，调整 line_total 的签名，并在顶层 try 中处理它。然后去掉这条处理：隐式入口会把 TooExpensive 传出去，stderr 报告载荷，进程以 `EXIT_FAILURE` 退出。把这些语句移进 `fn main() { ... }`，就能看到边界诊断。
+先恢复首个带有顶层 try 的 quantity.cv 程序。把调用改为 `line_total(12, 3)`，应只输出 `Total: 36`。再增加 TooExpensive 失败限制总价，调整 `line_total` 的签名，并在顶层 try 中处理它。然后去掉这条处理：隐式入口会把 TooExpensive 传出去，`stderr` 报告载荷，进程以 `EXIT_FAILURE` 退出。把这些语句移进 `fn main() { ... }`，就能看到边界诊断。

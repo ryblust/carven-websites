@@ -39,7 +39,7 @@ Read 表示函数不能通过该参数写入值，但不保证总是复制实参
 let、var 与 Take 参数是所有者。Take 参数是不可变所有者，可继续 Take。Read/Write 参数、模式/范围绑定、捕获状态和 const 不能作为 Take 源。Take 的操作数必须是完整所有者或临时值，不能 Take 仍可用完整所有者的字段或元素。
 
 ```carven run
-fn relay<T>(&&value: T) -> T => &&value;
+fn relay<T>(&&value: T) -> T => value;
 
 var values: Vector<i32> = [1, 2, 3];
 let moved = relay(&&values);
@@ -51,7 +51,7 @@ println(moved.length(), values.length()); // 3 2
 
 从拥有存储的临时值中取字段时，会按值返回该字段。`(&&owner).field` 先转移整个所有者，再取字段；源仅求值一次，完整值保留到完整表达式结束，其他字段正常清理。`owner.field` 只是 Read，不会转移所有权。不能返回指向即将销毁的临时内容的视图。
 
-Take 即使对可复制类型也令源不可用；生成 C++ 操作须保留所有权与可观察效果。返回具名所有者要求复制该值；需要转移时写 `return &&owner;`，返回本身不隐式选择 Take。CV-LINT-RETURN-COPY 在所有调用上下文允许 Take 时提示含 String 且无原生成分的返回复制；`return &&owner;` 显式转移。
+Take 即使对可复制类型也令源不可用；生成的 C++ 操作须保留所有权与可观察效果。返回当前函数或 lambda 的完整局部 `let`、`var` 所有者或 Take 参数时，直接写名字会隐式转移；括号和表达式体遵循同一规则。活跃借用阻止 Take 时也阻止这种返回。Read/Write 参数、捕获、字段和索引元素保留普通访问规则。需要复制可复制的 `T` 类型所有者时，写 `return owner as T;`。
 
 完整 var 的普通赋值仅在右侧成功后恢复可用性；字段赋值、复合赋值与更新要求旧值可用。先执行条件中的操作，再根据能够确定的 bool 结果分析所有权路径；未知条件合并所有可能路径，循环分析同时考虑零次迭代和从循环体返回循环头的路径。`x = relay(&&x)` 成功可恢复 x，失败仍不可用；`x = &&x` 含括号形式非法。
 

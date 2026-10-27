@@ -8,9 +8,9 @@ source: docs/language/modules.md
 
 ## 三种导入路径
 
-`import` 用于在当前文件中使用另一个模块的声明。例如 `import std::json using Value;` 引入 JSON 值类型。导入放在其他声明之前，不执行被导入模块，也不自行在文件系统中寻找源码。
+`import` 用于在当前文件中使用另一个模块的声明。例如 `import std::json using JSONValue;` 引入 JSON 值类型。导入放在其他声明之前，只绑定声明，不执行被导入模块的程序入口；分析阶段仍会执行必需的静态工作。
 
-一次编译要用到哪些源文件，由命令行或构建系统预先提供。导入只在这些源模块和编译器提供的标准模块中解析。每个源文件有非空规范模块路径，组件形如 `[A-Za-z_][A-Za-z0-9_]*`，可使用关键字拼写。文件到路径的映射属于驱动策略。
+命令行或构建系统提供显式源码根，以及项目和 Craft 的候选模块。导入从候选中选出可达的源码依赖闭包，语义名字解析使用已加载模块和编译器提供的标准声明。每个源文件有非空规范模块路径，组件形如 `[A-Za-z_][A-Za-z0-9_]*`，可使用关键字拼写。文件到路径的映射属于驱动策略。
 
 `crafts.<name>.<path>` 属于 crafts.<name> 的模块域；须同时有 name 和非空 path。其他路径属于无前缀模块域，非首位 crafts 组件没有特殊含义。官方 craft 为 carven，`std::utf` 选择 `crafts.carven.std.utf`。
 
@@ -27,7 +27,9 @@ source: docs/language/modules.md
 
 编译器提供的声明不要求相应源文件，源码模块的公开声明必须来自同一编译批次中的文件；标准入口可同时包含两类声明，冲突非法。目录前缀仅分组路径，不隐式导入子模块。C++ 头文件导入提供原生声明，独立于 Carven 模块解析。
 
-批次中的所有源码都接受检查，包括未被导入的模块。导入绑定仅在当前模块内可见，不重新导出。实际引用唯一选中的绑定才算使用；未使用的导入声明报告 `CV-LINT-UNUSED-IMPORT`。
+显式根即使未被其他模块导入，也接受检查；导入到达的依赖同样接受检查，未使用的候选文件不参与分析。导入绑定仅在当前模块内可见，不重新导出。实际引用唯一选中的绑定才算使用；未使用的导入声明报告 `CV-LINT-UNUSED-IMPORT`。
+
+带 `using { ... }` 列表的导入以 `}` 结束，不写分号。单名与通配导入以分号结束；C++ 头文件导入遵循同一规则。
 
 ## 标准模块与默认名字
 
@@ -46,16 +48,17 @@ source: docs/language/modules.md
 
 下表列出公开的编译器导出及其模块的默认绑定，源码模块还可以补充其他公开声明。
 
-| 模块         | 编译器提供的导出                                                                                               | 默认绑定               |
-| ------------ | -------------------------------------------------------------------------------------------------------------- | ---------------------- |
-| std::core    | 标量、文本、void、Vector、Range、assert、addressof                                                             | 上述名字               |
-| std::io      | print、println、eprint、eprintln                                                                               | 打印名字与源定义 stdin |
-| std::testing | check、require、fail                                                                                           | 上述名字               |
-| std::async   | Operation、cancel_requested、cancel_point、yield_once、wait_ready、close、when_all、when_any、first_successful | 无                     |
-| std::simd    | u8x16、mask16、f32x4、mask4、u8x32、mask32、f32x8、mask8                                                       | 上述名字               |
-| std::time    | timeout                                                                                                        | 无                     |
+| 模块               | 编译器提供的导出                                                                                               | 默认绑定                 |
+| ------------------ | -------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| std::core          | 标量、文本、void、Vector、Range、assert、addressof                                                             | 上述名字                 |
+| std::io            | `print`、`println`、`eprint`、`eprintln`                                                                       | 打印名字与源定义 `stdin` |
+| std::testing       | check、require、fail                                                                                           | 上述名字                 |
+| std::async         | Operation、cancel_requested、cancel_point、yield_once、wait_ready、close、when_all、when_any、first_successful | 无                       |
+| std::simd          | u8x16、mask16、f32x4、mask4、u8x32、mask32、f32x8、mask8                                                       | 上述名字                 |
+| std::time          | timeout                                                                                                        | 无                       |
+| `std::collections` | `Hash`, `Equal`                                                                                                | 均默认可见               |
 
-显式导入默认名字参与普通使用跟踪。测试辅助函数需要正在执行的测试上下文，assert 在测试外可用。stdin 默认绑定与显式 std::io 导入选择同一源声明；char::from_u32 与 str::from_utf8 也分别复用 std::utf 的 char_from_u32/from_utf8 声明。
+显式导入默认名字参与普通使用跟踪。测试辅助函数需要正在执行的测试上下文，assert 在测试外可用。`stdin` 默认绑定与显式 std::io 导入选择同一源声明；char::from_u32 与 str::from_utf8 也分别复用 std::utf 的 char_from_u32/from_utf8 声明。
 
 导入函数不同时绑定其签名里的所有类型。可以通过类型推断使用结果和传播失败，不必显式写出类型名；注解、构造或处理器里命名非默认类型须显式导入。Duration 字面量无需导入，命名 Duration 须从 std::time 导入；数值 parse 同理，命名 NumberParseError 须从 std::core 导入。
 
@@ -69,12 +72,12 @@ source: docs/language/modules.md
 
 ```carven
 import std::core using String as Text;
-import std::async using { Operation, when_all as join };
+import std::async using { Operation, when_all as join }
 import std::simd.bytes using load_block as load_bytes;
 import std::simd.floats using load_block as load_floats;
 ```
 
-`as` 前按目标模块可见性检查导出名，别名是该选择唯一引入的局部名；两者均须普通标识符。单项与列表规则相同，通配导入无别名。不同局部名可选同一实体，重复局部名非法。别名保留身份、类型、所有权、失败和调用契约。默认绑定独立存在，`print as write` 不移除默认 print。导入顺序不改变解析或冲突。
+`as` 前按目标模块可见性检查导出名，别名是该选择唯一引入的局部名；两者均须普通标识符。单项与列表规则相同，通配导入无别名。不同局部名可选同一实体，重复局部名非法。别名保留身份、类型、所有权、失败和调用契约。默认绑定独立存在，`print as write` 不移除默认 `print`。导入顺序不改变解析或冲突。
 
 ## 声明与名字查找
 
@@ -97,3 +100,5 @@ import std::simd.floats using load_block as load_floats;
 | export       | 编译边界内跨 craft |
 
 可见性取决于定义 craft，不取决于导入拼写；std:: 属于 carven craft。普通应用模块共享无前缀域。声明在自身模块总可见。公开接口的可见性检查会递归检查参数、结果、失败、可调用值、字段、载荷、底层类型、数组，以及常量规范化后的类型和值，不能把对使用者不可见的类型暴露出去；违反报告 CV-TYPE-VISIBILITY-LEAK。函数体，以及常量计算完成后不再出现在结果中的内部类型，不属于公开接口。类私有字段可用模块私有类型，类操作仍遵循声明的可见范围。
+
+普通项目中跨文件共享 API 使用裸声明，跨 Craft 的 Carven API 使用 `export`。`export(cpp)` 只请求生成 C++ 可调用接口，其 Carven 可见性仍与裸函数相同，签名中的项目类型不必额外 `export`。`export` 和 `export(cpp)` 不能叠加；需要两个公开边界时，用独立声明复用普通项目实现。

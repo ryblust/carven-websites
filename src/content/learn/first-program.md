@@ -8,31 +8,36 @@ source: docs/language/tutorial.md
 
 This is the first hands-on chapter. See the [tutorial overview](/learn/) for the learning route and final project.
 
-## Prepare the compiler
+## Install Carven 0.1.0
 
-Use `carven` with its matching [Crafts resources](https://github.com/ryblust/carven/blob/main/docs/toolchain/cli.md#source-collection). For a source build, follow the [compiler build instructions](https://github.com/ryblust/carven#development); they explain where to find the built executable.
-
-Add the directory containing `carven` (`carven.exe` on Windows) to `PATH`. Replace the example path with that directory's absolute path.
+Install the [0.1.0 toolchain](https://github.com/ryblust/carven/releases/tag/v0.1.0) for macOS Apple Silicon, Linux x64, or Windows x64. It includes the compiler, formatter, language server, analyzer, Crafts, and C++ hosting SDK. The installers verify the archive checksum. No Node.js or compiler build is needed for installation.
 
 On macOS and Linux:
 
 ```sh
-export PATH="/absolute/path/to/compiler-directory:$PATH"
+curl -fsSL https://github.com/ryblust/carven/releases/download/v0.1.0/install.sh | sh -s -- --version 0.1.0
+export PATH="$HOME/.local/bin:$PATH"
 ```
+
+The installer places the toolchain in `$XDG_DATA_HOME/carven`, or `~/.local/share/carven` when that variable is unset or empty, and links its commands into `~/.local/bin`.
 
 In Windows PowerShell:
 
 ```powershell
-$env:Path = "C:\path\to\compiler-directory;$env:Path"
+Invoke-WebRequest https://github.com/ryblust/carven/releases/download/v0.1.0/install.ps1 -OutFile install.ps1
+.\install.ps1 -Version 0.1.0
+$env:Path = "$env:LOCALAPPDATA\Programs\Carven\bin;$env:Path"
 ```
 
-These changes apply to the current terminal. To keep them for future terminals, add the directory in your shell startup configuration or Windows user `Path`. Check that the command is available:
+The `PATH` changes above apply to the current terminal. Add the same command directory to your shell startup configuration or Windows user `Path` for future terminals. Verify the installed version:
 
 ```sh
 carven --version
 ```
 
-Carven generates C++20. Native execution also needs a C++20-capable compiler, SDK, and linker in your environment. The default compiler is `clang++`; set `CXX` to select another compiler. Interpretation and semantic checking do not require native compilation.
+It prints `carven v0.1.0`. Keep the toolchain directory together so its commands can find their matching Crafts and companion tools. To build the compiler yourself, follow the [source build instructions](https://github.com/ryblust/carven/blob/v0.1.0/README.md#development).
+
+Carven generates C++20. Native execution needs a C++20-capable compiler, SDK, and linker in your environment. The default compiler is `clang++`; set `CXX` to select another compiler. Interpretation and semantic checking do not require native compilation.
 
 ## Write your first file
 
@@ -49,7 +54,7 @@ println("Order total:", unit_price * quantity);
 Click **Run** in the code block to execute this example in your browser. To run the saved file locally:
 
 ```sh
-carven main.cv
+carven run main.cv
 ```
 
 Output:
@@ -58,7 +63,7 @@ Output:
 Order total: 3600
 ```
 
-Direct execution generates C++, compiles it, links it, and runs the executable. See the [toolchain reference](/reference/toolchain/) to select a native compiler.
+`carven run` generates C++, compiles it, links it, and runs `build/main` (`build/main.exe` on Windows). See the [toolchain reference](/reference/toolchain/) to select a native compiler.
 
 ## Inspect the generated result
 
@@ -66,7 +71,7 @@ Direct execution generates C++, compiles it, links it, and runs the executable. 
 carven compile --stdout main.cv
 ```
 
-compile only generates artifacts. `--stdout` separates files with filename headings for inspection. To use the output in a build, write it to a directory:
+`carven compile` only generates artifacts. `--stdout` separates files with filename headings for inspection. To use the output in a build, write it to a directory:
 
 ```sh
 carven compile -o generated main.cv
@@ -78,7 +83,7 @@ This program also fits the interpreter's supported subset:
 carven interpret main.cv
 ```
 
-The output is still Order total: 3600. Use this command when you want to run supported Carven code without compiling C++. Later chapters use native execution by default, so their examples also work when they call C++ or create capturing closures.
+The output is still `Order total: 3600`. Use this command when you want to run supported Carven code without compiling C++. Later chapters use native execution by default. Capturing closures also work in the interpreter; arbitrary C++ calls require native execution or an explicit host binding.
 
 ## Check without running
 
@@ -86,7 +91,7 @@ The output is still Order total: 3600. Use this command when you want to run sup
 carven check main.cv
 ```
 
-check validates the source without running the program; explicitly requested compile-time work still executes. A successful check prints `carven: check passed` on stderr. Add `--timings` to see stage durations on stderr:
+`carven check` validates the source without running the program; explicitly requested compile-time work still executes. A successful `check` returns status 0; diagnostics and requested compile-time output remain observable. Add `--timings` to see stage durations on `stderr`:
 
 ```sh
 carven check --timings main.cv
@@ -94,7 +99,7 @@ carven check --timings main.cv
 
 ## Saving and running later examples
 
-Unless a lesson gives another filename, save each complete example as main.cv. Replace the previous example. Run `carven main.cv`. If a chapter contains several complete programs, run them separately rather than joining them in one file or batch. File names must be valid identifiers: `main.cv` and `order_items.cv` work, `my-file.cv` does not.
+Unless a lesson gives another filename, save each complete example as `main.cv`. Replace the previous example. Run `carven run main.cv`. If a chapter contains several complete programs, run them separately rather than joining them in one file or batch. File names must be valid identifiers: `main.cv` and `order_items.cv` work, `my-file.cv` does not.
 
 A fragment that extends an earlier program says which declarations to keep. Multi-file examples list every file to pass to the compiler. The testing chapter introduces the separate commands for running tests; ordinary execution runs the application, not its tests.
 
@@ -102,7 +107,7 @@ Run each lesson from its exercise directory. Source paths are relative to that d
 
 ## Give the entry a name
 
-Top-level statements suit short programs. When you want the entry to stand apart from reusable functions, name it main instead. Replace the whole file with:
+Top-level statements suit short programs. When you want the entry to stand apart from reusable functions, name it `main` instead. Replace the whole file with:
 
 ```carven run
 fn main() {
@@ -112,7 +117,7 @@ fn main() {
 }
 ```
 
-It prints the same output. `fn main()` declares the program entry; its braces contain the statements to execute. A program may have only one entry: use either top-level executable statements or main. The next chapters keep using top-level statements and add functions and types above them; later chapters use main where a named entry helps.
+It prints the same output. `fn main()` declares the program entry; its braces contain the statements to execute. A module uses either top-level executable statements or `main` as its entry. Each executable selects one entry. The next chapters keep using top-level statements and add functions and types above them; later chapters use `main` where a named entry helps.
 
 ## Exercise
 

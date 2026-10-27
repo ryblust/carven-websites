@@ -30,15 +30,15 @@ stock = 1;
 println(snapshot, sent, stock);
 ```
 
-把程序保存为练习目录中的 access.cv，运行 `carven access.cv`，输出 `7 9 1`。read_stock 不改变 stock，restock 把它从 7 改为 9，dispatch 则取走它的值。调用者必须先重新赋值，才能再次读取 stock。这三种方式分别叫 Read、Write、Take。调用处重复参数标记，让读代码的人看得见授予了哪种访问。
+把程序保存为练习目录中的 access.cv，运行 `carven run access.cv`，输出 `7 9 1`。`read_stock` 不改变 stock，`restock` 把它从 7 改为 9，`dispatch` 则取走它的值。调用者必须先重新赋值，才能再次读取 stock。这三种方式分别叫 Read、Write、Take。调用处重复参数标记，让读代码的人看得见授予了哪种访问。
 
-stock 在 dispatch 后不可用，给整个变量重新赋值后，`var` 才能再次使用。即使 `i32` 可复制，Take 也会使源变量不可用。`let` 不能通过赋值恢复，因为它不可写。
+stock 在 `dispatch` 后不可用，给整个变量重新赋值后，`var` 才能再次使用。即使 `i32` 可复制，Take 也会使源变量不可用。`let` 不能通过赋值恢复，因为它不可写。
 
 ## 复制不是转移
 
-局部变量负责保管自己存放的值，这样的变量称为拥有者（owner）。`let copy = value;` 创建另一个值，原变量仍可使用。对于 String，副本有独立的文本字节；对于 Vector，副本有独立的元素。`let moved = &&value;` 则把值交出去，原变量随后不能再使用。
+局部变量负责保管自己存放的值，这样的变量称为拥有者（owner）。`let copy = value;` 创建另一个值，原变量仍可使用。对于 `String`，副本有独立的文本字节；对于 `Vector`，副本有独立的元素。`let moved = &&value;` 则把值交出去，原变量随后不能再使用。
 
-返回一个命名变量时也默认复制。函数要把已经构造好的结果交给调用者时，写 `return &&result;`。后面创建集合的函数会使用这种返回方式。
+按名字返回局部完整拥有者或 Take 参数时，会自动转移：写 `return result;`，或 `fn finish(&&value: String) -> String => value;`。有效借用仍会阻止转移。在调用实参和赋值中取走命名拥有者时，继续显式使用 `&&`。
 
 Take 转移的是具有所有权的完整值，不能只抽走某个字段，却让原记录继续可用。如果只需要该字段，先转移整条记录，再选择字段：
 
@@ -53,7 +53,7 @@ let label = (&&order).label;
 println(label);
 ```
 
-输出 `bolts`。String 是自己保存内容的文本类型，下一章会详细介绍。执行 `(&&order).label` 后，label 得到文本，order 不能再使用，不需要的 quantity 正常清理。若写普通的 `order.label`，则复制标签，order 仍可使用。只负责读取或修改调用者数据的参数不能把它取走；Take 参数才有这项权限。
+输出 `bolts`。`String` 是自己保存内容的文本类型，下一章会详细介绍。执行 `(&&order).label` 后，label 得到文本，order 不能再使用，不需要的 quantity 正常清理。若写普通的 `order.label`，则复制标签，order 仍可使用。只负责读取或修改调用者数据的参数不能把它取走；Take 参数才有这项权限。
 
 ## 多个 Write 参数可以访问同一数据
 
@@ -72,7 +72,7 @@ println(stock);
 
 两个操作有意共用一个计数器时，可以使用这种接口。Write 允许共享，并不承诺独占访问。若还有只读文本或切片视图，可能使视图失效的修改仍会被禁止。
 
-读取数字时，为本次调用保存该数值；读取 String 或数组时，不会为读取而复制全部内容。如果另一个参数修改同一份数据，后面的读取可能看到修改结果。需要保留之前的内容时，应先创建独立副本。
+读取数字时，为本次调用保存该数值；读取 `String` 或数组时，不会为读取而复制全部内容。如果另一个参数修改同一份数据，后面的读取可能看到修改结果。需要保留之前的内容时，应先创建独立副本。
 
 ## 修改每个元素
 
@@ -88,7 +88,7 @@ for &count in counts {
 println(counts[0], counts[1], counts[2]);
 ```
 
-运行 `carven main.cv`，输出 `5 7 9`。`for &count` 为每个现有元素绑定 Write 访问，数组必须可修改。去掉 `&` 后，循环绑定为 Read，`count += 2` 会被拒绝。相同写法也能修改可变 Vector 的元素。
+运行 `carven run main.cv`，输出 `5 7 9`。`for &count` 为每个现有元素绑定 Write 访问，数组必须可修改。去掉 `&` 后，循环绑定为 Read，`count += 2` 会被拒绝。相同写法也能修改可变 `Vector` 的元素。
 
 ## 求值期间的冲突
 
@@ -98,7 +98,7 @@ println(counts[0], counts[1], counts[2]);
 
 ## 保持借用存储有效
 
-两个文本副本需要各自使用时，复制很方便。若函数只想读取现有文本，视图可以省去复制。视图指向原 String，所以视图存在时，原 String 必须保持存活且不能修改。
+两个文本副本需要各自使用时，复制很方便。若函数只想读取现有文本，视图可以省去复制。视图指向原 `String`，所以视图存在时，原 `String` 必须保持存活且不能修改。
 
 保存为 borrow.cv：
 
@@ -113,7 +113,7 @@ text.append(" + C++");
 println(text);
 ```
 
-先输出 `Carven`，再输出 `Carven + C++`。内层花括号限制 view 的生命周期。离开花括号后，append 就能安全修改 text。把 append 移到内层、放在 println(view) 前面，编译器会报告 `CV-ACCESS-BORROW-CONFLICT`：修改原文本可能使视图失效。复制视图既不复制文本，也不解除这个限制。
+先输出 `Carven`，再输出 `Carven + C++`。内层花括号限制 view 的生命周期。离开花括号后，append 就能安全修改 text。把 append 移到内层、放在 `println(view)` 前面，编译器会报告 `CV-ACCESS-BORROW-CONFLICT`：修改原文本可能使视图失效。复制视图既不复制文本，也不解除这个限制。
 
 [文本章节](/zh/learn/text/)会继续讲怎样选择独立副本或借用视图。
 
@@ -143,14 +143,14 @@ let sent = stock.dispatch();
 println(sent);
 ```
 
-运行 `carven stock.cv`，输出：
+运行 `carven run stock.cv`，输出：
 
 ```text
 Stock 9
 9
 ```
 
-只有类体内的代码能读取 units 或构造 Stock。外部代码通过 `Stock::new` 创建值；这是一个没有接收者的关联函数。`self` 读取接收者，`&self` 写入接收者，`&&self` 取走接收者。方法调用不必为接收者写标记，但访问规则仍然适用。`stock.restock(2)` 要求 var。执行 `stock.dispatch()` 后，须先给 stock 赋新值再使用，例如 `stock = Stock::new(1);`。
+只有类体内的代码能读取 units 或构造 `Stock`。外部代码通过 `Stock::new` 创建值；这是一个没有接收者的关联函数。`self` 读取接收者，`&self` 写入接收者，`&&self` 取走接收者。方法调用不必为接收者写标记，但访问规则仍然适用。`stock.restock(2)` 要求 `var`。执行 `stock.dispatch()` 后，须先给 stock 赋新值再使用，例如 `stock = Stock::new(1);`。
 
 类仍是普通值，其内容如何复制和清理由字段类型决定。打印只显示类名。构造、访问与比较规则见[类参考](/zh/reference/aggregates/)。
 
@@ -159,7 +159,7 @@ Stock 9
 元组可以同时带回标签与数量。若下一步只需要标签，而你还要使用数量，先为它们分别命名：
 
 ```carven run
-fn finish(&&label: String) -> String => &&label;
+fn finish(&&label: String) -> String => label;
 
 let (label, count) = ("accepted" as String, 3);
 let delivered = finish(&&label);
@@ -173,15 +173,15 @@ println(delivered, count);
 包装函数有时只需要传递完整结果，不关心它具体是什么类型。前面泛型记录中的类型参数 T，也可以让函数保留调用者的类型：
 
 ```carven run
-fn relay<T>(&&value: T) -> T => &&value;
+fn relay<T>(&&value: T) -> T => value;
 
 let label: String = "accepted";
 let delivered = relay(&&label);
 println(delivered);
 ```
 
-输出 `accepted`，编译器推断 T 为 String。relay 接过标签，再把它交给调用者，原来的 label 随后不再可用。函数不能假设每一种 T 都可复制，但 Take 参数给了它一个可完整转交的值。需要用同一个包装函数传递不同类型的结果时，可以使用这个模式。
+输出 `accepted`，编译器推断 T 为 `String`。`relay` 接过标签，再把它交给调用者，原来的 label 随后不再可用。函数不能假设每一种 T 都可复制，但 Take 参数给了它一个可完整转交的值。需要用同一个包装函数传递不同类型的结果时，可以使用这个模式。
 
 ## 练习
 
-从 access.cv 删除 `stock = 1;`，再尝试打印 stock，应得到 `CV-ACCESS-UNAVAILABLE`。然后同时去掉 dispatch 参数和调用实参中的 `&&`。改用 Read 后，不必先恢复 stock 就能打印它，值为 9。然后在 stock.cv 顶层打印 `stock.units`，应得到 `CV-ACCESS-CLASS-PRIVATE`；把 `var stock` 改成 `let stock`，`stock.restock(2)` 处应报告 `CV-ACCESS-IMMUTABLE`。
+从 access.cv 删除 `stock = 1;`，再尝试打印 stock，应得到 `CV-ACCESS-UNAVAILABLE`。然后同时去掉 `dispatch` 参数和调用实参中的 `&&`。改用 Read 后，不必先恢复 stock 就能打印它，值为 9。然后在 stock.cv 顶层打印 `stock.units`，应得到 `CV-ACCESS-CLASS-PRIVATE`；把 `var stock` 改成 `let stock`，`stock.restock(2)` 处应报告 `CV-ACCESS-IMMUTABLE`。

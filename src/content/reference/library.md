@@ -27,6 +27,21 @@ Named built-ins follow ordinary name lookup and can be shadowed. See [standard m
 | Imported async built-ins     | [Operation, composition, cancellation, and closure](/reference/async/)        |
 | Imported timeout built-in    | [Timeout composition](/reference/time/#deadlines)                             |
 
+## Try complete programs
+
+The native project tutorial provides complete files and local commands. Open a browser example to execute it, change its inputs, and inspect the result. Choose **Test** for the async test example.
+
+| Task                                                    | Complete example                                               | Rules and explanation                                                         |
+| ------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Build an application and run its same-file inline tests | [Build a native project](/learn/build/)                        | [Build and query API](/reference/build/)                                      |
+| Parse TOML and summarize with hash collections          | [TOML summary](/playground/#example=toml-summary)              | [TOML](/reference/toml/), [collections](/reference/collections/)              |
+| Execute a closure policy at compile time and runtime    | [Closure policy](/playground/#example=closure-policy)          | [Closures](/learn/closures/), [static execution](/reference/constants/)       |
+| Transfer owned bytes through a bounded channel          | [Producer and consumer](/playground/#example=channel-pipeline) | [Byte channels](/reference/channel/), [async](/learn/async/)                  |
+| Write and read a report in the browser filesystem       | [File report](/playground/#example=file-report)                | [Files and paths](/reference/fs/)                                             |
+| Run tests that await child tasks                        | [Async tests](/playground/#example=async-tests)                | [Testing](/learn/testing/), [async test contracts](/reference/entry-testing/) |
+
+Use the same language for native projects: start with the [declarative build](https://github.com/ryblust/carven/tree/v0.1.0/examples/build/declarative), then [read TOML, generate source, and assemble a build plan](https://github.com/ryblust/carven/tree/v0.1.0/examples/build/imperative). The [build API](/reference/build/) defines targets, dependencies, and queries; [tools and workflow](/learn/workflow/) gives the working steps.
+
 ## APIs by module
 
 Choose a module by task. The table includes compiler-provided types and operations and source-defined library APIs.
@@ -43,6 +58,12 @@ Choose a module by task. The table includes compiler-provided types and operatio
 | Owned JSON trees, validation, parsing, writing                     | `std::json`                                             | [JSON](/reference/json/)                                                                                                     |
 | TCP reads and writes over host connections                         | `std::net`                                              | [Networking](/reference/net/)                                                                                                |
 | Test assertions and reports                                        | `std::testing`                                          | [Tests](/reference/entry-testing/)                                                                                           |
+| Owned maps, sets, hashing, and byte digests                        | `std::collections`                                      | [Collections](/reference/collections/)                                                                                       |
+| Bounded messages between async tasks                               | `std::channel`                                          | [Channels](/reference/channel/)                                                                                              |
+| Files, directories, and paths                                      | `std::fs`                                               | [Filesystem](/reference/fs/)                                                                                                 |
+| Host queries and child processes                                   | `std::process`                                          | [Processes](/reference/process/)                                                                                             |
+| Owned TOML trees and borrowed traversal                            | `std::toml`                                             | [TOML](/reference/toml/)                                                                                                     |
+| Native plans, project discovery, and compilation                   | `std::build`, `std::compiler`                           | [Project builds](/reference/build/)                                                                                          |
 
 Structural type forms such as `[T]`, `(A, B)`, `ptr<T>`, and `fn(...) -> R` are language syntax. They are listed in the [type directory](/reference/types/#scalar-types); they are not names selected by a module import.
 
@@ -53,14 +74,14 @@ Structural type forms such as `[T]`, `(A, B)`, `ptr<T>`, and `fn(...) -> R` are 
 ```carven run
 import std::async using when_all as join;
 import std::core using String as Text;
-import std::json using { Value, ValueError };
+import std::json using { JSONValue, JSONValueError }
 
-const config = Value::parse(r#"{"workers":4,"enabled":true}"#)?;
+const config = JSONValue::parse(r#"{"workers":4,"enabled":true}"#)?;
 
 async fn title() -> Text => "analysis";
 private async fn workers() -> i64 => config.get("workers")?.as_i64()?;
 
-async fn main() throw ValueError {
+async fn main() throw JSONValueError {
     let (name, count) = await join(title(), workers())?;
     println(f"{name}: {count} workers");
 }

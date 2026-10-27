@@ -10,7 +10,7 @@ Some inputs are fixed before a program starts: route lists, limits, or default s
 
 ## Write and verify one algorithm
 
-Save this as routes.cv. Keep only enabled routes whose paths begin with `/`. starts_with performs that prefix check; the rest is an ordinary filtering loop. The two new forms are const fn, which permits compile-time calls, and const test, which checks a result during compilation:
+Save this as routes.cv. Keep only enabled routes whose paths begin with `/`. `starts_with` performs that prefix check; the rest is an ordinary filtering loop. The two new forms are `const fn`, which permits compile-time calls, and `const test`, which checks a result during compilation:
 
 ```carven run
 import std::utf using starts_with;
@@ -23,11 +23,9 @@ struct Route {
 const fn enabled_paths(routes: [Route]) -> Vector<String> {
     var result: Vector<String> = [];
     for route in routes {
-        if route.enabled && starts_with(route.path, "/") {
-            result.push(route.path);
-        }
+        if route.enabled && starts_with(route.path, "/") => result.push(route.path);
     }
-    return &&result;
+    return result;
 }
 
 const routes: Vector<Route> = [
@@ -55,13 +53,12 @@ The output is `/health` and `/users` on separate lines. This builds a variable-l
 
 ## Build a checked configuration
 
-Save this separate program as config.cv. Parse default JSON configuration during compilation, then edit a runtime copy. `Value::parse` creates a value tree; get selects a member and as_i64 reads it as an integer. set replaces a member with a JSON value, and to_json serializes the tree to a String:
+Save this separate program as config.cv. Parse default JSON configuration during compilation, then edit a runtime copy. `JSONValue::parse` creates a value tree; get selects a member and `as_i64` reads it as an integer. set replaces a member with a JSON value, and `to_json` serializes the tree to a `String`:
 
 ```carven run
-import std::json using Value;
+import std::json using JSONValue;
 
-const defaults = Value::parse(r#"{"retries":3,"enabled":true}"#)?;
-const compact = defaults.to_json()?;
+const defaults = JSONValue::parse(r#"{"retries":3,"enabled":true}"#)?;
 
 const test "configuration" {
     let retries = try {
@@ -70,25 +67,25 @@ const test "configuration" {
         _ => fail("configuration must contain integer retries"),
     };
     check(retries == 3);
-    check(compact == r#"{"retries":3,"enabled":true}"#);
 }
 
 var active = defaults;
-active.set("retries", &&Value::integer(5))?;
+let compact = active.to_json()?;
+active.set("retries", &&JSONValue::integer(5))?;
 println(compact);
 println(active.to_json()?);
 ```
 
-Run `carven config.cv` to print:
+Run `carven run config.cv` to print:
 
 ```text
 {"retries":3,"enabled":true}
 {"retries":5,"enabled":true}
 ```
 
-The `const` initializers require execution during compilation. JSON operations use their ordinary typed failures: `?` is still necessary for a known valid input. If a required compile-time calculation fails without recovery, compilation fails. The configuration test uses catch and fail to turn an unexpected parsing failure into a clear test failure.
+The `const defaults` initializer parses the template during compilation. `let compact` serializes it at runtime. JSON operations use their ordinary typed failures: `?` is still necessary for a known valid input. If a required compile-time calculation fails without recovery, compilation fails. The configuration test uses catch and fail to turn an unexpected value-query failure into a clear test failure.
 
-compact is still a String and defaults is still a Value after preparation. Copying defaults into active gives the running program its own editable configuration. `Value::integer(5)` constructs a JSON number; `&&` transfers it into active through set. The modification therefore changes active without changing defaults or compact.
+The retained defaults keep their `JSONValue` type. Runtime serialization produces compact as a `String`. Copying defaults into active gives the running program its own editable configuration. `JSONValue::integer(5)` constructs a JSON number; `&&` transfers it into active through set. The modification therefore changes active without changing defaults or compact.
 
 ## Recover a parsing failure during preparation
 
@@ -141,7 +138,7 @@ const "prepare data" {
 println("Running");
 ```
 
-`carven check prepare.cv` prints `Preparing 3 routes` during analysis and then reports successful checking. `carven prepare.cv` additionally prints `Running` from its runtime entry. Printing keeps its selected stdout or stderr stream during compilation. `compile --stdout` redirects all compile-time program output to stderr so stdout contains only artifact listings.
+`carven check prepare.cv` prints `Preparing 3 routes` during analysis and returns status 0. `carven run prepare.cv` additionally prints `Running` from its runtime entry. Printing keeps its selected `stdout` or `stderr` stream during compilation. `compile --stdout` redirects all compile-time program output to `stderr` so `stdout` contains only artifact listings.
 
 The optional label identifies the block in diagnostics. A module block executes once and can read constants, but not runtime values. See the [constant reference](/reference/constants/) for execution order and blocks inside functions.
 
@@ -184,7 +181,7 @@ fn scale(value: i32, const divisor: i32) -> i32 {
 println(scale(2, 0), scale(2, 4));
 ```
 
-Run `carven scaling.cv` or `carven interpret scaling.cv`. It prints `0 50`. `const if` selects an arm for each static argument. The zero-divisor instance skips `100 / divisor` in the other arm. Every source arm still receives type, failure, and ownership checks. See the [constant reference](/reference/constants/) for the complete static-selection rules.
+Run `carven run scaling.cv` or `carven interpret scaling.cv`. It prints `0 50`. `const if` selects an arm for each static argument. The zero-divisor instance skips `100 / divisor` in the other arm. Every source arm still receives type, failure, and ownership checks. See the [constant reference](/reference/constants/) for the complete static-selection rules.
 
 ## Exercise
 

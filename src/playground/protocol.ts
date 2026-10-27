@@ -1,4 +1,4 @@
-export type Action = 'run' | 'check' | 'compile' | 'format' | 'ast' | 'tokens';
+export type Action = 'run' | 'test' | 'check' | 'compile' | 'format' | 'ast' | 'tokens';
 
 export interface ExecutionResult {
   stdout: string;

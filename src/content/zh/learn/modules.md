@@ -22,20 +22,20 @@ import math using add;
 println(add(20, 22));
 ```
 
-把两个文件都传给编译器：
+从入口文件运行程序：
 
 ```sh
-carven main.cv math.cv
+carven run main.cv
 ```
 
-输出 42。导入不搜索磁盘，编译批次必须已经包含 math.cv；只传 main.cv 会报告 `CV-IMPORT-RESOLUTION`。输入顺序不控制函数是否能被引用。
+输出 42。导入会在项目中找到 math.cv，并将它选为依赖，无需再次列出该文件。只有从输入根可达的源码参与分析，无关文件不会引入诊断或静态副作用。需要额外选择根模块时仍可显式列出，例如选择要运行测试的模块。
 
 文件名去掉 .cv 后成为模块名的一部分，只能由字母、数字和下划线组成，且不能以数字开头。`my-math.cv` 会被拒绝，改用 `my_math.cv`。
 
 想查看生成的 C++，运行：
 
 ```sh
-carven compile --stdout main.cv math.cv
+carven compile --stdout main.cv
 ```
 
 输出显示 main.cv 与 math.cv 的生成文件。将产物写入目录或用于 C++ 构建的方法见[工具链参考](/zh/reference/toolchain/)。
@@ -61,18 +61,18 @@ fn subtract(left: i32, right: i32) -> i32 => left - right;
 将 main.cv 替换为同时导入两个函数的程序：
 
 ```carven
-import math using { add, subtract };
+import math using { add, subtract }
 
 println(add(20, 22), subtract(20, 4));
 ```
 
-运行 `carven main.cv math.cv`，输出 `42 16`。
+运行 `carven run main.cv`，输出 `42 16`。
 
-用 `carven-format` 排版导入列表；[工作流章节](/zh/learn/workflow/)介绍具体命令。
+`using { ... }` 列表在 `}` 处结束，不加分号；单名字导入以 `;` 结束。用 `carven format` 排版导入列表；[工作流章节](/zh/learn/workflow/)介绍具体命令。
 
 ## 控制声明的可见范围
 
-private 声明只在本模块可见；不带可见性修饰符的声明在同一 Craft 内可见；export 声明对当前批次的所有模块范围可见。普通应用文件共享一个模块范围，所以例子中没有可见性修饰符的 add 可以被 main 导入。
+在自己的项目中跨文件共享函数，使用不带可见性修饰符的声明即可。普通应用文件共享同一个模块范围，所以 main.cv 可以直接导入例子中的 `add`，无需 `export`。仅供本模块使用的辅助函数标记为 `private`；向其他 Craft 提供 API 时才使用 `export`。
 
 要从独立的 Craft 公开函数，创建 crafts/pricing 目录，并保存 crafts/pricing/quote.cv：
 
@@ -90,30 +90,39 @@ import pricing::quote using total;
 println(total(12, 3));
 ```
 
-把这些文件传给编译器：
+运行入口，导入会找到项目中的 pricing Craft：
 
 ```sh
-carven main.cv crafts/pricing/quote.cv
+carven run main.cv
 ```
 
 输出 44。`total` 从 pricing Craft 导出，内部可以调用同一模块的私有辅助函数 `delivery`，main.cv 则不能导入该辅助函数。去掉 `total` 的 `export` 后，它只在 pricing 内可见，main.cv 的导入会被拒绝。
 
 公开接口使用的类型必须对调用者可见。导出类型和函数时的完整规则见[模块可见性参考](/zh/reference/modules/)。
 
-## 用 Xmake 构建项目
+## 描述原生项目
 
-文件增多后由 Xmake 收集批次和原生依赖。在使用 Carven 的项目的 xmake.lua 中：
+在 main.cv 与 math.cv 旁边保存 build.cv：
 
-```text
-add_repositories("carven-xmake-repo https://github.com/ryblust/carven-xmake-repo.git")
-add_requires("carven")
-target("app")
-    set_kind("binary")
-    add_rules("@carven/carven")
-    add_files("src/**.cv")
+```carven
+import std::build using project;
+
+project({
+    targets: [{
+        name: "app",
+        kind: .Executable,
+        sources: ["main.cv"],
+        ...
+    }],
+    ...
+})?;
 ```
 
-规则获取版本匹配的编译器与 Crafts，在 C++ 依赖扫描之前完成生成。原生 include 路径和库是构建输入，不由 Carven import 自动添加。
+预期的 `BuildPlan` 和 `BuildTarget` 提供记录类型，末尾的 `...` 默认初始化未指定字段。main.cv 的导入将 math.cv 选为依赖。用 `carven build` 构建，`carven run` 构建并运行，`carven test` 运行目标的测试，`carven query` 查看源码模型。命令在 build.cv 所在目录执行。
+
+math.cv 包含运行时测试时，也要把它列入目标的 `sources`。导入加载依赖进行分析，显式源码根则选择运行时测试。[构建课程](/zh/learn/build/)会把这条规则用于业务代码旁的内联测试。
+
+已有 Xmake 或 CMake 项目可使用工具链提供的[构建集成](/zh/reference/toolchain/)。原生 include 路径、编译选项和链接库保留在该构建配置中。
 
 ## 导入能力并选择本地名字
 
@@ -127,7 +136,7 @@ let names: Vector<Text> = ["north", "south", "west"];
 write_line(names.length(), names[1]);
 ```
 
-输出 `3 south`。Text 与 String 表示同一种类型，write_line 与 println 调用同一个打印函数。导入名字冲突，或换个本地名字更易读时，可以使用别名；它不会改变类型或函数的行为。
+输出 `3 south`。`Text` 与 `String` 表示同一种类型，write_line 与 `println` 调用同一个打印函数。导入名字冲突，或换个本地名字更易读时，可以使用别名；它不会改变类型或函数的行为。
 
 导入函数只引入函数名；若还要在源码里写出非默认的结果或失败类型，也要另外导入那个类型。
 
@@ -141,4 +150,4 @@ write_line(names.length(), names[1]);
 
 ## 练习
 
-回到最初的 main.cv 与 math.cv。把它们放到 src 下，将 main 的导入改成 `.math`，运行 `carven src/main.cv src/math.cv`。把 add 改成 private，确认另一个模块不能再导入；恢复裸声明。
+回到最初的 main.cv 与 math.cv。把它们放到 src 下，将 main 的导入改成 `.math`，运行 `carven run src/main.cv`。把 `add` 改成 private，确认另一个模块不能再导入；恢复裸声明。

@@ -55,7 +55,23 @@ println(next); // 4
 
 ## 写出访问与转移选择
 
-Write 访问使用 `&`，所有权转移使用 `&&`，闭包捕获也明确写出。阅读调用处，就能看出哪些操作会修改共享存储、哪些会转移所有权。[所有权教程](/zh/learn/ownership/)展示这些选择如何构成函数接口，复制与借用生命周期的完整规则见[参考](/zh/reference/ownership/)。
+写访问使用 `&`，所有权转移使用 `&&`，闭包捕获也明确写出。阅读调用处，就能看出哪些操作会修改共享存储、哪些会转移所有权。[所有权教程](/zh/learn/ownership/)展示这些选择如何构成函数接口，复制与借用生命周期的完整规则见[参考](/zh/reference/ownership/)。
+
+## 保留拥有状态的具体闭包
+
+推导的返回类型可以保留闭包及其复制的捕获值，无需编写可调用包装类型：
+
+```carven run
+const fn shifted(offset: i32) => [offset](value: i32) => value + offset;
+
+const { assert(shifted(2)(40) == 42); }
+
+let add = shifted(2);
+let copy = add;
+println(copy(40)); // 42
+```
+
+`offset` 按值捕获，`add` 拥有这个捕获值，`copy` 拥有独立副本。显式标注 `fn(i32) -> i32` 则要求借用的可调用视图。静态执行和解释执行都支持这些源码闭包。
 
 ## 明确恢复方式与执行阶段
 

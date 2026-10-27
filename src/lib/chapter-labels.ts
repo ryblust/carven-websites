@@ -24,6 +24,7 @@ const labels = {
   '/learn/interop/': ['C++ 互操作', 'C++ interop'],
   '/learn/pointers/': ['地址与非空检查', 'Native addresses'],
   '/learn/project/': ['练习：库存批处理', 'Exercise: inventory'],
+  '/learn/build/': ['用 Carven 构建项目', 'Build with Carven'],
   '/learn/lsp/': ['项目：语言服务器', 'Project: language server'],
   '/learn/workflow/': ['运行、格式化与排错', 'Tools and workflow'],
 } satisfies Record<ChapterPath, readonly [string, string]>;

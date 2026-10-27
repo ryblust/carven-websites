@@ -1,6 +1,57 @@
 import { homeExamples } from '../content/home-examples.ts';
+import { extraExamples } from './extra-examples.ts';
 
 export const playgroundExamples = [
+  {
+    id: 'toml-summary',
+    title: { en: 'Count slow requests by service', zh: '按服务统计慢请求' },
+    description: {
+      en: 'Parse a latency threshold during compilation, exclude ignored services with HashSet, and count slow requests with HashMap.',
+      zh: '编译期解析耗时阈值，用 HashSet 排除忽略的服务，再用 HashMap 统计慢请求。',
+    },
+    defaultView: 'output',
+    source: homeExamples.tomlSummary,
+  },
+  {
+    id: 'closure-policy',
+    title: { en: 'Capture a pricing policy', zh: '捕获报价策略' },
+    description: {
+      en: 'Check a captured fee during compilation, copy the policy, and reuse a generic callback to compare original and updated quotes.',
+      zh: '编译期检查捕获的费用，复制报价策略，再通过泛型回调比较原设置与新设置的报价。',
+    },
+    defaultView: 'output',
+    source: homeExamples.closurePolicy,
+  },
+  {
+    id: 'channel-pipeline',
+    title: { en: 'Bound a producer-consumer queue', zh: '有界生产与消费' },
+    description: {
+      en: 'A one-message ByteChannel suspends sends when full. After the producer closes it, the consumer drains queued batches before reaching the end.',
+      zh: '容量为一条消息的 ByteChannel 满载后暂停发送；生产者关闭通道后，消费者先排空已入队批次，再读到结束。',
+    },
+    defaultView: 'output',
+    source: extraExamples.channelPipeline,
+  },
+  {
+    id: 'file-report',
+    title: { en: 'Build a release report from files', zh: '从文件生成发布报告' },
+    description: {
+      en: 'Write a sample TOML manifest, read and total its artifacts, then save a report. Files are isolated to this invocation.',
+      zh: '写入示例 TOML 清单，读取并汇总产物，再保存报告。文件仅存在于本次调用的隔离环境。',
+    },
+    defaultView: 'output',
+    source: extraExamples.fileReport,
+  },
+  {
+    id: 'async-tests',
+    title: { en: 'Test async work and cleanup', zh: '测试异步工作与清理' },
+    description: {
+      en: 'Use async tests to check independent batch results and child-task cleanup. Check the same subtotal calculation at compile time.',
+      zh: '用异步测试检查独立批次的结果和子任务清理，并在编译期验证相同的合计算法。',
+    },
+    defaultView: 'tests',
+    source: extraExamples.asyncTests,
+  },
   {
     id: 'json-config',
     title: { en: 'JSON configuration', zh: '编译期 JSON 配置' },

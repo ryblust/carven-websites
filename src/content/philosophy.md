@@ -57,6 +57,22 @@ A generic function such as `fn relay<T>(&&value: T) -> T` can transfer a value u
 
 Write access uses `&`; ownership transfer uses `&&`; closure captures are explicit. These markers let a reader identify changes to shared storage and ownership at the call site. The [ownership tutorial](/learn/ownership/) develops function interfaces around those choices; the [reference](/reference/ownership/) defines copying and borrow lifetimes.
 
+## Keep a concrete closure when it owns state
+
+An inferred result can retain a closure and its copied capture. No callable wrapper type is needed:
+
+```carven run
+const fn shifted(offset: i32) => [offset](value: i32) => value + offset;
+
+const { assert(shifted(2)(40) == 42); }
+
+let add = shifted(2);
+let copy = add;
+println(copy(40)); // 42
+```
+
+`offset` is captured by value. `add` owns that capture, and `copy` owns an independent copy. An explicit `fn(i32) -> i32` annotation would instead request a borrowed callable view. Both static execution and interpretation support these source closures.
+
 ## Keep recovery and execution explicit
 
 `?` marks failure propagation, and `try` places recovery where the caller has enough information to act. [Failure contracts](/features/failure-contracts/) follows a parser through propagation and translation.

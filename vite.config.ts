@@ -6,6 +6,7 @@ import { contentPlugin } from './scripts/content/vite.ts';
 import { articles } from './src/generated/manifest.ts';
 import { articleRoutes } from './src/generated/article-routes.ts';
 import { siteUrl } from './src/lib/site-url.ts';
+import compiler from './carven-version.json' with { type: 'json' };
 
 const basePath = `/${(process.env.BASE_PATH || '').replace(/^\/+|\/+$/g, '')}/`.replace('//', '/');
 const siteOrigin = siteUrl('', '/', process.env.SITE_URL)?.replace(/\/$/, '');
@@ -16,12 +17,15 @@ const compilerRevision = readFileSync(
 ).trim();
 if (!/^[0-9a-f]{40}(?:-dirty)?$/.test(compilerRevision))
   throw new Error('Invalid packaged compiler revision. Run pnpm playground:build.');
+if (!process.env.CARVEN_SOURCE_DIR && compilerRevision !== compiler.revision)
+  throw new Error('Packaged compiler differs from carven-version.json. Run pnpm sync.');
 
 export default defineConfig({
   base: basePath,
   define: {
     'import.meta.env.SITE_ORIGIN': JSON.stringify(siteOrigin ?? ''),
     'import.meta.env.COMPILER_REVISION': JSON.stringify(compilerRevision),
+    'import.meta.env.CARVEN_VERSION': JSON.stringify(compiler.version),
   },
   plugins: [
     contentPlugin(),

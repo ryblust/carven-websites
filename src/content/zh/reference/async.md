@@ -34,7 +34,7 @@ async fn main() {
 
 `Operation<void>` 与 `Operation<void, throw ()>` 都以单元值 `()` 成功，没有声明的失败。取消是另一种完成状态，不携带可由类型化 catch 选择的失败载荷。
 
-一个冷操作只能启动和消耗一次。直接 await 在当前任务中运行被等待的工作，只有真正挂起或完成时才结束这段执行，不会因为写了 await 就自动让出执行机会。await 或启动子任务时，具名操作不需要 `&&`；普通所有权转移仍要写 `&&`。
+一个冷操作只能启动和消耗一次。直接 await 在当前任务中运行被等待的工作，只有真正挂起或完成时才结束这段执行，不会因为写了 await 就自动让出执行机会。await 或启动子任务时，具名操作不需要 `&&`；传给 Take 参数仍写 `&&`，返回完整局部所有者或 Take 参数时直接写名字即转移。
 
 操作不可复制或捕获，但可以按普通所有权规则放进局部绑定、字段、元组或固定数组。未使用的具名冷操作在作用域结束时销毁，函数体不会运行；单独写 `next(4);` 这样的冷操作表达式语句则被拒绝。异步成功结果不能再包含另一个操作。
 
@@ -43,10 +43,10 @@ async fn main() {
 ```carven
 import std::async using Operation;
 
-fn relay(&&pending: Operation<i32>) -> Operation<i32> => &&pending;
+fn relay(&&pending: Operation<i32>) -> Operation<i32> => pending;
 ```
 
-`await action()?` 先等待完成，再把声明的失败向外传播，普通 `try/catch` 可以处理这些失败。await 可出现在异步函数体，以及常量初始化器、const 块和编译期测试中；放入实参、返回或循环步进时，仍保持源码求值顺序。
+`await action()?` 先等待完成，再把声明的失败向外传播，普通 `try/catch` 可以处理这些失败。await 可出现在异步函数和异步测试体，以及常量初始化器、`const` 块和编译期测试中；放入实参、返回或循环步进时，仍保持源码求值顺序。
 
 后缀调用、成员访问与索引属于 await 的操作数。要对成功结果继续使用这些操作，先分组：`(await action()).member`。`await action().member` 则先从操作数选择 `.member`，再等待它。末尾的 `?` 位于 await 操作数之外：`await action()?` 传播操作完成时的失败。分组会改变边界：`await (action()?)` 先传播构造操作数时的失败，再等待返回的操作。完整形式见 [await 语法](/zh/reference/grammar/#异步元组与泛型)。
 
@@ -109,7 +109,7 @@ cancel child;
 以下片段接续 next 定义，语句放在异步函数体，导入放在模块开头：
 
 ```carven
-import std::async using { wait_ready, close };
+import std::async using { wait_ready, close }
 
 async let first = next(4);
 async let second = next(8);
@@ -153,7 +153,7 @@ Read 标量在创建冷操作时保存快照；Write 保留调用者的原存储
 
 编译器检查源码能表达的借用、破坏性访问和逃逸。原生 Write 按可能使所选存储失效来检查；原生实现仍负责隐藏引用、重入和有效值，编译器不检查它的 C++ 函数体。结果可以在最终存储位置直接构造，因此支持不可移动的值。
 
-异步函数调用的同步辅助函数，不能通过 require 或 fail 停止测试；创建冷操作与执行其函数体分开检查。执行器单线程且不可重入，深 await 链不会无限增加原生栈，但协作调度不保证公平或取消时延。异步测试、带实例接收者的异步类操作、异步函数值、任意外部 awaitable 类型和跨线程恢复均不支持。
+异步测试及其同步或异步辅助函数可以调用 `check`、`require`、`fail`。失败的 `require` 或 `fail` 停止活动测试根及其子任务，并释放局部值；没有活动测试时执行这些操作违反运行时契约。驱动器单线程、不可重入，深 await 链不无限增加原生栈；协作调度不承诺公平或取消时延。带实例接收者的异步类操作、异步可调用值、任意外部 awaitable 和跨线程恢复仍不支持。
 
 ## 静态参数与执行
 
@@ -183,3 +183,21 @@ const answer = await next(4);
 单事件源可以直接等到就绪或最近的计时器；有多个独立事件源时，每次等待最多十毫秒，以便依次轮询。标准输入有待处理读取时注册自己的事件源。`Driver::attach` 到 `detach` 之间，事件源对象必须保持存活。原生取消在执行器线程调用 `TaskContext::request_cancel()`，以便通知正在等待的计时器。
 
 await 收到成功 char 时会检查 Unicode 标量有效性，即使结果被丢弃也如此。收到失败或取消状态时，会先处理该状态，不读取成功值；销毁未启动的冷操作也不接收结果。组合会在保留选中值或确定最终结果前检查成功的 char，包括后续输入失败的 when_all。原生 C++ 类型继续遵循它们自己的值有效性要求。
+
+## 原生头文件操作与宿主错误
+
+普通头文件调用可以直接初始化显式 `Operation<T, throw Error>`，注解提供源完成契约，由 C++ 检查原生 `AsyncOperation<T, Error>` 表示。构造调用先求实参并执行原生工厂，await 再启动冷操作体。输入仍遵循异步所有权规则；原生实现必须保留或拥有完成所需参数。解释宿主通过类型化绑定驱动原生操作，并将存储保留到完成或取消清理。需要外部事件源的操作还须显式宿主契约。
+
+```carven
+import std::async using Operation;
+import <carven/std/io/native.hpp> using carven::standard::io;
+
+async fn main() {
+    let bytes = Vector<u8>::from_slice("hello\n".bytes);
+    let pending: Operation<i32> = io::write_output(&&bytes);
+    let code = await pending;
+    assert(code == 0);
+}
+```
+
+宿主执行错误停止整个调用并关闭子任务，错误交给执行拥有者。被停止的子任务不能变成成功候选或取消后的回退；源码 `catch` 只处理声明失败。多个根借用同一原生驱动器和事件源时，每次附加均对应分离，最后一个借用结束前事件源保持注册；宿主使驱动器和资源活过全部完成与清理。

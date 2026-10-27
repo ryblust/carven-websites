@@ -32,7 +32,7 @@ jobs:
       - name: Read Pages configuration
         id: pages
         uses: actions/configure-pages@v6
-      - name: Sync compiler, build and verify
+      - name: Build and verify the pinned Carven release
         env:
           BASE_PATH: ${{ steps.pages.outputs.base_path }}
           SITE_URL: ${{ steps.pages.outputs.origin }}
